@@ -20,16 +20,53 @@ export function deliverableKey(sectionKey: KitSectionKey, label: string): Delive
 
 export type KitItemStatus = 'candidate' | 'approved' | 'archived';
 
+/**
+ * Who made this deliverable.
+ *
+ * The Kit is the brand's approved FINAL deliverables, and a user's own
+ * finished business card — the one their printer actually produced — is as
+ * final as anything BrandingOS generates. Both live here; which is which
+ * must never be guessable, because "is this ours or theirs?" decides whether
+ * regenerating is safe.
+ *
+ * Absent on every record written before uploads existed. Read it through
+ * `itemOrigin`, never directly.
+ */
+export type KitItemOrigin = 'generated' | 'uploaded';
+
+/** The file behind an uploaded deliverable. Absent on generated items. */
+export type KitUpload = {
+  url: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  /** Set when the bytes reached Supabase storage rather than a data URL. */
+  storagePath?: string;
+  uploadedAt: string;
+};
+
+/** `variantId` for an uploaded item, which renders from its file, not a template. */
+export const UPLOADED_VARIANT_ID = '__uploaded__';
+
 export type KitItem = {
   id: string;
-  /** BrandKitTemplate id this item renders with. */
+  /** BrandKitTemplate id this item renders with. `UPLOADED_VARIANT_ID` when uploaded. */
   variantId: string;
   status: KitItemStatus;
   /** Per-item customization (content, colors, logo, font picks). */
   customization: SavedCardCustomization | null;
   createdAt: string;
   approvedAt?: string;
+  /** Defaults to 'generated' when absent — see KitItemOrigin. */
+  origin?: KitItemOrigin;
+  /** Present only when origin is 'uploaded'. */
+  upload?: KitUpload;
 };
+
+/** The one place that reads an item's provenance, so the default lives once. */
+export function itemOrigin(item: KitItem): KitItemOrigin {
+  return item.origin ?? 'generated';
+}
 
 export type DeliverableRecord = {
   items: KitItem[];
@@ -41,6 +78,13 @@ export type DeliverableRecord = {
    *  so "Show me more" walks further down the ranked library. */
   seenVariantIds: string[];
   updatedAt: string;
+  /**
+   * Where this deliverable sits in the brand's folder tree — the SAME tree
+   * Library and Designs use. Nullable and absent by default: a deliverable
+   * that has never been filed lives at the root, which is what every existing
+   * record means.
+   */
+  folderId?: string | null;
 };
 
 export type BrandKitState = {

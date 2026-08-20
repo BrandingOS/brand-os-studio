@@ -1037,3 +1037,213 @@
     border-bottom: 1px solid var(--ds-border);
   }
 }
+
+/* ═══ Folders in the grid ════════════════════════════════════════
+ *
+ * A folder is a tile like any other, because it sits in the same grid as the
+ * things it holds. What it gets instead of artwork is a glyph well, and what
+ * it gets instead of a category is a count of what you can see inside it —
+ * which follows the current tab, since the tree is shared and the tab is the
+ * view.
+ */
+
+[data-workspace] .fl-tile--folder .fl-tile-well,
+[data-workspace] .fl-folder-well {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-text-muted);
+  background: var(--ds-surface-subtle);
+}
+[data-workspace] .fl-tile--folder:hover .fl-folder-well {
+  color: var(--ds-text-secondary);
+}
+/* A folder's sub-line is a count, not a category — capitalising it gives
+   "0 Items". */
+[data-workspace] .fl-tile--folder .fl-tile-cat,
+[data-workspace] .fl-row--folder .fl-row-size {
+  text-transform: none;
+}
+
+/* The drop target. A folder must look like it will accept what is over it
+   BEFORE the mouse is released — otherwise a mis-aimed drop is discovered
+   only by hunting for the file afterwards. */
+[data-workspace] .fl-tile[data-drop-active],
+[data-workspace] .fl-row[data-drop-active] {
+  border-color: var(--ds-accent);
+  box-shadow: 0 0 0 2px var(--ds-accent);
+}
+[data-workspace] .fl-tile[data-drop-active] .fl-folder-well {
+  background: color-mix(in srgb, var(--ds-accent) 8%, var(--ds-surface-subtle));
+  color: var(--ds-accent);
+}
+
+[data-workspace] .fl-folder-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-row--folder .fl-row-check {
+  border: none;
+  background: none;
+  cursor: default;
+}
+
+/* ═══ Breadcrumb ═════════════════════════════════════════════════
+ *
+ * The breadcrumb IS the page title: the last crumb is the <h1>, the rest are
+ * links back out. The folder tree is the brand's, so this stays put when the
+ * tab changes.
+ */
+
+[data-workspace] .fl-crumbs {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+[data-workspace] .fl-crumb {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--ds-font);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+[data-workspace] .fl-crumb:hover {
+  color: var(--ds-text);
+}
+[data-workspace] .fl-crumb:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+[data-workspace] .fl-crumb-sep {
+  color: var(--ds-text-muted);
+  opacity: 0.6;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* ═══ Kit ════════════════════════════════════════════════════════ */
+
+/*
+ * Kit renderers are authored for a 260px-wide card and starve when laid out
+ * wider (CLAUDE.md). So the stage is always LAID OUT at 260 and scaled to the
+ * tile — never re-laid-out at the tile's width.
+ */
+[data-workspace] .fl-kit-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--ds-surface);
+}
+[data-workspace] .fl-kit-stage-inner {
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* Provenance. "Is this ours or theirs?" decides whether regenerating is safe,
+   so it is stated, never left to be inferred from the picture. */
+[data-workspace] .fl-kit-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: var(--ds-radius-pill);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .fl-kit-badge[data-origin='uploaded'] {
+  border-color: var(--ds-accent);
+  background: var(--ds-accent);
+  color: var(--ds-accent-fg);
+}
+[data-workspace] .fl-kit-badge--review {
+  left: auto;
+  right: 8px;
+  border-color: var(--ds-warning-border, var(--ds-border));
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning-fg);
+}
+
+[data-workspace] .fl-kit-add-hint {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .fl-kit-slots {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+[data-workspace] .fl-kit-slot-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+[data-workspace] .fl-kit-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: none;
+  font-family: var(--ds-font);
+  font-size: 13px;
+  color: var(--ds-text);
+  cursor: pointer;
+  text-align: left;
+}
+[data-workspace] .fl-kit-slot:hover {
+  background: var(--ds-surface-hover);
+}
+[data-workspace] .fl-kit-slot[data-selected] {
+  border-color: var(--ds-accent);
+  background: var(--ds-surface-hover);
+  font-weight: 600;
+}
+[data-workspace] .fl-kit-slot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+[data-workspace] .fl-kit-slot-name {
+  flex: 1;
+  min-width: 0;
+}
+[data-workspace] .fl-kit-slot-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ds-text-muted);
+  text-transform: uppercase;
+}
+
+/* A note in the list view for the tabs the table columns don't describe. */
+[data-workspace] .fl-list-note {
+  padding: 18px 16px;
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  text-align: center;
+}

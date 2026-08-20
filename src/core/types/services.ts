@@ -222,6 +222,13 @@ export interface DesignSummary {
   /** Phase 5 — pointer back to the source design when this entry IS a
    *  variant. Absent on the source itself. */
   sourceDesignId?: string;
+  /**
+   * Where this design sits in the BRAND's folder tree — the same
+   * `brand_folders` tree Library and Kit use. Nullable and absent by
+   * default: a design that has never been filed lives at the root, which is
+   * what every design written before folders means.
+   */
+  folderId?: string | null;
 }
 
 export interface IDesignStorage {
@@ -246,6 +253,13 @@ export interface IDesignStorage {
    */
   listDesigns(brandId: string): Promise<DesignSummary[]>;
   deleteDesign(brandId: string, designId: string): Promise<void>;
+  /**
+   * File a design in the brand's folder tree. Separate from `saveDesign`
+   * because filing must not require the document BODY — moving a 4 MB design
+   * between folders should not read and rewrite 4 MB, and the Folders page
+   * has only the summary in hand.
+   */
+  moveDesignToFolder(brandId: string, designId: string, folderId: string | null): Promise<void>;
 }
 
 // ─── Comments Service ──────────────────────────────────────────

@@ -67,6 +67,7 @@ function registerServices(brand: Brand) {
     loadDesign: vi.fn(async () => null),
     listDesigns: vi.fn(async () => []),
     deleteDesign: vi.fn(async () => {}),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
 
   serviceContainer.register(SERVICE_KEYS.BRANDS, () => brands);
@@ -189,6 +190,7 @@ describe('Templates panel — open template flow (Phase 4.1)', () => {
       loadDesign: vi.fn(async () => null),
       listDesigns: vi.fn(async () => []),
       deleteDesign: vi.fn(async () => {}),
+      moveDesignToFolder: vi.fn(async () => {}),
     };
     const brands: IBrandsService = {
       list: vi.fn(async () => [brand]),

@@ -53,8 +53,57 @@ vi.mock('@/shared/services/storage.supabase', () => ({
 /** An in-memory stand-in for the ASSETS service, with the calls the page makes. */
 const svc = vi.hoisted(() => {
   const rows: Record<string, unknown>[] = [];
+  const folders: Record<string, unknown>[] = [];
+  let folderSeq = 0;
   return {
     rows,
+    folders,
+    /** Folder ids are asserted on, so the counter resets with the fixture. */
+    resetFolders: () => {
+      folders.length = 0;
+      folderSeq = 0;
+    },
+    listFolders: vi.fn(async () => folders.slice() as never),
+    createFolder: vi.fn(async (input: { brandId: string; name: string; parentId?: string | null }) => {
+      folderSeq += 1;
+      const folder = {
+        id: `f${folderSeq}`,
+        brandId: input.brandId,
+        name: input.name,
+        parentId: input.parentId ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      folders.push(folder);
+      return folder as never;
+    }),
+    renameFolder: vi.fn(async (id: string, name: string) => {
+      const f = folders.find((x) => x.id === id)!;
+      f.name = name;
+      return f as never;
+    }),
+    deleteFolder: vi.fn(async (id: string) => {
+      const doomed = new Set([id]);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const f of folders) {
+          if (f.parentId && doomed.has(f.parentId as string) && !doomed.has(f.id as string)) {
+            doomed.add(f.id as string);
+            grew = true;
+          }
+        }
+      }
+      for (let i = folders.length - 1; i >= 0; i--) {
+        if (doomed.has(folders[i].id as string)) folders.splice(i, 1);
+      }
+      for (const r of rows) if (doomed.has(r.folderId as string)) r.folderId = null;
+    }),
+    moveToFolder: vi.fn(async (id: string, folderId: string | null) => {
+      const row = rows.find((r) => r.id === id)!;
+      row.folderId = folderId;
+      return row as never;
+    }),
     listForBrand: vi.fn(async () => rows.slice() as unknown as Asset[]),
     create: vi.fn(async (input: Record<string, unknown>) => {
       const row = { id: `a${rows.length + 1}`, createdAt: new Date(), tags: [], ...input };
@@ -73,7 +122,11 @@ const svc = vi.hoisted(() => {
   };
 });
 
-const designStorage = vi.hoisted(() => ({ listDesigns: vi.fn(async () => []) }));
+const designStorage = vi.hoisted(() => ({
+  listDesigns: vi.fn(async () => [] as Array<Record<string, unknown>>),
+  deleteDesign: vi.fn(async () => {}),
+  moveDesignToFolder: vi.fn(async () => {}),
+}));
 
 vi.mock('@/core', () => ({
   SERVICE_KEYS: { ASSETS: 'ASSETS', DESIGN_STORAGE: 'DESIGN_STORAGE' },
@@ -84,6 +137,7 @@ import FoldersPage from '../FoldersPage';
 
 function seed(...rows: Partial<Asset>[]) {
   svc.rows.length = 0;
+  svc.resetFolders();
   rows.forEach((r, i) =>
     svc.rows.push({
       id: `a${i + 1}`,
@@ -95,9 +149,23 @@ function seed(...rows: Partial<Asset>[]) {
       size: 2048,
       tags: [],
       createdAt: new Date(2026, 0, i + 1),
+      folderId: null,
       ...r,
     } as Record<string, unknown>),
   );
+}
+
+const folderTiles = () =>
+  Array.from(document.querySelectorAll<HTMLElement>('.fl-tile--folder'));
+
+/** Create a folder through the UI, the way a user would. */
+async function makeFolder(name: string) {
+  // The toolbar's button — the empty state offers one too.
+  fireEvent.click(within(toolbar()).getByRole('button', { name: /new folder/i }));
+  const input = await screen.findByLabelText('Name');
+  fireEvent.change(input, { target: { value: name } });
+  fireEvent.click(screen.getByRole('button', { name: /^Create$/ }));
+  await waitFor(() => expect(screen.queryByLabelText('Name')).toBeNull());
 }
 
 function mount() {
@@ -110,7 +178,8 @@ function mount() {
   );
 }
 
-const tiles = () => Array.from(document.querySelectorAll<HTMLElement>('.fl-tile'));
+const tiles = () => Array.from(document.querySelectorAll<HTMLElement>('.fl-tile--asset'));
+const toolbar = () => document.querySelector('.fl-toolbar') as HTMLElement;
 
 /**
  * A drag event the page can actually read.
@@ -140,7 +209,7 @@ afterEach(cleanup);
 
 /* ───────────────────────────────────────────────────────────────── */
 
-describe('the assets are the page', () => {
+describe('the library is the page', () => {
   it('opens straight into the collection — no permanent dropzone', async () => {
     seed({}, {}, {});
     mount();
@@ -161,7 +230,8 @@ describe('the assets are the page', () => {
     expect(within(toolbar as HTMLElement).getByRole('tablist', { name: 'Library' })).toBeTruthy();
     expect(within(toolbar as HTMLElement).getByLabelText('Search assets')).toBeTruthy();
     expect(within(toolbar as HTMLElement).getByRole('radiogroup', { name: 'View' })).toBeTruthy();
-    expect(within(toolbar as HTMLElement).getByRole('button', { name: /upload assets/i })).toBeTruthy();
+    expect(within(toolbar as HTMLElement).getByRole('button', { name: /^Upload$/ })).toBeTruthy();
+    expect(within(toolbar as HTMLElement).getByRole('button', { name: /new folder/i })).toBeTruthy();
   });
 
   it('uses DS chips for the category filters, with counts', async () => {
@@ -243,7 +313,7 @@ describe('filtering and search', () => {
     await waitFor(() => expect(tiles()).toHaveLength(1));
 
     fireEvent.change(screen.getByLabelText('Search assets'), { target: { value: 'zzz' } });
-    await screen.findByText(/no assets match this filter/i);
+    await screen.findByText(/nothing here matches this filter/i);
 
     fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
     await waitFor(() => expect(tiles()).toHaveLength(1));
@@ -272,7 +342,7 @@ describe('per-asset actions write through', () => {
     await waitFor(() => expect(tiles()).toHaveLength(1));
 
     fireEvent.click(within(tiles()[0]).getByRole('button', { name: 'More actions' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: /move to/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /change category/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Logos' }));
 
     await waitFor(() => expect(svc.update).toHaveBeenCalledWith('a1', { category: 'logo' }));
@@ -327,7 +397,7 @@ describe('uploading is on demand', () => {
     mount();
     await waitFor(() => expect(tiles()).toHaveLength(1));
 
-    fireEvent.click(screen.getByRole('button', { name: /upload assets/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Upload$/ }));
     const zone = document.querySelector('.fl-upload-zone') as HTMLElement;
     expect(zone).toBeTruthy();
 
@@ -362,16 +432,16 @@ describe('the empty brand', () => {
   it('invites the first upload, and that invitation is gone once an asset exists', async () => {
     seed();
     const { unmount } = mount();
-    await screen.findByText(/library is empty/i);
+    await screen.findByText(/has nothing filed yet/i);
     const blank = document.querySelector('.fl-blank') as HTMLElement;
-    expect(within(blank).getByRole('button', { name: /upload assets/i })).toBeTruthy();
+    expect(within(blank).getByRole('button', { name: /upload files/i })).toBeTruthy();
     unmount();
     cleanup();
 
     seed({});
     mount();
     await waitFor(() => expect(tiles()).toHaveLength(1));
-    expect(screen.queryByText(/library is empty/i)).toBeNull();
+    expect(screen.queryByText(/has nothing filed yet/i)).toBeNull();
   });
 });
 
@@ -394,5 +464,188 @@ describe('the detail view', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});
+
+/* ─── One tree, three views ──────────────────────────────────────── */
+
+describe('folders belong to the brand, not to a tab', () => {
+  it('creates a folder where you are standing, and opens into it', async () => {
+    seed({ name: 'logo.png' });
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+
+    await makeFolder('Campaigns');
+    await waitFor(() => expect(folderTiles()).toHaveLength(1));
+
+    fireEvent.click(folderTiles()[0]);
+    // Inside, the breadcrumb names the path and the root's assets are gone.
+    await screen.findByRole('heading', { name: 'Campaigns' });
+    expect(screen.getByRole('button', { name: 'Folders' })).toBeTruthy();
+    await waitFor(() => expect(tiles()).toHaveLength(0));
+  });
+
+  it('nests — Design / Social Media is a folder inside a folder', async () => {
+    seed();
+    mount();
+    await screen.findByText(/has nothing filed yet/i);
+
+    await makeFolder('Design');
+    fireEvent.click(folderTiles()[0]);
+    await screen.findByRole('heading', { name: 'Design' });
+
+    await makeFolder('Social Media');
+    await waitFor(() => expect(folderTiles()).toHaveLength(1));
+    expect(svc.createFolder).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'Social Media', parentId: 'f1' }),
+    );
+  });
+
+  it('keeps the folder when the tab changes — same place, different view', async () => {
+    seed({ name: 'shot.jpg' });
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+    await makeFolder('Summer Launch');
+    fireEvent.click(folderTiles()[0]);
+    await screen.findByRole('heading', { name: 'Summer Launch' });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Designs' }));
+    // Still in Summer Launch, now looking at designs.
+    await screen.findByRole('heading', { name: 'Summer Launch' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Kit' }));
+    await screen.findByRole('heading', { name: 'Summer Launch' });
+  });
+
+  it('shows the same subfolders in every tab', async () => {
+    seed();
+    mount();
+    await screen.findByText(/has nothing filed yet/i);
+    await makeFolder('Campaigns');
+    await waitFor(() => expect(folderTiles()).toHaveLength(1));
+
+    // A folder holding no designs must not vanish under Designs — losing the
+    // path under your feet is the disorientation the shared tree prevents.
+    fireEvent.click(screen.getByRole('tab', { name: 'Designs' }));
+    await waitFor(() => expect(folderTiles()).toHaveLength(1));
+    fireEvent.click(screen.getByRole('tab', { name: 'Kit' }));
+    await waitFor(() => expect(folderTiles()).toHaveLength(1));
+  });
+
+  it('files an asset into a folder from the menu, and it leaves the root', async () => {
+    seed({ name: 'card.png' });
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+    await makeFolder('Print');
+
+    fireEvent.click(within(tiles()[0]).getByRole('button', { name: 'More actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /move to folder/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Print' }));
+
+    await waitFor(() => expect(svc.moveToFolder).toHaveBeenCalledWith('a1', 'f1'));
+    await waitFor(() => expect(tiles()).toHaveLength(0));
+  });
+
+  it('counts what the folder holds, descendants included', async () => {
+    seed({ name: 'one.png' }, { name: 'two.png' });
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(2));
+    await makeFolder('Print');
+
+    for (const label of ['one.png', 'two.png']) {
+      const tile = tiles().find((t) => t.getAttribute('aria-label') === label)!;
+      fireEvent.click(within(tile).getByRole('button', { name: 'More actions' }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: /move to folder/i }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Print' }));
+      await waitFor(() => expect(tiles()).toHaveLength(0), { timeout: 2000 }).catch(() => {});
+    }
+
+    await waitFor(() => expect(within(folderTiles()[0]).getByText('2 items')).toBeTruthy());
+  });
+
+  it('deleting a folder unfiles its contents rather than deleting them', async () => {
+    seed({ name: 'kept.png' });
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+    await makeFolder('Temp');
+
+    fireEvent.click(within(tiles()[0]).getByRole('button', { name: 'More actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /move to folder/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Temp' }));
+    await waitFor(() => expect(tiles()).toHaveLength(0));
+
+    fireEvent.click(
+      within(folderTiles()[0]).getByRole('button', { name: /more actions for temp/i }),
+    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: /delete folder/i }));
+    await screen.findByText(/nothing filed in them is deleted/i);
+    fireEvent.click(screen.getByRole('button', { name: /^Delete folder$/ }));
+
+    // The folder is gone; the asset is back at the root, not destroyed.
+    await waitFor(() => expect(folderTiles()).toHaveLength(0));
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+    expect(svc.delete).not.toHaveBeenCalled();
+  });
+
+  it('refuses a duplicate name among siblings before writing', async () => {
+    seed();
+    mount();
+    await screen.findByText(/has nothing filed yet/i);
+    await makeFolder('Print');
+
+    fireEvent.click(within(toolbar()).getByRole('button', { name: /new folder/i }));
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'print' } });
+    await screen.findByText(/already has that name/i);
+    expect((screen.getByRole('button', { name: /^Create$/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(svc.createFolder).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ─── Kit ────────────────────────────────────────────────────────── */
+
+describe('the kit is deliverables, not storage', () => {
+  it('offers a deliverable slot rather than a generic upload', async () => {
+    seed({});
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Kit' }));
+    await screen.findByText(/no brand deliverables in this folder yet/i);
+
+    fireEvent.click(within(toolbar()).getByRole('button', { name: /add deliverable/i }));
+    await screen.findByRole('dialog');
+    // You choose WHAT the file is; a file with no slot is a Library asset.
+    expect(screen.getByRole('radio', { name: /business card/i })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /letterhead/i })).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: /choose file/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('enables the file picker once a slot is chosen', async () => {
+    seed({});
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+    fireEvent.click(screen.getByRole('tab', { name: 'Kit' }));
+    fireEvent.click(within(toolbar()).getByRole('button', { name: /add deliverable/i }));
+
+    fireEvent.click(await screen.findByRole('radio', { name: /business card/i }));
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: /choose file/i }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+  });
+
+  it('the kit tab does not offer the library upload button', async () => {
+    seed({});
+    mount();
+    await waitFor(() => expect(tiles()).toHaveLength(1));
+    fireEvent.click(screen.getByRole('tab', { name: 'Kit' }));
+
+    await within(toolbar()).findByRole('button', { name: /add deliverable/i });
+    expect(within(toolbar()).queryByRole('button', { name: /^Upload$/ })).toBeNull();
+    expect(within(toolbar()).getByRole('button', { name: /download kit/i })).toBeTruthy();
   });
 });

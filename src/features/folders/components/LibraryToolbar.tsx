@@ -11,8 +11,10 @@
  * DsButton); the only feature-local part is the layout that arranges them.
  */
 import * as React from 'react';
-import { LayoutGrid, List, Search, Upload, X } from 'lucide-react';
+import { Download, FolderPlus, LayoutGrid, List, Search, Upload, X } from 'lucide-react';
 import { DsButton, DsChip, DsInput, DsSegmented, DsTabBar } from '@/shared/ds';
+import type { BrandFolder } from '@/shared/types/brand';
+import { FolderBreadcrumb } from './FolderBreadcrumb';
 import {
   LIBRARY_CATEGORIES,
   categoryLabel,
@@ -20,7 +22,15 @@ import {
   type SortKey,
 } from '../model';
 
-export type LibraryTab = 'assets' | 'designs';
+/**
+ * The three views. They are not three folder systems — the folder tree is
+ * the brand's, and these filter what is shown inside the folder you are in.
+ *
+ *   library  source assets and files
+ *   designs  creative work in progress
+ *   kit      approved final brand deliverables
+ */
+export type LibraryTab = 'library' | 'designs' | 'kit';
 
 const SORT_LABEL: Record<SortKey, string> = {
   recent: 'Newest',
@@ -37,8 +47,14 @@ export interface LibraryToolbarProps {
   totalCount: number;
   /** Rendered when a filter or search narrows the list. */
   filteredCount: number;
-  /** Saved designs, once the Designs panel has loaded them. */
+  /** Saved designs in view, once the Designs panel has loaded them. */
   designCount: number | null;
+  /** Kit deliverables in view. */
+  kitCount: number | null;
+  /** Root → current folder. Empty at the root. */
+  path: BrandFolder[];
+  onNavigateFolder: (folderId: string | null) => void;
+  onNewFolder: () => void;
   category: LibraryCategory;
   onCategoryChange: (category: LibraryCategory) => void;
   counts: Record<LibraryCategory, number>;
@@ -51,6 +67,30 @@ export interface LibraryToolbarProps {
   selectionMode: boolean;
   onToggleSelection: () => void;
   onUpload: () => void;
+  onDownloadKit: () => void;
+  onAddKitDeliverable: () => void;
+  kitBusy: boolean;
+}
+
+function countLabel({
+  tab,
+  totalCount,
+  filteredCount,
+  designCount,
+  kitCount,
+  narrowed,
+}: {
+  tab: LibraryTab;
+  totalCount: number;
+  filteredCount: number;
+  designCount: number | null;
+  kitCount: number | null;
+  narrowed: boolean;
+}): string {
+  const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+  if (tab === 'designs') return designCount === null ? '' : plural(designCount, 'design');
+  if (tab === 'kit') return kitCount === null ? '' : plural(kitCount, 'deliverable');
+  return narrowed ? `${filteredCount} of ${totalCount}` : plural(totalCount, 'asset');
 }
 
 export function LibraryToolbar({
@@ -59,6 +99,10 @@ export function LibraryToolbar({
   totalCount,
   filteredCount,
   designCount,
+  kitCount,
+  path,
+  onNavigateFolder,
+  onNewFolder,
   category,
   onCategoryChange,
   counts,
@@ -71,6 +115,9 @@ export function LibraryToolbar({
   selectionMode,
   onToggleSelection,
   onUpload,
+  onDownloadKit,
+  onAddKitDeliverable,
+  kitBusy,
 }: LibraryToolbarProps) {
   const narrowed = filteredCount !== totalCount;
 
@@ -78,16 +125,8 @@ export function LibraryToolbar({
     <div className="fl-toolbar">
       <div className="fl-toolbar-top">
         <div className="fl-toolbar-identity">
-          <h1 className="fl-title">Folders</h1>
-          <span className="fl-count">
-            {tab === 'designs'
-              ? designCount === null
-                ? ''
-                : `${designCount} ${designCount === 1 ? 'design' : 'designs'}`
-              : narrowed
-                ? `${filteredCount} of ${totalCount}`
-                : `${totalCount} ${totalCount === 1 ? 'asset' : 'assets'}`}
-          </span>
+          <FolderBreadcrumb path={path} onNavigate={onNavigateFolder} />
+          <span className="fl-count">{countLabel({ tab, totalCount, filteredCount, designCount, kitCount, narrowed })}</span>
         </div>
 
         <div className="fl-toolbar-top-right">
@@ -96,22 +135,39 @@ export function LibraryToolbar({
             value={tab}
             onChange={(v) => onTabChange(v as LibraryTab)}
             tabs={[
-              { value: 'assets', label: 'Assets' },
+              { value: 'library', label: 'Library' },
               { value: 'designs', label: 'Designs' },
+              { value: 'kit', label: 'Kit' },
             ]}
           />
-          {tab === 'assets' && (
+          <DsButton tone="tertiary" size="sm" onClick={onNewFolder}>
+            <FolderPlus size={13} strokeWidth={1.8} />
+            New folder
+          </DsButton>
+          {tab === 'library' && (
             <DsButton tone="secondary" size="sm" onClick={onUpload}>
               <Upload size={13} strokeWidth={1.8} />
-              Upload assets
+              Upload
             </DsButton>
+          )}
+          {tab === 'kit' && (
+            <>
+              <DsButton tone="tertiary" size="sm" onClick={onDownloadKit} disabled={kitBusy}>
+                <Download size={13} strokeWidth={1.8} />
+                {kitBusy ? 'Working…' : 'Download kit'}
+              </DsButton>
+              <DsButton tone="secondary" size="sm" onClick={onAddKitDeliverable} disabled={kitBusy}>
+                <Upload size={13} strokeWidth={1.8} />
+                Add deliverable
+              </DsButton>
+            </>
           )}
         </div>
       </div>
 
       {/* Filters, search, sort and view are noise over an empty library —
           there is nothing to narrow. They appear with the first asset. */}
-      {tab === 'assets' && totalCount > 0 && (
+      {tab === 'library' && totalCount > 0 && (
         <div className="fl-toolbar-bottom">
           <div className="fl-filters" role="group" aria-label="Filter by category">
             {LIBRARY_CATEGORIES.map((c) => (

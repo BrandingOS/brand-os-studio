@@ -35,6 +35,7 @@ const designStorage: IDesignStorage = {
   loadDesign: vi.fn(async () => null),
   listDesigns: vi.fn(async () => []),
   deleteDesign: vi.fn(async () => undefined),
+  moveDesignToFolder: vi.fn(async () => {}),
 };
 
 beforeEach(() => {

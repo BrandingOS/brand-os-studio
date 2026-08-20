@@ -21,6 +21,8 @@ import {
   type DeliverableRecord,
   type DeliverableStatus,
   type KitItem,
+  type KitUpload,
+  UPLOADED_VARIANT_ID,
 } from './types';
 import { DELIVERABLES, getDeliverableByKey } from './registry';
 import { defaultKitGenerator, type GenerationContext, type KitGenerator } from './generation';
@@ -67,6 +69,14 @@ export type KitStoreState = {
   setPrimary: (key: DeliverableKey, itemId: string) => void;
   duplicateItem: (key: DeliverableKey, itemId: string) => void;
   removeItem: (key: DeliverableKey, itemId: string) => void;
+  /**
+   * File the user's OWN finished deliverable into a slot. It lands approved
+   * and primary — the point of uploading a printed business card is that it
+   * becomes the version the brand owns. Nothing about Brand Core is touched.
+   */
+  addUploadedItem: (key: DeliverableKey, upload: KitUpload) => void;
+  /** Move a deliverable in the brand's folder tree. null = the root. */
+  setFolder: (key: DeliverableKey, folderId: string | null) => void;
   archiveItem: (key: DeliverableKey, itemId: string) => void;
   updateItemCustomization: (
     key: DeliverableKey,
@@ -397,6 +407,30 @@ export const useKitStore = create<KitStoreState>((set, get) => {
         };
         return { ...record, items: [...record.items, copy] };
       });
+    },
+
+    addUploadedItem: (key, upload) => {
+      const ts = now();
+      updateRecord(key, (record) => {
+        const item: KitItem = {
+          id: nextItemId(),
+          variantId: UPLOADED_VARIANT_ID,
+          status: 'approved',
+          customization: null,
+          createdAt: ts,
+          approvedAt: ts,
+          origin: 'uploaded',
+          upload,
+        };
+        // Primary, not merely present: an uploaded deliverable is the version
+        // the brand owns. Generated items stay — they are still the record of
+        // what BrandingOS proposed, and nothing here regenerates them.
+        return { ...record, error: null, items: [...record.items, item], primaryItemId: item.id };
+      });
+    },
+
+    setFolder: (key, folderId) => {
+      updateRecord(key, (record) => ({ ...record, folderId }));
     },
 
     removeItem: (key, itemId) => {

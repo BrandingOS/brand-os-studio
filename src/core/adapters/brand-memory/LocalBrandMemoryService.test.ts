@@ -59,6 +59,7 @@ function makeStorage(designsByBrand: Record<string, BrandOSDocument[]>): IDesign
     ),
     listDesigns: vi.fn(async (brandId: string) => summaries[brandId] ?? []),
     deleteDesign: vi.fn(),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
 }
 

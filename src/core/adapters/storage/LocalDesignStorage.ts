@@ -75,6 +75,23 @@ export class LocalDesignStorage implements IDesignStorage {
     );
   }
 
+  /**
+   * Filing touches the SUMMARY only — the body is never read. A design can be
+   * megabytes of Fabric JSON (and may live in IndexedDB behind a marker);
+   * rewriting it to change one field would be slow and, on the IDB overflow
+   * path, risky.
+   */
+  async moveDesignToFolder(
+    brandId: string,
+    designId: string,
+    folderId: string | null,
+  ): Promise<void> {
+    const key = this.summaryKey(brandId, designId);
+    const raw = localStorage.getItem(key);
+    const existing: Partial<DesignSummary> = raw ? (JSON.parse(raw) as Partial<DesignSummary>) : {};
+    localStorage.setItem(key, JSON.stringify({ ...existing, id: designId, folderId }));
+  }
+
   async loadDesign(brandId: string, designId: string): Promise<unknown | null> {
     const raw = await readBody(this.bodyKey(brandId, designId));
     return raw ? JSON.parse(raw) : null;

@@ -94,6 +94,7 @@ async function mountWithAgent(agentResult: AICommandResult) {
     loadDesign: vi.fn(async () => null),
     listDesigns: vi.fn(async () => []),
     deleteDesign: vi.fn(async () => {}),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
 
   const stubAgent: AIAgent = { applyCommand: vi.fn(async () => agentResult) };

@@ -58,6 +58,7 @@ function mount(opts: {
     loadDesign: vi.fn(async () => null),
     listDesigns: vi.fn(async () => []),
     deleteDesign: vi.fn(async () => {}),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
 
   serviceContainer.register(SERVICE_KEYS.BRANDS, () => brandsService);

@@ -141,6 +141,32 @@ export interface LibraryQueryInput {
   category: LibraryCategory;
   search: string;
   sort: SortKey;
+  /** The folder being viewed; null = the root, which holds unfiled items. */
+  folderId?: string | null;
+  /**
+   * With a search active, matches are drawn from these folders as well as the
+   * current one — the current folder's whole subtree. Searching a library
+   * only one level deep is not searching. Omit (or pass null) for no search.
+   */
+  searchFolderIds?: ReadonlySet<string> | null;
+}
+
+/**
+ * Is this item in view?
+ *
+ * Without a search: the folder's direct children, like any file manager.
+ * With one: anywhere in the current folder's subtree. Unfiled items belong
+ * to the root in both cases — an item with no folder has to live somewhere.
+ */
+function inFolderScope(
+  item: { folderId?: string | null },
+  folderId: string | null,
+  searchFolderIds: ReadonlySet<string> | null | undefined,
+): boolean {
+  const id = item.folderId ?? null;
+  if (!searchFolderIds) return id === folderId;
+  if (id === null) return folderId === null;
+  return searchFolderIds.has(id);
 }
 
 function timeOf(asset: Asset): number {
@@ -155,12 +181,17 @@ function timeOf(asset: Asset): number {
  * tags, because a tag is the only handle a user has on an asset whose
  * filename is `IMG_4417.jpg`.
  */
-export function queryAssets(assets: Asset[], { category, search, sort }: LibraryQueryInput): Asset[] {
-  let arr = assets;
+export function queryAssets(
+  assets: Asset[],
+  { category, search, sort, folderId = null, searchFolderIds = null }: LibraryQueryInput,
+): Asset[] {
+  const q = search.trim().toLowerCase();
+  const scope = q ? searchFolderIds : null;
+
+  let arr = assets.filter((a) => inFolderScope(a, folderId, scope));
 
   if (category !== 'all') arr = arr.filter((a) => a.category === category);
 
-  const q = search.trim().toLowerCase();
   if (q) {
     arr = arr.filter(
       (a) => a.name.toLowerCase().includes(q) || a.tags?.some((t) => t.toLowerCase().includes(q)),

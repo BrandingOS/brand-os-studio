@@ -18,6 +18,25 @@ const SUMMARY_COLUMNS =
   'id, name, thumbnail_url, content_type, width, height, source_template_id, ' +
   'is_template, family_id, source_design_id, updated_at';
 
+/**
+ * `folder_id` arrives in migration 032. Until it is deployed the column is
+ * absent, so it is selected separately and the answer remembered: one failed
+ * request per session, then the old column list, and folder membership falls
+ * back to the local summary (per browser, like the 022 onboarding marker).
+ * Shipping this ahead of the migration therefore changes nothing.
+ */
+let hasFolderColumn: boolean | null = null;
+
+function isMissingColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  // 42703 from Postgres; PGRST204 from PostgREST's own payload check.
+  return (
+    error.code === '42703' ||
+    error.code === 'PGRST204' ||
+    /column .* does not exist|could not find the '.*' column/i.test(error.message ?? '')
+  );
+}
+
 // The `designs` table (migration 015) is not in the generated Supabase types yet
 // (they regenerate after deploy), so reach it through an untyped query builder.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,6 +73,7 @@ function rowToSummary(row: Record<string, unknown>): DesignSummary {
     familyId: (row.family_id as string) ?? undefined,
     sourceDesignId: (row.source_design_id as string) ?? undefined,
     updatedAt: (row.updated_at as string) ?? undefined,
+    folderId: 'folder_id' in row ? ((row.folder_id as string) ?? null) : undefined,
   };
 }
 
@@ -108,21 +128,65 @@ export class SupabaseDesignStorage implements IDesignStorage {
 
   async listDesigns(brandId: string): Promise<DesignSummary[]> {
     if (isLocalBrand(brandId)) return this.fallback.listDesigns(brandId);
-    const { data, error } = await designsTable()
-      .select(SUMMARY_COLUMNS)
-      .eq('brand_id', brandId)
-      .order('updated_at', { ascending: false });
+
+    const select = async (withFolder: boolean) =>
+      designsTable()
+        .select(withFolder ? `${SUMMARY_COLUMNS}, folder_id` : SUMMARY_COLUMNS)
+        .eq('brand_id', brandId)
+        .order('updated_at', { ascending: false });
+
+    let { data, error } = await select(hasFolderColumn !== false);
+    if (error && isMissingColumn(error)) {
+      hasFolderColumn = false;
+      ({ data, error } = await select(false));
+    } else if (!error) {
+      hasFolderColumn = hasFolderColumn ?? true;
+    }
     if (error) {
       if (isMissingTable(error)) return this.fallback.listDesigns(brandId);
       throw error;
     }
+
     const server = (data ?? []).map((r) => rowToSummary(r as Record<string, unknown>));
     // Merge any pre-015 local-only designs the server doesn't have yet (continuity).
+    const localAll = await this.fallback.listDesigns(brandId);
+    const localById = new Map(localAll.map((s) => [s.id, s]));
     const seen = new Set(server.map((s) => s.id));
-    const local = (await this.fallback.listDesigns(brandId)).filter((s) => !seen.has(s.id));
-    return [...server, ...local].sort(
+    // Before 032 the server cannot hold a folder, so the local summary is the
+    // only place a filing survives — overlay it rather than losing it.
+    const merged = server.map((s) =>
+      s.folderId === undefined ? { ...s, folderId: localById.get(s.id)?.folderId ?? null } : s,
+    );
+    const local = localAll.filter((s) => !seen.has(s.id));
+    return [...merged, ...local].sort(
       (a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || a.id.localeCompare(b.id),
     );
+  }
+
+  async moveDesignToFolder(
+    brandId: string,
+    designId: string,
+    folderId: string | null,
+  ): Promise<void> {
+    // Always record it locally: it is the fallback before 032, and it keeps a
+    // local-only design (pre-015 continuity) filed too.
+    await this.fallback.moveDesignToFolder(brandId, designId, folderId);
+    if (isLocalBrand(brandId) || hasFolderColumn === false) return;
+
+    const { error } = await designsTable()
+      .update({ folder_id: folderId })
+      .eq('brand_id', brandId)
+      .eq('id', designId);
+    if (!error) {
+      hasFolderColumn = true;
+      return;
+    }
+    if (isMissingColumn(error)) {
+      hasFolderColumn = false;
+      return;
+    }
+    if (isMissingTable(error)) return;
+    throw error;
   }
 
   async deleteDesign(brandId: string, designId: string): Promise<void> {

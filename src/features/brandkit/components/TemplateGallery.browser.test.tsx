@@ -73,6 +73,7 @@ function mountGallery(moduleId: string): MountResult {
     loadDesign: vi.fn(async () => null),
     listDesigns: vi.fn(async () => []),
     deleteDesign: vi.fn(async () => {}),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
   serviceContainer.register(SERVICE_KEYS.DESIGN_STORAGE, () => designStub);
 

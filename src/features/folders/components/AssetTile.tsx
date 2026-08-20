@@ -13,7 +13,7 @@
  */
 import * as React from 'react';
 import { Check, Download, Maximize2, MoreHorizontal } from 'lucide-react';
-import type { Asset } from '@/shared/types/brand';
+import type { Asset, BrandFolder } from '@/shared/types/brand';
 import { AssetPreview } from './AssetPreview';
 import { AssetActionsMenu } from './AssetActionsMenu';
 import { assetMetaLine, categoryLabel, isLibraryCategory } from '../model';
@@ -29,6 +29,12 @@ export interface AssetTileProps {
   onChangeCategory: (category: Asset['category']) => void;
   onCopyLink?: () => void;
   onDelete: () => void;
+  /** The brand's folder tree, for the "Move to folder…" pane. */
+  folders?: BrandFolder[];
+  onMoveToFolder?: (folderId: string | null) => void;
+  /** Set while this item is being dragged, so folders can accept it. */
+  onDragItemStart?: () => void;
+  onDragItemEnd?: () => void;
 }
 
 export function AssetTile({
@@ -42,6 +48,10 @@ export function AssetTile({
   onChangeCategory,
   onCopyLink,
   onDelete,
+  folders,
+  onMoveToFolder,
+  onDragItemStart,
+  onDragItemEnd,
 }: AssetTileProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [renaming, setRenaming] = React.useState(false);
@@ -59,13 +69,22 @@ export function AssetTile({
 
   return (
     <div
-      className="fl-tile"
+      className="fl-tile fl-tile--asset"
       data-selected={selected || undefined}
       data-menu-open={menuOpen || undefined}
       role="button"
       tabIndex={0}
       aria-pressed={selectionMode ? selected : undefined}
       aria-label={asset.name}
+      draggable={Boolean(onMoveToFolder) && !renaming}
+      onDragStart={(e) => {
+        // The payload is only a hint; the page holds the real dragged item.
+        // Chromium refuses a drag with no data set at all.
+        e.dataTransfer.setData('text/plain', asset.name);
+        e.dataTransfer.effectAllowed = 'move';
+        onDragItemStart?.();
+      }}
+      onDragEnd={() => onDragItemEnd?.()}
       onClick={activate}
       onKeyDown={(e) => {
         if (renaming) return;
@@ -114,6 +133,8 @@ export function AssetTile({
           <div onClick={stop}>
             <AssetActionsMenu
               asset={asset}
+              folders={folders}
+              onMoveToFolder={onMoveToFolder}
               onRename={() => {
                 setDraft(asset.name);
                 setRenaming(true);

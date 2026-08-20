@@ -45,6 +45,25 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+/**
+ * Put a file where the brand can reach it: Supabase storage, falling back to
+ * a data URL when storage is unavailable (guests, dev bypass, an offline
+ * bucket). Exported because the Kit's upload-into-a-slot needs exactly this
+ * rule and a second copy would drift from it.
+ */
+export async function putBrandFile(
+  brandId: string,
+  file: File,
+): Promise<{ url: string; storagePath?: string }> {
+  try {
+    const path = `${crypto.randomUUID()}-${file.name}`;
+    const result = await storageService.uploadAsset(brandId, file, path);
+    return { url: result.url, storagePath: path };
+  } catch {
+    return { url: await fileToDataUrl(file) };
+  }
+}
+
 export interface AssetLibrary {
   assets: Asset[];
   /** True until the first list() settles — drives the skeleton grid. */
@@ -59,6 +78,8 @@ export interface AssetLibrary {
   addTag: (assetId: string, tag: string) => Promise<void>;
   removeTag: (assetId: string, tag: string) => Promise<void>;
   setCategory: (assetId: string, category: Asset['category']) => Promise<void>;
+  /** File the asset in the brand's shared folder tree. null = the root. */
+  moveToFolder: (assetId: string, folderId: string | null) => Promise<void>;
   download: (asset: Asset) => void;
   downloadMany: (assets: Asset[]) => void;
   refresh: () => Promise<void>;
@@ -129,16 +150,7 @@ export function useAssetLibrary(brand: Brand | null | undefined): AssetLibrary {
 
       try {
         for (const file of files) {
-          let url: string;
-          let storagePath: string | undefined;
-          try {
-            const path = `${crypto.randomUUID()}-${file.name}`;
-            const result = await storageService.uploadAsset(brand.id, file, path);
-            url = result.url;
-            storagePath = path;
-          } catch {
-            url = await fileToDataUrl(file);
-          }
+          const { url, storagePath } = await putBrandFile(brand.id, file);
 
           const dimensions = file.type.startsWith('image/')
             ? await getImageDimensions(url)
@@ -249,6 +261,21 @@ export function useAssetLibrary(brand: Brand | null | undefined): AssetLibrary {
     [assetsService],
   );
 
+  const moveToFolder = React.useCallback(
+    async (assetId: string, folderId: string | null) => {
+      // Optimistic: filing is instant and reversible, and waiting on a round
+      // trip to watch a tile leave a folder makes the page feel remote.
+      setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, folderId } : a)));
+      try {
+        await assetsService.moveToFolder(assetId, folderId);
+      } catch {
+        toast.error("Couldn't move that asset");
+        await refresh();
+      }
+    },
+    [assetsService, refresh],
+  );
+
   const download = React.useCallback((asset: Asset) => {
     if (!asset.url) return;
     const link = document.createElement('a');
@@ -278,6 +305,7 @@ export function useAssetLibrary(brand: Brand | null | undefined): AssetLibrary {
     addTag,
     removeTag,
     setCategory,
+    moveToFolder,
     download,
     downloadMany,
     refresh,

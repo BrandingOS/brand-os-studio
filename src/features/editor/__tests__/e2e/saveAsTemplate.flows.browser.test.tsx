@@ -72,6 +72,7 @@ async function mountEditor(opts: MountOpts = {}) {
     loadDesign: vi.fn(async () => null),
     listDesigns: vi.fn(async () => opts.designs ?? []),
     deleteDesign: vi.fn(async () => {}),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
 
   const templatesService = new LocalTemplatesService();

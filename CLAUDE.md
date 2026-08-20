@@ -185,7 +185,7 @@ in-page `?tab=` tabs, NOT expanded sidebar groups. The live rail is
 - **Templates** (`/b/:slug/templates`) tabs: All · Brand Board · Guidelines · Bento · Social · Print · Screen · Utility
 - **Design** (`/b/:slug/design`) launchpad: Blank Canvas · AI Design · Recent
 - **Content** (`/b/:slug/content`) tabs: Calendar · Posts · Drafts. Clicking a social format goes to `/b/:slug/social-media?platform=X&format=Y` which skips the old dark modal picker and opens the editor directly.
-- **Folders** (`/b/:slug/folders`) tabs: Assets · Designs (the brand asset library — see its own section below)
+- **Folders** (`/b/:slug/folders`) tabs: Library · Designs · Kit over one shared brand folder tree — see its own section below
 - **Share** (`/b/:slug/share`) tabs: Guidelines · Showcase · Exports (public link, logo deck, guidelines export)
 
 **URL aliases**: both `/dashboard/brand/:slug/...` (legacy) and `/b/:slug/...` (short form)
@@ -930,72 +930,107 @@ Rules that bind:
   over `@/features/image-generation` and `…/credits` — otherwise it calls the
   REAL deployed Edge Function and the REAL ledger.
 
-## Folders — the brand asset library (redesigned 2026-08-20)
+## Folders — one brand filesystem (`/b/:slug/folders`, 2026-08-20)
 
-**Two surfaces, one data layer.** `features/folders/` is the Studio library at
-`/b/:slug/folders`; `features/dam/DamPage` is Classic's at `/a/:slug/folders`
-and is bug-fix only. Every write — upload, delete, rename, tags, category, and
-the one-time `brand.assets` → ASSETS-service migration — lives in
-**`features/dam/useAssetLibrary.ts`**, which both mount. Fix the data path
-there; never in a page.
+**One folder tree, three views.** The tree belongs to the BRAND. `Campaigns /
+Summer Launch` is one place; **Library · Designs · Kit** are what you can see
+while standing in it. Open a folder, switch tabs, and you are still in the same
+folder looking at a different kind of thing.
 
-**The assets are the page.** The redesign's whole point: the permanent dropzone
-that used to occupy half the viewport is gone. Uploading is a toolbar button
-that opens `UploadAssetsModal`, plus a drop veil that appears only while files
-are genuinely over the window (`dragCarriesFiles` — a text drag fires the same
-events, and a veil that flashes at someone highlighting a filename reads as
-broken). Everything else — Assets/Designs tabs, count, category chips, search,
-sort, grid/list, Select — is one compact `.fl-toolbar` band, sticky under the
-top nav.
+| view | holds |
+|---|---|
+| **Library** | source assets and files (was "Assets" — renamed 2026-08-20) |
+| **Designs** | creative work in progress |
+| **Kit** | approved final brand deliverables |
 
-**Chrome is all DS.** `DsTabBar`, `DsChip`, `DsInput`, `DsSegmented`,
-`DsButton`, `DsMenu`, `DsModal`, `DsConfirmDialog`, `DsProgress`, `DsSkeleton`.
-`folders.css` defines only the library itself — toolbar layout, grid, tile,
-row, drop veil, detail view — and reads `--ds-*` directly.
+**There is deliberately no per-tab folder tree.** That is three file managers
+and three "Social" folders. `brand_folders` (migration 017) carries no
+type column and nothing in `shared/folders` takes one.
 
-**Rules that bind:**
+**Two surfaces, one data layer.** `features/folders/` is Studio;
+`features/dam/DamPage` is Classic at `/a/:slug/folders`, bug-fix only. Every
+asset write — upload, delete, rename, tags, category, folder, and the legacy
+`brand.assets` migration — lives in **`features/dam/useAssetLibrary.ts`**,
+which both mount.
 
-- **A preview never breaks.** `AssetPreview` mounts an `<img>` ONLY for artwork
-  a browser can draw. A PDF, a font or a video gets its glyph plus an extension
-  badge; a failed load swaps to the same glyph. Pointing an `<img>` at a PDF is
-  how the broken-image icon got there.
-- **A cached image fires `load` before React attaches `onLoad`.** The effect
-  therefore checks `img.complete` on mount. Without it every thumbnail already
-  in the browser cache — i.e. every asset on a second visit — stays at opacity 0
-  forever. This is not defensive coding; it shipped broken until it was caught
-  in Chrome.
+### Where folder membership lives
+
+| type | storage | since |
+|---|---|---|
+| assets | `assets.folder_id` | migration 017 |
+| designs | `designs.folder_id` + `DesignSummary.folderId` | **migration 032** |
+| kit | `DeliverableRecord.folderId` in the 018 JSONB blob | additive, no migration |
+
+Membership is **nullable everywhere**. An item that has never been filed is
+unfiled and shows at the root; a new content type joins by carrying a nullable
+folder id, not by extending the tree.
+
+### Rules that bind
+
+- **`shared/folders/` is the tree**: `buildFolderTree`, `folderPath`,
+  `childrenOf`, `descendantIds`, `countByFolder`, `validateFolderName`, and
+  `useBrandFolders`. The transport is the folder half of `IAssetsService` —
+  a historical name, not a meaning. Folders are brand-level.
+- **Deleting a folder never deletes what is in it.** Items fall back to
+  unfiled. A folder is an arrangement; losing an arrangement must not lose
+  the work. The composite `ON DELETE SET NULL (folder_id)` FKs in 017 and 032
+  enforce this in the database — a plain composite SET NULL would null
+  `brand_id` too, which is NOT NULL, so the delete would raise and a folder
+  could never be removed while it held anything.
+- **The folder is a URL param of its own** (`?folder=`), separate from
+  `?tab=`, which is what makes the context survive a tab switch. An id that no
+  longer resolves yields the root, never a page pointing at nothing.
+- **Subfolders render in EVERY tab.** A folder holding no designs must not
+  vanish under Designs — losing the path under your feet is the disorientation
+  a shared tree exists to prevent. Only ITEMS are filtered by tab; a folder
+  tile's count follows the tab.
+- **Search reaches into the whole subtree**, not one level. At the root that
+  makes it a search of the brand.
+- **Kit is the curated final set, not storage.** There is no "upload files
+  into Kit". Upload is contextual to a SLOT (Business Card, Letterhead…) and
+  the file becomes the version the brand owns for it, sitting beside what was
+  generated. `itemOrigin(item)` is the only reader of provenance —
+  `'generated' | 'uploaded'`, absent meaning generated — because "is this ours
+  or theirs?" decides whether regenerating is safe. Brand Core is never
+  touched, and a kit export is NEVER copied into the Library: two sources of
+  truth is the thing to avoid. ("Save a copy to Library" can exist later as an
+  explicit action.)
+- **Kit tiles render at 260px and scale.** The renderers are authored for a
+  ~260px card and starve when laid out wider, so `ScaledStage` lays out at 260
+  and transforms — it never re-lays-out at the tile's width.
+
+### The library grid
+
+- **A preview never breaks.** `AssetPreview` mounts an `<img>` only for artwork
+  a browser can draw; a PDF, font or video gets its glyph and an extension
+  badge, and a failed load swaps to the same glyph.
+- **A cached image fires `load` before React attaches `onLoad`**, so the effect
+  checks `img.complete`. Without it every thumbnail already in cache — i.e.
+  every asset on a second visit — stays at opacity 0 forever.
 - **The well is chosen so the artwork can be seen.** `artworkTone.ts` samples a
-  loaded image on a 24×24 canvas once per URL and answers `opaque | light |
-  dark | mixed`. Light artwork gets a dark well in the light theme, dark
-  artwork a light well in the dark theme; everything else keeps the ordinary
-  surface, so only the assets that would have vanished look different. A faint
-  chequer marks transparency without tinting. This is the same problem
-  `shared/brand/logoOnBackground.ts` solves from the other side — there the
-  background is known and the VARIANT is chosen; here the artwork is fixed and
-  the background is ours. Use the canonical helper when placing a brand logo;
-  use this when displaying a file.
-- **The file's extension comes from the name, then the URL, then the mime
-  type.** Names in this product are frequently written rather than uploaded
-  ("Vector Logo — Primary (PNG @2x)"), and reading the name alone classified
-  every seed asset as an opaque raster.
-- **Actions appear on hover or keyboard focus, never permanently.** A tile is a
-  `div[role=button]` (it contains buttons; a button inside a button is invalid
-  HTML). The tile keeps `overflow: visible` so `AssetActionsMenu` can open out
-  of it — only the thumbnail well clips.
-- **Deletes always confirm**, single and bulk alike, at page level.
-- **Selection survives the list changing**: an effect prunes ids that no longer
-  exist, so a deleted or filtered-away asset cannot linger in the bulk count.
-- **The Designs tab reads `IDesignStorage.listDesigns`.** It used to be a
-  hard-coded "saving isn't wired up yet" card, which had been untrue since
-  Phase 4.2.
-- Filters/search/sort/view are hidden while the library is empty — there is
-  nothing to narrow — and the prominent empty state disappears the moment one
-  asset exists.
-- Tests: `features/folders/__tests__/model.test.ts` (19) and
-  `foldersPage.browser.test.tsx` (19). Note for the browser layer: Chromium
-  puts `DataTransfer` in protected mode outside a real user drag, so `types`
-  reads empty through `fireEvent`; the drag tests define `dataTransfer` on the
-  event, and the file/text rule itself is unit-tested via `dragCarriesFiles`.
+  loaded image once per URL (24×24 canvas) and answers `opaque | light | dark |
+  mixed`; light artwork gets a dark well in the light theme, dark artwork a
+  light well in the dark theme. Everything else keeps the ordinary surface, so
+  only the assets that would have vanished look different. This is the mirror
+  of `shared/brand/logoOnBackground.ts`: there the background is known and the
+  VARIANT is chosen; here the artwork is fixed and the background is ours.
+- **Extension comes from the name, then the URL, then the mime type.** Names
+  here are often written rather than uploaded ("Vector Logo — Primary (PNG
+  @2x)"), and reading the name alone classified every seed asset as opaque.
+- Actions appear on hover/focus only; a tile is a `div[role=button]` (it
+  contains buttons) and keeps `overflow: visible` so its menu can escape.
+- Deletes always confirm. Selection prunes ids that no longer exist.
+- Uploads and new kit deliverables land in the folder you are standing in.
+- Tests: `shared/folders/folderTree.test.ts` (17),
+  `features/folders/__tests__/model.test.ts` (19),
+  `foldersPage.browser.test.tsx` (30). Note: Chromium puts `DataTransfer` in
+  protected mode outside a real user drag, so `types` reads empty through
+  `fireEvent` — the drag tests define `dataTransfer` on the event, and the
+  file/text rule itself is unit-tested via `dragCarriesFiles`.
+
+**Not built, and known:** list view renders folders and Library items but not
+Designs/Kit tiles (it shows a count and points at grid view); kit deliverables
+are filed by menu rather than drag; there is no move-many.
 
 ## Guideline — the Brand Guidelines builder (rebuilt 2026-08-19)
 
@@ -1329,7 +1364,8 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 ## localStorage key inventory (debugging aid)
 
 - `brandos:brands` — LocalBrandsService store (user brands; seeds merge at read)
-- `brandos:brand-kit:state` — per-brand deliverable lifecycle (kit items + customizations)
+- `brandos:brand-kit:state` — per-brand deliverable lifecycle (kit items + customizations, incl. uploaded-deliverable provenance and folder membership)
+- `brandos:library-folders:<brandId>` — LocalAssetsService's copy of the brand's folder tree (the shared Library/Designs/Kit tree; `public.brand_folders` when authed)
 - `brandos:brand-kit:customizations` — per brand+variant card-editor saves (non-kit edits; migration source)
 - `design_<brandId>` — legacy design editor autosave (Fabric JSON)
 - `brandos:guideline-theme:<brandId>` — Guideline theme preset pick (legacy canvas editor)

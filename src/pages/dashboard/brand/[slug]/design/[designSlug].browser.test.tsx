@@ -77,6 +77,7 @@ function registerServices(args: {
     }),
     listDesigns: vi.fn(async () => Object.keys(args.saved ?? {}).map((id) => ({ id }))),
     deleteDesign: vi.fn(async () => {}),
+    moveDesignToFolder: vi.fn(async () => {}),
   };
 
   serviceContainer.register(SERVICE_KEYS.BRANDS, () => brandsStub);

@@ -20,6 +20,9 @@ export interface UploadAssetsModalProps {
   onUpload: (files: File[]) => Promise<void>;
   uploading: boolean;
   progress: { done: number; total: number } | null;
+  /** The folder the files will land in — named, because "somewhere" is not
+   *  an answer when the brand has a folder tree. */
+  destination?: string;
 }
 
 export function UploadAssetsModal({
@@ -28,6 +31,7 @@ export function UploadAssetsModal({
   onUpload,
   uploading,
   progress,
+  destination,
 }: UploadAssetsModalProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = React.useState(false);
@@ -42,8 +46,8 @@ export function UploadAssetsModal({
     <DsModal
       open={open}
       onClose={onClose}
-      eyebrow="Brand library"
-      title="Upload assets"
+      eyebrow={destination ? `Into ${destination}` : 'Brand library'}
+      title="Upload files"
       actions={
         <DsButton tone="secondary" size="sm" onClick={onClose} disabled={uploading}>
           Close
