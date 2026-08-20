@@ -300,3 +300,64 @@ Kit state and guideline documents becoming database tables. That would make the
 staging travel between devices and is worth doing on its own merits — but it is
 a change to how those two subsystems persist for *every* brand, not part of this
 feature.
+
+---
+
+## 13 · What shipped, and where it differs from the design above
+
+Implemented 2026-08-20. Four things changed once the code met the schema.
+
+**`is_demo` joined `is_demo_template`.** The design had one flag. The copies
+needed one too — for the badge, and so these rows can be found later. It is
+presentation only; nothing branches on it, and the Supabase update path is an
+explicit allowlist so it stays server-owned by construction.
+
+**The slug is not chosen by the clone.** `brands_set_slug` (migration 001) fires
+`BEFORE INSERT` and regenerates the slug whenever it is null, appending `_2`,
+`_3` … until it is unique. The clone therefore sets `slug` to NULL and lets the
+existing trigger own uniqueness — one less place that has to agree about it. The
+design's hand-rolled collision loop was deleted.
+
+**`INSERT ... SELECT * FROM f(...) FROM t` does not parse.** Two `FROM` clauses.
+The row has to drive and the record-builder has to be a `CROSS JOIN LATERAL`.
+Caught by running the migration, not by reading it.
+
+**The guest empty state was unreachable and is gone.** `/dashboard` and
+`/dashboard/brands` are both behind `ProtectedRoute`, so a signed-out visitor is
+redirected to `/login` and never reaches a dashboard empty state at all. The
+decision in §7 still holds — a guest gets nothing until they sign up — but the
+place to say so is the sign-up form, which is where a signed-out visitor stands.
+The dashboard keeps a single empty state, now only reached by an account that
+deleted what it was given.
+
+### Testing as built
+
+`supabase/tests/run.sh` stands up a throwaway Postgres, stubs the Supabase
+objects the migrations assume (`_supabase_stub.sql`), runs the REAL migration
+files in order, then asserts. 34 assertions, all passing, including:
+
+- a signup survives a deliberately broken template, and simply gets no brand
+- a column added to `brands` after the function was written is still cloned
+- a three-level folder tree keeps its parents, and every parent stays inside the clone
+- an unfiled asset stays unfiled
+- deleting one user's demo leaves another's untouched, and it does not come back
+- a second template is refused by the partial unique index
+
+Client: `brands.local.test.ts` (6) pins the listed-vs-resolvable split;
+`stageDemoContent.test.ts` (6) pins that staging never overwrites existing work,
+including a kit the user emptied on purpose. Full unit suite 2566 green, lint 0
+errors, typecheck ratchet clean.
+
+### Still open
+
+- **Deploy.** Migrations 029–033 are unpushed. 033 is the fifth in that queue.
+- **`visualStyle.descriptors` is empty on the template.** The eleven strategy
+  answers come through the legacy `guidelines.*` path, which `fromLegacyBrand`
+  derives identity from — the same path every seed brand proves works. Visual
+  style has no legacy home, and hand-writing an `identity` blob in SQL risks a
+  zod-validated shape for one field. Fill it by opening the template in the app,
+  which is the workflow this design is built around.
+- **The centre dot of the mark is 0.9 opacity** in the generated logo files,
+  faithful to `BrandMark`. At logo scale it reads as a lighter core rather than
+  a refinement. Kept for fidelity; say the word and the generator can render it
+  solid.
