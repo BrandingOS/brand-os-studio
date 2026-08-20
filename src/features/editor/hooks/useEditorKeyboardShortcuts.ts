@@ -5,10 +5,13 @@
 // so the browser's page-zoom doesn't fire instead.
 
 import { useEffect } from 'react';
-import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
+import type { DocumentAdapter } from '@/features/editor/adapter/DocumentAdapter';
 
 interface Options {
-  adapter: EditorAdapter | null;
+  /** Undo/redo are DOCUMENT capabilities, not layer ones — every
+   *  renderer has a history, so this is deliberately the narrower
+   *  contract. A layerless renderer keeps its keyboard shortcuts. */
+  adapter: DocumentAdapter | null;
   onFlushSave: () => void | Promise<void>;
   /** Disable shortcuts when an element with this `data-editor-typing` attr is focused. */
   enabled?: boolean;

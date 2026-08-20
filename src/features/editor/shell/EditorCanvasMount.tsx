@@ -2,11 +2,15 @@
 // initial document on mount, unmounts cleanly on unmount.
 
 import { useEffect, useRef } from 'react';
-import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
+import type { DocumentAdapter } from '@/features/editor/adapter/DocumentAdapter';
 import type { BrandOSDocument } from '@/features/editor/schema';
 
 interface Props {
-  adapter: EditorAdapter;
+  // Mounting a document needs mount/unmount/loadDocument and nothing
+  // more, so this is the DOCUMENT contract. It is also what makes
+  // `Canvas: EditorCanvasMount` in the fabric renderer typecheck for a
+  // real reason rather than by parameter bivariance under strict:false.
+  adapter: DocumentAdapter;
   initialDocument: BrandOSDocument;
 }
 

@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type {
+  DocumentAdapter,
   EditorAdapter,
   LayerEditingAdapter,
   SelectionState,
@@ -174,7 +175,10 @@ export function Editor({
   initialPrompt,
   initialAi,
 }: EditorProps) {
-  const adapterRef = useRef<EditorAdapter | null>(null);
+  // Undo/redo — a DOCUMENT capability every renderer has — so this ref
+  // deliberately holds the unnarrowed adapter. Narrowing it to the layer
+  // adapter would cost a layerless renderer its ⌘Z for no reason.
+  const adapterRef = useRef<DocumentAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
   const [selection, setSelection] = useState<SelectionState>({
     layerIds: [],
@@ -398,10 +402,10 @@ export function Editor({
   // selection mirrors via setSelection. The active-page + master-mode
   // markers also refresh on every change so the navigator stays in sync.
   useEffect(() => {
-    // Both the shortcut hook and the E2E hand-off are layer-editing
-    // surfaces (undo/redo of layer edits, canvas assertions), so they
-    // see the narrowed handle or nothing.
-    adapterRef.current = layerAdapter;
+    // The shortcut hook needs only undo/redo, so it gets the adapter
+    // itself. The E2E hand-off asserts on canvas layer state, so that
+    // one — and only that one — sees the narrowed handle.
+    adapterRef.current = adapter;
     if (layerAdapter) onAdapterReady?.(layerAdapter);
     const offChange = adapter.on('change', (next) => {
       setDoc(next);
