@@ -3094,12 +3094,20 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-radius: var(--ds-radius-control);
-  transition: box-shadow 140ms var(--ds-ease);
 }
 /* The panel's answer to the artifact's selection ring: the control for
-   whatever was clicked is findable without reading every label. */
-.bk-qe-field.is-selected {
+   whatever was clicked is findable without reading every label.
+ *
+ * The ring belongs to the CONTROL, not to the <label> that wraps it.
+ * On the wrapper it drew a second box around the field's name as well,
+ * so a selected field read as a box inside a box with the caption
+ * caught between them.
+ *
+ * `:not(:focus)` because focus is the browser's own affordance and says
+ * everything already — two rings stacked on one box is noise, and the
+ * descendant selector would otherwise out-specify the focus rule. */
+.bk-qe-field.is-selected .bk-qe-input:not(:focus) {
+  border-color: var(--ds-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-accent) 45%, transparent);
 }
 .bk-qe-field-label {

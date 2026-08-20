@@ -74,8 +74,22 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
         value={c.body}
         fit="wrap"
         multiline
-        className="block text-[3.5px] leading-[1.7] whitespace-pre-wrap"
-        style={{ color: color ?? '#4B5563' }}
+        className="text-[3.5px] leading-[1.7] whitespace-pre-wrap"
+        style={{
+          color: color ?? '#4B5563',
+          // A Bind is an inline-block, so it hugs its text — and the
+          // display comes from `.bk-bind`, which a utility class cannot
+          // outrank. So it is set HERE, where an inline style can.
+          display: 'block',
+          // ...and it keeps the space the rules occupied: `rows` rules of
+          // 2px, separated by the 2.5px `space-y` every call site sets.
+          // Without it a letter with one typed line collapsed to a chip
+          // adrift in a blank page, while the SAME design with no body
+          // looked full — the body has to be the same region of the page
+          // either way, and the editor needs something letter-sized to
+          // click into.
+          minHeight: `${(rows * 4.5 - 2.5).toFixed(1)}px`,
+        }}
       />
     ) : (
       bodyLines(rows, color, startW)

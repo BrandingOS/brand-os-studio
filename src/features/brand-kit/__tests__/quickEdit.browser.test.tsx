@@ -270,6 +270,45 @@ describe('the letterhead body', () => {
     fireEvent.change(panelInput('Body'), { target: { value: 'Dear team,' } });
     expect(region('body').textContent).toBe('Dear team,');
   });
+
+  /**
+   * A Bind is an inline-block, so one typed line used to collapse the
+   * body to a chip adrift in a blank page — while the SAME design with
+   * no body looked full, because the grey rules it draws instead do
+   * occupy the page. The body has to be the same region either way.
+   */
+  it('occupies the space the design reserved, not the width of one word', () => {
+    renderEditor(targetFor('stationery', 'Letterhead', 'letterhead-ext-6'));
+    fireEvent.change(panelInput('Body'), { target: { value: 'Hi' } });
+    const style = getComputedStyle(region('body'));
+
+    // Block, so it fills the column the design gave it. `.bk-bind` sets
+    // inline-block and a utility class cannot outrank it, which is why
+    // this is an inline style in the renderer.
+    expect(style.display).toBe('block');
+    // And it holds the rules' own height — 14 rules of 2px separated by
+    // the 2.5px `space-y` — instead of collapsing to one 3.5px line.
+    expect(parseFloat(style.minHeight)).toBeCloseTo(14 * 4.5 - 2.5, 1);
+  });
+});
+
+describe('the panel\'s selection ring', () => {
+  /**
+   * The ring marks the CONTROL. On the <label> that wraps it, it drew a
+   * second box around the field's name as well, so a selected field read
+   * as a box inside a box with the caption caught between them.
+   */
+  it('rings the control, never the label around it', () => {
+    renderEditor(INVOICE());
+    fireEvent.click(region('clientName'));
+
+    const field = panel().querySelector('.bk-qe-field.is-selected') as HTMLElement;
+    expect(field).toBeTruthy();
+    const control = field.querySelector('.bk-qe-input') as HTMLElement;
+
+    expect(getComputedStyle(field).boxShadow).toBe('none');
+    expect(getComputedStyle(control).boxShadow).not.toBe('none');
+  });
 });
 
 describe('save, cancel, reset, download', () => {
