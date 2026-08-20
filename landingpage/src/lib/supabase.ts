@@ -9,7 +9,7 @@
  *
  * View signups: Supabase Dashboard → brandos-prod → Table Editor → early_access
  *
- * NOTE: this is the SAME project the main BrandOS app uses. The anon key
+ * NOTE: this is the SAME project the main BrandingOS app uses. The anon key
  * mirrors the one in src/integrations/supabase/client.ts. If you ever
  * rotate the key in Supabase, update both files.
  */
