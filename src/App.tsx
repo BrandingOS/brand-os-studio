@@ -8,6 +8,8 @@ import { ThemeProvider, useTheme } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
 import { repairStorageOnBoot } from "@/shared/utils/storageCompaction";
 import { startHistoryKeyboard } from "@/shared/history";
+import { stageDemoBrands } from "@/features/demo-brand/stageDemoContent";
+import { useBrandStore } from "@/shared/store/brandStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { PageSpinner } from "@/components/PageSpinner";
@@ -325,6 +327,24 @@ function HistoryKeyboard() {
   return null;
 }
 
+/**
+ * Stages the two parts of the demo brand that have no database home.
+ *
+ * Migration 033 clones everything the database holds; kit lifecycle state and
+ * guideline documents have no table for ANY brand, so they are derived here
+ * from the product's own generators. Only ever writes where there is nothing,
+ * and only for a brand the server flagged `is_demo` — see
+ * `features/demo-brand/stageDemoContent.ts`.
+ */
+function DemoBrandStaging() {
+  const brands = useBrandStore((s) => s.list);
+  useEffect(() => {
+    if (!brands?.length) return;
+    void stageDemoBrands(brands);
+  }, [brands]);
+  return null;
+}
+
 function ThemeToggleBridge() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   useEffect(() => {
@@ -361,6 +381,7 @@ const App = () => (
   >
   <StorageRepair />
   <HistoryKeyboard />
+  <DemoBrandStaging />
   <ThemeToggleBridge />
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
