@@ -257,6 +257,116 @@ function landingPagePlugin(): Plugin {
   };
 }
 
+/**
+ * Serves the landing page at `/` on the DEV server, so localhost:8080 is
+ * the same front door as demo.brandingos.ai.
+ *
+ * Production does this with a Pages Function in front of asset serving
+ * (functions/_middleware.ts). `npm run dev` has no Pages Function, and it
+ * cannot simply proxy the landing's own dev server either: both Vite
+ * servers answer `/src/main.tsx` and `/@vite/client`, so a proxied
+ * document would load the APP's modules. What it can do is serve the
+ * landing BUILT — one extra Vite build, mirroring the shape production
+ * ships.
+ *
+ * The build is lazy and self-refreshing: it runs when the server starts,
+ * and again whenever anything under landingpage/ is newer than the
+ * output. That means landing edits show up on reload, but with no HMR —
+ * for iterating ON the landing, `cd landingpage && npm run dev` is still
+ * the right server.
+ */
+function landingPageDevPlugin(): Plugin {
+  const landingDir = path.resolve(__dirname, "landingpage");
+  const outDir = path.join(landingDir, "dist-dev");
+  const indexFile = path.join(outDir, "index.html");
+  // The landing owns `/` and the one path it routes for itself.
+  const LANDING_PATHS = new Set(["/", "/archive", "/index.html"]);
+  const TYPES: Record<string, string> = {
+    ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
+    ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon",
+    ".woff2": "font/woff2", ".mp4": "video/mp4", ".json": "application/json",
+    ".txt": "text/plain",
+  };
+
+  let building: Promise<void> | null = null;
+
+  const newestSource = async (): Promise<number> => {
+    const fs = await import("fs");
+    let newest = 0;
+    const walk = (dir: string) => {
+      let entries: import("fs").Dirent[];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        if (e.name === "node_modules" || e.name.startsWith("dist")) continue;
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else { try { newest = Math.max(newest, fs.statSync(full).mtimeMs); } catch { /* raced */ } }
+      }
+    };
+    walk(landingDir);
+    return newest;
+  };
+
+  const build = async (): Promise<void> => {
+    const { execFileSync } = await import("child_process");
+    const fs = await import("fs");
+    if (!fs.existsSync(path.join(landingDir, "node_modules"))) {
+      // --include=dev for the same reason the deploy script needs it: the
+      // things that BUILD a Vite app are all devDependencies.
+      execFileSync("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], {
+        cwd: landingDir, stdio: "inherit",
+      });
+    }
+    execFileSync("npx", ["vite", "build", "--config", "vite.embed.config.ts",
+                         "--outDir", outDir, "--emptyOutDir"], {
+      cwd: landingDir, stdio: "inherit",
+    });
+  };
+
+  const ensureFresh = async (): Promise<boolean> => {
+    const fs = await import("fs");
+    const built = fs.existsSync(indexFile) ? fs.statSync(indexFile).mtimeMs : 0;
+    if (built === 0 || (await newestSource()) > built) building = null;
+    building ??= build().catch((e) => {
+      building = null;                       // let the next request retry
+      console.error("[landing:dev] build failed — `/` falls back to the app.\n", e);
+      throw e;
+    });
+    try { await building; return true; } catch { return false; }
+  };
+
+  return {
+    name: "landing-page-dev",
+    apply: "serve",
+    configureServer(server) {
+      void ensureFresh();                    // warm it while the app boots
+
+      // Registered in the body, so it runs BEFORE Vite's own html
+      // middleware — which would otherwise answer `/` with the app.
+      server.middlewares.use(async (req, res, next) => {
+        const fs = await import("fs");
+        const url = (req.url ?? "/").split("?")[0];
+        const pathname = url.length > 1 ? url.replace(/\/+$/, "") : url;
+        const wanted = LANDING_PATHS.has(pathname)
+          ? indexFile
+          : path.join(outDir, pathname.replace(/^\/+/, ""));
+
+        // Anything the landing does not own — every app route, every app
+        // asset, every Vite dev URL — is none of our business.
+        if (!wanted.startsWith(outDir)) return next();
+        if (!LANDING_PATHS.has(pathname) && !fs.existsSync(wanted)) return next();
+        if (!(await ensureFresh())) return next();
+        if (!fs.existsSync(wanted)) return next();
+
+        res.setHeader("content-type", TYPES[path.extname(wanted)] ?? "application/octet-stream");
+        res.setHeader("cache-control", "no-store");
+        res.end(fs.readFileSync(wanted));
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -268,6 +378,7 @@ export default defineConfig(({ mode }) => ({
     dsTokensApplyPlugin(),
     architectureMapPlugin(),
     landingPagePlugin(),
+    landingPageDevPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {

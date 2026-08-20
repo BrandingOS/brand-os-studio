@@ -48,3 +48,6 @@ supabase/.branches/
 
 # wrangler local state (pages dev)
 .wrangler/
+
+# the landing built for the dev server (vite.config.ts landingPageDevPlugin)
+landingpage/dist-dev/

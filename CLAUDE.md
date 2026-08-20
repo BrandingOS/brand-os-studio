@@ -42,6 +42,59 @@ npm run type-check   # tsc --noEmit
 
 The landing page is a **completely separate Vite project** with its own `package.json`, `node_modules`, and Tailwind config. It shares no dependencies with the main app. Run `npm install` separately in each directory.
 
+### The landing is the front door — `/` in dev and in the demo (2026-08-20)
+
+`/` is the marketing landing; everything else is the SPA. That holds on
+**demo.brandingos.ai** and on **localhost:8080**, and both come out of one
+`dist/` / one dev server.
+
+- **The landing stays a separate BUILD.** `landingpage/src/index.css`
+  redefines the very shadcn tokens the product paints with
+  (`--background`, `--foreground`, `--primary`, `--radius`, …) and its
+  Tailwind config renames the type scale. Importing it into the SPA
+  repaints the product. Do not "port the landing into a route".
+- **`landingpage/vite.embed.config.ts`** builds it with
+  `assetsDir: 'landing-assets'` (the SPA owns `assets/`) and
+  `emptyOutDir: false`. The standalone `vite.config.ts` beside it is
+  untouched — that is what brandingos.ai builds.
+- **Production** — `scripts/build-landing.mjs` runs that build, moves the
+  document to `dist/landing/index.html`, and gives `dist/index.html` back
+  to the SPA; **`functions/_middleware.ts`** serves it at `/` and
+  `/archive`. It hangs off an `apply: 'build'` plugin in the root
+  `vite.config.ts`, not an npm script, because the hosting project's build
+  command lives outside this repo. `SKIP_LANDING_BUILD=1` opts out.
+- **A `_redirects` rule cannot do this**, and both halves were measured
+  against `wrangler pages dev`: an existing asset is served BEFORE
+  `_redirects` is consulted, and an unknown path falls back to
+  `/index.html` before a `/*` rewrite to any other document applies. Ask
+  the ASSETS binding for `/landing/`, never `/landing/index.html` — Pages
+  canonicalises an explicit index.html to its directory and answers 308.
+- **Dev** — `landingPageDevPlugin` (root `vite.config.ts`) serves the
+  landing BUILT, into `landingpage/dist-dev`, rebuilding whenever anything
+  under `landingpage/` is newer. It cannot proxy the landing's own dev
+  server: both Vite servers answer `/src/main.tsx` and `/@vite/client`, so
+  a proxied document would load the APP's modules. **There is no HMR for
+  the landing on 8080** — to iterate ON the landing use
+  `cd landingpage && npm run dev` (port 5174).
+- **The middleware is registered in `configureServer`'s body, not its
+  return**, so it runs BEFORE Vite's html middleware — which would
+  otherwise answer `/` with the app.
+- **The failure mode is the old behaviour.** `dist/index.html` is still
+  the SPA and `_redirects` still points there, so a missing Function or a
+  failed landing build serves the app at `/`, not a broken site.
+- **`src/pages/Index.tsx` (the SPA's `/` route) hands `/` back** with a
+  full document load, guarded by a one-shot sessionStorage marker so a
+  server without the landing renders the legacy page instead of reloading
+  for ever. It is only reachable by in-app navigation.
+- **`landingpage/src/lib/appUrl.ts` is the one place that knows where the
+  product lives.** Same origin by default; `landingpage/.env.development`
+  points the standalone dev server at `localhost:8080`. Never hard-code an
+  app URL in a section.
+- **Cloudflare builds with `NODE_ENV=production`**, under which npm omits
+  devDependencies — which is everything that BUILDS a Vite app. Nested
+  installs must pass `--include=dev`; the root project is installed by
+  Pages itself and escapes this.
+
 ### Test configuration
 Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/**/*.{test,spec}.{ts,tsx}`. Run a single test file: `npx vitest run src/path/to/file.test.ts`.
 

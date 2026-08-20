@@ -23,9 +23,12 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
  * click, a dismissed login modal. The honest answer to that is a full
  * document load: ask the server for `/` and it hands back the landing.
  *
- * `bounced` is the loop guard. If a deploy has no landing at `/` the
- * server answers with the SPA again; the marker is already set, so the
- * legacy page below renders instead of reloading for ever.
+ * This holds in dev too: vite.config.ts's landingPageDevPlugin serves the
+ * landing at `/` on port 8080, so localhost is the same front door.
+ *
+ * `bounced` is the loop guard. If a deploy — or a dev server whose landing
+ * build failed — answers `/` with the SPA again, the marker is already set,
+ * so the legacy page below renders instead of reloading for ever.
  */
 const BOUNCE_MARKER = 'brandos:landing-bounced';
 
@@ -54,7 +57,6 @@ const Index = () => {
   // out to the landing on a full page load.
   useEffect(() => {
     if (isLoading || isAuthenticated || searchParams.get('auth') === 'required') return;
-    if (!import.meta.env.PROD) return;
     let bounced = false;
     try {
       bounced = sessionStorage.getItem(BOUNCE_MARKER) === '1';
