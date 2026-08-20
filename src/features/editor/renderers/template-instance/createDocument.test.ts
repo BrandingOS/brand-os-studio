@@ -46,9 +46,27 @@ describe('instantiateFromMaster', () => {
   });
 
   it('records provenance and its own identity', () => {
-    const master = createTemplateInstanceDocument(args);
+    const master = createTemplateInstanceDocument({ ...args, sourceTemplateId: 'invoices-ext-4' });
     const instance = instantiateFromMaster(master, '33333333-3333-4333-8333-333333333333');
     expect(instance.id).toBe('33333333-3333-4333-8333-333333333333');
-    expect(instance.metadata.sourceTemplateId).toBe(master.id);
+    // `sourceTemplateId` means the CATALOG variant on every path that
+    // writes it — the copy keeps the master's answer rather than
+    // overwriting it with a design id.
+    expect(instance.metadata.sourceTemplateId).toBe('invoices-ext-4');
+    // Which DESIGN it was copied from is a separate question.
+    expect(instance.metadata.sourceMasterId).toBe(master.id);
+  });
+
+  it('falls back to the body templateId when the master has no metadata id', () => {
+    const master = createTemplateInstanceDocument(args);
+    const instance = instantiateFromMaster(master, '33333333-3333-4333-8333-333333333333');
+    expect(instance.metadata.sourceTemplateId).toBe('invoices-ext-4');
+  });
+
+  it('never produces a second master', () => {
+    const master = createTemplateInstanceDocument(args);
+    master.metadata = { ...master.metadata, isTemplate: true };
+    const instance = instantiateFromMaster(master, '33333333-3333-4333-8333-333333333333');
+    expect(instance.metadata.isTemplate).toBe(false);
   });
 });

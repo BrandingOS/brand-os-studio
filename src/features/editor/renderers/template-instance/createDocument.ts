@@ -3,9 +3,10 @@
  * master.
  *
  * The rule this file exists to enforce (spec §7.2): USE TEMPLATE COPIES.
- * `sourceTemplateId` is provenance — which master this came from — and
- * nothing resolves through it at load time. A user's filled-in invoice
- * must not be reshaped because someone tuned the master a month later.
+ * `sourceTemplateId` is provenance — which CATALOG variant this came from
+ * — and nothing resolves through it at load time. A user's filled-in
+ * invoice must not be reshaped because someone tuned the master a month
+ * later.
  */
 import { getContentTypeConfig } from '@/features/editor/content-types';
 import type { BrandOSDocument } from '@/features/editor/schema';
@@ -52,11 +53,42 @@ export function createTemplateInstanceDocument(args: {
 }
 
 /**
+ * A deep, independent copy of a document under a new id.
+ *
+ * `structuredClone` rather than a spread: a document's payload is nested
+ * (an invoice's line items are an array of objects, a page owns a layer
+ * list), and a shallow copy would leave the copy sharing those nested
+ * objects with its source — an edit to one silently reaching the other.
+ *
+ * Family lineage is deliberately dropped: a copy is its OWN design, not a
+ * sibling variant of the source's resize family.
+ */
+export function duplicateDocument(
+  source: BrandOSDocument,
+  designId: string,
+): BrandOSDocument {
+  const next = structuredClone(source) as BrandOSDocument;
+  next.id = designId;
+  delete (next as { familyId?: string }).familyId;
+  delete (next as { sourceDesignId?: string }).sourceDesignId;
+  return next;
+}
+
+/**
  * A working Design from a master.
  *
- * `structuredClone` rather than a spread: an invoice's line items are an
- * array of objects, and a shallow copy would leave the instance sharing
- * rows with the master — the exact live-sync this design forbids.
+ * Two things the copy must NOT inherit:
+ *
+ *   • `metadata.isTemplate` — the master carries it, and a copy that kept
+ *     it would be a second master. It is written back as an explicit
+ *     `false` rather than deleted, so a reader that asks "is this a
+ *     template" gets an answer instead of an absence.
+ *   • the master's identity as the template it came from. `metadata.
+ *     sourceTemplateId` names the CATALOG variant (`invoices-ext-4`) on
+ *     every path that writes it — the master's own document, the storage
+ *     summary Brand Kit looks masters up by, and the Templates panel — so
+ *     the copy keeps that same answer. Which DESIGN it was copied from is
+ *     a different question and gets its own key.
  */
 export function instantiateFromMaster(
   master: BrandOSDocument,
@@ -65,11 +97,14 @@ export function instantiateFromMaster(
   if (master.body?.kind !== 'template-instance') {
     throw new Error('instantiateFromMaster: the master has no template-instance body');
   }
-  return {
-    ...structuredClone(master),
-    id: designId,
-    familyId: undefined,
-    sourceDesignId: undefined,
-    metadata: { ...structuredClone(master.metadata), sourceTemplateId: master.id },
-  } as BrandOSDocument;
+  const next = duplicateDocument(master, designId);
+  const inherited = next.metadata?.sourceTemplateId;
+  next.metadata = {
+    ...(next.metadata ?? {}),
+    isTemplate: false,
+    sourceTemplateId:
+      typeof inherited === 'string' && inherited ? inherited : master.body.templateId,
+    sourceMasterId: master.id,
+  };
+  return next;
 }

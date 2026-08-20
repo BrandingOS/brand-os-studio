@@ -68,6 +68,7 @@ const brand: MockBrand = mockBrand;
  *  what the first one wrote. Follows `masterTemplates.test.ts`'s fake. */
 function statefulDesignStorage() {
   const rows: DesignSummary[] = [];
+  const docs = new Map<string, BrandOSDocument>();
   const saved: Array<{
     brandId: string;
     designId: string;
@@ -78,6 +79,7 @@ function statefulDesignStorage() {
     listDesigns: vi.fn(async () => rows),
     saveDesign: vi.fn(async (brandId, designId, doc, meta) => {
       saved.push({ brandId, designId, doc: doc as BrandOSDocument, meta });
+      docs.set(designId, doc as BrandOSDocument);
       rows.push({
         id: designId,
         isTemplate: meta?.isTemplate,
@@ -86,10 +88,10 @@ function statefulDesignStorage() {
         name: meta?.name,
       });
     }),
-    loadDesign: vi.fn(async () => null),
+    loadDesign: vi.fn(async (_brandId, designId) => docs.get(designId) ?? null),
     deleteDesign: vi.fn(async () => {}),
   };
-  return { storage, rows, saved };
+  return { storage, rows, saved, docs };
 }
 
 function renderKit() {
@@ -162,6 +164,64 @@ describe('Use Template — an independent copy, handed to Design', () => {
       expect(navigateMock).toHaveBeenCalledWith(`/b/skam/design/${call.designId}`),
     );
     expect(navigateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Use Template — from the master, once one exists', () => {
+  it("a design started after the master was tuned carries the MASTER's content", async () => {
+    const { storage, saved, docs } = statefulDesignStorage();
+    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => storage);
+
+    renderKit();
+    await openInvoice();
+
+    // 1. Edit Template seeds the master.
+    await pickOnBruteForce('Edit Template');
+    await vi.waitFor(() => expect(storage.saveDesign).toHaveBeenCalledTimes(1));
+    const masterId = saved[0].designId;
+
+    // 2. The brand tunes it — what the editor's autosave would write.
+    const master = docs.get(masterId);
+    if (master?.body?.kind !== 'template-instance' || master.body.content.kind !== 'invoice') {
+      throw new Error('narrowing failed');
+    }
+    master.body.content.issuerAddress = 'Tuned HQ · Cairo';
+    master.body.content.notes = 'Net 14.';
+
+    // 3. Use Template on the same variant.
+    await pickOnBruteForce('Use Template');
+    await vi.waitFor(() => expect(storage.saveDesign).toHaveBeenCalledTimes(2));
+
+    const instance = saved[1];
+    if (
+      instance.doc.body?.kind !== 'template-instance' ||
+      instance.doc.body.content.kind !== 'invoice'
+    ) {
+      throw new Error('narrowing failed');
+    }
+    expect(instance.doc.body.content.issuerAddress).toBe('Tuned HQ · Cairo');
+    expect(instance.doc.body.content.notes).toBe('Net 14.');
+    // A working design, not a second master — and still filed under the
+    // catalog variant, which is what master lookup matches on.
+    expect(instance.doc.metadata.isTemplate).toBe(false);
+    expect(instance.meta).toMatchObject({ isTemplate: false, sourceTemplateId: 'invoices-ext-4' });
+    expect(instance.doc.id).toBe(instance.designId);
+
+    // And it is a COPY: editing the master afterwards cannot reach it.
+    master.body.content.issuerAddress = 'Moved Again';
+    expect(instance.doc.body.content.issuerAddress).toBe('Tuned HQ · Cairo');
+  });
+
+  it('does not seed a master — Use Template alone leaves the brand with none', async () => {
+    const { storage, saved } = statefulDesignStorage();
+    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => storage);
+
+    renderKit();
+    await openInvoice();
+    await pickOnBruteForce('Use Template');
+    await vi.waitFor(() => expect(storage.saveDesign).toHaveBeenCalledTimes(1));
+
+    expect(saved.every((s) => s.meta?.isTemplate !== true)).toBe(true);
   });
 });
 

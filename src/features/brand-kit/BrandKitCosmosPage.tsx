@@ -22,7 +22,7 @@ import { SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { createTemplateInstanceDocument } from '@/features/editor/renderers/template-instance/createDocument';
 import { defaultContentFor, contentKindForTemplateType } from '@/features/brandkit/content';
-import { ensureMasterDesign } from './kit/masterTemplates';
+import { ensureMasterDesign, instanceFromMaster } from './kit/masterTemplates';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
 import { type KitSectionKey } from './components/BrandKitSidebar';
@@ -561,6 +561,16 @@ export function BrandKitCosmosPage({
    * reach a Design created here. Only deliverables with a registered
    * `contentTypeId` (Invoice, for this slice) are usable this way; the
    * caller gates the affordance so this only fires for those.
+   *
+   * The copy is taken from the brand's MASTER for this variant when one
+   * exists — that is the whole point of `Edit Template`: tune the invoice
+   * once, and every invoice started afterwards begins from the tuned one.
+   * With no master (nobody has ever tuned this variant) it starts from
+   * the brand's defaults, exactly as before.
+   *
+   * It deliberately does NOT seed a master. Masters stay lazily created
+   * by `Edit Template` alone, so merely using a template never mints
+   * brand-level state the user did not ask for.
    */
   const handleUseTemplate = useCallback(
     async (template: BrandKitTemplate, deliverable: DeliverableDef) => {
@@ -583,15 +593,23 @@ export function BrandKitCosmosPage({
         return;
       }
       const designId = crypto.randomUUID();
-      const doc = createTemplateInstanceDocument({
-        designId,
-        brandId: sourceBrand.id,
-        contentType: contentTypeId,
-        templateId: template.id,
-        content: defaultContentFor(kind, effectiveBrand),
-        design: {},
-        sourceTemplateId: template.id,
-      });
+      const doc =
+        (await instanceFromMaster({
+          storage: designStorage,
+          brandId: sourceBrand.id,
+          contentType: contentTypeId,
+          templateId: template.id,
+          designId,
+        })) ??
+        createTemplateInstanceDocument({
+          designId,
+          brandId: sourceBrand.id,
+          contentType: contentTypeId,
+          templateId: template.id,
+          content: defaultContentFor(kind, effectiveBrand),
+          design: {},
+          sourceTemplateId: template.id,
+        });
       try {
         await designStorage.saveDesign(sourceBrand.id, designId, doc, {
           name: `${deliverable.label} — ${template.name}`,
