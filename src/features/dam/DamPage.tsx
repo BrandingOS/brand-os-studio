@@ -1,9 +1,10 @@
 /**
- * Folders — per-brand asset library.
+ * Folders — per-brand asset library (Classic, /a/:slug/folders).
  *
- * Mounted at /b/:slug/folders. Supports drag-drop upload (with Supabase
- * storage fallback to data URLs), smart category detection, bulk
- * operations, and activity logging.
+ * Presentation only. Every write — upload, delete, rename, tags, category,
+ * the legacy `brand.assets` migration — lives in `useAssetLibrary`, which
+ * the Studio surface (`features/folders/`) shares. Bug fixes to the data
+ * path belong there, not here.
  */
 import * as React from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -17,13 +18,8 @@ import { AssetUploadZone } from './components/AssetUploadZone';
 import { AssetFiltersBar } from './components/AssetFiltersBar';
 import { AssetGrid } from './components/AssetGrid';
 import { AssetLightbox } from './components/AssetLightbox';
-import { storageService } from '@/shared/services/storage.supabase';
-import { activityService } from '@/shared/services/activityService';
-import { useService, SERVICE_KEYS } from '@/core';
-import type { IAssetsService } from '@/core/types/services';
-import { detectAssetType, detectCategory } from './utils';
+import { useAssetLibrary } from './useAssetLibrary';
 import type { Asset } from '@/shared/types/brand';
-import { toast } from 'sonner';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import {
@@ -50,28 +46,6 @@ function isAssetCategory(value: string | null): value is AssetCategory {
   return value !== null && (ASSET_CATEGORIES as readonly string[]).includes(value);
 }
 
-function getImageDimensions(url: string): Promise<{ width: number; height: number } | undefined> {
-  return new Promise((resolve) => {
-    if (url.startsWith('data:') && !url.startsWith('data:image')) {
-      resolve(undefined);
-      return;
-    }
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => resolve(undefined);
-    img.src = url;
-  });
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onload = () => res(reader.result as string);
-    reader.onerror = rej;
-    reader.readAsDataURL(file);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
@@ -87,12 +61,8 @@ export default function DamPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { current, loadBySlug } = useBrandStore();
-  // DAM library assets now persist through the ASSETS service (SupabaseAssetsService
-  // → public.assets when authed; LocalAssetsService → localStorage for guests).
-  // Previously written to brand.assets, which SupabaseBrandsService silently dropped
-  // — so an authenticated user's uploaded library was lost on reload.
-  const assetsService = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
-  const [assets, setAssets] = React.useState<Asset[]>([]);
+  const library = useAssetLibrary(current);
+  const assets = library.assets;
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category');
   const category: AssetCategory = isAssetCategory(categoryParam) ? categoryParam : 'all';
@@ -115,7 +85,7 @@ export default function DamPage() {
   const [search, setSearch] = React.useState('');
   const [view, setView] = React.useState<'grid' | 'list'>('grid');
   const [activeAsset, setActiveAsset] = React.useState<Asset | null>(null);
-  const [uploading, setUploading] = React.useState(false);
+  const uploading = library.uploading;
 
   // Bulk selection
   const [selectionMode, setSelectionMode] = React.useState(false);
@@ -162,53 +132,6 @@ export default function DamPage() {
 
   useBrandPageConfig({ brandName: current?.name, maxWidth: '7xl', innerNav });
 
-  const brandId = current?.id;
-  const legacyAssets = current?.assets;
-  const refresh = React.useCallback(async () => {
-    if (!brandId) return;
-    try {
-      setAssets(await assetsService.listForBrand(brandId));
-    } catch {
-      setAssets([]);
-    }
-  }, [brandId, assetsService]);
-
-  // Load + one-time continuity migration: pre-Batch-B guest libraries lived in
-  // `brand.assets` (localStorage). If the ASSETS service is empty but the brand
-  // still carries legacy assets, seed them once so nothing disappears. (Authed
-  // brands carry `assets: []` — the migration is a no-op for them.)
-  useEffect(() => {
-    if (!brandId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        let list = await assetsService.listForBrand(brandId);
-        if (list.length === 0 && (legacyAssets?.length ?? 0) > 0) {
-          for (const a of legacyAssets!) {
-            await assetsService.create({
-              brandId,
-              name: a.name,
-              type: a.type,
-              category: a.category,
-              source: a.source,
-              url: a.url,
-              size: a.size,
-              tags: a.tags,
-              metadata: a.metadata,
-            });
-          }
-          list = await assetsService.listForBrand(brandId);
-        }
-        if (!cancelled) setAssets(list);
-      } catch {
-        if (!cancelled) setAssets([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [brandId, legacyAssets, assetsService]);
-
   const filtered = React.useMemo(() => {
     let arr = assets;
     if (category !== 'all') {
@@ -229,98 +152,20 @@ export default function DamPage() {
     });
   }, [assets, category, search]);
 
-  // Upload → Supabase storage (fallback to data URL) → ASSETS service record.
-  const handleUpload = async (files: File[]) => {
-    if (!current) return;
-    setUploading(true);
-    const created: Asset[] = [];
-
-    for (const file of files) {
-      let url: string;
-      let storagePath: string | undefined;
-      try {
-        const path = `${crypto.randomUUID()}-${file.name}`;
-        const result = await storageService.uploadAsset(current.id, file, path);
-        url = result.url;
-        storagePath = path;
-      } catch {
-        url = await fileToDataUrl(file);
-      }
-
-      const dimensions = file.type.startsWith('image/') ? await getImageDimensions(url) : undefined;
-
-      created.push(
-        await assetsService.create({
-          brandId: current.id,
-          name: file.name,
-          type: detectAssetType(file),
-          category: detectCategory(file.name, file.type),
-          source: 'upload',
-          url,
-          storagePath,
-          size: file.size,
-          tags: [],
-          metadata: { originalName: file.name, format: file.type, dimensions },
-        }),
-      );
-    }
-
-    await refresh();
-    setUploading(false);
-    toast.success(`Uploaded ${created.length} asset${created.length === 1 ? '' : 's'}`);
-
-    activityService.log({
-      brandId: current.id,
-      brandName: current.name,
-      eventType: 'asset_uploaded',
-      title: `Uploaded ${created.length} asset${created.length === 1 ? '' : 's'}`,
-      description: created.map((a) => a.name).join(', '),
-    });
-  };
+  const handleUpload = (files: File[]) => library.upload(files);
 
   const handleDelete = async (assetId: string) => {
-    if (!current) return;
-    const asset = assets.find((a) => a.id === assetId);
-    // The service cleans up its own Supabase storage (via stored storage_path);
-    // still best-effort-clean the legacy dataless case for local uploads.
-    await assetsService.delete(assetId);
-    setAssets((prev) => prev.filter((a) => a.id !== assetId));
-
-    toast.success('Asset deleted');
+    await library.remove(assetId);
     setActiveAsset(null);
-
-    activityService.log({
-      brandId: current.id,
-      brandName: current.name,
-      eventType: 'asset_exported',
-      title: `Deleted asset: ${asset?.name || 'Unknown'}`,
-    });
   };
 
-  const handleRename = async (assetId: string, name: string) => {
-    await assetsService.update(assetId, { name });
-    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, name } : a)));
-  };
-
-  const handleAddTag = async (assetId: string, tag: string) => {
-    if (!tag.trim()) return;
-    const asset = assets.find((a) => a.id === assetId);
-    const tags = Array.from(new Set([...(asset?.tags ?? []), tag.trim()]));
-    await assetsService.update(assetId, { tags });
-    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
-  };
-
-  const handleRemoveTag = async (assetId: string, tag: string) => {
-    const asset = assets.find((a) => a.id === assetId);
-    const tags = (asset?.tags ?? []).filter((t) => t !== tag);
-    await assetsService.update(assetId, { tags });
-    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
-  };
+  const handleRename = (assetId: string, name: string) => library.rename(assetId, name);
+  const handleAddTag = (assetId: string, tag: string) => library.addTag(assetId, tag);
+  const handleRemoveTag = (assetId: string, tag: string) => library.removeTag(assetId, tag);
 
   const handleCategoryChange = async (assetId: string, newCategory: string) => {
     const category = newCategory as Asset['category'];
-    await assetsService.update(assetId, { category });
-    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, category } : a)));
+    await library.setCategory(assetId, category);
     if (activeAsset?.id === assetId) {
       setActiveAsset({ ...activeAsset, category });
     }
@@ -345,33 +190,14 @@ export default function DamPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (!current || selectedIds.size === 0) return;
-    const count = selectedIds.size;
-    const ids = Array.from(selectedIds);
-    await Promise.all(ids.map((id) => assetsService.delete(id)));
-    setAssets((prev) => prev.filter((a) => !selectedIds.has(a.id)));
+    if (selectedIds.size === 0) return;
+    await library.removeMany(Array.from(selectedIds));
     setSelectedIds(new Set());
     setSelectionMode(false);
-    toast.success(`Deleted ${count} asset${count === 1 ? '' : 's'}`);
-
-    activityService.log({
-      brandId: current.id,
-      brandName: current.name,
-      eventType: 'asset_exported',
-      title: `Bulk deleted ${count} asset${count === 1 ? '' : 's'}`,
-    });
   };
 
   const handleBulkDownload = () => {
-    // Download each selected asset individually (ZIP requires jszip import which is heavy)
-    const selected = assets.filter((a) => selectedIds.has(a.id));
-    for (const asset of selected) {
-      const link = document.createElement('a');
-      link.href = asset.url;
-      link.download = asset.name;
-      link.click();
-    }
-    toast.success(`Downloading ${selected.length} asset${selected.length === 1 ? '' : 's'}`);
+    library.downloadMany(assets.filter((a) => selectedIds.has(a.id)));
   };
 
   if (!current) {

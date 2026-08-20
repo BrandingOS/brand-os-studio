@@ -1,0 +1,1039 @@
+/*
+ * Folders — the brand asset library at /b/:slug/folders.
+ *
+ * Scoped under [data-workspace] like every Studio surface, and reads --ds-*
+ * directly (never the older workspace aliases — see
+ * docs/ds-token-convergence.md).
+ *
+ * What this file does NOT define, deliberately: the page column
+ * (`.board-wrap`), buttons, chips, inputs, segmented controls, tab bars,
+ * menus, modals, skeletons and progress — all DS. What is left is the
+ * library itself: the toolbar band, the asset grid and list, the tile's
+ * hover behaviour, the drop veil and the detail view. Nothing else in the
+ * app renders a DAM.
+ *
+ * `fl-` prefix = folders.
+ */
+
+/* ─── Page column ───────────────────────────────────────────── */
+
+/*
+ * `.board-wrap` is the Studio's editorial column — 1160px, centred, with
+ * the house padding. A library wants more room than an editorial page (six
+ * tiles a row instead of four) so the width is the only thing raised, and
+ * `position: relative` gives the drop veil something to cover.
+ */
+[data-workspace] .fl-board {
+  max-width: 1440px;
+  padding: 24px 40px 120px;
+  position: relative;
+  display: block;
+}
+
+/* ─── Toolbar ───────────────────────────────────────────────── */
+
+/*
+ * Sticky under the top nav, which is 68px tall and fades out over its last
+ * third — the same trick `.panel` uses at 80px. The opaque background is
+ * load-bearing: without it the grid scrolls through the toolbar.
+ */
+[data-workspace] .fl-toolbar {
+  position: sticky;
+  top: 60px;
+  z-index: 20;
+  margin: 0 -40px 20px;
+  padding: 4px 40px 14px;
+  background: var(--ds-bg);
+  border-bottom: 1px solid var(--ds-border);
+}
+
+[data-workspace] .fl-toolbar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+[data-workspace] .fl-toolbar-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+[data-workspace] .fl-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  color: var(--ds-text);
+}
+
+[data-workspace] .fl-count {
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+}
+
+[data-workspace] .fl-toolbar-top-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+[data-workspace] .fl-toolbar-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+[data-workspace] .fl-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Count inside a filter chip — quiet, and it inherits the active fill. */
+[data-workspace] .fl-chip-count {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.55;
+}
+
+[data-workspace] .fl-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Search — DsInput with room made for the leading icon and the clear button. */
+[data-workspace] .fl-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+[data-workspace] .fl-search > svg {
+  position: absolute;
+  left: 12px;
+  color: var(--ds-text-muted);
+  pointer-events: none;
+}
+[data-workspace] .fl-search .ds-input {
+  width: 224px;
+  padding: 8px 30px 8px 32px;
+  font-size: 12.5px;
+}
+[data-workspace] .fl-search .ds-input::-webkit-search-cancel-button {
+  display: none;
+}
+[data-workspace] .fl-search-clear {
+  position: absolute;
+  right: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ds-surface-hover);
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+}
+[data-workspace] .fl-search-clear:hover {
+  color: var(--ds-text);
+}
+
+/* ─── Grid ──────────────────────────────────────────────────── */
+
+[data-workspace] .fl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 16px;
+}
+
+[data-workspace] .fl-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  /* Visible, not hidden: the actions menu opens out of the tile. Only the
+     thumbnail well clips. */
+  overflow: visible;
+  transition:
+    border-color var(--ds-duration-state) var(--ds-ease),
+    box-shadow var(--ds-duration-state) var(--ds-ease),
+    transform var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .fl-tile:hover {
+  border-color: var(--ds-border-strong);
+  box-shadow: var(--ds-shadow-md);
+  transform: translateY(-2px);
+}
+[data-workspace] .fl-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+  border-color: var(--ds-focus-border);
+}
+[data-workspace] .fl-tile[data-selected] {
+  border-color: var(--ds-accent);
+  box-shadow: 0 0 0 1px var(--ds-accent);
+}
+/* An open menu keeps its tile lifted above its neighbours. */
+[data-workspace] .fl-tile[data-menu-open] {
+  z-index: 30;
+}
+
+[data-workspace] .fl-tile-well {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: calc(var(--ds-radius-card) - 1px) calc(var(--ds-radius-card) - 1px) 0 0;
+  background: var(--ds-surface-subtle);
+  border-bottom: 1px solid var(--ds-border);
+}
+[data-workspace] .fl-tile[data-menu-open] .fl-tile-well {
+  overflow: visible;
+}
+
+[data-workspace] .fl-tile-meta {
+  padding: 9px 11px 11px;
+  min-width: 0;
+}
+[data-workspace] .fl-tile-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .fl-tile-sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* Categories outside the library's seven chips (stationery, application…)
+   come through raw from the model, so capitalise here rather than
+   maintaining a second label table. */
+[data-workspace] .fl-tile-cat,
+[data-workspace] .fl-row-cat {
+  color: var(--ds-text-secondary);
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+[data-workspace] .fl-tile-spec {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-workspace] .fl-tile-dot {
+  opacity: 0.5;
+}
+
+[data-workspace] .fl-tile-rename {
+  width: 100%;
+  border: 1px solid var(--ds-focus-border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: var(--ds-font);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+  background: var(--ds-bg);
+}
+[data-workspace] .fl-tile-rename:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+/* ─── Tile affordances (hover / focus only) ─────────────────── */
+
+[data-workspace] .fl-tile-rail,
+[data-workspace] .fl-row-rail {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-shadow-float);
+  opacity: 0;
+  transition:
+    opacity var(--ds-duration-state) var(--ds-ease),
+    transform var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .fl-tile-rail {
+  right: 8px;
+  bottom: 8px;
+  transform: translateY(4px);
+}
+[data-workspace] .fl-tile:hover .fl-tile-rail,
+[data-workspace] .fl-tile:focus-within .fl-tile-rail,
+[data-workspace] .fl-tile[data-menu-open] .fl-tile-rail {
+  opacity: 1;
+  transform: none;
+}
+
+[data-workspace] .fl-tile-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--ds-duration-state) var(--ds-ease),
+    color var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .fl-tile-act:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+[data-workspace] .fl-tile-act:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+[data-workspace] .fl-tile-check,
+[data-workspace] .fl-row-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: 1.5px solid var(--ds-border-strong);
+  border-radius: 6px;
+  background: var(--ds-surface);
+  color: var(--ds-accent-fg);
+  cursor: pointer;
+  transition:
+    opacity var(--ds-duration-state) var(--ds-ease),
+    background var(--ds-duration-state) var(--ds-ease),
+    border-color var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .fl-tile-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  opacity: 0;
+}
+[data-workspace] .fl-tile:hover .fl-tile-check,
+[data-workspace] .fl-tile:focus-within .fl-tile-check,
+[data-workspace] .fl-tile[data-selected] .fl-tile-check {
+  opacity: 1;
+}
+[data-workspace] .fl-tile[data-selected] .fl-tile-check,
+[data-workspace] .fl-row[data-selected] .fl-row-check {
+  background: var(--ds-accent);
+  border-color: var(--ds-accent);
+}
+[data-workspace] .fl-tile-check:focus-visible,
+[data-workspace] .fl-row-check:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+/* The menu hangs off the actions rail; the tile does not clip it. */
+[data-workspace] .fl-menu-anchor {
+  position: absolute;
+  right: 6px;
+  bottom: 40px;
+  z-index: 40;
+  min-width: 178px;
+}
+[data-workspace] .fl-row-rail .fl-menu-anchor {
+  right: 0;
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+/* ─── Preview well ──────────────────────────────────────────── */
+
+[data-workspace] .fl-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+[data-workspace] .fl-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 14px;
+  opacity: 0;
+  transition: opacity var(--ds-duration-panel) var(--ds-ease);
+}
+[data-workspace] .fl-preview img[data-state='ready'] {
+  opacity: 1;
+}
+/*
+ * Transparency, and the two ways it goes wrong.
+ *
+ * A logo drawn in one flat colour on transparency is invisible on a surface
+ * of the same tone — white on the light theme's card, near-black on the dark
+ * theme's. `artworkTone.ts` reads the pixels once and says which it is; these
+ * rules give that artwork a well it can be seen on. Everything else keeps the
+ * ordinary surface, so a full grid stays calm: only the assets that would
+ * have disappeared look different.
+ *
+ * The faint chequer is the second half of the answer — it says "this file is
+ * transparent" without tinting the artwork.
+ */
+[data-workspace] .fl-preview[data-ground] {
+  --fl-checker: color-mix(in srgb, var(--ds-text) 4.5%, transparent);
+  background-color: var(--ds-surface);
+  background-image:
+    linear-gradient(45deg, var(--fl-checker) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--fl-checker) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--fl-checker) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--fl-checker) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+/* Inspection surface — the detail view earns a slightly clearer ground. */
+[data-workspace] .fl-detail-stage .fl-preview[data-ground] {
+  --fl-checker: color-mix(in srgb, var(--ds-text) 7%, transparent);
+  background-color: var(--ds-surface-subtle);
+}
+
+/*
+ * The contrast well. `--ds-text` is warm charcoal in the light theme and warm
+ * cream in the dark one, so ONE declaration paints the right opposite in both
+ * — it just has to be applied to the tone that is failing in each.
+ */
+[data-workspace] .fl-preview[data-tone='light'],
+[data-workspace][data-theme='dark'] .fl-preview[data-tone='dark'] {
+  --fl-checker: color-mix(in srgb, var(--ds-bg) 9%, transparent);
+  background-color: color-mix(in srgb, var(--ds-text) 93%, var(--ds-bg));
+}
+/* …and the tone that reads fine in this theme keeps the ordinary well. */
+[data-workspace][data-theme='dark'] .fl-preview[data-tone='light'] {
+  --fl-checker: color-mix(in srgb, var(--ds-text) 4.5%, transparent);
+  background-color: var(--ds-surface);
+}
+
+[data-workspace] .fl-preview-skeleton {
+  position: absolute;
+  inset: 0;
+  background: var(--ds-surface-hover);
+  animation: ds-pulse 1.6s var(--ds-ease) infinite;
+}
+[data-workspace] .fl-preview--glyph {
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ds-text-muted);
+  background: var(--ds-surface-subtle);
+}
+[data-workspace] .fl-preview--glyph svg {
+  width: 28px;
+  height: 28px;
+}
+[data-workspace] .fl-preview-ext {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--ds-text-muted);
+}
+
+/* Inline (list row) preview — a fixed 44px tile, not an absolute fill. */
+[data-workspace] .fl-preview--inline {
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ds-radius-control);
+  overflow: hidden;
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+}
+[data-workspace] .fl-preview--inline img {
+  padding: 5px;
+}
+[data-workspace] .fl-preview--inline.fl-preview--glyph svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── List view ─────────────────────────────────────────────── */
+
+[data-workspace] .fl-list {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  overflow: hidden;
+}
+[data-workspace] .fl-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 19px 44px minmax(0, 1fr) 92px 60px 76px 116px;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ds-border);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .fl-row:last-child {
+  border-bottom: none;
+}
+[data-workspace] .fl-row:hover {
+  background: var(--ds-surface-hover);
+}
+[data-workspace] .fl-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ds-focus-border);
+}
+[data-workspace] .fl-row[data-selected] {
+  background: var(--ds-surface-hover);
+  box-shadow: inset 2px 0 0 var(--ds-accent);
+}
+[data-workspace] .fl-row[data-menu-open] {
+  z-index: 30;
+}
+[data-workspace] .fl-row-name-cell {
+  min-width: 0;
+}
+[data-workspace] .fl-row-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .fl-row-cell {
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-workspace] .fl-row-size,
+[data-workspace] .fl-row-ext {
+  font-variant-numeric: tabular-nums;
+}
+[data-workspace] .fl-row-rail {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+[data-workspace] .fl-row:hover .fl-row-rail,
+[data-workspace] .fl-row:focus-within .fl-row-rail,
+[data-workspace] .fl-row[data-menu-open] .fl-row-rail {
+  opacity: 1;
+}
+/* The rail covers the two right-hand columns while it is showing. */
+[data-workspace] .fl-row:hover .fl-row-size,
+[data-workspace] .fl-row:hover .fl-row-date {
+  opacity: 0;
+}
+
+/* ─── Bulk action bar ───────────────────────────────────────── */
+
+/*
+ * Floats over the page rather than pushing the grid down — a selection is
+ * transient, and a bar that reflows the whole library every time you tick a
+ * box makes the collection feel unstable.
+ */
+[data-workspace] .fl-bulkbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 16px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-float);
+}
+[data-workspace] .fl-bulkbar-count {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+  white-space: nowrap;
+}
+[data-workspace] .fl-bulkbar-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--ds-font);
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+[data-workspace] .fl-bulkbar-link:hover {
+  color: var(--ds-text);
+}
+[data-workspace] .fl-bulkbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--ds-border);
+}
+
+/* ─── Drop veil ─────────────────────────────────────────────── */
+
+[data-workspace] .fl-dropveil {
+  position: absolute;
+  inset: 12px 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--ds-accent);
+  border-radius: var(--ds-radius-panel);
+  background: color-mix(in srgb, var(--ds-bg) 82%, transparent);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+[data-workspace] .fl-dropveil-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-shadow-float);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+/* ─── Empty + no-match states ───────────────────────────────── */
+
+/*
+ * The prominent invitation is for a brand with NOTHING. As soon as one
+ * asset exists the library itself is the page, and this never renders
+ * again — which is why it is allowed to be this large.
+ */
+[data-workspace] .fl-blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 72px 24px 80px;
+  border: 1.5px dashed var(--ds-dash);
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-surface-subtle);
+}
+[data-workspace] .fl-blank-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--ds-radius-tile);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-secondary);
+  margin-bottom: 4px;
+}
+[data-workspace] .fl-blank-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+[data-workspace] .fl-blank-copy {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .fl-blank-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+[data-workspace] .fl-blank-hint {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+}
+
+[data-workspace] .fl-nomatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 64px 24px;
+  font-size: 13px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-nomatch p {
+  margin: 0;
+}
+
+/* ─── Upload modal ──────────────────────────────────────────── */
+
+[data-workspace] .fl-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 24px;
+  transition:
+    border-color var(--ds-duration-state) var(--ds-ease),
+    background var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .fl-upload-zone[data-dragging] {
+  border-color: var(--ds-accent);
+  background: var(--ds-surface-hover);
+}
+[data-workspace] .fl-upload-zone[data-busy] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+[data-workspace] .fl-upload-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-tile);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .fl-upload-title {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+[data-workspace] .fl-upload-hint {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-upload-progress {
+  margin-top: 14px;
+}
+
+/* ─── Detail view ───────────────────────────────────────────── */
+
+[data-workspace] .fl-detail-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--ds-scrim);
+  backdrop-filter: blur(8px);
+  animation: fl-fade var(--ds-duration-modal) var(--ds-ease);
+}
+[data-workspace] .fl-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  width: 100%;
+  max-width: 1120px;
+  max-height: 88vh;
+  overflow: hidden;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-float);
+  animation: fl-rise var(--ds-duration-modal) var(--ds-ease);
+}
+[data-workspace] .fl-detail-stage {
+  position: relative;
+  min-height: 380px;
+  background: var(--ds-surface-subtle);
+  border-right: 1px solid var(--ds-border);
+}
+[data-workspace] .fl-detail-stage .fl-preview img {
+  padding: 40px;
+}
+[data-workspace] .fl-detail-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--ds-border);
+  border-radius: 50%;
+  background: var(--ds-surface);
+  color: var(--ds-text-secondary);
+  box-shadow: var(--ds-shadow-sm);
+  cursor: pointer;
+}
+[data-workspace] .fl-detail-nav:hover {
+  color: var(--ds-text);
+}
+[data-workspace] .fl-detail-nav--prev {
+  left: 14px;
+}
+[data-workspace] .fl-detail-nav--next {
+  right: 14px;
+}
+[data-workspace] .fl-detail-counter {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-detail-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+[data-workspace] .fl-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 14px 12px 18px;
+  border-bottom: 1px solid var(--ds-border);
+}
+[data-workspace] .fl-detail-name {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 4px 6px;
+  margin-left: -6px;
+  font-family: var(--ds-font);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+  background: transparent;
+}
+[data-workspace] .fl-detail-name:hover {
+  border-color: var(--ds-border);
+}
+[data-workspace] .fl-detail-name:focus {
+  outline: none;
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+[data-workspace] .fl-detail-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+[data-workspace] .fl-detail-close:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+[data-workspace] .fl-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+[data-workspace] .fl-detail-body .ds-eyebrow {
+  margin-bottom: 8px;
+}
+[data-workspace] .fl-detail-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+[data-workspace] .fl-detail-cats .ds-chip {
+  padding: 5px 10px;
+  font-size: 11.5px;
+}
+[data-workspace] .fl-detail-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-workspace] .fl-detail-fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+[data-workspace] .fl-detail-fact dt {
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-detail-fact dd {
+  margin: 0;
+  color: var(--ds-text);
+  font-weight: 500;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+[data-workspace] .fl-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+[data-workspace] .fl-detail-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface-subtle);
+  font-size: 11.5px;
+  color: var(--ds-text);
+}
+[data-workspace] .fl-detail-tag button {
+  display: inline-flex;
+  border: none;
+  padding: 0;
+  background: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+[data-workspace] .fl-detail-tag button:hover {
+  color: var(--ds-danger);
+}
+[data-workspace] .fl-detail-notags {
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-detail-tagform {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-bg);
+  color: var(--ds-text-muted);
+}
+[data-workspace] .fl-detail-tagform input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-family: var(--ds-font);
+  font-size: 12px;
+  color: var(--ds-text);
+}
+[data-workspace] .fl-detail-tagform input:focus {
+  outline: none;
+}
+[data-workspace] .fl-detail-foot {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ds-border);
+}
+/* Download is the action; Delete is available, not equal. */
+[data-workspace] .fl-detail-foot .ds-btn:first-child {
+  flex: 1;
+  justify-content: center;
+}
+
+@keyframes fl-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fl-rise {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* ─── Narrow viewports (last: a media query adds no specificity) ─── */
+
+@media (max-width: 900px) {
+  [data-workspace] .fl-board {
+    padding: 20px 16px 96px;
+  }
+  [data-workspace] .fl-toolbar {
+    position: static;
+    margin: 0 -16px 16px;
+    padding: 0 16px 12px;
+  }
+  [data-workspace] .fl-tools {
+    flex-wrap: wrap;
+  }
+  [data-workspace] .fl-search .ds-input {
+    width: 100%;
+  }
+  [data-workspace] .fl-grid {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 12px;
+  }
+  [data-workspace] .fl-row {
+    grid-template-columns: 19px 44px minmax(0, 1fr) 72px;
+  }
+  [data-workspace] .fl-row-ext,
+  [data-workspace] .fl-row-size,
+  [data-workspace] .fl-row-date {
+    display: none;
+  }
+  [data-workspace] .fl-detail {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  [data-workspace] .fl-detail-stage {
+    min-height: 220px;
+    border-right: none;
+    border-bottom: 1px solid var(--ds-border);
+  }
+}

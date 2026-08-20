@@ -1,14 +1,8 @@
-// Phase B port — Folders / DAM mounted at /b/:slug/folders (Studio).
+// Studio Folders — the brand asset library at /b/:slug/folders.
 //
-// Reuses DamPage (Assets + Designs tabs) wrapped in WorkspaceShell.
-// Legacy /a/:slug/folders untouched.
-import { StudioBrandShell } from './_studioBrandShell';
-import DamPage from '@/features/dam/DamPage';
+// The Studio surface is `features/folders/` (canonical). Classic keeps
+// `features/dam/DamPage` at /a/:slug/folders; the two share their data layer
+// (`features/dam/useAssetLibrary`) and differ in presentation only.
+import FoldersPage from '@/features/folders/FoldersPage';
 
-export default function StudioFoldersPage() {
-  return (
-    <StudioBrandShell>
-      <DamPage />
-    </StudioBrandShell>
-  );
-}
+export default FoldersPage;
