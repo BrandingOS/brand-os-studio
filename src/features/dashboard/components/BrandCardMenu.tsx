@@ -8,26 +8,7 @@ import { ContextMenu, type ContextMenuState } from '@/features/setup/components/
 // the workspace shell (e.g. the /dashboard/brands list).
 import '@/shared/styles/workspace.css';
 import './brandCardMenu.css';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DsButton, DsConfirmDialog, DsInput, DsModal } from '@/shared/ds';
 import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourcePopover';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -366,7 +347,9 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
     : children;
 
   return (
-    <div className="bcm-slot">
+    // `group/slot` lets a Tailwind-styled card react to hover on the SLOT, so
+    // the card and its menu button behave as one thing (see brandCardMenu.css).
+    <div className={placement === 'end' ? 'bcm-slot bcm-slot--end group/slot' : 'bcm-slot group/slot'}>
       {trigger}
 
       <button
@@ -396,74 +379,56 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
         <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />
       )}
 
-      <Dialog open={renaming} onOpenChange={(open) => !busy && setRenaming(open)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Rename project</DialogTitle>
-            <DialogDescription>
-              This is the name on your dashboard. The brand is still called “{brand.name}”
-              everywhere else.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            autoFocus
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void commitRename();
-            }}
-            placeholder={brand.name}
-            aria-label="Project name"
-          />
-          <DialogFooter className="sm:justify-between">
-            <Button
-              variant="ghost"
-              onClick={() => setDraftName('')}
-              disabled={busy || !draftName.trim()}
-            >
-              Use brand name
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setRenaming(false)} disabled={busy}>
-                Cancel
-              </Button>
-              <Button onClick={() => void commitRename()} disabled={busy}>
-                {busy ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={confirmingDelete}
-        onOpenChange={(open) => !busy && setConfirmingDelete(open)}
+      <DsModal
+        open={renaming}
+        onClose={() => !busy && setRenaming(false)}
+        eyebrow="Dashboard"
+        title="Rename project"
+        secondaryActions={
+          <DsButton
+            tone="tertiary"
+            size="sm"
+            onClick={() => setDraftName('')}
+            disabled={busy || !draftName.trim()}
+          >
+            Use brand name
+          </DsButton>
+        }
+        actions={
+          <>
+            <DsButton tone="secondary" size="sm" onClick={() => setRenaming(false)} disabled={busy}>
+              Cancel
+            </DsButton>
+            <DsButton tone="primary" size="sm" onClick={() => void commitRename()} disabled={busy}>
+              {busy ? 'Saving…' : 'Save'}
+            </DsButton>
+          </>
+        }
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{label}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the project and everything saved in it — logos, colors, fonts and
-              guidelines. It can’t be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => {
-                // Keep the dialog up while the delete runs so the user sees the
-                // busy state rather than a flash of the old list.
-                e.preventDefault();
-                void confirmDelete();
-              }}
-              disabled={busy}
-            >
-              {busy ? 'Deleting…' : 'Delete project'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ds-text-secondary)', margin: 0 }}>
+          This is the name on your dashboard. The brand is still called “{brand.name}” everywhere
+          else.
+        </p>
+        <DsInput
+          autoFocus
+          value={draftName}
+          onChange={(e) => setDraftName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void commitRename();
+          }}
+          placeholder={brand.name}
+          aria-label="Project name"
+        />
+      </DsModal>
+
+      <DsConfirmDialog
+        open={confirmingDelete}
+        title={`Delete “${label}”?`}
+        description="This removes the project and everything saved in it — logos, colors, fonts and guidelines. It can’t be undone."
+        confirmLabel={busy ? 'Deleting…' : 'Delete project'}
+        onCancel={() => !busy && setConfirmingDelete(false)}
+        onConfirm={() => !busy && void confirmDelete()}
+      />
     </div>
   );
 }

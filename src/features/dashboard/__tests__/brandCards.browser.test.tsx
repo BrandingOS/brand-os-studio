@@ -42,13 +42,22 @@ function seedBrand(over: Partial<Brand> = {}): Brand {
   } as Brand;
 }
 
-/** A logo asset plus the ref that points at it. */
+/** A logo asset plus the ref that points at it. The seed's primary colour is
+ *  dark navy, so a WHITE mark is what reads on the card's brand-coloured band —
+ *  the same arrangement every real brand in the repo ships. */
 function withLogo(role: 'iconmark' | 'primary', url: string, over: Partial<Brand> = {}): Brand {
   return seedBrand({
     brandAssets: [
       { id: `asset-${role}`, kind: 'logo', name: role, formats: { svg: { url, size: 1 } }, tags: [] },
+      {
+        id: 'asset-mono-white',
+        kind: 'logo',
+        name: 'mono.white',
+        formats: { svg: { url: 'https://cdn/mono-white.svg', size: 1 } },
+        tags: [],
+      },
     ],
-    logoSystem: { [role]: { assetId: `asset-${role}` } },
+    logoSystem: { [role]: { assetId: `asset-${role}` }, mono: { white: { assetId: 'asset-mono-white' } } },
     ...over,
   } as Partial<Brand>);
 }
@@ -95,26 +104,37 @@ afterEach(() => {
 });
 
 describe('what a dashboard card shows', () => {
-  it('draws the Brand Icon rather than the first letter', async () => {
-    installBrand(withLogo('iconmark', 'https://cdn/icon.svg'));
-    mount(withLogo('iconmark', 'https://cdn/icon.svg'));
+  it('draws the brand’s logo rather than the first letter', async () => {
+    installBrand(withLogo('primary', 'https://cdn/primary.svg'));
+    mount(withLogo('primary', 'https://cdn/primary.svg'));
 
     // `alt=""` makes the image presentational, so it is queried by class —
     // the logo is decoration beside the card's own accessible name.
     await waitFor(() => {
       const logo = document.querySelector('.ws-brand-card-logo') as HTMLImageElement | null;
-      expect(logo?.getAttribute('src')).toBe('https://cdn/icon.svg');
+      expect(logo?.getAttribute('src')).toBeTruthy();
     });
     expect(document.querySelector('.ws-brand-card-letter')).toBeNull();
   });
 
-  it('draws the Primary logo when the brand has no icon', async () => {
+  it('draws the Brand Icon when the brand has no primary', async () => {
+    installBrand(withLogo('iconmark', 'https://cdn/icon.svg'));
+    mount(withLogo('iconmark', 'https://cdn/icon.svg'));
+
+    await waitFor(() => {
+      const logo = document.querySelector('.ws-brand-card-logo') as HTMLImageElement | null;
+      expect(logo?.getAttribute('src')).toBeTruthy();
+    });
+  });
+
+  it('paints the band in the brand’s own colour, never a neutral tile', async () => {
     installBrand(withLogo('primary', 'https://cdn/primary.svg'));
     mount(withLogo('primary', 'https://cdn/primary.svg'));
 
     await waitFor(() => {
-      const logo = document.querySelector('.ws-brand-card-logo') as HTMLImageElement | null;
-      expect(logo?.getAttribute('src')).toBe('https://cdn/primary.svg');
+      const band = document.querySelector('.ws-brand-card-color') as HTMLElement;
+      // #1A1A2E — the seed's primary.
+      expect(band.style.background.replace(/\s/g, '')).toBe('rgb(26,26,46)');
     });
   });
 

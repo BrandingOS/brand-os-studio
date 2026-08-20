@@ -87,13 +87,16 @@ export class LocalBrandsService implements BrandsService {
     const allBrands = this.getAllBrands();
     const index = allBrands.findIndex(b => b.id === id);
     if (index === -1) throw new Error(`Brand with id ${id} not found`);
-    const updatedBrand = { ...allBrands[index], ...patch, updatedAt: new Date() };
+    // A caller that supplies `updatedAt` is telling us this write is not an
+    // edit to the brand — the dashboard does it when only the project's card
+    // changed. Everything else stamps now, as it always did.
+    const updatedBrand = { ...allBrands[index], ...patch, updatedAt: patch.updatedAt ?? new Date() };
 
     // Seed brands persist as a slim diff in `seedBrandOverrides` so the
     // canonical seed in /src/data/brands stays the source of truth and
     // edits propagate to every consumer that reads the brand.
     if (SEED_BRAND_IDS.has(id)) {
-      patchSeedOverride(id, { ...patch, updatedAt: new Date() });
+      patchSeedOverride(id, { ...patch, updatedAt: patch.updatedAt ?? new Date() });
       return migrateBrandToCurrent(updatedBrand);
     }
 

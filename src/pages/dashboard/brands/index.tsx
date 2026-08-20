@@ -8,8 +8,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect, useState } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { BrandAvatar } from '@/shared/brand/BrandAvatar';
-import { brandCardLabel } from '@/shared/brand/workspaceCard';
+import { brandCardFace, brandCardLabel } from '@/shared/brand/workspaceCard';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 
@@ -35,9 +34,11 @@ export default function BrandsPage() {
     uiPreference === 'classic' ? `/a/${slug}/setup` : `/b/${slug}/setup`;
   const kitUrlFor = (slug: string) =>
     uiPreference === 'classic' ? `/a/${slug}/brand-kit` : `/b/${slug}/brand-kit`;
-  // Identity is unmigrated in Studio (Phase B will port it). For now both
-  // namespaces land on the Classic page directly to avoid a redirect hop.
-  const identityUrlFor = (slug: string) => `/a/${slug}/identity`;
+  // "Edit brand" goes to Studio's Setup — the canonical place a brand is
+  // edited. It used to hard-code `/a/:slug/identity`, so the one action whose
+  // whole purpose is editing the brand was also the one action that dropped the
+  // user into the alternate UI, whatever their preference said.
+  const editUrlFor = (slug: string) => `/b/${slug}/setup`;
 
   useEffect(() => {
     loadAll();
@@ -95,21 +96,25 @@ export default function BrandsPage() {
               // A sentinel colour is not a brand colour, so it is not shown as
               // one — no strip gradient, no swatch, no avatar fill.
               const colorIsSentinel = isPlaceholderPath(brand, 'colors.primary');
+              const face = brandCardFace(brand);
 
               return (
                 <BrandCardMenu
                   key={brand.id}
                   brand={brand}
-                  editUrl={identityUrlFor(brand.slug)}
+                  editUrl={editUrlFor(brand.slug)}
                   placement="end"
                 >
                 <Card
-                  className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[280ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:hover:-translate-y-0.5 hover:shadow-xl hover:border-primary/30"
+                  // Hover is read from the SLOT (see brandCardMenu.css): the
+                  // menu button is a sibling of this card, so a `hover:` here
+                  // would leave the row still while its own control lit up.
+                  className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[280ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:group-hover/slot:-translate-y-0.5 group-hover/slot:shadow-xl group-hover/slot:border-primary/30"
                 >
                   <div className="flex flex-row">
                     {/* Color strip — gradient primary → secondary/accent */}
                     <div
-                      className="w-1.5 shrink-0 transition-[width] duration-[280ms] group-hover:w-2"
+                      className="w-1.5 shrink-0 transition-[width] duration-[280ms] group-hover/slot:w-2"
                       style={{
                         background: colorIsSentinel
                           ? 'hsl(var(--border))'
@@ -119,16 +124,27 @@ export default function BrandsPage() {
 
                     {/* Brand info in the middle */}
                     <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
-                      {/* The brand's face, not its initial — Brand Icon, then
-                          Primary logo, then the letter. `BrandAvatar` is the
-                          one module that answers this, so a row here and the
-                          card at /dashboard show the same thing. */}
-                      <BrandAvatar
-                        brand={brand}
-                        size={48}
-                        radius={6}
-                        className="shrink-0 transition-transform duration-300 motion-safe:group-hover:scale-105"
-                      />
+                      {/* The brand's face on its own colour — Primary logo,
+                          then Brand Icon, then the letter. `brandCardFace` is
+                          the one module that answers this, so a row here and a
+                          card at /dashboard agree by construction. */}
+                      <div
+                        className="w-12 h-12 rounded-md shrink-0 grid place-items-center overflow-hidden transition-transform duration-300 motion-safe:group-hover/slot:scale-105"
+                        style={{ background: face.background, color: face.color }}
+                        aria-hidden="true"
+                      >
+                        {face.logoUrl ? (
+                          // CONTAIN, never crop: a wide lockup in a 48px square
+                          // keeps its proportions or it stops being the logo.
+                          <img
+                            src={face.logoUrl}
+                            alt=""
+                            className="w-[82%] h-[82%] object-contain"
+                          />
+                        ) : (
+                          <span className="text-lg font-semibold leading-none">{face.letter}</span>
+                        )}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <CardTitle className="text-lg truncate">{brandCardLabel(brand)}</CardTitle>
                         <CardDescription className="mt-0.5 truncate">
@@ -139,7 +155,7 @@ export default function BrandsPage() {
                             {swatches.map((color, i) => (
                               <div
                                 key={`${color}-${i}`}
-                                className="w-4 h-4 rounded-full border border-border/60 shadow-sm transition-transform duration-300 motion-safe:group-hover:scale-110"
+                                className="w-4 h-4 rounded-full border border-border/60 shadow-sm transition-transform duration-300 motion-safe:group-hover/slot:scale-110"
                                 style={{
                                   backgroundColor: color,
                                   transitionDelay: `${i * 30}ms`,
@@ -163,7 +179,7 @@ export default function BrandsPage() {
                             variant="ghost"
                             size="icon"
                             title="Edit Brand"
-                            onClick={() => navigate(identityUrlFor(brand.slug))}
+                            onClick={() => navigate(editUrlFor(brand.slug))}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>

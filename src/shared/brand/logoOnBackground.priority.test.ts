@@ -45,17 +45,17 @@ function brandWith(roles: Partial<Record<string, string>>, primaryColor = '#EF44
 }
 
 describe('the order a brand’s face is chosen in', () => {
-  it('takes the Brand Icon when there is one', () => {
+  it('takes the Primary logo when there is one', () => {
     const brand = brandWith({ iconmark: 'icon.svg', primary: 'primary.svg' });
-    expect(pickLogoByPriority(brand, '#FFFFFF')?.url).toBe('icon.svg');
-  });
-
-  it('takes the Primary logo when there is no icon', () => {
-    const brand = brandWith({ primary: 'primary.svg', wordmark: 'wordmark.svg' });
     expect(pickLogoByPriority(brand, '#FFFFFF')?.url).toBe('primary.svg');
   });
 
-  it('does NOT let contrast scoring promote Primary over the icon', () => {
+  it('takes the Brand Icon when there is no primary', () => {
+    const brand = brandWith({ iconmark: 'icon.svg', wordmark: 'wordmark.svg' });
+    expect(pickLogoByPriority(brand, '#FFFFFF')?.url).toBe('icon.svg');
+  });
+
+  it('does NOT let contrast scoring promote a mono variant over the primary', () => {
     // Both are coloured variants, so they score identically — but the previous
     // implementation compared scores across ALL roles, and a mono variant with
     // a better ratio would take the slot from the icon outright.
@@ -67,13 +67,13 @@ describe('the order a brand’s face is chosen in', () => {
     // Scoring alone prefers the black mono on a white ground (21:1).
     expect(pickLogoOnBackground(brand, '#FFFFFF')?.url).toBe('mono-black.svg');
     // The face does not.
-    expect(pickLogoByPriority(brand, '#FFFFFF')?.url).toBe('icon.svg');
+    expect(pickLogoByPriority(brand, '#FFFFFF')?.url).toBe('primary.svg');
   });
 
   it('falls through to a variant that reads when the priority roles cannot', () => {
     // A red mark on a red card is an empty card. Contrast still gets its veto,
     // and the mono twin is what rescues it.
-    const brand = brandWith({ iconmark: 'icon.svg', monoWhite: 'mono-white.svg' }, '#EF4444');
+    const brand = brandWith({ primary: 'primary.svg', monoWhite: 'mono-white.svg' }, '#EF4444');
     expect(pickLogoByPriority(brand, '#EF4444')?.url).toBe('mono-white.svg');
   });
 
@@ -88,8 +88,8 @@ describe('the order a brand’s face is chosen in', () => {
   });
 
   it('honours a caller’s own order', () => {
-    const brand = brandWith({ iconmark: 'icon.svg', wordmark: 'wordmark.svg' });
-    expect(pickLogoByPriority(brand, '#FFFFFF', ['wordmark', 'iconmark'])?.url).toBe(
+    const brand = brandWith({ primary: 'primary.svg', wordmark: 'wordmark.svg' });
+    expect(pickLogoByPriority(brand, '#FFFFFF', ['wordmark', 'primary'])?.url).toBe(
       'wordmark.svg',
     );
   });

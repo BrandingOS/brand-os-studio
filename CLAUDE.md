@@ -1129,25 +1129,53 @@ coverUrl }`, migration 031 `brands.workspace_card`, interpreted ONLY by
   in `mapFromDatabase`. A successful write naming the column FORGETS the local
   copy — left behind it would resurrect a card the user has since cleared.
 
-**The card's face is the brand's, and the letter is the LAST resort.** The
-order is Brand Icon → Primary logo → letter, and it is DETERMINISTIC:
-`pickLogoByPriority` (in `logoOnBackground.ts`) walks the caller's order and the
-first role that clears the contrast floor wins outright — contrast vetoes, it
-never ranks. A brand-coloured mark on the brand's own colour scores 1.0, so the
-grid card changes the GROUND rather than the logo (`cardBand` in `Home.tsx`
-falls through to `resolveBrandFace`, the same module the rail and switcher use);
-only a brand with no artwork at all gets an initial. List rows use
-`BrandAvatar` directly, which already encodes the same order.
+**The card's face is the brand's, on the brand's own colour, and the letter is
+the LAST resort.** `brandCardFace(brand)` decides it once for BOTH surfaces —
+the grid paints a 240px band, the list a 48px tile, one decision. The order is
+Primary logo → Brand Icon → letter and it is DETERMINISTIC: `pickLogoByPriority`
+walks the caller's order and the first role clearing the contrast floor wins
+outright — contrast VETOES, it never ranks. The ground stays the brand's colour;
+when a coloured mark on that colour cannot be seen (it scores 1.0), the GROUND
+moves to `surfacePalette(brand,'inverted')` — the palette's brand-TINTED
+near-black — never to a neutral cream tile, because a grid of those is a grid of
+beige squares with the brand taken out. `BrandAvatar` keeps its neutral tiles
+for chrome elsewhere; the dashboard deliberately does not use it.
 
 **One menu, both surfaces.** `features/dashboard/components/BrandCardMenu.tsx`
-owns the items, the dialogs and every write. It opens on right-click AND from a
-`⋯` button revealed on hover — a menu nobody knows about is a menu nobody uses.
-`placement="end"` moves the button out of a list row's action cluster; the menu
-itself is identical. Its CSS is deliberately UNSCOPED (`brandCardMenu.css`) —
-the grid is inside `[data-workspace]` and the list is not, so a scoped selector
-would style one and skip the other. `useAssetUpload` lives in the cover picker
-child, which mounts only while the picker is open, so twenty cards do not
-instantiate twenty uploaders.
+owns the items, the dialogs and every write, and uses `DsModal` /
+`DsConfirmDialog` / `DsInput` / `DsButton` — never shadcn. It opens on
+right-click AND from a `⋯` button revealed on hover; a menu nobody knows about
+is a menu nobody uses. `placement="end"` moves the button out of a list row's
+action cluster; the menu itself is identical. Its CSS is deliberately UNSCOPED
+(`brandCardMenu.css`) — the grid is inside `[data-workspace]` and the list is
+not, so a scoped selector would style one and skip the other. `useAssetUpload`
+lives in the cover picker child, which mounts only while the picker is open, so
+twenty cards do not instantiate twenty uploaders.
+
+Two rules that are easy to undo by accident:
+
+- **Hover belongs to the SLOT, not the card.** The button has to be a SIBLING of
+  the card — the card is a link, and a button inside a link is not a button — so
+  a `:hover` on the card meant hovering the button did not raise the card, and
+  the two read as unrelated widgets. `.bcm-slot:hover .ws-brand-card` (and
+  `group-hover/slot:` on the Tailwind row) drives it, and both move by
+  `--bcm-lift` so they travel together. Do NOT put a `transform` on `.bcm-slot`
+  itself: `DsModal` renders in place with `position: fixed`, and a transformed
+  ancestor would re-anchor it to the card.
+- **"Edit brand" goes to `/b/:slug/setup`.** It used to hard-code
+  `/a/:slug/identity`, so the one action whose purpose is editing the brand was
+  also the one that dropped the user into the alternate UI. (The Open and Brand
+  Kit buttons still honour the user's own Interface preference — that is the
+  setting working, not a stray `/a`.)
+
+**A card edit is not a brand edit.** Renaming a project bumped `updatedAt`, so
+the card the user had just touched jumped to the front of a recency-ordered grid
+— whatever moved was by definition the thing they were looking at. Two things
+fix it and both are needed: `brandStore.update` carries the old `updatedAt`
+forward when the patch is card-only (`LocalBrandsService` honours a supplied
+`updatedAt`; Supabase's `trg_brands_updated_at` still stamps now(), which is why
+the second half exists), and Home's grid claims each brand's position ONCE —
+only a brand it has never placed is sorted in, at the front.
 
 ## Undo / redo — `src/shared/history/` (2026-08-19)
 

@@ -157,16 +157,16 @@ export function pickLogoOnBackground(
 }
 
 /**
- * The order a brand's face is chosen in when the caller has one: Brand Icon,
- * then Primary logo, then whatever else reads.
+ * The order a brand's face is chosen in when the caller has one: the Primary
+ * logo, then the Brand Icon, then whatever else reads.
  *
- * A small square is exactly what an iconmark is drawn for, so a brand that has
- * one should show it — and it should not lose that slot to the primary lockup
- * merely because the lockup happens to score a higher contrast ratio. Scoring
- * answers "can this be seen", which is a floor, not a ranking of which mark is
- * the right one.
+ * The primary IS the brand's logo — the one it would put on a sign — so it
+ * leads, and the icon stands in when there is no primary. Neither should lose
+ * the slot to a mono variant merely because that variant scores a higher
+ * contrast ratio: scoring answers "can this be seen", which is a floor, not a
+ * ranking of which mark is the right one.
  */
-export const FACE_PRIORITY: LogoRole[] = ['iconmark', 'primary'];
+export const FACE_PRIORITY: LogoRole[] = ['primary', 'iconmark'];
 
 /**
  * Pick a logo by the caller's ORDER, with this module's contrast floor still

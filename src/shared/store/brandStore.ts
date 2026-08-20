@@ -199,6 +199,22 @@ export const useBrandStore = create<BrandStore>()(
             patch = withoutProjection;
           }
 
+          // Renaming a project, or giving it a cover, is not editing the BRAND.
+          // Left alone, `updatedAt` would move — so the card would claim the
+          // brand was edited, and every surface that orders by recency would
+          // reshuffle around a change to a label. Carry the old timestamp with
+          // the write; the services that honour it keep the brand's real
+          // last-edited date.
+          const cardOnly =
+            patch.workspaceCard !== undefined &&
+            Object.keys(patch).every((k) => k === 'workspaceCard' || k === 'updatedAt');
+          if (cardOnly && patch.updatedAt === undefined) {
+            const before =
+              useBrandStore.getState().list.find((b) => b.id === id) ??
+              useBrandStore.getState().current;
+            if (before?.updatedAt) patch = { ...patch, updatedAt: before.updatedAt };
+          }
+
           const { core, rest, routedKeys, unroutedCoreKeys } = splitCorePatch(patch);
 
           if (import.meta.env.DEV && unroutedCoreKeys.length) {

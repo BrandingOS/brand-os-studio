@@ -15,6 +15,8 @@
  */
 import type { Brand, WorkspaceCard } from '@/shared/types/brand';
 import type { AssetFormat } from '@/shared/types/brandAssets';
+import { surfacePalette } from '@/shared/brand/brandPalette';
+import { pickLogoByPriority } from '@/shared/brand/logoOnBackground';
 
 /** Format preference for a cover — a photograph, so raster before vector. */
 const COVER_FORMATS: AssetFormat[] = ['webp', 'png', 'jpg', 'svg'];
@@ -90,4 +92,55 @@ export function mergeWorkspaceCard(
   // layer between here and the database, so clearing the last field would
   // silently keep the old value. Null is the instruction to clear it.
   return Object.keys(next).length > 0 ? next : null;
+}
+
+/** What a dashboard card draws behind its name — decided once, for both surfaces. */
+export interface BrandCardFace {
+  /** Always the brand's own colour. */
+  background: string;
+  /** Readable ink on that colour, for the letter. */
+  color: string;
+  /** Present when there is artwork that can be seen. */
+  logoUrl?: string;
+  /** Present only when there is not. */
+  letter?: string;
+}
+
+/**
+ * The brand's face on a dashboard card: its Primary logo, then its Brand Icon,
+ * on the brand's own colour.
+ *
+ * The GROUND is not negotiable — a dashboard of brand colours is the point, and
+ * a neutral tile turns it into a page of beige squares. So the colour stays and
+ * the LOGO moves: `pickLogoByPriority` takes the primary, then the icon, and
+ * hands off to the contrast search only when neither can be seen on this
+ * ground, which is what routes a brand-coloured mark on its own colour to its
+ * mono twin.
+ *
+ * When a brand has ONLY coloured artwork and no mono twin, nothing can be seen
+ * on its own colour — a mark inked in the primary, on the primary, is an empty
+ * card. That brand keeps a brand ground, just a different one: `inverted` is
+ * the palette's near-black TINTED WITH THE BRAND'S HUE, so the logo appears and
+ * the card still belongs to the brand. It is never a neutral cream tile; a page
+ * of those is a page of beige squares with the brand taken out of it.
+ *
+ * The letter is the last resort and means something specific: not one variant
+ * of this brand's artwork reads on any of its own grounds.
+ *
+ * Both dashboard surfaces call this. The grid paints a 240px band and the list
+ * a 48px tile — different markup, one decision.
+ */
+export function brandCardFace(brand: Brand | null | undefined): BrandCardFace {
+  const surface = surfacePalette(brand as Brand, 'brand');
+  const onBrand = pickLogoByPriority(brand, surface.bg)?.url;
+  if (onBrand) return { background: surface.bg, color: surface.text, logoUrl: onBrand };
+
+  const inverted = surfacePalette(brand as Brand, 'inverted');
+  const onInverted = pickLogoByPriority(brand, inverted.bg)?.url;
+  if (onInverted) {
+    return { background: inverted.bg, color: inverted.text, logoUrl: onInverted };
+  }
+
+  const letter = (brand?.name ?? 'B').trim().slice(0, 1).toUpperCase() || 'B';
+  return { background: surface.bg, color: surface.text, letter };
 }

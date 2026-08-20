@@ -212,8 +212,16 @@
     box-shadow 220ms var(--ds-ease),
     border-color 220ms var(--ds-ease);
 }
-[data-workspace] .ws-brand-card:hover {
-  transform: translateY(-4px);
+/* Hover belongs to the SLOT, not the card.
+   The menu button is a sibling of the card, not a child of it — it has to be,
+   because the card is a link and a button inside a link is not a button. So
+   hovering the button was not hovering the card: the card sat still while its
+   own control lit up, and the two read as unrelated widgets. The slot contains
+   both, so the slot is what listens.
+   The ghost "Create a new brand" card has no slot and keeps its own hover
+   rule further down. */
+[data-workspace] .bcm-slot:hover .ws-brand-card {
+  transform: translateY(var(--bcm-lift, -4px));
   box-shadow: var(--ds-shadow-md);
   border-color: var(--ds-border-strong);
 }

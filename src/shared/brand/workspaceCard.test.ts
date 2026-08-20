@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  brandCardFace,
   brandCardLabel,
   hasProjectLabel,
   mergeWorkspaceCard,
@@ -129,5 +130,53 @@ describe('merging a change into the card', () => {
     // adapter, so clearing the last field would leave the old card in place.
     expect(mergeWorkspaceCard({ label: 'Client A' }, { label: '' })).toBeNull();
     expect(mergeWorkspaceCard(undefined, {})).toBeNull();
+  });
+});
+
+describe('the face a card draws', () => {
+  /** A brand carrying exactly the logo roles named. */
+  const withRoles = (roles: Record<string, string>, primaryColor = '#EF4444'): Brand =>
+    brand({
+      primaryColor,
+      brandAssets: Object.entries(roles).map(([role, url]) => ({
+        id: `asset-${role}`,
+        kind: 'logo',
+        name: role,
+        formats: { svg: { url, size: 1 } },
+        tags: [],
+      })),
+      logoSystem: {
+        primary: roles.primary ? { assetId: 'asset-primary' } : undefined,
+        iconmark: roles.iconmark ? { assetId: 'asset-iconmark' } : undefined,
+        mono: { white: roles.monoWhite ? { assetId: 'asset-monoWhite' } : undefined },
+      },
+    } as Partial<Brand>);
+
+  it('is the brand’s own colour, never a neutral tile', () => {
+    const face = brandCardFace(withRoles({ monoWhite: 'white.svg' }, '#EF4444'));
+    expect(face.background.toLowerCase()).toBe('#ef4444');
+    expect(face.logoUrl).toBe('white.svg');
+  });
+
+  it('takes the Primary logo before the Brand Icon', () => {
+    const face = brandCardFace(
+      withRoles({ primary: 'primary.svg', iconmark: 'icon.svg' }, '#FFFFFF'),
+    );
+    expect(face.logoUrl).toBe('primary.svg');
+  });
+
+  it('keeps a brand ground when the artwork cannot be seen on the primary', () => {
+    // A coloured mark inked in the brand's own colour, on that colour. The
+    // ground moves to the palette's brand-tinted near-black — not to cream.
+    const face = brandCardFace(withRoles({ primary: 'primary.svg' }, '#EF4444'));
+    expect(face.logoUrl).toBe('primary.svg');
+    expect(face.background.toLowerCase()).not.toBe('#ef4444');
+    expect(face.background.toLowerCase()).not.toBe('#ffffff');
+  });
+
+  it('falls to the letter only when the brand has no artwork at all', () => {
+    const face = brandCardFace(withRoles({}));
+    expect(face.logoUrl).toBeUndefined();
+    expect(face.letter).toBe('A');
   });
 });

@@ -1,13 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DsButton, DsEyebrow } from '@/shared/ds';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { surfacePalette } from '@/shared/brand/brandPalette';
-import { pickLogoByPriority } from '@/shared/brand/logoOnBackground';
-import { resolveBrandFace } from '@/shared/brand/BrandAvatar';
-import { brandCardLabel, resolveBrandCover } from '@/shared/brand/workspaceCard';
+import { brandCardFace, brandCardLabel, resolveBrandCover } from '@/shared/brand/workspaceCard';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import type { Brand } from '@/shared/types/brand';
 import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
@@ -48,45 +45,12 @@ function sentenceLower(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
-/**
- * The card's top band: what it shows, and what it shows it on.
- *
- * The letter is the LAST resort, not the second one. A brand that has uploaded
- * its logo system and still sees an initial on its own dashboard is the failure
- * this exists to remove — and it was a real one, because a coloured mark on the
- * brand's own colour scores a contrast of 1.0 and every scoring picker
- * correctly refuses it. Refusing the GROUND is the right answer there; refusing
- * the LOGO is not.
- *
- * So: the brand's colour when its icon (then its primary lockup) can be seen on
- * it, a neutral ground when the artwork exists but that pairing cannot work,
- * and the letter only when there is no artwork at all. `resolveBrandFace` is
- * the same module the rail, the switcher and the chooser use, so the second
- * branch agrees with them by construction.
- */
-function cardBand(brand: Brand): {
-  background: string;
-  color: string;
-  logoUrl?: string;
-  letter?: string;
-} {
-  const surface = surfacePalette(brand, 'brand');
-  const onBrand = pickLogoByPriority(brand, surface.bg)?.url;
-  if (onBrand) return { background: surface.bg, color: surface.text, logoUrl: onBrand };
-
-  const face = resolveBrandFace(brand);
-  if (face.kind === 'logo') {
-    return { background: face.background, color: face.color, logoUrl: face.url };
-  }
-  return { background: surface.bg, color: surface.text, letter: face.letter };
-}
-
 function BrandCard({ brand }: { brand: Brand }) {
   // Both halves of the card go through the canonical palette so colors
   // come out right by construction — no per-card luminance branching,
   // and the same logic applies to brand kit / variations / slides /
   // anywhere else that draws "a brand's surface".
-  const band = cardBand(brand);
+  const band = brandCardFace(brand);
   // A cover replaces the colour band entirely. It is the project's picture,
   // resolved live from its Library id, so a deleted asset returns the card to
   // the brand's colour and logo rather than to a dead image.
@@ -98,7 +62,9 @@ function BrandCard({ brand }: { brand: Brand }) {
   const entryUrl = uiPreference === 'classic' ? `/a/${brand.slug}/setup` : `/b/${brand.slug}/setup`;
 
   return (
-    <BrandCardMenu brand={brand} editUrl={`/a/${brand.slug}/identity`}>
+    // "Edit brand" goes to Studio's Setup — the canonical place a brand is
+    // edited — never to the alternate UI.
+    <BrandCardMenu brand={brand} editUrl={`/b/${brand.slug}/setup`}>
     <Link
       to={entryUrl}
       className="ws-brand-card"
@@ -178,16 +144,49 @@ export default function WorkspaceHome() {
     loadAll();
   }, [loadAll, isAuthenticated]);
 
+  // Cards do not move under the pointer.
+  //
+  // Recency is the right order to ARRIVE in and the wrong one to re-run while
+  // someone is working: renaming a project bumped `updatedAt`, so the card the
+  // user had just touched jumped to the front and everything else shifted a
+  // place. Whatever moved was, by definition, the thing they were looking at.
+  //
+  // So position is claimed once. A brand keeps the slot it was given for as
+  // long as the page is open; only a brand the grid has never placed is sorted
+  // in, at the front, where a newly created one belongs.
+  const placedRef = useRef<string[]>([]);
   const sorted = useMemo(() => {
-    // Show the most-recently-edited first. Fall back to createdAt.
-    return [...brands].sort((a, b) => {
+    const byRecency = [...brands].sort((a, b) => {
       const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
       const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
       return bTime - aTime;
     });
+
+    const placed = new Map(placedRef.current.map((id, i) => [id, i]));
+    // `sort` is stable, so two brands the grid has not placed keep the recency
+    // order they arrived in.
+    const next = byRecency.sort((a, b) => {
+      const ai = placed.get(a.id);
+      const bi = placed.get(b.id);
+      if (ai === undefined && bi === undefined) return 0;
+      if (ai === undefined) return -1;
+      if (bi === undefined) return 1;
+      return ai - bi;
+    });
+    placedRef.current = next.map((b) => b.id);
+    return next;
   }, [brands]);
 
-  const lastEdit = sorted[0]?.updatedAt;
+  // The hero reports the most recent edit, which is a different question from
+  // where the cards sit — read it from the brands, not from the frozen order.
+  const lastEdit = useMemo(
+    () =>
+      brands
+        .map((b) => b.updatedAt ?? b.createdAt)
+        .filter(Boolean)
+        .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0],
+    [brands],
+  );
   const count = sorted.length;
 
   return (
