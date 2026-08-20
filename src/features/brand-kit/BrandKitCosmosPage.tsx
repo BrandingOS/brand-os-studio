@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { ArrowRight } from '@/features/setup/components/SetupIcons';
@@ -16,6 +17,12 @@ import { hexToName } from '@/features/setup/data/colorNames';
 import type { BrandColor, MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
+import { container as serviceContainer } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS } from '@/core';
+import type { IDesignStorage } from '@/core/types/services';
+import { createTemplateInstanceDocument } from '@/features/editor/renderers/template-instance/createDocument';
+import { defaultContentFor, contentKindForTemplateType } from '@/features/brandkit/content';
+import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
 import { type KitSectionKey } from './components/BrandKitSidebar';
 import { KitSidebar } from './components/KitSidebar';
@@ -37,6 +44,7 @@ import {
 } from './components/BrandKitCardEditor';
 import { IconPickerModal } from './components/IconPickerModal';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
+import { getDeliverable, type DeliverableDef } from './kit/registry';
 import { variantsForCard } from './data/legacy-mapping';
 import { suggestIconsForBrand } from './data/suggestIcons';
 import {
@@ -224,6 +232,13 @@ export function BrandKitCosmosPage({
    *  cover for every tile. */
   sourceBrand?: Brand;
 }) {
+  const navigate = useNavigate();
+  // Defensive lookup — some test harnesses render this page without
+  // booting the DI container. `handleUseTemplate` treats a null service
+  // as "can't do this yet" rather than crashing the page.
+  const designStorage = serviceContainer.has(SERVICE_KEYS.DESIGN_STORAGE)
+    ? serviceContainer.get<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE)
+    : null;
   // Which capabilities this viewer may see. Nothing here can be granted
   // from the address bar — see `catalog/useKitViewer`.
   const viewer = useKitViewer();
@@ -538,6 +553,62 @@ export function BrandKitCosmosPage({
     [effectiveBrand, sourceBrand, runColorsExport],
   );
 
+  /**
+   * `Use Template` — hands a fresh, INDEPENDENT snapshot of this
+   * variant to the global Design editor. Spec §7.2: this COPIES, it
+   * does not subscribe — editing the Brand Kit master later must never
+   * reach a Design created here. Only deliverables with a registered
+   * `contentTypeId` (Invoice, for this slice) are usable this way; the
+   * caller gates the affordance so this only fires for those.
+   */
+  const handleUseTemplate = useCallback(
+    async (template: BrandKitTemplate, deliverable: DeliverableDef) => {
+      const contentTypeId = deliverable.contentTypeId;
+      if (!contentTypeId) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      const kind = contentKindForTemplateType(template.type);
+      if (!kind) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      if (!sourceBrand) {
+        toast.error('Use Template needs a saved brand');
+        return;
+      }
+      if (!designStorage) {
+        toast.error('Design storage is unavailable');
+        return;
+      }
+      const designId = crypto.randomUUID();
+      const doc = createTemplateInstanceDocument({
+        designId,
+        brandId: sourceBrand.id,
+        contentType: contentTypeId,
+        templateId: template.id,
+        content: defaultContentFor(kind, effectiveBrand),
+        design: {},
+        sourceTemplateId: template.id,
+      });
+      try {
+        await designStorage.saveDesign(sourceBrand.id, designId, doc, {
+          name: `${deliverable.label} — ${template.name}`,
+          contentType: contentTypeId,
+          isTemplate: false,
+          sourceTemplateId: template.id,
+        });
+      } catch (err) {
+        toast.error('Could not create design', {
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+        return;
+      }
+      navigate(`/b/${sourceBrand.slug}/design/${designId}`);
+    },
+    [sourceBrand, designStorage, effectiveBrand, navigate],
+  );
+
   // Section-level download (the small icon in each section header).
   // Brand Assets → the full kit bundle; template sections → a zip with
   // one rasterized PNG per card (its first variant).
@@ -802,6 +873,17 @@ export function BrandKitCosmosPage({
     [drilldownTarget],
   );
 
+  /** The registry definition for the open drilldown, if it is one of
+   *  the generatable deliverables (Brand Assets cards have none). Only
+   *  a deliverable with `contentTypeId` set can offer `Use Template`. */
+  const drilldownDeliverable: DeliverableDef | undefined = useMemo(
+    () =>
+      drilldownTarget
+        ? getDeliverable(drilldownTarget.sectionKey, drilldownTarget.label)
+        : undefined,
+    [drilldownTarget],
+  );
+
   /**
    * The item the user is actually looking at — what the sidebar
    * highlights. This one IS gated on `view`, because exiting deliberately
@@ -957,6 +1039,11 @@ export function BrandKitCosmosPage({
                   sourceBrand={sourceBrand}
                   mockBrand={effectiveBrand}
                   onBack={requestExitDrilldown}
+                  onUseTemplate={
+                    drilldownDeliverable?.contentTypeId
+                      ? (template) => handleUseTemplate(template, drilldownDeliverable)
+                      : undefined
+                  }
                   onPickVariant={(template) =>
                     setEditorTarget({ ...drilldownTarget, template })
                   }
@@ -1253,6 +1340,11 @@ type DrilldownProps = {
    *  button that pops the inline HSV color picker (Setup parity). */
   onAddColor?: (group: 'core' | 'accent', hex: string) => void;
   onDownload: () => void;
+  /** Optional — when provided, right-clicking a variant tile offers
+   *  "Use Template" alongside "Edit". Only deliverables promoted to a
+   *  real Design content type pass this down; every other card's tile
+   *  stays a plain click-only button, unchanged. */
+  onUseTemplate?: (template: BrandKitTemplate) => void;
 };
 
 /**
@@ -1286,7 +1378,28 @@ function BrandKitDrilldown({
   onAddVariants,
   onAddColor,
   onDownload,
+  onUseTemplate,
 }: DrilldownProps) {
+  // Right-click menu for a variant tile — only ever populated when
+  // `onUseTemplate` is provided, so cards without it never gain a
+  // context menu they didn't have before.
+  const [tileMenu, setTileMenu] = useState<ContextMenuState | null>(null);
+  const openTileMenu = useCallback(
+    (e: React.MouseEvent, tpl: BrandKitTemplate) => {
+      if (!onUseTemplate) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setTileMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: [
+          { label: 'Edit', onSelect: () => onPickVariant(tpl) },
+          { label: 'Use Template', onSelect: () => onUseTemplate(tpl) },
+        ],
+      });
+    },
+    [onUseTemplate, onPickVariant],
+  );
   // For the Icons card we re-derive templates from the live brand on
   // every render so user-added icons surface immediately. The
   // snapshot stored on `target.templates` is captured at click time
@@ -1698,6 +1811,7 @@ function BrandKitDrilldown({
                 type="button"
                 className="bk-variant-tile"
                 onClick={() => onPickVariant(tpl)}
+                onContextMenu={onUseTemplate ? (e) => openTileMenu(e, tpl) : undefined}
                 aria-label={`Open ${tpl.name}`}
               >
                 {sourceBrand ? (
@@ -1756,6 +1870,14 @@ function BrandKitDrilldown({
           })
         )}
       </div>
+      )}
+      {tileMenu && (
+        <ContextMenu
+          x={tileMenu.x}
+          y={tileMenu.y}
+          items={tileMenu.items}
+          onClose={() => setTileMenu(null)}
+        />
       )}
     </div>
   );
