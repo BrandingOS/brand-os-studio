@@ -34,6 +34,7 @@ import {
   instantiateFromMaster,
 } from '@/features/editor/renderers/template-instance/createDocument';
 import { defaultContentFor } from '@/features/brandkit/content';
+import { saveFeaturedVariants } from '../data/cardCustomizations';
 
 /**
  * `useNavigate` is mocked directly rather than proven via a real route
@@ -133,6 +134,7 @@ async function pickOnBruteForce(label: 'Use Template' | 'Edit Template') {
 beforeEach(() => {
   navigateMock.mockClear();
   container.clear();
+  localStorage.clear();
 });
 
 afterEach(() => {
@@ -164,6 +166,33 @@ describe('Use Template — an independent copy, handed to Design', () => {
       expect(navigateMock).toHaveBeenCalledWith(`/b/skam/design/${call.designId}`),
     );
     expect(navigateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the tile menu gates a design Design cannot actually edit', () => {
+  it('offers both actions, disabled and explained, on an unbound variant', async () => {
+    const { storage } = statefulDesignStorage();
+    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => storage);
+    // `invoices-ext-12` is in the wired family but its renderer binds no
+    // content — every edit made in Design would be discarded, silently.
+    // Featured through the same store the "+" picker writes, so the
+    // drilldown shows it.
+    saveFeaturedVariants(sourceBrand.id, 'Invoice', ['invoices-ext-12']);
+
+    renderKit();
+    await openInvoice();
+
+    const tile = await screen.findByRole('button', { name: /^Open / });
+    fireEvent.contextMenu(tile);
+
+    const use = await screen.findByRole('menuitem', { name: /Use Template/ });
+    expect(use).toBeDisabled();
+    expect(use.textContent).toMatch(/can't be edited in Design yet/i);
+    const edit = screen.getByRole('menuitem', { name: /Edit Template/ });
+    expect(edit).toBeDisabled();
+
+    fireEvent.click(use);
+    expect(storage.saveDesign).not.toHaveBeenCalled();
   });
 });
 

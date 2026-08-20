@@ -13,6 +13,10 @@ import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
 import {
+  rendererBindsContent,
+  NO_CONTENT_BINDING_REASON,
+} from '../renderers/contentBinding';
+import {
   contentKindForTemplateType,
   defaultContentFor,
   type ContentKind,
@@ -897,6 +901,25 @@ export function BrandKitCardEditor({
   // literals baked into the design with THIS brand's name/domain, which
   // has always run automatically and isn't something the user edits).
   const isBusinessCard = templateType === 'business-cards';
+  /**
+   * Whether this variant can be handed to Design, and why not.
+   *
+   * Two distinct refusals: the deliverable's family has no Design content
+   * type at all (the page passes no handlers), or it has one but THIS
+   * design's renderer binds no content — in which case Design would
+   * accept every edit and repaint none of them.
+   */
+  const wiredToDesign = Boolean(onUseTemplate || onEditTemplate);
+  const bindsContent = rendererBindsContent(previewTemplate);
+  const canHandOff = Boolean(previewTemplate) && wiredToDesign && bindsContent;
+  const handOffUnavailableReason = canHandOff
+    ? null
+    : !wiredToDesign
+      ? "Editing in Design isn't available for this deliverable yet."
+      : previewTemplate
+        ? NO_CONTENT_BINDING_REASON
+        : null;
+
   const livePreview = previewBrand && previewTemplate
     ? renderTemplateDesign(previewTemplate, previewBrand, brand, previewContent)
     : null;
@@ -1294,15 +1317,21 @@ export function BrandKitCardEditor({
               </DsButton>
             ) : (
               // A deliverable is a preview now — editing it happens in
-              // Design. Both actions reuse Task 9/10's handlers verbatim;
-              // a family the page hasn't wired to Design yet (every
-              // deliverable except Invoice, for now) just gets a disabled
-              // button rather than a call that would only toast.
+              // Design. Both actions reuse Task 9/10's handlers verbatim.
+              // Where neither can run, the footer says WHY: a disabled
+              // button with no explanation reads as a bug, and the two
+              // reasons are different (a family nobody has wired yet vs.
+              // a design whose renderer binds no content).
               <>
+                {handOffUnavailableReason ? (
+                  <p className="bk-editor-rail-note" role="note">
+                    {handOffUnavailableReason}
+                  </p>
+                ) : null}
                 <DsButton
                   tone="secondary"
                   size="sm"
-                  disabled={!previewTemplate || !onEditTemplate}
+                  disabled={!canHandOff || !onEditTemplate}
                   onClick={() => previewTemplate && onEditTemplate?.(previewTemplate)}
                 >
                   Edit Template
@@ -1310,7 +1339,7 @@ export function BrandKitCardEditor({
                 <DsButton
                   tone="primary"
                   size="sm"
-                  disabled={!previewTemplate || !onUseTemplate}
+                  disabled={!canHandOff || !onUseTemplate}
                   onClick={() => previewTemplate && onUseTemplate?.(previewTemplate)}
                 >
                   Use Template

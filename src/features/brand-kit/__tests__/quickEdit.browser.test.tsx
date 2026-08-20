@@ -268,15 +268,36 @@ describe('the footer hands a deliverable to Design', () => {
   it('follows the switcher — using a different layout uses THAT layout', () => {
     const onUseTemplate = vi.fn();
     renderEditor(INVOICE(), { onUseTemplate });
-    const tiles = Array.from(
-      document.querySelectorAll<HTMLElement>('.bk-editor-variants .bk-variant-tile'),
-    );
-    const next = tiles.find((t) => !t.classList.contains('is-selected'))!;
-    fireEvent.click(next);
+    // Another design whose renderer binds content — the switcher can
+    // reach designs that do not, and those are gated (see below).
+    const other = variantsForCard('stationery', 'Invoice', mockBrand).find(
+      (t) => t.id === 'invoices-ext-5',
+    )!;
+    fireEvent.click(screen.getByRole('button', { name: `Preview ${other.name}` }));
 
     fireEvent.click(screen.getByText('Use Template'));
     const template = onUseTemplate.mock.calls[0][0] as BrandKitTemplate;
-    expect(template.id).not.toBe('invoices-ext-3');
+    expect(template.id).toBe('invoices-ext-5');
+  });
+
+  it('gates both actions — with a reason — on a design whose renderer binds no content', () => {
+    // `invoices-ext-12` is in the wired family but was never retrofitted
+    // onto the content model: Design would accept every edit and repaint
+    // none of them. See `renderers/contentBinding.ts`.
+    const onUseTemplate = vi.fn();
+    const onEditTemplate = vi.fn();
+    renderEditor(INVOICE(), { onUseTemplate, onEditTemplate });
+    const unbound = variantsForCard('stationery', 'Invoice', mockBrand).find(
+      (t) => t.id === 'invoices-ext-12',
+    )!;
+    fireEvent.click(screen.getByRole('button', { name: `Preview ${unbound.name}` }));
+
+    expect(screen.getByText('Use Template').closest('button')).toBeDisabled();
+    expect(screen.getByText('Edit Template').closest('button')).toBeDisabled();
+    // Not silently disabled — the footer says why.
+    expect(screen.getByRole('note').textContent).toMatch(/can't be edited in Design yet/i);
+    fireEvent.click(screen.getByText('Use Template'));
+    expect(onUseTemplate).not.toHaveBeenCalled();
   });
 
   it('disables both actions when the page has not wired this family to Design yet', () => {
@@ -286,6 +307,7 @@ describe('the footer hands a deliverable to Design', () => {
     renderEditor(CARD());
     expect(screen.getByText('Use Template').closest('button')).toBeDisabled();
     expect(screen.getByText('Edit Template').closest('button')).toBeDisabled();
+    expect(screen.getByRole('note').textContent).toMatch(/isn't available for this deliverable/i);
   });
 
   it('still offers Cancel and Download for a deliverable', () => {

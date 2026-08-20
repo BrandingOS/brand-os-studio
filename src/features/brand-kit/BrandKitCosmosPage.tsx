@@ -25,6 +25,10 @@ import { defaultContentFor, contentKindForTemplateType } from '@/features/brandk
 import { ensureMasterDesign, instanceFromMaster } from './kit/masterTemplates';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
+import {
+  rendererBindsContent,
+  NO_CONTENT_BINDING_REASON,
+} from './renderers/contentBinding';
 import { type KitSectionKey } from './components/BrandKitSidebar';
 import { KitSidebar } from './components/KitSidebar';
 import { KitSection } from './components/KitSection';
@@ -1488,14 +1492,33 @@ function BrandKitDrilldown({
       if (!onUseTemplate) return;
       e.preventDefault();
       e.stopPropagation();
+      // Not every design in a wired family was retrofitted onto the
+      // content model. Handing an unbound one to Design would give the
+      // user a properties panel that accepts edits over artwork that
+      // never changes — so the actions are offered with a reason instead
+      // of a silent no-op. See `renderers/contentBinding.ts`.
+      const editable = rendererBindsContent(tpl);
+      const hint = editable ? undefined : NO_CONTENT_BINDING_REASON;
       setTileMenu({
         x: e.clientX,
         y: e.clientY,
         items: [
           { label: 'Edit', onSelect: () => onPickVariant(tpl) },
-          { label: 'Use Template', onSelect: () => onUseTemplate(tpl) },
+          {
+            label: 'Use Template',
+            onSelect: () => onUseTemplate(tpl),
+            disabled: !editable,
+            hint,
+          },
           ...(onEditTemplate
-            ? [{ label: 'Edit Template', onSelect: () => onEditTemplate(tpl) }]
+            ? [
+                {
+                  label: 'Edit Template',
+                  onSelect: () => onEditTemplate(tpl),
+                  disabled: !editable,
+                  hint,
+                },
+              ]
             : []),
         ],
       });

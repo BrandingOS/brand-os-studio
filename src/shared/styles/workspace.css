@@ -3713,6 +3713,27 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* An item that explains itself. The reason belongs beside the action it
+   describes — a greyed row with no explanation is a dead end. */
+.ctx-menu-item.has-hint {
+  align-items: flex-start;
+}
+.ctx-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ctx-menu-hint {
+  max-width: 210px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0;
+  white-space: normal;
+  opacity: 0.75;
+}
 .ctx-menu-icon {
   display: inline-flex;
   align-items: center;
