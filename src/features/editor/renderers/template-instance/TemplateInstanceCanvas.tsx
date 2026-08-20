@@ -136,6 +136,8 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
   // set — so without this the frame, and everything inside it, is
   // 0×0. See templateInstance.css.
   const page = doc.pages[0];
+  const pageAspect =
+    page && page.width > 0 && page.height > 0 ? page.width / page.height : resolveAspect(template.type);
 
   return (
     <div
@@ -163,7 +165,23 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
           onCommit: commitBoundValue,
         }}
       >
-        <ScalingStage aspect={resolveAspect(template.type)} fontFamily={null} hideLogo={body.design.showLogo === false}>
+        <ScalingStage
+          // The PAGE's aspect, not the Brand Kit tile's.
+          //
+          // `aspectForType('invoices')` answers 1.6 (its `default`) while
+          // the invoice content type declares 1080×1920, and the stage
+          // was taking the tile's answer inside a frame sized by the
+          // page's — so the artwork sat in a band across a third of the
+          // document, and `instance.snapshot`, which rasterises the whole
+          // `.ti-canvas`, baked that letterbox into every export.
+          //
+          // For a Design, the document's own page dimensions are the
+          // authority. `aspectForType` is untouched: Brand Kit's previews
+          // are drawn at tile proportions and still want it.
+          aspect={pageAspect}
+          fontFamily={null}
+          hideLogo={body.design.showLogo === false}
+        >
           {renderArtwork(template, brand, mockBrand, content)}
         </ScalingStage>
       </BindProvider>

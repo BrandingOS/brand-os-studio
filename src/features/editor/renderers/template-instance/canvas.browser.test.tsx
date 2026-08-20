@@ -266,3 +266,27 @@ describe('the letterhead body', () => {
     expect(region('body').textContent).toBe('Dear team,');
   });
 });
+
+/**
+ * The frame IS the page, so the artwork has to fill it.
+ *
+ * `aspectForType('invoices')` answers 1.6 — its `default` — while the
+ * invoice content type declares 1080×1920. Taking the tile's answer
+ * inside a frame sized by the page's left the artwork in a band across a
+ * third of the document, and `instance.snapshot` rasterises the whole
+ * `.ti-canvas`, so every export inherited the letterbox.
+ */
+describe('the artwork fills its page', () => {
+  it('sizes the stage from the document, not from the Brand Kit tile', async () => {
+    await mountCanvas();
+    const frame = document.querySelector('.ti-canvas') as HTMLElement;
+    const host = frame.querySelector('.bk-preview-host') as HTMLElement;
+    expect(host).not.toBeNull();
+    const frameBox = frame.getBoundingClientRect();
+    const hostBox = host.getBoundingClientRect();
+    expect(frameBox.height).toBeGreaterThan(0);
+    // Was ~0.35 of the frame at the tile's 1.6 ratio.
+    expect(hostBox.height / frameBox.height).toBeGreaterThan(0.98);
+    expect(hostBox.width / frameBox.width).toBeGreaterThan(0.98);
+  });
+});
