@@ -162,3 +162,69 @@ describe('convertToTemplate', () => {
     expect(child.fontFamily).toEqual({ type: 'brand.font.heading' });
   });
 });
+
+/**
+ * A template is a starting point, not a copy of somebody's paperwork.
+ *
+ * `EditorSaveAsTemplateButton` offers "Submit to community" from any
+ * editor, including one holding a filled-in invoice — client name,
+ * billing address, invoice number, line items, amounts. The reset lives
+ * here rather than at that button so no future caller can skip it.
+ */
+describe('convertToTemplate — a layerless body carries no customer content', () => {
+  const invoiceDoc = (): BrandOSDocument =>
+    ({
+      ...docWithLayers([]),
+      contentType: 'invoice',
+      body: {
+        kind: 'template-instance',
+        templateId: 'invoices-ext-4',
+        design: { primaryColor: '#7231FF', showLogo: true },
+        content: {
+          kind: 'invoice',
+          issuerName: 'SKAM',
+          issuerAddress: '12 Studio · Cairo',
+          clientName: 'Northwind Ltd',
+          clientAddress: '400 Confidential Way',
+          number: 'INV-2026-0099',
+          issueDate: '2026-08-01',
+          dueDate: '2026-08-31',
+          currency: 'USD',
+          lineItems: [{ id: 'li-1', label: 'Retainer — Q3', qty: 3, unitPrice: 4200 }],
+          discountRate: 10,
+          taxRate: 14,
+          notes: 'Wire to account 0099-2231.',
+        },
+      },
+    }) as unknown as BrandOSDocument;
+
+  it('resets the content to the kind defaults', () => {
+    const out = convertToTemplate(invoiceDoc(), fixtureKit());
+    if (out.body?.kind !== 'template-instance' || out.body.content.kind !== 'invoice') {
+      throw new Error('narrowing failed');
+    }
+    expect(out.body.content.clientName).not.toBe('Northwind Ltd');
+    expect(out.body.content.clientAddress).not.toBe('400 Confidential Way');
+    expect(out.body.content.number).not.toBe('INV-2026-0099');
+    expect(out.body.content.notes).not.toBe('Wire to account 0099-2231.');
+    expect(out.body.content.lineItems.some((i) => i.label === 'Retainer — Q3')).toBe(false);
+    expect(JSON.stringify(out)).not.toContain('Northwind');
+  });
+
+  it('does the same with no brand kit — the path that used to skip conversion entirely', () => {
+    const out = convertToTemplate(invoiceDoc(), null);
+    expect(JSON.stringify(out)).not.toContain('Northwind');
+  });
+
+  it('keeps which template it is, and its design picks', () => {
+    const out = convertToTemplate(invoiceDoc(), fixtureKit());
+    if (out.body?.kind !== 'template-instance') throw new Error('narrowing failed');
+    expect(out.body.templateId).toBe('invoices-ext-4');
+    expect(out.body.design).toEqual({ primaryColor: '#7231FF', showLogo: true });
+  });
+
+  it('leaves a document with no body alone', () => {
+    const out = convertToTemplate(docWithLayers([]), fixtureKit());
+    expect(out.body).toBeUndefined();
+  });
+});
