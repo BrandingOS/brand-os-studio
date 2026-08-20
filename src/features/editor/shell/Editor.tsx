@@ -21,15 +21,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { FabricAdapter } from '@/features/editor/adapter/FabricAdapter';
 import type {
   EditorAdapter,
+  LayerEditingAdapter,
   SelectionState,
 } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument } from '@/features/editor/schema';
+import { getDesignRenderer } from '@/features/editor/renderers';
 import { useAutoSave } from '@/features/editor/core';
 import { useEditorKeyboardShortcuts } from '@/features/editor/hooks/useEditorKeyboardShortcuts';
-import { EditorCanvasMount } from './EditorCanvasMount';
 import {
   getContentTypeConfig,
   type ContentTypeConfig,
@@ -290,8 +290,28 @@ export function Editor({
   // identity (or its updatedAt) changes.
   const brandKit = useBrandKit(brand);
 
-  // Lazy-create the adapter once; pass to <EditorCanvasMount> for mount.
-  const adapter = useMemo<EditorAdapter>(() => new FabricAdapter(), []);
+  // Which surface opens this document — asked of the registry, never
+  // named here. The shell knows a renderer has a canvas and whether it
+  // edits layers; it does not know Fabric exists.
+  const renderer = useMemo(
+    () => getDesignRenderer(initialDocument.contentType),
+    [initialDocument.contentType],
+  );
+
+  // Lazy-create the adapter once; pass to <renderer.Canvas> for mount.
+  const adapter = useMemo(() => renderer.createAdapter(), [renderer]);
+
+  // Layer editing is an OPTIONAL renderer capability, so the shell's
+  // layer affordances hang off this narrowed handle rather than off
+  // `adapter`. Null means the renderer paints a document it does not
+  // decompose into layers, and every layer-only surface below sits
+  // behind a `layerAdapter` guard. Fabric — today's only renderer —
+  // always supplies one, which is why this task changes nothing the
+  // user can see.
+  const layerAdapter = useMemo<LayerEditingAdapter | null>(
+    () => (renderer.supportsLayerEditing ? (adapter as LayerEditingAdapter) : null),
+    [renderer, adapter],
+  );
 
   // Keep the adapter's brand context in sync with the prop. The
   // adapter uses this to resolve logo variant URLs through
@@ -330,20 +350,21 @@ export function Editor({
   // funnel back through this wrapper, so propagation can't loop.
   const handleLayerUpdate = useCallback(
     (targetPageId: string, layerId: string, patch: Partial<BrandOSDocument['pages'][number]['layers'][number]>) => {
-      const docNow = adapter.getDocument();
+      if (!layerAdapter) return;
+      const docNow = layerAdapter.getDocument();
       const targetPage = docNow.pages.find((p) => p.id === targetPageId);
       const prevLayer = targetPage?.layers.find((l) => l.id === layerId);
-      adapter.updateLayer(targetPageId, layerId, patch);
+      layerAdapter.updateLayer(targetPageId, layerId, patch);
       if (prevLayer) {
         triggerCrossPagePromptIfApplicable(
-          adapter,
+          layerAdapter,
           targetPageId,
           prevLayer,
           patch,
         );
       }
     },
-    [adapter],
+    [layerAdapter],
   );
 
   const handleReapplyBrand = useCallback(() => {
@@ -377,8 +398,11 @@ export function Editor({
   // selection mirrors via setSelection. The active-page + master-mode
   // markers also refresh on every change so the navigator stays in sync.
   useEffect(() => {
-    adapterRef.current = adapter;
-    onAdapterReady?.(adapter);
+    // Both the shortcut hook and the E2E hand-off are layer-editing
+    // surfaces (undo/redo of layer edits, canvas assertions), so they
+    // see the narrowed handle or nothing.
+    adapterRef.current = layerAdapter;
+    if (layerAdapter) onAdapterReady?.(layerAdapter);
     const offChange = adapter.on('change', (next) => {
       setDoc(next);
       try {
@@ -386,14 +410,14 @@ export function Editor({
       } catch {
         /* no active page yet — early load */
       }
-      setEditingMasterId(adapter.getEditingMasterId());
+      setEditingMasterId(layerAdapter ? layerAdapter.getEditingMasterId() : null);
     });
     const offSelection = adapter.on('selection', (sel) => setSelection(sel));
     return () => {
       offChange();
       offSelection();
     };
-  }, [adapter, onAdapterReady]);
+  }, [adapter, layerAdapter, onAdapterReady]);
 
   const { saveState, markDirty, flush, retry } = useAutoSave<BrandOSDocument>({
     value: doc,
@@ -628,7 +652,7 @@ export function Editor({
             </span>
             <button
               type="button"
-              onClick={() => adapter.exitMasterMode()}
+              onClick={() => layerAdapter?.exitMasterMode()}
               className="rounded px-2 py-0.5 text-[11px] underline"
             >
               Exit master
@@ -679,7 +703,7 @@ export function Editor({
               the slot is UNMOUNTED entirely (not just slid off-screen).
               The earlier slide-out variant left the panel visible
               behind the transparent rail. */}
-          {secondaryOpen ? (
+          {secondaryOpen && layerAdapter ? (
             <div
               data-editor-panel-slot
               data-panel-open="true"
@@ -694,7 +718,7 @@ export function Editor({
             >
               <EditorSecondaryPanel
                 active={activeRail}
-                adapter={adapter}
+                adapter={layerAdapter}
                 doc={doc}
                 activePageId={activePageId}
                 brand={brand}
@@ -714,7 +738,7 @@ export function Editor({
                   brand: brand as Brand,
                 })}
                 onAIApply={(result: AICommandResult) => {
-                  applyAICommandResult(adapter, result);
+                  applyAICommandResult(layerAdapter, result);
                   if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
                     void activityService.log({
                       brandId: brand.id,
@@ -789,7 +813,7 @@ export function Editor({
                 data-editor-canvas-surface
                 style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
               >
-                <EditorCanvasMount
+                <renderer.Canvas
                   adapter={adapter}
                   initialDocument={initialDocument}
                 />
@@ -802,7 +826,7 @@ export function Editor({
                 slot as the zoom-wrap, so document-space coords
                 multiplied by zoom land at the right pixel — but
                 the chrome itself stays at screen pixel size. */}
-            {selectedLayer && page ? (
+            {selectedLayer && page && layerAdapter ? (
               <div
                 data-editor-canvas-overlay
                 className="pointer-events-none absolute"
@@ -817,7 +841,7 @@ export function Editor({
               >
                 <div className="pointer-events-auto">
                   <EditorFloatingToolbar
-                    adapter={adapter}
+                    adapter={layerAdapter}
                     pageId={page.id}
                     layer={selectedLayer}
                     scope={scope}
@@ -861,9 +885,9 @@ export function Editor({
                 zIndex: 8,
               }}
             >
-              {navigatorOpen ? (
+              {navigatorOpen && layerAdapter ? (
                 <EditorPageNavigator
-                  adapter={adapter}
+                  adapter={layerAdapter}
                   doc={doc}
                   activePageId={activePageId}
                   editingMasterId={editingMasterId}
