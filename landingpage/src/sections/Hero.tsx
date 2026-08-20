@@ -38,6 +38,7 @@ import {
   MARK_VIEW,
   OUTER_DOTS,
 } from '@/components/brand/LogoMark';
+import { OrbitStage } from '@/sections/Orbit';
 
 /** Where the product app lives — the hero input hands the typed brand
  *  name to `/onboard-brand/create?name=…` there. Override per deploy
@@ -68,6 +69,11 @@ RING.forEach((di, k) => {
    episode loop — typing pulse at 1.7–6.1, infinity path at 7.6–end. */
 const BURST = 1.3;
 const LOOP = 12;
+/* Combined track: 340vh dive + 300vh orbit = 640vh (orbit length per
+   the lab's hero2 — keep in sync with the section's h-[640vh]). */
+const DIVE_VH = 340;
+const ORBIT_VH = 300;
+const DIVE_FRAC = DIVE_VH / (DIVE_VH + ORBIT_VH);
 const CORE_SWELL = 1.55; // the heavy dot's starting mass
 const TAU = Math.PI * 2;
 const CAM = 300;
@@ -139,6 +145,17 @@ export function Hero() {
     offset: ['start start', 'end end'],
   });
 
+  /* ── One combined track, two phases ─────────────────────────────
+     The first DIVE_FRAC of the 860vh track is the dive (same 340vh of
+     scroll as before); the rest drives the orbit stage that lives
+     INSIDE the reveal — one DOM, so the composition can never appear
+     twice. pHero saturates at 1 for the orbit stretch; pOrbit stays 0
+     for the dive. */
+  const pHero = useTransform(p, (v) => Math.min(1, v / DIVE_FRAC));
+  const pOrbit = useTransform(p, (v) =>
+    clamp01((v - DIVE_FRAC) / (1 - DIVE_FRAC)),
+  );
+
   /* ── Geometry ─────────────────────────────────────────────────── */
   // Mark width: capped by viewport width AND height so the idle
   // composition (statement above, mark below) never collides.
@@ -172,24 +189,31 @@ export function Hero() {
   const coreDx = useMotionValue(0); // px
   const coreDy = useMotionValue(0); // px
 
-  /* ── Scroll-driven values ─────────────────────────────────────── */
-  const copyOpacity = useTransform(p, [0.04, 0.18], [1, 0]);
-  const copyY = useTransform(p, [0, 0.22], [0, -vh * 0.14]);
+  /* ── Scroll-driven values (all on the dive phase) ─────────────── */
+  const copyOpacity = useTransform(pHero, [0.04, 0.18], [1, 0]);
+  const copyY = useTransform(pHero, [0, 0.22], [0, -vh * 0.14]);
 
-  const markY = useTransform(p, [0.04, 0.24], [yStart, yMid], {
+  const markY = useTransform(pHero, [0.04, 0.24], [yStart, yMid], {
     ease: easeInOut,
   });
   // Exponential dive — scale = sMax^t reads as a CONSTANT zoom rate
   // (a camera dolly). It starts only after Sequence II's absorb act
   // has pulled the ring inside and the core is growing — the zoom
   // compounds seamlessly with the core's own 1.6×→3× growth.
-  const zoomT = useTransform(p, [0.4, 0.9], [0, 1], { ease: easeInOut });
+  const zoomT = useTransform(pHero, [0.4, 0.9], [0, 1], { ease: easeInOut });
   const scale = useTransform(zoomT, (t) => Math.pow(sMax, t));
+
+  // Before the dive the clip circle is a small window riding the core —
+  // the stage behind it must read as solid ink, or its paper-coloured
+  // mark shows through as a white hole. Fade the stage in only once the
+  // circle is genuinely opening (it's still ~100px radius at 0.6, so
+  // no content area is uncovered mid-fade).
+  const stageOpacity = useTransform(pHero, [0.45, 0.6], [0, 1]);
 
   const dotsY = useTransform(markY, (y) => y - logoW / 2);
   // The ring is fully absorbed (opacity 0 via the sequence) by p≈0.37 —
   // drop the layer shortly after so no huge composited layer lingers.
-  const dotsVisibility = useTransform(p, (v) =>
+  const dotsVisibility = useTransform(pHero, (v) =>
     v > 0.5 ? 'hidden' : 'visible',
   );
 
@@ -198,15 +222,12 @@ export function Hero() {
   // fast inertial scrolling over the seam can't checkerboard-flash the
   // paper behind the (otherwise huge, composited) clipped layer.
   const clipPath = useTransform(
-    [p, scale, markY, coreR, coreDx, coreDy] as const,
+    [pHero, scale, markY, coreR, coreDx, coreDy] as const,
     ([pv, s, y, cr, dx, dy]: number[]) =>
       pv >= 0.94
         ? 'none'
         : `circle(${coreR0 * s * cr}px at calc(50% + ${dx}px) ${y + dy}px)`,
   );
-
-  const inCoreOpacity = useTransform(p, [0.56, 0.74], [0, 1]);
-  const inCoreY = useTransform(p, [0.56, 0.82], [26, 0]);
 
   /* ── The sequence loop (variant 147, verbatim physics) ────────────
      Core Burst entrance → idle breathing → typing-pulse episode →
@@ -244,7 +265,7 @@ export function Hero() {
          act I settles the episodes, act II rides Core Bloom's arc in
          reverse (the ring returns INTO the core), act III grows the
          core to 3× — then the dive carries that one dot to cover. */
-      const seqP = clamp01(p.get() / 0.55);
+      const seqP = clamp01(pHero.get() / 0.55);
       const calm = inOutSine(clamp01(seqP / 0.25));
       const absorb = inOutSine(clamp01((seqP - 0.28) / 0.4));
       const eb = 1 - absorb;
@@ -387,7 +408,7 @@ export function Hero() {
   }, [reduced, logoW]);
 
   return (
-    <section ref={wrapRef} className="relative h-[340vh]" aria-label="Intro">
+    <section ref={wrapRef} className="relative h-[640vh]" aria-label="Intro">
       <div className="sticky top-0 h-svh overflow-hidden">
         {/* ── Layer 1 · the statement ─────────────────────────────── */}
         <motion.div
@@ -498,21 +519,17 @@ export function Hero() {
           </svg>
         </motion.div>
 
-        {/* ── Layer 3 · the core = the reveal ─────────────────────── */}
+        {/* ── Layer 3 · the core = the reveal ──────────────────────
+            The opening circle uncovers the LIVE orbit stage — the
+            centred statement with the mark waiting under it. The same
+            DOM then rides pOrbit through the whole orbit: one logo,
+            nothing rendered twice. */}
         <motion.div
           style={{ clipPath }}
           className="absolute inset-0 z-30 bg-panel text-panel-foreground"
         >
-          <motion.div
-            style={{ opacity: inCoreOpacity, y: inCoreY }}
-            className="flex h-full flex-col items-center justify-center px-6 text-center"
-          >
-            <span className="microlabel opacity-60">Inside the core</span>
-            <p className="font-display mt-6 max-w-xl text-2xl font-medium leading-snug md:text-[2rem]">
-              Everything you&rsquo;ll ever make
-              <br />
-              begins here.
-            </p>
+          <motion.div style={{ opacity: stageOpacity }} className="h-full w-full">
+            <OrbitStage progress={pOrbit} />
           </motion.div>
         </motion.div>
 

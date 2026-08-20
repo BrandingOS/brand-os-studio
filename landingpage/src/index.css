@@ -113,6 +113,14 @@
     color: hsl(var(--primary-foreground));
   }
 
+  /* On the ink chapters the default ink-on-ink selection is invisible —
+     invert it so selected text always shows (paper highlight, ink text). */
+  .bg-panel ::selection,
+  .bg-panel::selection {
+    background-color: hsl(var(--panel-foreground));
+    color: hsl(var(--panel));
+  }
+
   :focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgba(17, 17, 19, 0.16); /* --ds-focus-ring */
@@ -347,6 +355,23 @@
 @media (prefers-reduced-motion: reduce) {
   .dot-breathe,
   .cue-dot {
+    animation: none;
+  }
+}
+
+/* ── Marquee strips (AssetsMarquee) ─────────────────────────────────
+   Track = two identical halves, so -50% tiles seamlessly. */
+.marquee-track {
+  animation: bos-marquee 48s linear infinite;
+  will-change: transform;
+}
+@keyframes bos-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
     animation: none;
   }
 }

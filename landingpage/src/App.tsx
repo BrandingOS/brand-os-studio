@@ -2,18 +2,17 @@ import { useEffect } from 'react';
 import Lenis from 'lenis';
 import { Nav } from '@/components/Nav';
 import { Hero } from '@/sections/Hero';
-import { WhatIs } from '@/sections/WhatIs';
-import { Why } from '@/sections/Why';
+import { PoweredBy } from '@/sections/PoweredBy';
+import { WhatIs, Features } from '@/sections/WhatIs';
+import { Solutions } from '@/sections/Solutions';
+import { Start } from '@/sections/Start';
+import { AssetsMarquee } from '@/sections/AssetsMarquee';
 import { Source } from '@/sections/Source';
-import { Proof } from '@/sections/Proof';
-import { System } from '@/sections/System';
-import { Connection } from '@/sections/Connection';
-import { Scale } from '@/sections/Scale';
-import { Beliefs } from '@/sections/Beliefs';
 import { CTA } from '@/sections/CTA';
 import { FooterNext } from '@/components/FooterNext';
 import { EarlyAccessProvider } from '@/components/EarlyAccessProvider';
 import { EarlyAccessDialog } from '@/components/EarlyAccessDialog';
+import { ArchivePage } from '@/ArchivePage';
 
 /** Smooth inertial scrolling — the zoom sequence depends on it feeling
  *  continuous rather than notched. Lenis animates the real scroll
@@ -44,39 +43,50 @@ function useLenis() {
 }
 
 /**
- * The page follows the definitive manifesto copy, chapter by chapter:
- *   Hero       — your brand, now executable (dive into the core)
- *   InsideCore — the product reveal, real screens (ink)
- *   Why        — everything has a system; brand doesn't (ink)
- *   Source     — one source behind everything (paper)
- *   Proof      — one change, everywhere it matters (live wall)
- *   System     — kit · guidelines · AI · create · templates (paper)
- *   Connection — the connection, the loop, deliberate change (ink)
- *   Scale      — 9 → 90 → 900, portfolios, the people (paper)
- *   Beliefs    — branding is changing; tomorrow they query (ink)
- *   CTA        — every brand will need an operating system
+ * The page, chapter by chapter:
+ *   Hero        — the dive + the orbit stage, one track (ink reveal)
+ *   PoweredBy   — the tech-stack logo marquee
+ *   Flow        — video + steps, then the folder→system graph
+ *   Features    — the four product pillars
+ *   Solutions   — three ways in, one system
+ *   Start       — start with what you already have
+ *   AssetsMarquee — formats in, kits out
+ *   Source      — one source behind everything (quadrant + DNA cycle)
+ *   CTA         — every brand will need an operating system
+ *
+ * Everything that was cut lives ON at /archive (ArchivePage) so ideas
+ * can be pulled back later.
  */
 function App() {
   useLenis();
 
+  const isArchive =
+    typeof window !== 'undefined' &&
+    window.location.pathname.replace(/\/+$/, '') === '/archive';
+
   return (
     <EarlyAccessProvider>
-      <div className="min-h-screen bg-background text-foreground antialiased">
-        <Nav />
-        <main>
-          <Hero />
-          <WhatIs />
-          <Why />
-          <Source />
-          <Proof />
-          <System />
-          <Connection />
-          <Scale />
-          <Beliefs />
-          <CTA />
-        </main>
-        <FooterNext />
-      </div>
+      {isArchive ? (
+        <ArchivePage />
+      ) : (
+        <div className="min-h-screen bg-background text-foreground antialiased">
+          <Nav />
+          <main>
+            {/* Hero carries the dive AND the orbit stage on one track */}
+            <Hero />
+            <PoweredBy />
+            <WhatIs />
+            {/* Features — under the diagram, iterating from the opener copy */}
+            <Features />
+            <Solutions />
+            <Start />
+            <AssetsMarquee />
+            <Source />
+            <CTA />
+          </main>
+          <FooterNext />
+        </div>
+      )}
 
       {/* Single early-access modal — every CTA opens this instance */}
       <EarlyAccessDialog />
