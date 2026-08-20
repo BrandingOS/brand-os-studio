@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
 import { TemplateInstanceProperties } from './TemplateInstanceProperties';
+import { Editor } from '@/features/editor/shell/Editor';
 import { defaultContentFor } from '@/features/brandkit/content';
 import type { BrandOSDocument } from '@/features/editor/schema';
+import type { Brand } from '@/shared/types/brand';
 
 function doc(): BrandOSDocument {
   return {
@@ -25,6 +28,21 @@ function doc(): BrandOSDocument {
       design: {},
     },
   } as BrandOSDocument;
+}
+
+function mockBrand(): Brand {
+  return {
+    id: 'brand-skam',
+    slug: 'skam',
+    name: 'SKAM',
+    primaryColor: '#dc2626',
+    fonts: { primary: 'Inter' },
+    tone: '',
+    audience: '',
+    assets: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 describe('TemplateInstanceProperties', () => {
@@ -73,5 +91,30 @@ describe('TemplateInstanceProperties', () => {
       adapter.setSelectedPath('clientName');
     });
     expect(screen.getByText('Selected')).toBeTruthy();
+  });
+});
+
+describe('Design shell — the properties wrapper', () => {
+  // Editor.tsx's slot wraps `renderer.Properties` in a plain div for
+  // scroll containment (see the wrapper's own comment — it deliberately
+  // does NOT duplicate EditorSecondaryPanel's card chrome). `.bk-qe-panel`
+  // sets no padding of its own, so if the wrapper ever loses its padding
+  // again, labels and inputs render flush against the slot's edges with
+  // nothing to catch it. One assertion, not a styling suite.
+  it('gives the properties panel breathing room — non-zero horizontal padding', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <Editor initialDocument={doc()} save={async () => {}} brand={mockBrand()} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-editor-panel-properties]')).toBeTruthy();
+    });
+
+    const wrapper = container.querySelector(
+      '[data-editor-panel-properties]',
+    ) as HTMLElement;
+    expect(parseFloat(getComputedStyle(wrapper).paddingLeft)).toBeGreaterThan(0);
   });
 });

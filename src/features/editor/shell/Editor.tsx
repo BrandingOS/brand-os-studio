@@ -768,15 +768,22 @@ export function Editor({
                   onActivePageChange={(id) => adapter.setActivePage(id)}
                 />
               ) : renderer.Properties ? (
-                // Scroll containment ONLY — not the panel's card chrome.
-                // `renderer.Properties` supplies its own look (ContentPanel's
-                // `.bk-qe-*` styles travel with the panel itself, see
-                // `content.css`); duplicating EditorSecondaryPanel's
-                // background/border/radius/shadow here would be a second,
-                // hand-copied properties shell that silently drifts from the
-                // original. `.bk-qe-panel` has no scroll/height cap of its
-                // own though, so something still has to keep a tall invoice
-                // (many line items) from overflowing the viewport.
+                // Scroll containment + the slot's own breathing room —
+                // NOT the panel's card chrome. `renderer.Properties`
+                // supplies its own look (ContentPanel's `.bk-qe-*` styles
+                // travel with the panel itself, see `content.css`);
+                // duplicating EditorSecondaryPanel's background/border/
+                // radius/shadow here would be a second, hand-copied
+                // properties shell that silently drifts from the
+                // original. `.bk-qe-panel` sets no padding of its own
+                // though (Brand Kit's own wrapper, `.bk-editor-rail-body`,
+                // supplies it there) — so THIS wrapper has to be the
+                // padding source here, the same role every
+                // EditorSecondaryPanel sibling (Generate/Templates/
+                // Insert/Brand) fills for itself. Padding this deep on
+                // both axes also covers what EditorSecondaryPanel gets
+                // from its outer `pr-1` — a second right-only mechanism
+                // would be redundant.
                 <div
                   data-editor-panel-properties
                   className="flex flex-col"
@@ -785,6 +792,7 @@ export function Editor({
                     maxHeight: 'calc(100vh - 96px)',
                     overflowY: 'auto',
                     overflowX: 'hidden',
+                    padding: 16,
                   }}
                 >
                   <renderer.Properties adapter={adapter} brand={brand} />
