@@ -8,7 +8,8 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect, useState } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { brandCardFace, brandCardLabel } from '@/shared/brand/workspaceCard';
+import { ProjectName } from '@/features/dashboard/components/ProjectName';
+import { BrandRowFace } from '@/features/dashboard/components/BrandRowFace';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 
@@ -96,7 +97,6 @@ export default function BrandsPage() {
               // A sentinel colour is not a brand colour, so it is not shown as
               // one — no strip gradient, no swatch, no avatar fill.
               const colorIsSentinel = isPlaceholderPath(brand, 'colors.primary');
-              const face = brandCardFace(brand);
 
               return (
                 <BrandCardMenu
@@ -124,29 +124,17 @@ export default function BrandsPage() {
 
                     {/* Brand info in the middle */}
                     <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
-                      {/* The brand's face on its own colour — Primary logo,
-                          then Brand Icon, then the letter. `brandCardFace` is
-                          the one module that answers this, so a row here and a
-                          card at /dashboard agree by construction. */}
-                      <div
-                        className="w-12 h-12 rounded-md shrink-0 grid place-items-center overflow-hidden transition-transform duration-300 motion-safe:group-hover/slot:scale-105"
-                        style={{ background: face.background, color: face.color }}
-                        aria-hidden="true"
-                      >
-                        {face.logoUrl ? (
-                          // CONTAIN, never crop: a wide lockup in a 48px square
-                          // keeps its proportions or it stops being the logo.
-                          <img
-                            src={face.logoUrl}
-                            alt=""
-                            className="w-[82%] h-[82%] object-contain"
-                          />
-                        ) : (
-                          <span className="text-lg font-semibold leading-none">{face.letter}</span>
-                        )}
-                      </div>
+                      {/* The brand's face — the same decision the card at
+                          /dashboard makes, drawn at row size. */}
+                      <BrandRowFace brand={brand} />
                       <div className="min-w-0 flex-1">
-                        <CardTitle className="text-lg truncate">{brandCardLabel(brand)}</CardTitle>
+                        {/* The row's title IS the rename control — clicking
+                            the name edits it. Same classes CardTitle would
+                            have applied, minus the wrapper. */}
+                        <ProjectName
+                          brand={brand}
+                          className="text-lg font-semibold leading-none tracking-tight truncate"
+                        />
                         <CardDescription className="mt-0.5 truncate">
                           {wipLabel ?? (brand.tone || "Brand toolkit")}
                         </CardDescription>

@@ -15,6 +15,11 @@
  *   - `pickLogoOnBackground(brand, bg)` → the best `ResolvedLogo` for that bg.
  *   - `pickLogoByPriority(brand, bg, roles)` → the FIRST readable role in a
  *     caller's order, falling back to the best-scoring variant.
+ *   - `pickLogoVariant(brand, roles)`  → the variant to SHOW, ground not yet
+ *     decided. Pair with `pickGroundForInk` when the surface owns its ground.
+ *   - `knownInkOfRole(role)`           → the exact ink of a mono variant, or
+ *     `undefined` for a coloured one (measure it — see `logoInk.ts`).
+ *   - `pickGroundForInk(ink, grounds)` → the ground a given ink reads on.
  *   - `bgTone(bg)`                      → 'light' | 'dark' (use for text/icon).
  *   - `pickFgOnBackground(bg, [...])`   → highest-contrast fg from candidates.
  *   - `relativeLuminance` / `contrastRatio` — primitives if you need them.
@@ -199,4 +204,92 @@ export function pickLogoByPriority(
   }
 
   return pickLogoOnBackground(brand, bgHex, options);
+}
+
+/* ── Choosing a ground for a logo, rather than a logo for a ground ── */
+
+/**
+ * The variant to SHOW, before anything has been decided about the ground.
+ *
+ * `pickLogoOnBackground` and `pickLogoByPriority` answer "given this
+ * background, what can be seen on it" — right when the background is fixed
+ * (a slide, a printed page, someone else's card). A surface that owns its own
+ * background has the better question available: show the brand's actual logo,
+ * then put it on something it reads against. This is the first half of that,
+ * and it applies NO contrast test, because there is not yet anything to test
+ * against.
+ */
+export function pickLogoVariant(
+  brand: Brand | null | undefined,
+  priority: LogoRole[] = FACE_PRIORITY,
+): { resolved: ResolvedLogo; role: LogoRole } | undefined {
+  return variantsInPriorityOrder(brand, priority)[0];
+}
+
+/**
+ * Every variant the brand has, in the caller's preference order.
+ *
+ * A surface that owns its ground wants the whole list, not the first entry: it
+ * keeps its ground and walks down until it finds a variant that can be seen on
+ * it, which is how a card stays in the brand's colour instead of turning white
+ * for the sake of one lockup. The priority roles lead; the rest follow in the
+ * module's own order so a brand whose only artwork is a mono twin still shows
+ * artwork.
+ */
+export function variantsInPriorityOrder(
+  brand: Brand | null | undefined,
+  priority: LogoRole[] = FACE_PRIORITY,
+): Array<{ resolved: ResolvedLogo; role: LogoRole }> {
+  if (!brand) return [];
+  const roles = [...priority, ...PICK_ROLES.filter((r) => !priority.includes(r))];
+  const out: Array<{ resolved: ResolvedLogo; role: LogoRole }> = [];
+  const seen = new Set<string>();
+  for (const role of roles) {
+    const resolved = resolveBrandLogo(brand, role);
+    // The same asset can fill more than one role; showing it twice would make
+    // the walk look like it had more choices than it does.
+    if (!resolved || seen.has(resolved.url)) continue;
+    seen.add(resolved.url);
+    out.push({ resolved, role });
+  }
+  return out;
+}
+
+/**
+ * The ink of a variant we know for certain, or `undefined` when we do not.
+ *
+ * Only the mono roles are certain: `mono.white` is white and `mono.black` is
+ * black, by definition of the role. A coloured variant's ink is a fact about
+ * the ARTWORK, which this module cannot see — `readLogoInk` can, and callers
+ * that care should measure rather than accept the brand's primary colour as a
+ * stand-in. That stand-in is why a lockup with a dark grey wordmark used to
+ * score as though it were painted in the brand's yellow.
+ */
+export function knownInkOfRole(role: LogoRole): string | undefined {
+  if (role === 'mono.black') return '#000000';
+  if (role === 'mono.white') return '#ffffff';
+  return undefined;
+}
+
+/**
+ * Given an ink, the ground it reads on — the caller's preferred ground first.
+ *
+ * `grounds` is in preference order, and the FIRST one clearing `minContrast`
+ * wins; a card that wants to stay in its brand's colour puts that colour first
+ * and its brand-tinted extremes after it. Nothing clears the floor → the
+ * highest-contrast candidate, because showing the logo somewhere imperfect
+ * beats not showing it.
+ */
+export function pickGroundForInk(
+  inkHex: string,
+  grounds: string[],
+  minContrast = 2.2,
+): string | undefined {
+  if (grounds.length === 0) return undefined;
+  for (const ground of grounds) {
+    if (contrastRatio(inkHex, ground) >= minContrast) return ground;
+  }
+  return grounds.reduce((best, g) =>
+    contrastRatio(inkHex, g) > contrastRatio(inkHex, best) ? g : best,
+  );
 }

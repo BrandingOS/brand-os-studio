@@ -14,6 +14,7 @@ import {
   mergeWorkspaceCard,
   resolveBrandCover,
 } from './workspaceCard';
+import { contrastRatio } from './logoOnBackground';
 import type { Brand } from '@/shared/types/brand';
 
 const brand = (over: Partial<Brand> = {}): Brand =>
@@ -80,7 +81,7 @@ describe('which picture a card shows', () => {
 
   it('resolves the id against the brand library, live', () => {
     const b = withAsset({ workspaceCard: { coverAssetId: 'asset-1' } });
-    expect(resolveBrandCover(b)).toBe('https://cdn/current.png');
+    expect(resolveBrandCover(b)).toEqual({ url: 'https://cdn/current.png', fit: 'cover' });
   });
 
   it('follows the asset when its url changes — the reason the id is stored', () => {
@@ -91,7 +92,7 @@ describe('which picture a card shows', () => {
         { ...b.brandAssets![0], formats: { png: { url: 'https://cdn/v2.png', size: 1 } } },
       ],
     } as Brand;
-    expect(resolveBrandCover(moved)).toBe('https://cdn/v2.png');
+    expect(resolveBrandCover(moved)?.url).toBe('https://cdn/v2.png');
   });
 
   it('shows nothing when the asset is gone, rather than a url it used to have', () => {
@@ -105,9 +106,28 @@ describe('which picture a card shows', () => {
     expect(resolveBrandCover(b)).toBeUndefined();
   });
 
+  it('shows a LOGO whole instead of cropping it', () => {
+    // Someone who picks their logo as a cover gets the mark, not a slice of it
+    // blown up to fill the band.
+    const b = brand({
+      workspaceCard: { coverAssetId: 'asset-logo' },
+      brandAssets: [
+        {
+          id: 'asset-logo',
+          kind: 'logo',
+          name: 'Primary',
+          formats: { png: { url: 'https://cdn/logo.png', size: 1 } },
+          tags: [],
+        },
+      ],
+    } as Partial<Brand>);
+    expect(resolveBrandCover(b)).toEqual({ url: 'https://cdn/logo.png', fit: 'contain' });
+  });
+
   it('uses a bare url only when there is no asset id at all', () => {
     const b = brand({ workspaceCard: { coverUrl: 'https://cdn/external.png' } });
-    expect(resolveBrandCover(b)).toBe('https://cdn/external.png');
+    // A bare url carries no record of what it is, so it is treated as a picture.
+    expect(resolveBrandCover(b)).toEqual({ url: 'https://cdn/external.png', fit: 'cover' });
   });
 });
 
@@ -165,13 +185,51 @@ describe('the face a card draws', () => {
     expect(face.logoUrl).toBe('primary.svg');
   });
 
-  it('keeps a brand ground when the artwork cannot be seen on the primary', () => {
-    // A coloured mark inked in the brand's own colour, on that colour. The
-    // ground moves to the palette's brand-tinted near-black — not to cream.
+  it('moves the ground, not the logo, when the brand owns nothing that reads', () => {
+    // One variant, inked in the brand's own colour, on that colour. There is no
+    // other variant to fall back to, so the GROUND moves — to the palette's
+    // brand-tinted extreme, never to a neutral cream tile.
     const face = brandCardFace(withRoles({ primary: 'primary.svg' }, '#EF4444'));
     expect(face.logoUrl).toBe('primary.svg');
     expect(face.background.toLowerCase()).not.toBe('#ef4444');
     expect(face.background.toLowerCase()).not.toBe('#ffffff');
+  });
+
+  it('lets the MEASURED ink veto a variant the guess would have kept', () => {
+    // The Kaafex case. The brand's primary is near-black and its lockup's
+    // wordmark is dark grey — but the record only carries the brand's yellow,
+    // so the lockup scored as yellow, cleared the floor on the brand's own
+    // near-black card, and rendered as a mark beside an invisible name.
+    const brandWithDarkArtwork = withRoles(
+      { primary: 'lockup.svg', monoWhite: 'white.svg' },
+      '#1B1B1B',
+    );
+
+    // Guessing: the lockup is assumed to be the brand's colour… which is the
+    // ground, so even the guess rejects it here and the white twin wins.
+    const guessed = brandCardFace(brandWithDarkArtwork);
+    expect(guessed.logoUrl).toBe('white.svg');
+
+    // Measured as dark grey: same answer, now for the right reason — and the
+    // brand keeps its own colour rather than the card turning white.
+    const measured = brandCardFace(brandWithDarkArtwork, { 'lockup.svg': '#3A3A3A' });
+    expect(measured.logoUrl).toBe('white.svg');
+    expect(measured.background.toLowerCase()).toBe('#1b1b1b');
+  });
+
+  it('keeps the Primary logo when its measured ink DOES read on the brand', () => {
+    const b = withRoles({ primary: 'lockup.svg', monoWhite: 'white.svg' }, '#1B1B1B');
+    const face = brandCardFace(b, { 'lockup.svg': '#F5C518' });
+    expect(face.logoUrl).toBe('lockup.svg');
+    expect(face.background.toLowerCase()).toBe('#1b1b1b');
+  });
+
+  it('needs no measurement for a mono variant — white is white', () => {
+    // A white mark on a near-white brand colour is nothing, and there is no
+    // other variant, so the GROUND moves rather than the logo being dropped.
+    const face = brandCardFace(withRoles({ monoWhite: 'white.svg' }, '#FAFAFA'));
+    expect(face.logoUrl).toBe('white.svg');
+    expect(contrastRatio('#ffffff', face.background)).toBeGreaterThan(2.2);
   });
 
   it('falls to the letter only when the brand has no artwork at all', () => {

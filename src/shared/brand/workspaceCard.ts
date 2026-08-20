@@ -16,10 +16,24 @@
 import type { Brand, WorkspaceCard } from '@/shared/types/brand';
 import type { AssetFormat } from '@/shared/types/brandAssets';
 import { surfacePalette } from '@/shared/brand/brandPalette';
-import { pickLogoByPriority } from '@/shared/brand/logoOnBackground';
+import {
+  FACE_PRIORITY,
+  contrastRatio,
+  knownInkOfRole,
+  pickGroundForInk,
+  variantsInPriorityOrder,
+} from '@/shared/brand/logoOnBackground';
+import { useLogoInks } from '@/shared/brand/logoInk';
 
 /** Format preference for a cover — a photograph, so raster before vector. */
 const COVER_FORMATS: AssetFormat[] = ['webp', 'png', 'jpg', 'svg'];
+
+/** A card's cover, and how it should sit in the band. */
+export interface BrandCover {
+  url: string;
+  /** `cover` fills and crops (a photograph); `contain` shows the whole thing. */
+  fit: 'cover' | 'contain';
+}
 
 /**
  * What this card is called.
@@ -52,23 +66,29 @@ export function hasProjectLabel(brand: Brand | null | undefined): boolean {
  * `coverUrl` answers only when there is no id at all, which is the case for a
  * cover that never came from the Library.
  */
-export function resolveBrandCover(brand: Brand | null | undefined): string | undefined {
+export function resolveBrandCover(brand: Brand | null | undefined): BrandCover | undefined {
   const card = brand?.workspaceCard;
   if (!card) return undefined;
 
   if (card.coverAssetId) {
     const asset = brand?.brandAssets?.find((a) => a.id === card.coverAssetId);
     if (!asset) return undefined;
+    // A LOGO is artwork with a subject, and cropping it is not a crop — it is
+    // a mark cut in half. Someone who picks their logo as a cover gets it
+    // whole, on the brand's colour, at a sane size. Only a photograph is
+    // filled edge to edge, which is what `cover` is for.
+    const fit: BrandCover['fit'] = asset.kind === 'logo' ? 'contain' : 'cover';
     for (const format of COVER_FORMATS) {
       const url = asset.formats?.[format]?.url;
-      if (url) return url;
+      if (url) return { url, fit };
     }
     // An asset stored under a format this list does not name is still a cover.
     const any = Object.values(asset.formats ?? {}).find((f) => f?.url);
-    return any?.url ?? undefined;
+    return any?.url ? { url: any.url, fit } : undefined;
   }
 
-  return card.coverUrl || undefined;
+  // A bare url carries no record of what it is, so it is treated as a picture.
+  return card.coverUrl ? { url: card.coverUrl, fit: 'cover' } : undefined;
 }
 
 /**
@@ -96,7 +116,7 @@ export function mergeWorkspaceCard(
 
 /** What a dashboard card draws behind its name — decided once, for both surfaces. */
 export interface BrandCardFace {
-  /** Always the brand's own colour. */
+  /** The brand's own colour whenever any of its artwork reads on it. */
   background: string;
   /** Readable ink on that colour, for the letter. */
   color: string;
@@ -106,41 +126,96 @@ export interface BrandCardFace {
   letter?: string;
 }
 
+/** Contrast a mark must clear to count as visible on a card. */
+const FACE_FLOOR = 2.2;
+
 /**
- * The brand's face on a dashboard card: its Primary logo, then its Brand Icon,
- * on the brand's own colour.
+ * The brand's face on a dashboard card: its logo, on its colour.
  *
- * The GROUND is not negotiable — a dashboard of brand colours is the point, and
- * a neutral tile turns it into a page of beige squares. So the colour stays and
- * the LOGO moves: `pickLogoByPriority` takes the primary, then the icon, and
- * hands off to the contrast search only when neither can be seen on this
- * ground, which is what routes a brand-coloured mark on its own colour to its
- * mono twin.
+ * Two rules, and the ORDER of them is the design:
  *
- * When a brand has ONLY coloured artwork and no mono twin, nothing can be seen
- * on its own colour — a mark inked in the primary, on the primary, is an empty
- * card. That brand keeps a brand ground, just a different one: `inverted` is
- * the palette's near-black TINTED WITH THE BRAND'S HUE, so the logo appears and
- * the card still belongs to the brand. It is never a neutral cream tile; a page
- * of those is a page of beige squares with the brand taken out of it.
+ *   1. The ground is the brand's own colour. It moves only when nothing the
+ *      brand owns can be seen on it — and then it moves to the palette's
+ *      brand-TINTED extreme, never to a neutral cream tile, because a grid of
+ *      those is a grid of beige squares with the brand taken out of it.
+ *   2. On that ground, the Primary logo, then the Brand Icon, then any other
+ *      variant. Priority decides between variants that can be SEEN; it does not
+ *      get to pick one that cannot.
  *
- * The letter is the last resort and means something specific: not one variant
- * of this brand's artwork reads on any of its own grounds.
+ * What makes rule 2 trustworthy is that "can be seen" is now measured. A
+ * coloured variant used to be scored as though it were painted in the brand's
+ * primary colour — the only colour the record carries — so a lockup with a
+ * yellow mark and a dark grey wordmark scored as YELLOW, cleared the floor on a
+ * near-black card, and rendered as a yellow asterisk beside an invisible name.
+ * `inks` maps a logo url to the colour the artwork actually is (`logoInk.ts`);
+ * `useBrandCardFace` fills it in. Mono variants need no measurement — white is
+ * white — and an unmeasured coloured variant falls back to the old guess, which
+ * is no worse than where it started.
  *
  * Both dashboard surfaces call this. The grid paints a 240px band and the list
  * a 48px tile — different markup, one decision.
  */
-export function brandCardFace(brand: Brand | null | undefined): BrandCardFace {
-  const surface = surfacePalette(brand as Brand, 'brand');
-  const onBrand = pickLogoByPriority(brand, surface.bg)?.url;
-  if (onBrand) return { background: surface.bg, color: surface.text, logoUrl: onBrand };
+export function brandCardFace(
+  brand: Brand | null | undefined,
+  inks?: Record<string, string | undefined>,
+): BrandCardFace {
+  const brandGround = surfacePalette(brand as Brand, 'brand');
+  const letter = (brand?.name ?? 'B').trim().slice(0, 1).toUpperCase() || 'B';
 
-  const inverted = surfacePalette(brand as Brand, 'inverted');
-  const onInverted = pickLogoByPriority(brand, inverted.bg)?.url;
-  if (onInverted) {
-    return { background: inverted.bg, color: inverted.text, logoUrl: onInverted };
+  const variants = variantsInPriorityOrder(brand, FACE_PRIORITY);
+  if (variants.length === 0) {
+    return { background: brandGround.bg, color: brandGround.text, letter };
   }
 
-  const letter = (brand?.name ?? 'B').trim().slice(0, 1).toUpperCase() || 'B';
-  return { background: surface.bg, color: surface.text, letter };
+  const inkOf = (v: (typeof variants)[number]) =>
+    knownInkOfRole(v.role) ?? inks?.[v.resolved.url] ?? brand?.primaryColor;
+
+  // Rule 1 first: keep the brand's colour if ANY variant reads on it, and let
+  // priority choose among the ones that do.
+  for (const variant of variants) {
+    const ink = inkOf(variant);
+    if (ink && contrastRatio(ink, brandGround.bg) >= FACE_FLOOR) {
+      return {
+        background: brandGround.bg,
+        color: brandGround.text,
+        logoUrl: variant.resolved.url,
+      };
+    }
+  }
+
+  // Nothing reads on the brand's colour. Keep the brand's OWN logo — the first
+  // in priority order — and move the ground to a brand-tinted extreme. Asking
+  // the palette for `inverted` in both modes gives near-black and near-white,
+  // both carrying the brand's hue.
+  const chosen = variants[0]!;
+  const ink = inkOf(chosen);
+  const dark = surfacePalette(brand as Brand, 'inverted', 'light');
+  const light = surfacePalette(brand as Brand, 'inverted', 'dark');
+  const ground = ink
+    ? pickGroundForInk(ink, [dark.bg, light.bg], FACE_FLOOR)
+    : undefined;
+
+  if (!ground) return { background: brandGround.bg, color: brandGround.text, letter };
+  return {
+    background: ground,
+    color: ground === dark.bg ? dark.text : light.text,
+    logoUrl: chosen.resolved.url,
+  };
+}
+
+/**
+ * `brandCardFace`, with the artwork's ink actually measured.
+ *
+ * The first render uses the guess; measurements land a frame or two later and,
+ * for a logo already seen this session, are there immediately. Use this
+ * anywhere a card is rendered — the pure function is for tests and for code
+ * that cannot hold state.
+ */
+export function useBrandCardFace(brand: Brand | null | undefined): BrandCardFace {
+  const variants = variantsInPriorityOrder(brand, FACE_PRIORITY);
+  // Only the coloured variants are a question. A mono variant's ink is certain,
+  // so there is nothing to load for it.
+  const unknown = variants.filter((v) => !knownInkOfRole(v.role)).map((v) => v.resolved.url);
+  const inks = useLogoInks(unknown);
+  return brandCardFace(brand, inks);
 }

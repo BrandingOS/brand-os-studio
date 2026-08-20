@@ -1129,17 +1129,37 @@ coverUrl }`, migration 031 `brands.workspace_card`, interpreted ONLY by
   in `mapFromDatabase`. A successful write naming the column FORGETS the local
   copy — left behind it would resurrect a card the user has since cleared.
 
-**The card's face is the brand's, on the brand's own colour, and the letter is
-the LAST resort.** `brandCardFace(brand)` decides it once for BOTH surfaces —
-the grid paints a 240px band, the list a 48px tile, one decision. The order is
-Primary logo → Brand Icon → letter and it is DETERMINISTIC: `pickLogoByPriority`
-walks the caller's order and the first role clearing the contrast floor wins
-outright — contrast VETOES, it never ranks. The ground stays the brand's colour;
-when a coloured mark on that colour cannot be seen (it scores 1.0), the GROUND
-moves to `surfacePalette(brand,'inverted')` — the palette's brand-TINTED
-near-black — never to a neutral cream tile, because a grid of those is a grid of
-beige squares with the brand taken out. `BrandAvatar` keeps its neutral tiles
-for chrome elsewhere; the dashboard deliberately does not use it.
+**The card's face is the brand's, on the brand's own colour.** `brandCardFace` /
+`useBrandCardFace` decide it once for BOTH surfaces — the grid paints a 240px
+band, the list a 48px tile, one decision. Two rules, and their ORDER is the
+design:
+
+1. **The ground is the brand's colour.** It moves only when nothing the brand
+   owns reads on it, and then only to `surfacePalette(brand,'inverted')` asked
+   in both modes — the palette's brand-TINTED near-black and near-white. Never a
+   neutral cream tile: a grid of those is a grid of beige squares with the brand
+   taken out. (`BrandAvatar` keeps its neutral tiles for chrome elsewhere; the
+   dashboard deliberately does not use it.)
+2. **On that ground, Primary logo → Brand Icon → any other variant.** Priority
+   chooses among variants that can be SEEN; it never promotes one that cannot.
+
+**"Can be seen" is MEASURED, not guessed** (`shared/brand/logoInk.ts`). Every
+contrast decision in the app used to assume a coloured variant was inked in the
+brand's primary colour — the only colour the record carries. A lockup with a
+yellow mark and a dark grey wordmark therefore scored as YELLOW, cleared the
+floor on a near-black card, and rendered as a yellow asterisk beside an
+invisible name. `readLogoInk` draws the artwork at 32² and averages its ink
+weighted by alpha; results are cached per url per tab, mono roles skip it
+entirely (white is white), and every failure — tainted canvas, dead url, sizeless
+SVG — falls back to the old guess rather than throwing. `variantsInPriorityOrder`
++ `pickGroundForInk` in `logoOnBackground.ts` are the reusable halves.
+
+**A logo chosen as a COVER is shown whole.** `resolveBrandCover` returns
+`{ url, fit }` and picks `contain` for a `kind: 'logo'` asset, `cover` only for a
+photograph. Cropping a mark is not a crop; it is a mark cut in half. The band
+image also carries hard `max-height`/`max-width` ceilings — `width: auto` on an
+SVG with no intrinsic size resolves to the CSS default, not to the drawing, so a
+logo could be laid out far wider than the band and merely clipped by it.
 
 **One menu, both surfaces.** `features/dashboard/components/BrandCardMenu.tsx`
 owns the items, the dialogs and every write, and uses `DsModal` /
@@ -1162,11 +1182,17 @@ Two rules that are easy to undo by accident:
   `--bcm-lift` so they travel together. Do NOT put a `transform` on `.bcm-slot`
   itself: `DsModal` renders in place with `position: fixed`, and a transformed
   ancestor would re-anchor it to the card.
-- **"Edit brand" goes to `/b/:slug/setup`.** It used to hard-code
-  `/a/:slug/identity`, so the one action whose purpose is editing the brand was
-  also the one that dropped the user into the alternate UI. (The Open and Brand
-  Kit buttons still honour the user's own Interface preference — that is the
-  setting working, not a stray `/a`.)
+- **"Edit brand" goes to `/b/:slug/setup` and "Share" to `/b/:slug/identity`.**
+  Edit used to hard-code `/a/:slug/identity`, so the one action whose purpose is
+  editing the brand was also the one that dropped the user into the alternate
+  UI. (The Open and Brand Kit buttons still honour the user's own Interface
+  preference — that is the setting working, not a stray `/a`.)
+- **The name on the card IS the rename control.** `ProjectName` turns it into a
+  field in place; the menu item opens the same write through `useProjectRename`,
+  so there is one behaviour with two ways in. Inside a link, the click must
+  `preventDefault` AND `stopPropagation`, the field must stop its own keydowns,
+  and Escape must mark itself cancelled — otherwise the blur it causes commits
+  the edit it was meant to abandon.
 
 **A card edit is not a brand edit.** Renaming a project bumped `updatedAt`, so
 the card the user had just touched jumped to the front of a recency-ordered grid

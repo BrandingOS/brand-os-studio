@@ -12,11 +12,8 @@ import { DsButton, DsConfirmDialog, DsInput, DsModal } from '@/shared/ds';
 import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourcePopover';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
-import {
-  brandCardLabel,
-  mergeWorkspaceCard,
-  resolveBrandCover,
-} from '@/shared/brand/workspaceCard';
+import { mergeWorkspaceCard, resolveBrandCover } from '@/shared/brand/workspaceCard';
+import { useProjectRename } from './useProjectRename';
 import type { Brand } from '@/shared/types/brand';
 
 const iconProps = {
@@ -186,7 +183,7 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
   const anchorRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const label = brandCardLabel(brand);
+  const { label, rename } = useProjectRename(brand);
   const hasCover = Boolean(resolveBrandCover(brand));
 
   const closeMenu = useCallback(() => {
@@ -203,25 +200,11 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
     });
   };
 
+  // Same write the card's own name field performs — one behaviour, two ways in.
   const commitRename = async () => {
-    const next = draftName.trim();
-    if (next === label) {
-      setRenaming(false);
-      return;
-    }
     setBusy(true);
     try {
-      // An empty field is not an error — it is "call it what the brand is
-      // called", so the label is cleared rather than the save refused.
-      await saveCard({ label: next });
-      toast.success(next ? 'Project renamed' : 'Project name reset', {
-        description: next ? `Now called “${next}”.` : `Back to “${brand.name}”.`,
-      });
-      setRenaming(false);
-    } catch (err) {
-      toast.error('Could not rename this project', {
-        description: err instanceof Error ? err.message : 'Please try again.',
-      });
+      if (await rename(draftName)) setRenaming(false);
     } finally {
       setBusy(false);
     }
@@ -307,7 +290,9 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
     {
       label: 'Share',
       icon: <ShareIcon />,
-      onSelect: () => navigate(`/b/${brand.slug}/share`),
+      // The brand's Identity page IS what gets shared — the presentation over
+      // the canonical brand, which is mounted publicly from the same component.
+      onSelect: () => navigate(`/b/${brand.slug}/identity`),
     },
     { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyPublicLink() },
     {

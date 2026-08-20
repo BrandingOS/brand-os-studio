@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { container } from '@/core/container/ServiceContainer';
 import { bootServices } from '@/core/boot';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -83,11 +83,19 @@ function installBrand(row: Brand) {
   return { patches, current: () => stored };
 }
 
+let lastPath = '';
+
+function LocationProbe() {
+  lastPath = useLocation().pathname;
+  return null;
+}
+
 function mount(brand: Brand) {
   useBrandStore.setState({ list: [brand], current: brand, isLoading: false });
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <WorkspaceHome />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -96,6 +104,7 @@ beforeEach(() => {
   localStorage.clear();
   bootServices();
   useSessionStore.setState({ user: { id: 'u1', email: 'q@a.test' } } as never);
+  lastPath = '';
 });
 
 afterEach(() => {
@@ -127,15 +136,41 @@ describe('what a dashboard card shows', () => {
     });
   });
 
-  it('paints the band in the brand’s own colour, never a neutral tile', async () => {
-    installBrand(withLogo('primary', 'https://cdn/primary.svg'));
-    mount(withLogo('primary', 'https://cdn/primary.svg'));
+  it('keeps the brand’s own colour when the logo reads on it', async () => {
+    // A white mark on the seed's dark navy. Nothing has to move.
+    const brand = seedBrand({
+      brandAssets: [
+        {
+          id: 'asset-white',
+          kind: 'logo',
+          name: 'mono.white',
+          formats: { svg: { url: 'https://cdn/white.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: { mono: { white: { assetId: 'asset-white' } } },
+    } as Partial<Brand>);
+    installBrand(brand);
+    mount(brand);
 
     await waitFor(() => {
       const band = document.querySelector('.ws-brand-card-color') as HTMLElement;
       // #1A1A2E — the seed's primary.
       expect(band.style.background.replace(/\s/g, '')).toBe('rgb(26,26,46)');
     });
+  });
+
+  it('moves the ground rather than the logo when the two cannot both stay', async () => {
+    // The brand's own colour is the FIRST choice, never the only one: a mark
+    // that cannot be seen on it gets a different brand-owned ground, not a
+    // demotion to the letter.
+    installBrand(withLogo('primary', 'https://cdn/primary.svg'));
+    mount(withLogo('primary', 'https://cdn/primary.svg'));
+
+    await waitFor(() => {
+      expect(document.querySelector('.ws-brand-card-logo')).toBeTruthy();
+    });
+    expect(document.querySelector('.ws-brand-card-letter')).toBeNull();
   });
 
   it('falls back to the letter only when there is no logo at all', async () => {
@@ -166,6 +201,41 @@ describe('what a dashboard card shows', () => {
     await waitFor(() => {
       const cover = document.querySelector('.ws-brand-card-cover') as HTMLImageElement | null;
       expect(cover?.getAttribute('src')).toBe('https://cdn/cover.png');
+    });
+  });
+
+  it('shows a LOGO cover whole rather than cropping it', async () => {
+    const brand = seedBrand({
+      workspaceCard: { coverAssetId: 'asset-logo' },
+      brandAssets: [
+        {
+          id: 'asset-logo',
+          kind: 'logo',
+          name: 'Primary',
+          formats: { png: { url: 'https://cdn/logo.png', size: 1 } },
+          tags: [],
+        },
+      ],
+    } as Partial<Brand>);
+    installBrand(brand);
+    mount(brand);
+
+    await waitFor(() => {
+      const cover = document.querySelector('.ws-brand-card-cover') as HTMLImageElement | null;
+      expect(cover?.className).toContain('ws-brand-card-cover--contain');
+      expect(getComputedStyle(cover!).objectFit).toBe('contain');
+    });
+  });
+
+  it('never lets the logo outgrow its band', async () => {
+    installBrand(withLogo('primary', 'https://cdn/primary.svg'));
+    mount(withLogo('primary', 'https://cdn/primary.svg'));
+
+    await waitFor(() => {
+      const logo = document.querySelector('.ws-brand-card-logo') as HTMLElement;
+      const style = getComputedStyle(logo);
+      expect(style.maxHeight).toBe('72px');
+      expect(style.objectFit).toBe('contain');
     });
   });
 
@@ -299,5 +369,50 @@ describe('choosing a cover', () => {
     // The card is cleared; the asset is untouched.
     expect(installed.patches.at(-1)!.workspaceCard).toBeNull();
     expect(installed.current().brandAssets).toHaveLength(1);
+  });
+});
+
+describe('renaming from the card itself', () => {
+  it('clicking the name edits it, without opening the brand', async () => {
+    const installed = installBrand(seedBrand());
+    mount(seedBrand());
+
+    const name = await screen.findByText('Acme');
+    fireEvent.click(name);
+
+    const field = await screen.findByLabelText('Project name');
+    fireEvent.change(field, { target: { value: 'Client B' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    await waitFor(() => expect(installed.patches.length).toBeGreaterThan(0));
+    expect(installed.patches.at(-1)!.workspaceCard).toEqual({ label: 'Client B' });
+    expect(installed.current().name).toBe('Acme');
+    expect(await screen.findByText('Client B')).toBeTruthy();
+  });
+
+  it('Escape leaves the name alone', async () => {
+    const installed = installBrand(seedBrand());
+    mount(seedBrand());
+
+    fireEvent.click(await screen.findByText('Acme'));
+    const field = await screen.findByLabelText('Project name');
+    fireEvent.change(field, { target: { value: 'Typed then abandoned' } });
+    fireEvent.keyDown(field, { key: 'Escape' });
+    fireEvent.blur(field);
+
+    expect(await screen.findByText('Acme')).toBeTruthy();
+    expect(installed.patches).toHaveLength(0);
+  });
+});
+
+describe('where the menu goes', () => {
+  it('Share opens the brand’s Identity page, in Studio', async () => {
+    installBrand(seedBrand());
+    mount(seedBrand());
+
+    fireEvent.click(await screen.findByRole('button', { name: /actions for acme/i }));
+    fireEvent.click(await screen.findByText('Share'));
+
+    await waitFor(() => expect(lastPath).toBe('/b/acme/identity'));
   });
 });

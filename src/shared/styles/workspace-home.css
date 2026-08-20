@@ -246,17 +246,30 @@
   height: 72px;
   width: auto;
   max-width: 68%;
+  /* Hard ceilings as well as the definite height. `width: auto` on an SVG with
+     no intrinsic size resolves to the CSS default, not to the drawing, so a
+     logo could be laid out far wider than the band and be clipped by it —
+     which read as "the logo is enormous". */
+  max-height: 72px;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12));
 }
-/* A cover fills the band. `cover`, not `contain`: this is the project's
-   picture, not its logo — cropping is what makes a photograph fit a card,
-   where it would make a logo wrong. */
+/* A photograph fills the band: cropping is what makes a picture fit a card.
+   ARTWORK does not — a logo chosen as a cover is shown whole, on the brand's
+   colour, at the same optical size the logo band uses. Cropping a mark is not
+   a crop; it is a mark cut in half. */
 [data-workspace] .ws-brand-card-cover {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+[data-workspace] .ws-brand-card-cover--contain {
+  width: auto;
+  height: auto;
+  max-width: 68%;
+  max-height: 72px;
+  object-fit: contain;
 }
 
 [data-workspace] .ws-brand-card-letter {

@@ -4,7 +4,8 @@ import { DsButton, DsEyebrow } from '@/shared/ds';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { brandCardFace, brandCardLabel, resolveBrandCover } from '@/shared/brand/workspaceCard';
+import { brandCardLabel, resolveBrandCover, useBrandCardFace } from '@/shared/brand/workspaceCard';
+import { ProjectName } from '@/features/dashboard/components/ProjectName';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import type { Brand } from '@/shared/types/brand';
 import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
@@ -50,11 +51,11 @@ function BrandCard({ brand }: { brand: Brand }) {
   // come out right by construction — no per-card luminance branching,
   // and the same logic applies to brand kit / variations / slides /
   // anywhere else that draws "a brand's surface".
-  const band = brandCardFace(brand);
+  const band = useBrandCardFace(brand);
   // A cover replaces the colour band entirely. It is the project's picture,
   // resolved live from its Library id, so a deleted asset returns the card to
   // the brand's colour and logo rather than to a dead image.
-  const coverUrl = resolveBrandCover(brand);
+  const cover = resolveBrandCover(brand);
   const label = brandCardLabel(brand);
   // Brand-entry URL respects the user's UI preference: Studio users land
   // on Setup (canonical Studio entry); Classic users land on Overview.
@@ -72,10 +73,22 @@ function BrandCard({ brand }: { brand: Brand }) {
     >
       <div
         className="ws-brand-card-color"
-        style={coverUrl ? undefined : { background: band.background, color: band.color }}
+        style={
+          cover?.fit === 'cover'
+            ? undefined
+            : { background: band.background, color: band.color }
+        }
       >
-        {coverUrl ? (
-          <img className="ws-brand-card-cover" src={coverUrl} alt="" />
+        {cover ? (
+          <img
+            className={
+              cover.fit === 'contain'
+                ? 'ws-brand-card-cover ws-brand-card-cover--contain'
+                : 'ws-brand-card-cover'
+            }
+            src={cover.url}
+            alt=""
+          />
         ) : band.logoUrl ? (
           <img className="ws-brand-card-logo" src={band.logoUrl} alt="" />
         ) : (
@@ -86,7 +99,7 @@ function BrandCard({ brand }: { brand: Brand }) {
       </div>
       <div className="ws-brand-card-body">
         <div>
-          <h3 className="ws-brand-card-title">{label}</h3>
+          <ProjectName brand={brand} className="ws-brand-card-title" />
           <p className="ws-brand-card-sub">{formatRelative(brand.updatedAt)}</p>
         </div>
         <div className="ws-brand-card-foot">
