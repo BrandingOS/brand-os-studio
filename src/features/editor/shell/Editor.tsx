@@ -796,7 +796,11 @@ export function Editor({
                     padding: 16,
                   }}
                 >
-                  <renderer.Properties adapter={adapter} brand={brand} />
+                  <renderer.Properties
+                    adapter={adapter}
+                    brand={brand}
+                    initialDocument={initialDocument}
+                  />
                 </div>
               ) : null}
             </div>

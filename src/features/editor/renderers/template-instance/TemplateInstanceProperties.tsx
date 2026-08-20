@@ -12,9 +12,17 @@ import type { DeliverableContent } from '@/features/brandkit/content';
 import type { DesignPropertiesProps } from '../types';
 import type { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
 
-export function TemplateInstanceProperties({ adapter, brand }: DesignPropertiesProps) {
+export function TemplateInstanceProperties({ adapter, brand, initialDocument }: DesignPropertiesProps) {
   const instance = adapter as TemplateInstanceAdapter;
-  const [body, setBody] = useState(() => instance.getBody());
+  // `adapter.getBody()` is undefined until `loadDocument` runs, and
+  // `loadDocument` does not emit `change` (see `DesignPropertiesProps`'s
+  // `initialDocument` doc comment for why not). This panel and the
+  // canvas that calls `loadDocument` are SIBLINGS mounted by the same
+  // parent, so whichever mounts second sees a live document and
+  // whichever mounts first would otherwise see nothing — falling back
+  // to `initialDocument.body` here means the panel renders correctly
+  // regardless of that ordering.
+  const [body, setBody] = useState(() => instance.getBody() ?? initialDocument?.body);
   // The same selection the artwork shows. Clicking a region on the
   // artifact opens its control here; focusing a control here highlights
   // the region there. One value, held by the adapter both share.

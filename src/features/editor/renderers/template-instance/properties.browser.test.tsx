@@ -292,4 +292,32 @@ describe('Design shell — the properties wrapper', () => {
     ) as HTMLElement;
     expect(parseFloat(getComputedStyle(wrapper).paddingLeft)).toBeGreaterThan(0);
   });
+
+  // The bug this guards: `TemplateInstanceProperties` used to seed its
+  // state with `useState(() => instance.getBody())` and update it only
+  // on the adapter's `change` event — but `TemplateInstanceCanvas`'s
+  // effect calls `instance.loadDocument(initialDocument)` to hand the
+  // document to the SAME adapter, and `loadDocument` deliberately does
+  // not emit `change` (see `DesignPropertiesProps.initialDocument`'s doc
+  // comment for why not — emitting one would fire the shell's autosave
+  // on load). So the panel read `undefined` at mount and was never told
+  // the document had arrived: it rendered nothing, forever, in the real
+  // app. Every other test in this file hides the bug by calling
+  // `adapter.loadDocument(...)` in `beforeEach`, BEFORE the panel ever
+  // mounts — the opposite of what happens here, where `<Editor>` mounts
+  // the canvas and the panel as siblings and only the canvas's effect
+  // loads the document.
+  it('shows its groups with no pre-seeded adapter — the real app mounts canvas and panel as siblings', async () => {
+    render(
+      <MemoryRouter>
+        <Editor initialDocument={doc()} save={async () => {}} brand={mockBrand()} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(within(panel()).getByText('Bill from · Bill to')).toBeTruthy();
+    });
+    expect(within(panel()).getByText('Reference')).toBeTruthy();
+    expect(within(panel()).getByText('Line items')).toBeTruthy();
+  });
 });
