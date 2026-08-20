@@ -211,6 +211,10 @@ DO $seed$
 DECLARE
   owner_id uuid;
   tpl_id   uuid;
+  f_logos  uuid := gen_random_uuid();
+  f_photos uuid := gen_random_uuid();
+  f_camp   uuid := gen_random_uuid();
+  f_launch uuid := gen_random_uuid();
 BEGIN
   IF EXISTS (SELECT 1 FROM public.brands WHERE is_demo_template) THEN
     RAISE NOTICE '033: a demo template already exists — leaving it alone';
@@ -364,6 +368,30 @@ BEGIN
 
     true, now(), now()
   );
+
+  -- ── the template's folder tree ──
+  -- ONE tree, three views into it (Library · Designs · Kit) — see the Folders
+  -- section of CLAUDE.md. Subfolders render in every tab, so this is the shape
+  -- the demo brand demonstrates, not a Library-only arrangement.
+  INSERT INTO public.brand_folders (id, brand_id, name, parent_id)
+  VALUES (f_logos,  tpl_id, 'Logos',       NULL),
+         (f_photos, tpl_id, 'Photography', NULL),
+         (f_camp,   tpl_id, 'Campaigns',   NULL),
+         (f_launch, tpl_id, 'Launch',      f_camp);
+
+  -- ── the template's library ──
+  -- The same six files the logo system points at, as Library rows. The two are
+  -- separate projections on purpose (brand_assets JSONB answers logoSystem
+  -- refs; this table answers the Library grid), so a brand needs both to look
+  -- complete in both places.
+  INSERT INTO public.assets (brand_id, name, type, category, source, url, folder_id, tags, uploaded_by)
+  VALUES
+    (tpl_id, 'BrandingOS — primary lockup', 'image/svg+xml', 'logo', 'seed', '/brands/brandingos/logo.svg',         f_logos, ARRAY['logo','primary'],  owner_id),
+    (tpl_id, 'BrandingOS — stacked lockup', 'image/svg+xml', 'logo', 'seed', '/brands/brandingos/logo-stacked.svg', f_logos, ARRAY['logo','stacked'],  owner_id),
+    (tpl_id, 'BrandingOS — wordmark',       'image/svg+xml', 'logo', 'seed', '/brands/brandingos/wordmark.svg',     f_logos, ARRAY['logo','wordmark'], owner_id),
+    (tpl_id, 'BrandingOS — icon',           'image/svg+xml', 'logo', 'seed', '/brands/brandingos/icon.svg',         f_logos, ARRAY['logo','icon'],     owner_id),
+    (tpl_id, 'BrandingOS — mono black',     'image/svg+xml', 'logo', 'seed', '/brands/brandingos/logo-black.svg',   f_logos, ARRAY['logo','mono'],     owner_id),
+    (tpl_id, 'BrandingOS — on dark',        'image/svg+xml', 'logo', 'seed', '/brands/brandingos/logo-white.svg',   f_logos, ARRAY['logo','mono'],     owner_id);
 
   RAISE NOTICE '033: demo template created (%) owned by %', tpl_id, owner_id;
 END $seed$;
