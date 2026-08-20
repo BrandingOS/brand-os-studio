@@ -10,6 +10,8 @@
 
 import type { BrandOSDocument, Layer, Page } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
+import type { DocumentAdapter } from './DocumentAdapter';
+export type { DocumentAdapter } from './DocumentAdapter';
 
 export interface SelectionState {
   layerIds: string[];
@@ -46,19 +48,7 @@ export type EditorEventHandler<E extends EditorEvent> = E extends 'change'
 /** Returned by `on(...)` so callers can detach a listener. */
 export type Unsubscribe = () => void;
 
-export interface EditorAdapter {
-  // Lifecycle
-  mount(container: HTMLElement): Promise<void>;
-  unmount(): void;
-
-  // Document
-  loadDocument(doc: BrandOSDocument): Promise<void>;
-  getDocument(): BrandOSDocument;
-
-  // Page navigation
-  setActivePage(pageId: string): void;
-  getActivePageId(): string;
-
+export interface LayerEditingAdapter extends DocumentAdapter {
   // Page CRUD (Phase 2 — multi-page support)
   addPage(page: Page, index?: number): void;
   removePage(pageId: string): void;
@@ -102,24 +92,6 @@ export interface EditorAdapter {
   exitMasterMode(): void;
   /** Returns the master being edited, or null when in normal mode. */
   getEditingMasterId(): string | null;
-
-  /**
-   * Replace the entire document with a new one, preserving the
-   * undo history (unlike `loadDocument`, which RESETS history).
-   *
-   * Used when bulk-transforming the document — re-applying a brand
-   * kit (Step 5b), AI batch edits, cross-page propagation that's
-   * easier to compute as a new doc than as a sequence of patches.
-   *
-   * Wrap in `batch(label, () => replaceDocument(next))` to make the
-   * replace appear as a single labeled undo step. Outside a batch,
-   * the replace commits one history entry on its own.
-   *
-   * The active page id is preserved when the replacement still
-   * contains a page with the same id; otherwise it falls back to
-   * the first page in the new document.
-   */
-  replaceDocument(doc: BrandOSDocument): Promise<void>;
 
   // Layer operations
   addLayer(pageId: string, layer: Layer): void;
@@ -165,42 +137,13 @@ export interface EditorAdapter {
   // Selection
   getSelection(): SelectionState;
   setSelection(layerIds: string[]): void;
-
-  // History
-  undo(): void;
-  redo(): void;
-  canUndo(): boolean;
-  canRedo(): boolean;
-  /**
-   * Run `fn` with per-mutation history snapshots and change events
-   * suppressed. After `fn` returns, ONE snapshot is taken (with the
-   * given label) and ONE change event fires. Used for any mutation
-   * sequence that should be a single undo entry — re-applying a
-   * brand kit, AI deltas, cross-page propagation, smart duplicate.
-   *
-   * The label surfaces in any future undo-history UI ("AI: convert
-   * to social posts" rather than "Step 47"). Nesting is supported:
-   * inner batches are silently absorbed by the outer batch.
-   *
-   * Errors thrown inside `fn` propagate, but the batch state is
-   * cleaned up so subsequent mutations behave normally.
-   */
-  batch(label: string, fn: () => void): void;
-
-  // Brand context
-  /**
-   * Sets the active brand for asset resolution. Currently used by
-   * logo layers — `<LogoLayer variant>` resolves through
-   * `resolveBrandLogo(brand, role)` to a real asset URL. When the
-   * brand changes (or arrives late after mount), the adapter
-   * re-renders all logo layers on the active page so the new
-   * variants paint immediately. Pass `undefined` to clear.
-   */
-  setBrand(brand: Brand | undefined): void;
-
-  // Export
-  exportAs(options: ExportOptions): Promise<Blob>;
-
-  // Events
-  on<E extends EditorEvent>(event: E, handler: EditorEventHandler<E>): Unsubscribe;
 }
+
+/**
+ * The layer-editing contract, under its original name.
+ *
+ * Every existing call site imports `EditorAdapter` and means "the
+ * Fabric editor's adapter", which is exactly `LayerEditingAdapter`.
+ * Keeping the alias makes this split a no-op for all of them.
+ */
+export type EditorAdapter = LayerEditingAdapter;
