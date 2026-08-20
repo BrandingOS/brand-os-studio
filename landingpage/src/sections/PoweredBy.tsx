@@ -13,7 +13,6 @@ import { cssUrl } from '@/lib/cssUrl';
 import openaiUrl from '@/assets/tech/openai.svg';
 import anthropicUrl from '@/assets/tech/anthropic.svg';
 import geminiUrl from '@/assets/tech/gemini.svg';
-import recraftUrl from '@/assets/tech/recraft.svg';
 import ideogramUrl from '@/assets/tech/ideogram.svg';
 import runwayUrl from '@/assets/tech/runway.svg';
 import lumaUrl from '@/assets/tech/luma.svg';
@@ -65,7 +64,10 @@ function RowMarks() {
       <Mark name="OpenAI" url={openaiUrl} w={1180} h={320} s={1} />
       <Mark name="Anthropic" url={anthropicUrl} w={1024.2} h={115} s={0.78} />
       <Mark name="Google Gemini" url={geminiUrl} w={288} h={65} s={1.05} />
-      <Mark name="Recraft" url={recraftUrl} w={450} h={89.89} s={1} />
+      {/* Recraft is deliberately absent: src/assets/tech/recraft.svg is a
+          broken export — its glyphs overlap and cancel, so it renders as a
+          smear as an <img> too, not only through the mask. Put a correct
+          wordmark at that path and add the Mark back with its viewBox. */}
       <Mark name="Ideogram" url={ideogramUrl} w={497} h={100} s={1} />
       <Mark name="Runway" url={runwayUrl} w={138.408} h={27} s={0.96} />
       <Mark name="Luma" url={lumaUrl} w={456} h={105.35} s={1} />
