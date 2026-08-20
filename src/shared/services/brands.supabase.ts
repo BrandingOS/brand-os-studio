@@ -9,6 +9,11 @@ import { uniexBrand } from '@/data/brands/uniex';
 import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
 import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOverrides';
 import { forgetMarker, rememberMarker, rememberedMarker } from './onboardingMarkerFallback';
+import {
+  forgetWorkspaceCard,
+  rememberWorkspaceCard,
+  rememberedWorkspaceCard,
+} from './workspaceCardFallback';
 
 /**
  * Seed brands are always available regardless of database state.
@@ -209,6 +214,10 @@ export class SupabaseBrandsService implements IBrandsService {
     // Onboarding progress (migration 022). Tolerated below when the column is
     // absent — losing your place is survivable, a failed save is not.
     if (patch.onboarding !== undefined) updateData.onboarding = patch.onboarding;
+    // Dashboard card presentation (migration 031). Tolerated below when the
+    // column is absent, with the value kept per-browser so a rename the user
+    // just made does not vanish in front of them.
+    if (patch.workspaceCard !== undefined) updateData.workspace_card = patch.workspaceCard;
     if (patch.guidelines !== undefined) updateData.guidelines = patch.guidelines;
     if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic;
     if (patch.publicUrl !== undefined) updateData.public_url = patch.publicUrl;
@@ -239,7 +248,13 @@ export class SupabaseBrandsService implements IBrandsService {
       // compensation and leave a Kit adoption behind a value that reloads as
       // merely provisional. A missing column there is a deployment error and
       // must surface as one.
-      const TOLERATED_COLS = ['logo_system', 'brand_assets', 'business_info', 'onboarding'] as const;
+      const TOLERATED_COLS = [
+        'logo_system',
+        'brand_assets',
+        'business_info',
+        'onboarding',
+        'workspace_card',
+      ] as const;
 
       if (missingCol) {
         // Drop ONLY the column the database named. The previous version removed
@@ -253,8 +268,9 @@ export class SupabaseBrandsService implements IBrandsService {
           if (!named || !(named in attempt)) break;
           if (!TOLERATED_COLS.includes(named as (typeof TOLERATED_COLS)[number])) break;
 
-          // The marker is the one dropped field with somewhere else to go.
+          // The two dropped fields with somewhere else to go.
           if (named === 'onboarding') rememberMarker(id, attempt.onboarding);
+          if (named === 'workspace_card') rememberWorkspaceCard(id, attempt.workspace_card);
           delete attempt[named];
 
           // Nothing left to send. An empty PATCH matches no rows, so PostgREST
@@ -283,6 +299,11 @@ export class SupabaseBrandsService implements IBrandsService {
       }
       throw error;
     }
+    // The write named the column and the database took it, so the column
+    // exists and the row is now authoritative for this brand's card. Drop the
+    // per-browser copy: left behind, it would outlive the value it stood in
+    // for and resurrect a card the user has since cleared.
+    if ('workspace_card' in updateData) forgetWorkspaceCard(id);
     // Migrated like getBySlug — the store caches this as `current`.
     return migrateBrandToCurrent(this.mapFromDatabase(data));
   }
@@ -297,8 +318,9 @@ export class SupabaseBrandsService implements IBrandsService {
       .eq('id', id);
 
     if (error) throw error;
-    // Nothing left to remember a place in a flow for.
+    // Nothing left to remember a place in a flow for, or a card for.
     forgetMarker(id);
+    forgetWorkspaceCard(id);
   }
 
   private mapFromDatabase(data: any): Brand {
@@ -327,6 +349,10 @@ export class SupabaseBrandsService implements IBrandsService {
       // whose marker the database had nowhere to put (pre-022), and it stops
       // being consulted for a brand the moment the column carries its marker.
       onboarding: data.onboarding || (rememberedMarker(data.id) as Brand['onboarding']) || undefined,
+      // Same rule as the marker above: the row wins whenever it has a value,
+      // and the per-browser copy only answers for brands whose card the
+      // database had nowhere to put (pre-031).
+      workspaceCard: data.workspace_card || rememberedWorkspaceCard(data.id) || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,

@@ -42,6 +42,15 @@ describe('missingColumnName', () => {
     expect(missingColumnName(undefined)).toBeNull();
   });
 
+  it('names the dashboard card column too — migration 031 gets the same tolerance', () => {
+    expect(
+      missingColumnName({
+        code: 'PGRST204',
+        message: "Could not find the 'workspace_card' column of 'brands' in the schema cache",
+      }),
+    ).toBe('workspace_card');
+  });
+
   it('does not mistake a constraint message that happens to say column', () => {
     expect(missingColumnName({ code: '23502', message: 'null value in column "name"' })).toBeNull();
   });

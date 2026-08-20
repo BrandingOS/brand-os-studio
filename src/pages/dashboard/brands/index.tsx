@@ -8,7 +8,8 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect, useState } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
+import { BrandAvatar } from '@/shared/brand/BrandAvatar';
+import { brandCardLabel } from '@/shared/brand/workspaceCard';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 
@@ -96,7 +97,12 @@ export default function BrandsPage() {
               const colorIsSentinel = isPlaceholderPath(brand, 'colors.primary');
 
               return (
-                <BrandCardMenu key={brand.id} brand={brand} editUrl={identityUrlFor(brand.slug)}>
+                <BrandCardMenu
+                  key={brand.id}
+                  brand={brand}
+                  editUrl={identityUrlFor(brand.slug)}
+                  placement="end"
+                >
                 <Card
                   className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[280ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:hover:-translate-y-0.5 hover:shadow-xl hover:border-primary/30"
                 >
@@ -113,22 +119,18 @@ export default function BrandsPage() {
 
                     {/* Brand info in the middle */}
                     <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
-                      {hasLogo(brand) ? (
-                        <img
-                          src={logoUrl(brand)}
-                          alt={brand.name}
-                          className="w-12 h-12 object-contain rounded shrink-0 transition-transform duration-300 motion-safe:group-hover:scale-105"
-                        />
-                      ) : (
-                        <div
-                          className={`w-12 h-12 rounded shrink-0 border transition-transform duration-300 motion-safe:group-hover:scale-105 ${
-                            colorIsSentinel ? 'border-dashed border-muted-foreground/40' : 'border-border'
-                          }`}
-                          style={colorIsSentinel ? undefined : { backgroundColor: brand.primaryColor }}
-                        />
-                      )}
+                      {/* The brand's face, not its initial — Brand Icon, then
+                          Primary logo, then the letter. `BrandAvatar` is the
+                          one module that answers this, so a row here and the
+                          card at /dashboard show the same thing. */}
+                      <BrandAvatar
+                        brand={brand}
+                        size={48}
+                        radius={6}
+                        className="shrink-0 transition-transform duration-300 motion-safe:group-hover:scale-105"
+                      />
                       <div className="min-w-0 flex-1">
-                        <CardTitle className="text-lg truncate">{brand.name}</CardTitle>
+                        <CardTitle className="text-lg truncate">{brandCardLabel(brand)}</CardTitle>
                         <CardDescription className="mt-0.5 truncate">
                           {wipLabel ?? (brand.tone || "Brand toolkit")}
                         </CardDescription>
@@ -151,8 +153,10 @@ export default function BrandsPage() {
                       </div>
                     </div>
 
-                    {/* Actions on the right */}
-                    <div className="flex items-center gap-2 pr-4 shrink-0">
+                    {/* Actions on the right. The trailing padding is the menu
+                        button's column — it is pinned to the row's end edge, so
+                        without it the two would sit on top of each other. */}
+                    <div className="flex items-center gap-2 pr-14 shrink-0">
                       {!wip && (
                         <>
                           <Button

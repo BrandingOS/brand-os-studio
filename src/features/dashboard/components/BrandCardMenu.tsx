@@ -7,6 +7,7 @@ import { ContextMenu, type ContextMenuState } from '@/features/setup/components/
 // right on every page that uses this component, including the ones outside
 // the workspace shell (e.g. the /dashboard/brands list).
 import '@/shared/styles/workspace.css';
+import './brandCardMenu.css';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,13 +21,21 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourcePopover';
+import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
+import {
+  brandCardLabel,
+  mergeWorkspaceCard,
+  resolveBrandCover,
+} from '@/shared/brand/workspaceCard';
 import type { Brand } from '@/shared/types/brand';
 
 const iconProps = {
@@ -52,6 +61,20 @@ const EditIcon = () => (
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
   </svg>
 );
+const CoverIcon = () => (
+  <svg {...iconProps}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="m21 15-5-5L5 21" />
+  </svg>
+);
+const CoverOffIcon = () => (
+  <svg {...iconProps}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="m3 21 7-7 4 4" />
+    <path d="m21 3-18 18" />
+  </svg>
+);
 const ShareIcon = () => (
   <svg {...iconProps}>
     <circle cx="18" cy="5" r="3" />
@@ -74,48 +97,182 @@ const TrashIcon = () => (
     <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
   </svg>
 );
+const MoreIcon = () => (
+  <svg {...iconProps} width={16} height={16}>
+    <circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+/**
+ * The cover picker, mounted only while it is open.
+ *
+ * `useAssetUpload` resolves the assets service at render, so keeping it in the
+ * menu would make every card on the dashboard require a booted container and
+ * instantiate an uploader it will almost never use. Nobody picks a cover for
+ * twenty brands at once; they pick one for one.
+ */
+function CardCoverPicker({
+  brandId,
+  placement,
+  onPick,
+  onClose,
+}: {
+  brandId: string;
+  placement: 'corner' | 'end';
+  /** Receives the LIBRARY id — the cover's identity, whichever source it came from. */
+  onPick: (assetId: string) => void | Promise<void>;
+  onClose: () => void;
+}) {
+  const { upload } = useAssetUpload(brandId);
+
+  const handle = async (source: AssetSource) => {
+    if (source.kind === 'asset') {
+      await onPick(source.asset.id);
+      return;
+    }
+    const asset = await upload(source.file, { kind: 'image', silent: true });
+    // A failed upload has already said why; there is nothing to set.
+    if (asset) await onPick(asset.id);
+    else onClose();
+  };
+
+  return (
+    <AssetSourcePopover
+      brandId={brandId}
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      align="end"
+      // Opened from the MENU, so its trigger is an anchor with no appearance of
+      // its own — the popover still needs somewhere on the card to point.
+      trigger={
+        <span
+          className={
+            placement === 'end' ? 'bcm-cover-anchor bcm-cover-anchor--end' : 'bcm-cover-anchor'
+          }
+          aria-hidden="true"
+        />
+      }
+      onPick={(source) => void handle(source)}
+    />
+  );
+}
 
 interface Props {
   brand: Brand;
-  /** Where "Edit" goes — the caller owns URL shape (Studio vs Classic). */
+  /** Where "Edit brand" goes — the caller owns URL shape (Studio vs Classic). */
   editUrl: string;
+  /**
+   * Where the button sits. A tall card has a free top-right corner; a list row
+   * does not — its own actions are already there — so the row gives the button
+   * a column at the end instead of stacking it on top of them. The MENU is the
+   * same either way; only the way in moves.
+   */
+  placement?: 'corner' | 'end';
   /** A single element (card / link). The handler is attached to it directly
-   *  so no wrapper div lands in the middle of a grid or flex layout. */
+   *  so no extra element lands between the slot and the card. */
   children: React.ReactElement;
 }
 
-/** Right-click actions for a brand card: rename, edit, share, delete. */
-export function BrandCardMenu({ brand, editUrl, children }: Props) {
+/**
+ * A dashboard card's actions — for BOTH card surfaces.
+ *
+ * Two ways in, on purpose. Right-click is what it always was; the `⋯` button
+ * that appears on hover is what makes the actions discoverable, because a menu
+ * nobody knows about is a menu nobody uses. They open the same menu, in the
+ * same place, with the same items.
+ *
+ * The card here is a PROJECT. Rename and Delete are worded and implemented
+ * against the project — the name lives on `workspaceCard.label` and the brand's
+ * own `name` is never touched, which is what lets two cards hold the same
+ * identity and still be told apart. The brand's real name is edited where the
+ * brand is edited.
+ */
+export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }: Props) {
   const navigate = useNavigate();
   const updateBrand = useBrandStore((s) => s.update);
   const deleteBrand = useBrandStore((s) => s.delete);
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState(brand.name);
+  const [draftName, setDraftName] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const anchorRef = useRef<HTMLElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const label = brandCardLabel(brand);
+  const hasCover = Boolean(resolveBrandCover(brand));
 
   const closeMenu = useCallback(() => {
     anchorRef.current?.classList.remove('is-ctx-active');
     anchorRef.current = null;
+    triggerRef.current?.classList.remove('is-open');
     setMenu(null);
   }, []);
 
+  /** One write path for every card change, so they all merge and clear alike. */
+  const saveCard = async (change: Parameters<typeof mergeWorkspaceCard>[1]) => {
+    await updateBrand(brand.id, {
+      workspaceCard: mergeWorkspaceCard(brand.workspaceCard, change),
+    });
+  };
+
   const commitRename = async () => {
     const next = draftName.trim();
-    if (!next || next === brand.name) {
+    if (next === label) {
       setRenaming(false);
       return;
     }
     setBusy(true);
     try {
-      await updateBrand(brand.id, { name: next });
-      toast.success('Brand renamed', { description: `Now called “${next}”.` });
+      // An empty field is not an error — it is "call it what the brand is
+      // called", so the label is cleared rather than the save refused.
+      await saveCard({ label: next });
+      toast.success(next ? 'Project renamed' : 'Project name reset', {
+        description: next ? `Now called “${next}”.` : `Back to “${brand.name}”.`,
+      });
       setRenaming(false);
     } catch (err) {
-      toast.error('Could not rename brand', {
+      toast.error('Could not rename this project', {
+        description: err instanceof Error ? err.message : 'Please try again.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyCover = async (assetId: string) => {
+    setCoverOpen(false);
+    setBusy(true);
+    try {
+      // The Library id is the cover's identity. The url the picker happens to be
+      // holding is a snapshot; storing it would leave the card pointing at bytes
+      // the brand can replace or delete out from under it.
+      await saveCard({ coverAssetId: assetId, coverUrl: undefined });
+      toast.success('Cover updated');
+    } catch (err) {
+      toast.error('Could not set the cover', {
+        description: err instanceof Error ? err.message : 'Please try again.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeCover = async () => {
+    setBusy(true);
+    try {
+      // The picture itself stays in Brand Assets — removing a cover is a
+      // decision about this card, not about the brand's material.
+      await saveCard({ coverAssetId: undefined, coverUrl: undefined });
+      toast.success('Cover removed');
+    } catch (err) {
+      toast.error('Could not remove the cover', {
         description: err instanceof Error ? err.message : 'Please try again.',
       });
     } finally {
@@ -127,10 +284,10 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
     setBusy(true);
     try {
       await deleteBrand(brand.id);
-      toast.success('Brand deleted', { description: `“${brand.name}” was removed.` });
+      toast.success('Project deleted', { description: `“${label}” was removed.` });
       setConfirmingDelete(false);
     } catch (err) {
-      toast.error('Could not delete brand', {
+      toast.error('Could not delete this project', {
         description: err instanceof Error ? err.message : 'Please try again.',
       });
     } finally {
@@ -148,40 +305,58 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
     }
   };
 
+  const items = () => [
+    {
+      label: 'Rename project',
+      icon: <RenameIcon />,
+      onSelect: () => {
+        setDraftName(label);
+        setRenaming(true);
+      },
+    },
+    {
+      label: hasCover ? 'Change cover' : 'Choose cover',
+      icon: <CoverIcon />,
+      onSelect: () => setCoverOpen(true),
+    },
+    ...(hasCover
+      ? [{ label: 'Remove cover', icon: <CoverOffIcon />, onSelect: () => void removeCover() }]
+      : []),
+    { label: 'Edit brand', icon: <EditIcon />, onSelect: () => navigate(editUrl) },
+    {
+      label: 'Share',
+      icon: <ShareIcon />,
+      onSelect: () => navigate(`/b/${brand.slug}/share`),
+    },
+    { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyPublicLink() },
+    {
+      label: 'Delete project',
+      icon: <TrashIcon />,
+      destructive: true,
+      onSelect: () => setConfirmingDelete(true),
+    },
+  ];
+
   const openMenu = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
     anchorRef.current?.classList.remove('is-ctx-active');
     anchorRef.current = e.currentTarget;
     e.currentTarget.classList.add('is-ctx-active');
+    setMenu({ x: e.clientX, y: e.clientY, items: items() });
+  };
 
-    setMenu({
-      x: e.clientX,
-      y: e.clientY,
-      items: [
-        {
-          label: 'Rename',
-          icon: <RenameIcon />,
-          onSelect: () => {
-            setDraftName(brand.name);
-            setRenaming(true);
-          },
-        },
-        { label: 'Edit brand', icon: <EditIcon />, onSelect: () => navigate(editUrl) },
-        {
-          label: 'Share',
-          icon: <ShareIcon />,
-          onSelect: () => navigate(`/b/${brand.slug}/share`),
-        },
-        { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyPublicLink() },
-        {
-          label: 'Delete brand',
-          icon: <TrashIcon />,
-          destructive: true,
-          onSelect: () => setConfirmingDelete(true),
-        },
-      ],
-    });
+  /** The button opens the same menu, positioned off the button itself rather
+   *  than the pointer — a menu that appeared under the cursor's exact pixel
+   *  would sit on top of the control that summoned it. */
+  const openMenuFromButton = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // The card is a link. Without this the menu opens and the brand opens with
+    // it, and the user never sees what they clicked.
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.classList.add('is-open');
+    setMenu({ x: rect.left, y: rect.bottom + 6, items: items() });
   };
 
   const trigger = isValidElement(children)
@@ -191,8 +366,31 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
     : children;
 
   return (
-    <>
+    <div className="bcm-slot">
       {trigger}
+
+      <button
+        type="button"
+        ref={triggerRef}
+        className={placement === 'end' ? 'bcm-trigger bcm-trigger--end' : 'bcm-trigger'}
+        aria-label={`Actions for ${label}`}
+        aria-haspopup="menu"
+        onClick={openMenuFromButton}
+        // A card is a link, and a pointer press on the button starts the link's
+        // activation before the click handler ever runs.
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        <MoreIcon />
+      </button>
+
+      {coverOpen && (
+        <CardCoverPicker
+          brandId={brand.id}
+          placement={placement}
+          onPick={(assetId) => applyCover(assetId)}
+          onClose={() => setCoverOpen(false)}
+        />
+      )}
 
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />
@@ -201,7 +399,11 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
       <Dialog open={renaming} onOpenChange={(open) => !busy && setRenaming(open)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename brand</DialogTitle>
+            <DialogTitle>Rename project</DialogTitle>
+            <DialogDescription>
+              This is the name on your dashboard. The brand is still called “{brand.name}”
+              everywhere else.
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -210,15 +412,25 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') void commitRename();
             }}
-            placeholder="Brand name"
+            placeholder={brand.name}
+            aria-label="Project name"
           />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setRenaming(false)} disabled={busy}>
-              Cancel
+          <DialogFooter className="sm:justify-between">
+            <Button
+              variant="ghost"
+              onClick={() => setDraftName('')}
+              disabled={busy || !draftName.trim()}
+            >
+              Use brand name
             </Button>
-            <Button onClick={() => void commitRename()} disabled={busy || !draftName.trim()}>
-              {busy ? 'Saving…' : 'Save'}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setRenaming(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button onClick={() => void commitRename()} disabled={busy}>
+                {busy ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -229,9 +441,9 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{brand.name}”?</AlertDialogTitle>
+            <AlertDialogTitle>Delete “{label}”?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the brand and everything saved in it — logos, colors, fonts and
+              This removes the project and everything saved in it — logos, colors, fonts and
               guidelines. It can’t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -247,11 +459,11 @@ export function BrandCardMenu({ brand, editUrl, children }: Props) {
               }}
               disabled={busy}
             >
-              {busy ? 'Deleting…' : 'Delete brand'}
+              {busy ? 'Deleting…' : 'Delete project'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

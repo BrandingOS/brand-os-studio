@@ -61,6 +61,17 @@ export interface Brand {
    */
   onboarding?: import('@/shared/onboarding/onboardingState').OnboardingState;
 
+  /**
+   * How this brand presents itself on the dashboard (migration 031
+   * `brands.workspace_card`).
+   *
+   * The dashboard shows PROJECTS, and a project is not the brand inside it —
+   * see `src/shared/brand/workspaceCard.ts`, which is the only module that
+   * interprets this shape. Absent means the card shows the brand's own name
+   * and logo. Nothing here ever changes `name`.
+   */
+  workspaceCard?: WorkspaceCard | null;
+
   // ─── Legacy fields (read-only from v3 onward) ──────────────────────
   // Kept for back-compat with existing consumers; new writes should target
   // the v3 fields above. Derived getters may populate these at read time.
@@ -116,6 +127,24 @@ export interface Brand {
   customDomain?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * A brand's card on the dashboard — its name there, and its cover.
+ *
+ * `label` is the PROJECT's name. It is shown instead of `Brand.name` on the
+ * dashboard and nowhere else, so two cards holding the same identity can be
+ * told apart without renaming the brand for every surface in the app.
+ *
+ * `coverAssetId` is the canonical reference to the cover: a Library item id,
+ * resolved to a live url at render time. `coverUrl` is a fallback for a cover
+ * that has no Library item behind it; a url alone is a snapshot of where bytes
+ * used to be, so it never outranks the id.
+ */
+export interface WorkspaceCard {
+  label?: string;
+  coverAssetId?: string;
+  coverUrl?: string;
 }
 
 export interface BrandUIStyle {

@@ -1,0 +1,113 @@
+/**
+ * The dashboard card's own affordances: the menu button, and the anchor the
+ * cover picker opens from.
+ *
+ * UNSCOPED on purpose. These two surfaces do not share a shell — the grid at
+ * /dashboard lives inside `[data-workspace]` and the list at /dashboard/brands
+ * does not — so a scoped selector would style one and quietly skip the other.
+ * The `--ds-*` tokens are defined on `:root`, so they resolve in both.
+ */
+
+.bcm-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bcm-slot > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The way in. A card that only answers to right-click is a card most people
+   never learn has actions at all — so the button is always THERE, and only its
+   visibility waits for the pointer. */
+.bcm-trigger {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--ds-border, rgba(20, 20, 20, 0.12));
+  border-radius: 999px;
+  background: var(--ds-surface, #ffffff);
+  color: var(--ds-text, #141414);
+  box-shadow: var(--ds-shadow-sm, 0 1px 2px rgba(20, 18, 14, 0.08));
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bcm-slot:hover .bcm-trigger,
+.bcm-slot:focus-within .bcm-trigger,
+.bcm-trigger.is-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+.bcm-trigger:hover {
+  background: var(--ds-surface-hover, rgba(20, 20, 20, 0.05));
+}
+.bcm-trigger:focus-visible {
+  outline: none;
+  opacity: 1;
+  transform: translateY(0);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring, rgba(20, 20, 20, 0.35));
+}
+
+/* No hover means no reveal: on a touch screen the button has to be there from
+   the start or the actions are unreachable. */
+/* A ROW is not a card. Its corner is where its content starts, and its actions
+   already occupy the right edge, so the button takes a column of its own at the
+   end rather than sitting on top of them. */
+.bcm-trigger--end,
+.bcm-cover-anchor--end {
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+}
+.bcm-slot:hover .bcm-trigger--end,
+.bcm-slot:focus-within .bcm-trigger--end,
+.bcm-trigger--end.is-open,
+.bcm-trigger--end:focus-visible {
+  transform: translateY(-50%);
+}
+
+@media (hover: none) {
+  .bcm-trigger {
+    opacity: 1;
+    transform: none;
+  }
+  .bcm-trigger--end {
+    transform: translateY(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bcm-trigger {
+    transition: none;
+    transform: none;
+  }
+  .bcm-trigger--end {
+    transform: translateY(-50%);
+  }
+}
+
+/* The cover picker is opened from the MENU, not from a control of its own, so
+   its popover still needs a place to point at. This is that place: the top-right
+   of the card, taking no space and catching no clicks. */
+.bcm-cover-anchor {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}

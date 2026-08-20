@@ -39,6 +39,17 @@ export type AssetSource =
 
 export interface AssetSourcePopoverProps {
   trigger: React.ReactNode;
+  /**
+   * Whose library to show. Defaults to the store's `current` brand, which is
+   * right inside a brand's own workspace and wrong everywhere a surface lists
+   * SEVERAL brands — the dashboard has no current brand, so without this the
+   * grid would offer an empty picker on every card.
+   */
+  brandId?: string;
+  /** Controlled open state, for a picker opened from somewhere other than its
+   *  own trigger (a menu item, a keyboard shortcut). Omit for self-managed. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   /** Filter the Brand Assets grid to specific categories. */
   categories?: Asset['category'][];
   /** Filter to specific asset types. Defaults to images. */
@@ -65,8 +76,16 @@ export function AssetSourcePopover({
   onPick,
   align = 'start',
   side = 'bottom',
+  brandId: brandIdProp,
+  open: openProp,
+  onOpenChange,
 }: AssetSourcePopoverProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (openProp === undefined) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const inputRef = useRef<HTMLInputElement>(null);
   const currentBrand = useBrandStore((s) => s.current);
   // Read the brand's library from the canonical ASSETS service (same store the
@@ -74,7 +93,7 @@ export function AssetSourcePopover({
   // of `brand.assets`, which is dropped for authenticated users.
   const assetsService = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
   const [allAssets, setAllAssets] = useState<Asset[]>([]);
-  const brandId = currentBrand?.id;
+  const brandId = brandIdProp ?? currentBrand?.id;
 
   useEffect(() => {
     if (!open || !brandId) return; // fetch lazily, only when the picker opens

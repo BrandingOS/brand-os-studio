@@ -5,7 +5,9 @@ import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { surfacePalette } from '@/shared/brand/brandPalette';
-import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
+import { pickLogoByPriority } from '@/shared/brand/logoOnBackground';
+import { resolveBrandFace } from '@/shared/brand/BrandAvatar';
+import { brandCardLabel, resolveBrandCover } from '@/shared/brand/workspaceCard';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import type { Brand } from '@/shared/types/brand';
 import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
@@ -46,17 +48,50 @@ function sentenceLower(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
+/**
+ * The card's top band: what it shows, and what it shows it on.
+ *
+ * The letter is the LAST resort, not the second one. A brand that has uploaded
+ * its logo system and still sees an initial on its own dashboard is the failure
+ * this exists to remove — and it was a real one, because a coloured mark on the
+ * brand's own colour scores a contrast of 1.0 and every scoring picker
+ * correctly refuses it. Refusing the GROUND is the right answer there; refusing
+ * the LOGO is not.
+ *
+ * So: the brand's colour when its icon (then its primary lockup) can be seen on
+ * it, a neutral ground when the artwork exists but that pairing cannot work,
+ * and the letter only when there is no artwork at all. `resolveBrandFace` is
+ * the same module the rail, the switcher and the chooser use, so the second
+ * branch agrees with them by construction.
+ */
+function cardBand(brand: Brand): {
+  background: string;
+  color: string;
+  logoUrl?: string;
+  letter?: string;
+} {
+  const surface = surfacePalette(brand, 'brand');
+  const onBrand = pickLogoByPriority(brand, surface.bg)?.url;
+  if (onBrand) return { background: surface.bg, color: surface.text, logoUrl: onBrand };
+
+  const face = resolveBrandFace(brand);
+  if (face.kind === 'logo') {
+    return { background: face.background, color: face.color, logoUrl: face.url };
+  }
+  return { background: surface.bg, color: surface.text, letter: face.letter };
+}
+
 function BrandCard({ brand }: { brand: Brand }) {
   // Both halves of the card go through the canonical palette so colors
   // come out right by construction — no per-card luminance branching,
   // and the same logic applies to brand kit / variations / slides /
   // anywhere else that draws "a brand's surface".
-  const brandSurface = surfacePalette(brand, 'brand');
-  // Pick the logo variant that reads against this card's background.
-  // The picker scores every available variant by WCAG contrast and
-  // returns undefined if none clear the readability floor — at which
-  // point we fall through to the letter mark.
-  const logoUrl = pickLogoOnBackground(brand, brandSurface.bg)?.url;
+  const band = cardBand(brand);
+  // A cover replaces the colour band entirely. It is the project's picture,
+  // resolved live from its Library id, so a deleted asset returns the card to
+  // the brand's colour and logo rather than to a dead image.
+  const coverUrl = resolveBrandCover(brand);
+  const label = brandCardLabel(brand);
   // Brand-entry URL respects the user's UI preference: Studio users land
   // on Setup (canonical Studio entry); Classic users land on Overview.
   const uiPreference = useUiPreference();
@@ -67,23 +102,25 @@ function BrandCard({ brand }: { brand: Brand }) {
     <Link
       to={entryUrl}
       className="ws-brand-card"
-      aria-label={`Open ${brand.name}`}
+      aria-label={`Open ${label}`}
     >
       <div
         className="ws-brand-card-color"
-        style={{ background: brandSurface.bg, color: brandSurface.text }}
+        style={coverUrl ? undefined : { background: band.background, color: band.color }}
       >
-        {logoUrl ? (
-          <img className="ws-brand-card-logo" src={logoUrl} alt="" />
+        {coverUrl ? (
+          <img className="ws-brand-card-cover" src={coverUrl} alt="" />
+        ) : band.logoUrl ? (
+          <img className="ws-brand-card-logo" src={band.logoUrl} alt="" />
         ) : (
           <span className="ws-brand-card-letter" aria-hidden="true">
-            {brand.name.trim().charAt(0) || 'B'}
+            {band.letter}
           </span>
         )}
       </div>
       <div className="ws-brand-card-body">
         <div>
-          <h3 className="ws-brand-card-title">{brand.name}</h3>
+          <h3 className="ws-brand-card-title">{label}</h3>
           <p className="ws-brand-card-sub">{formatRelative(brand.updatedAt)}</p>
         </div>
         <div className="ws-brand-card-foot">

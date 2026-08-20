@@ -1031,6 +1031,57 @@ second renderer target is additive.
 The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen** and
 unlinked. It keeps its local-brand fallback (see the uuid gotcha below).
 
+## The dashboard shows PROJECTS, not brands (2026-08-20)
+
+`/dashboard` (the card grid, `pages/workspace/Home.tsx`) and `/dashboard/brands`
+(the list) are two views of the same thing, and the thing is a **project**. A
+project is not the brand inside it: someone can hold one identity twice — a
+rebrand beside what it replaces — and needs to tell the two apart without
+renaming the brand for the editor, the guidelines, every export and the public
+page.
+
+**`Brand.workspaceCard` is the whole of it** — `{ label, coverAssetId,
+coverUrl }`, migration 031 `brands.workspace_card`, interpreted ONLY by
+`shared/brand/workspaceCard.ts`. Rules that bind:
+
+- **`brandCardLabel(brand)` is what both surfaces render.** `Brand.name` is
+  untouched by anything on the dashboard and is edited only in Setup/Identity.
+  The menu says **Rename project** and **Delete project** for the same reason.
+- **A cover is identified by `coverAssetId`, never by a url.** It resolves
+  against `brand.brandAssets` (the Library projection) at render time, so a
+  replaced asset updates the card and a DELETED one *removes* the cover —
+  falling back to a remembered url would keep material on screen that the brand
+  no longer has. `coverUrl` answers only when there is no id at all.
+- **Clearing writes `null`, not `undefined`.** `undefined` is dropped as "no
+  change" by `splitCorePatch` and by the adapter alike, so an emptied card would
+  silently keep its old value. `mergeWorkspaceCard` is the only place that
+  decides this.
+- **Pre-031 tolerance mirrors the onboarding marker**: the adapter drops the
+  column when PostgREST refuses it and keeps the value in
+  `services/workspaceCardFallback.ts` (localStorage, per browser), merged back
+  in `mapFromDatabase`. A successful write naming the column FORGETS the local
+  copy — left behind it would resurrect a card the user has since cleared.
+
+**The card's face is the brand's, and the letter is the LAST resort.** The
+order is Brand Icon → Primary logo → letter, and it is DETERMINISTIC:
+`pickLogoByPriority` (in `logoOnBackground.ts`) walks the caller's order and the
+first role that clears the contrast floor wins outright — contrast vetoes, it
+never ranks. A brand-coloured mark on the brand's own colour scores 1.0, so the
+grid card changes the GROUND rather than the logo (`cardBand` in `Home.tsx`
+falls through to `resolveBrandFace`, the same module the rail and switcher use);
+only a brand with no artwork at all gets an initial. List rows use
+`BrandAvatar` directly, which already encodes the same order.
+
+**One menu, both surfaces.** `features/dashboard/components/BrandCardMenu.tsx`
+owns the items, the dialogs and every write. It opens on right-click AND from a
+`⋯` button revealed on hover — a menu nobody knows about is a menu nobody uses.
+`placement="end"` moves the button out of a list row's action cluster; the menu
+itself is identical. Its CSS is deliberately UNSCOPED (`brandCardMenu.css`) —
+the grid is inside `[data-workspace]` and the list is not, so a scoped selector
+would style one and skip the other. `useAssetUpload` lives in the cover picker
+child, which mounts only while the picker is open, so twenty cards do not
+instantiate twenty uploaders.
+
 ## Undo / redo — `src/shared/history/` (2026-08-19)
 
 **Do not add a tenth undo stack.** There were nine — a Fabric ring buffer, three
@@ -1171,6 +1222,9 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos:design:<brandId>:<designId>` — LocalDesignStorage body; when it overflows the ~5 MB quota (AI images as data URIs) the value is the marker `{"__idb":1}` and the body lives in IndexedDB `brandos-editor/kv` under the same key
 - `brandos:ai-image:prefs` — Generate panel prefs (model, count, on-brand/raw)
 - `brandos.ai.anon-session` — anon session id for the Anthropic proxy's rate limiting
+- `brandos:workspace-cards` — dashboard card presentation (project name + cover)
+  for brands whose database has no `workspace_card` column yet (pre-031). Per
+  browser; the row always wins once the column exists
 - `brandos:dev-bypass` — dev auth bypass flag
 - `editor-tutorial-<slug>` — editor welcome tutorial seen
 

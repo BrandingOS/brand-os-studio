@@ -13,6 +13,8 @@
  *
  * Public API:
  *   - `pickLogoOnBackground(brand, bg)` → the best `ResolvedLogo` for that bg.
+ *   - `pickLogoByPriority(brand, bg, roles)` → the FIRST readable role in a
+ *     caller's order, falling back to the best-scoring variant.
  *   - `bgTone(bg)`                      → 'light' | 'dark' (use for text/icon).
  *   - `pickFgOnBackground(bg, [...])`   → highest-contrast fg from candidates.
  *   - `relativeLuminance` / `contrastRatio` — primitives if you need them.
@@ -152,4 +154,49 @@ export function pickLogoOnBackground(
 
   if (!best || best.score < minContrast) return undefined;
   return best.resolved;
+}
+
+/**
+ * The order a brand's face is chosen in when the caller has one: Brand Icon,
+ * then Primary logo, then whatever else reads.
+ *
+ * A small square is exactly what an iconmark is drawn for, so a brand that has
+ * one should show it — and it should not lose that slot to the primary lockup
+ * merely because the lockup happens to score a higher contrast ratio. Scoring
+ * answers "can this be seen", which is a floor, not a ranking of which mark is
+ * the right one.
+ */
+export const FACE_PRIORITY: LogoRole[] = ['iconmark', 'primary'];
+
+/**
+ * Pick a logo by the caller's ORDER, with this module's contrast floor still
+ * doing the safety work.
+ *
+ * The priority decides; contrast only vetoes. Walking `priority` in order, the
+ * first role the brand actually has AND that clears `minContrast` on this
+ * background wins outright — no scoring comparison between them. Only when
+ * every priority role is missing or unreadable does it fall through to
+ * `pickLogoOnBackground`, which searches the remaining variants for one that
+ * can be seen at all (this is what routes a brand-coloured mark on its own
+ * brand-coloured card to its mono twin).
+ *
+ * `undefined` means the brand has no usable logo for this background, and the
+ * caller should draw its letter — the last resort, never an earlier one.
+ */
+export function pickLogoByPriority(
+  brand: Brand | null | undefined,
+  bgHex: string,
+  priority: LogoRole[] = FACE_PRIORITY,
+  options: PickOptions = {},
+): ResolvedLogo | undefined {
+  if (!brand) return undefined;
+  const minContrast = options.minContrast ?? 1.8;
+
+  for (const role of priority) {
+    const resolved = resolveBrandLogo(brand, role);
+    if (!resolved) continue;
+    if (contrastRatio(toneOfRole(role, brand), bgHex) >= minContrast) return resolved;
+  }
+
+  return pickLogoOnBackground(brand, bgHex, options);
 }
