@@ -200,10 +200,21 @@ export default function OnboardingFlow() {
         navigate(`/onboard-brand/${created.slug}?${params.toString()}`, { replace: true });
         setUnderstandingNow(true);
       } catch (e) {
+        /*
+         * Log the REAL error.
+         *
+         * Both branches below replace it with a sentence for the user, which is
+         * right — but nothing kept the original, so a failed brand creation left
+         * no evidence anywhere and the only way to diagnose one was to guess.
+         * The friendly message stays; the cause goes to the console.
+         */
+        console.error('[onboarding] createBrand failed', e);
         setError(
           e instanceof Error && /duplicate|unique/i.test(e.message)
             ? 'You already have a brand with that name. Try another, or add a word to tell them apart.'
-            : "Couldn't save that just now. Your details are still here — try again.",
+            : `Couldn't save that just now. Your details are still here — try again.${
+                e instanceof Error && e.message ? ` (${e.message})` : ''
+              }`,
         );
         gate.current = false;
       } finally {
