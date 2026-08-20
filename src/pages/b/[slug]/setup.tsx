@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import SetupPage from '@/features/setup/SetupPage';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
@@ -44,6 +44,7 @@ export default function BrandSetupPage() {
   const { slug } = useParams<{ slug: string }>();
   const { brand, isLoading } = useBrandFromSlug(slug);
   const updateBrand = useBrandStore((s) => s.update);
+  const navigate = useNavigate();
   const reproject = useBrandStore((s) => s.reprojectLibrary);
   const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
 
@@ -55,6 +56,26 @@ export default function BrandSetupPage() {
       try {
         if (Object.keys(patch).length > 0) {
           await updateBrand(brand.id, patch);
+        }
+        /*
+         * A rename moves the brand's address.
+         *
+         * `set_brand_slug` (migration 001) regenerates the slug whenever the
+         * name changes, so the URL we are standing on stops resolving the
+         * moment a rename lands — the user would be left on a dead route
+         * looking at a page that still worked a second ago. Read the slug back
+         * off the store and follow it.
+         *
+         * Only on a rename: every other save leaves the slug alone, and a
+         * navigate on each keystroke-settled save would fight the router.
+         */
+        if (patch.name !== undefined) {
+          const fresh =
+            useBrandStore.getState().list.find((b) => b.id === brand.id) ??
+            useBrandStore.getState().current;
+          if (fresh?.slug && fresh.slug !== slug) {
+            navigate(`/b/${fresh.slug}/setup`, { replace: true });
+          }
         }
         // Photos and icons have no home in the brand record — they go to the
         // Library, which is also where `brandToMockBrand` reads them back from
@@ -70,7 +91,7 @@ export default function BrandSetupPage() {
         });
       }
     },
-    [brand, updateBrand, assets, reproject],
+    [brand, updateBrand, assets, reproject, navigate, slug],
   );
 
   if (!brand) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;

@@ -7,6 +7,7 @@ import {
   PenOrganicIconV2,
   PaletteOrganicIconV2,
   TypeOrganicIcon,
+  TypeOrganicIconV2,
   ShapesOrganicIcon,
   PhotoOrganicIconV2,
   LinkOrganicIconV2,
@@ -15,7 +16,7 @@ import {
   type OrganicIconProps,
 } from './organic-icons';
 
-type SectionKey = 'logo' | 'colors' | 'fonts' | 'icons' | 'photos' | 'website' | 'voice';
+type SectionKey = 'brand' | 'logo' | 'colors' | 'fonts' | 'icons' | 'photos' | 'website' | 'voice';
 
 type Props = {
   brand: MockBrand;
@@ -34,6 +35,9 @@ type OrganicIconComponent = ForwardRefExoticComponent<
 >;
 
 const ICONS: Record<SectionKey, OrganicIconComponent> = {
+  // The name and the slogan are words, so the typographic mark fits. V2 was
+  // already in the file and unused; Typography keeps V1.
+  brand: TypeOrganicIconV2,
   logo: PenOrganicIconV2,
   colors: PaletteOrganicIconV2,
   fonts: TypeOrganicIcon,
@@ -63,6 +67,15 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump, onAdd
     : `${brand.websites.length} sites`;
 
   const entries: Entry[] = [
+    // First, because it is what the brand IS. The name was previously only
+    // readable — it rendered as this panel's heading and could be changed
+    // nowhere in Setup at all.
+    {
+      key: 'brand',
+      name: 'Brand',
+      sub: brand.strategy.slogan.trim() || (brand.name.trim() ? 'No slogan' : 'Not set'),
+      added: brand.name.trim().length > 0,
+    },
     { key: 'logo', name: 'Logo', sub: `${brand.logos.length} variants`, added: brand.logos.length > 0 },
     { key: 'colors', name: 'Color', sub: `${brand.colors.core.length + brand.colors.accent.length} colors`, added: brand.colors.core.length > 0 },
     { key: 'fonts', name: 'Typography', sub: fontSummary, added: brand.fonts.length > 0 },

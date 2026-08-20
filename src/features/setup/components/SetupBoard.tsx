@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { DsEyebrow, DsSkeleton } from '@/shared/ds';
 import type { BrandColor, MockBrand } from '../data/mockBrand';
 import { ICON_MAP } from './SetupIcons';
@@ -319,6 +319,100 @@ function isLightHex(hex: string): boolean {
   return l > 0.6;
 }
 
+/**
+ * One free-text brand field.
+ *
+ * Commits on blur and on Enter rather than on every keystroke: the page
+ * persists 400ms after the last change, and a per-character save of the NAME
+ * would ask the database to regenerate the slug — and the URL with it — once
+ * per letter typed.
+ *
+ * Escape abandons the edit. It has to mark itself cancelled before restoring,
+ * because restoring causes the blur that would otherwise commit the very text
+ * the user just asked to throw away.
+ */
+function BrandField({
+  label,
+  value,
+  placeholder,
+  hint,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  hint?: string;
+  onCommit?: (next: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const cancelled = useRef(false);
+
+  // Follow the brand when it changes underneath us (a save elsewhere, a
+  // different brand) — but never while the user is mid-edit.
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setDraft(value);
+  }, [value, focused]);
+
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(value);
+      return;
+    }
+    const next = draft.trim();
+    if (next && next !== value) onCommit?.(next);
+    else setDraft(value);
+  };
+
+  /*
+   * The hint is DESCRIBED-BY, not part of the label.
+   *
+   * It used to sit inside the <label>, which made the field's accessible name
+   * "Slogan Also editable under Brand Strategy — one value, two ways in." —
+   * i.e. a screen reader announced a sentence of trivia every time the field
+   * took focus, and nothing could address the field by its actual name.
+   */
+  const id = useId();
+  const hintId = `${id}-hint`;
+
+  return (
+    <div className="brand-field">
+      <label className="brand-field-label" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        aria-describedby={hint ? hintId : undefined}
+        className="brand-field-input"
+        value={draft}
+        placeholder={placeholder}
+        disabled={!onCommit}
+        onChange={(e) => setDraft(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          commit();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.currentTarget.blur();
+          } else if (e.key === 'Escape') {
+            cancelled.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      {hint ? (
+        <span id={hintId} className="brand-field-hint">
+          {hint}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function Section({
   dataKey,
   title,
@@ -488,6 +582,11 @@ type Props = {
   /** Drag-drop passthrough — lets the empty logo / photo tiles accept
    *  image file drops directly without routing through the upload modal. */
   onDropFiles?: (kind: 'logo' | 'photos', files: File[]) => void;
+  /** Rename the brand. A rename regenerates the slug server-side, so the
+   *  caller is responsible for following the URL. */
+  onChangeName?: (name: string) => void;
+  /** The brand's slogan — the same value the Brand Strategy card edits. */
+  onChangeSlogan?: (slogan: string) => void;
   /** Per-section download handler. Omit to hide all download buttons. */
   onExport?: (key: SectionKey) => void;
 };
@@ -495,6 +594,8 @@ type Props = {
 export function SetupBoard({
   brand,
   onEdit,
+  onChangeName,
+  onChangeSlogan,
   sectionRefs,
   onUpdateColor,
   onAddColor,
@@ -1131,6 +1232,31 @@ export function SetupBoard({
           </span>
         </div>
       </header>
+
+      {/* ─── Brand ─── */}
+      <Section
+        sectionRef={setRef('brand')}
+        dataKey="brand"
+        title="Brand"
+        spec="Name · Slogan"
+        hideAdd
+      >
+        <div className="brand-fields">
+          <BrandField
+            label="Brand name"
+            value={brand.name}
+            placeholder="What the brand is called"
+            onCommit={onChangeName}
+          />
+          <BrandField
+            label="Slogan"
+            value={brand.strategy.slogan}
+            placeholder="The line that goes under the name"
+            hint="Also editable under Brand Strategy — one value, two ways in."
+            onCommit={onChangeSlogan}
+          />
+        </div>
+      </Section>
 
       {/* ─── Logo ─── */}
       <Section sectionRef={setRef('logo')} dataKey="logo" title="Logo" spec="Primary · Variants" onEdit={() => onEdit('logo')} onExport={exportFor('logo')} collapsed={emptyLogo}>

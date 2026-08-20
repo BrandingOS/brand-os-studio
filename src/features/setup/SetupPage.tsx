@@ -449,10 +449,14 @@ export function SetupPage({
     photos: null,
     website: null,
     voice: null,
+    brand: null,
   });
 
   const completed = useMemo(() => {
     let n = 0;
+    // The brand is named. Counted because the sidebar lists Brand as a
+    // section, and a meter that ignores one of its own rows reads as broken.
+    if (brand.name.trim()) n += 1;
     if (brand.logos.length) n += 1;
     if (brand.colors.core.length) n += 1;
     if (brand.fonts.length) n += 1;
@@ -1481,6 +1485,24 @@ export function SetupPage({
     [brand.name],
   );
 
+  /**
+   * The brand's name. Persisting it regenerates the slug in the database
+   * (`set_brand_slug`, migration 001), so the route wrapper follows the URL
+   * afterwards — see `pages/b/[slug]/setup.tsx`.
+   */
+  const handleChangeName = useCallback((name: string) => {
+    setBrand((prev) => (prev.name === name ? prev : { ...prev, name }));
+  }, []);
+
+  /** The same value the Brand Strategy "Slogan" card edits. */
+  const handleChangeSlogan = useCallback((slogan: string) => {
+    setBrand((prev) =>
+      prev.strategy.slogan === slogan
+        ? prev
+        : { ...prev, strategy: { ...prev.strategy, slogan } },
+    );
+  }, []);
+
   const handleDeletePhoto = useCallback((id: string) => {
     setBrand((prev) => ({
       ...prev,
@@ -1523,12 +1545,14 @@ export function SetupPage({
           brand={brand}
           activeKey={activeKey}
           completed={completed}
-          total={6}
+          total={7}
           onJump={handleJump}
           onAdd={handleSidebarAdd}
         />
         <SetupBoard
           brand={brand}
+          onChangeName={handleChangeName}
+          onChangeSlogan={handleChangeSlogan}
           onEdit={handleEdit}
           sectionRefs={sectionRefs}
           onUpdateColor={handleUpdateColor}

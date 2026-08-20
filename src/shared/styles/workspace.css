@@ -4216,3 +4216,63 @@
   text-transform: uppercase;
   color: var(--ds-text-muted);
 }
+
+/* ============================================================
+ * Setup — the Brand section (name + slogan)
+ *
+ * Two plain text fields. Everything visual comes from --ds-* so this
+ * matches the rest of the Studio chrome rather than inventing a look;
+ * the only thing local about it is the two-column layout.
+ * ============================================================ */
+[data-workspace] .brand-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px 24px;
+}
+[data-workspace] .brand-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+[data-workspace] .brand-field-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .brand-field-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  transition:
+    border-color 150ms var(--ds-ease),
+    box-shadow 150ms var(--ds-ease);
+}
+[data-workspace] .brand-field-input::placeholder {
+  color: var(--ds-text-placeholder);
+}
+[data-workspace] .brand-field-input:hover:not(:disabled) {
+  border-color: var(--ds-border-strong);
+}
+[data-workspace] .brand-field-input:focus {
+  outline: none;
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+[data-workspace] .brand-field-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+[data-workspace] .brand-field-hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ds-text-muted);
+}
