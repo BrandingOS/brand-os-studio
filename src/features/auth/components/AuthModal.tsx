@@ -225,6 +225,15 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
               </>
             )}
           </DialogTitle>
+          {/* The one place a signed-out visitor can be told this: /dashboard is
+              behind ProtectedRoute, so its empty state never reaches them. */}
+          {!pendingCode && mode === 'register' && (
+            <p className="text-center text-sm text-muted-foreground">
+              We'll set you up with a demo brand — logos, colours, type,
+              guidelines and a kit — so you can see how everything works before
+              putting your own brand in.
+            </p>
+          )}
         </DialogHeader>
 
         <Card className="border-0 shadow-none">

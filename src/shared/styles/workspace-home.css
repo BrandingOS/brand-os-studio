@@ -409,10 +409,6 @@
 }
 /* The guest empty state offers two ways forward — sign up for the demo brand,
  * or start from scratch — so its actions sit on one row. */
-[data-workspace] .ws-empty-mark {
-  margin-bottom: 4px;
-  color: var(--ds-text-muted);
-}
 [data-workspace] .ws-brand-card-demo {
   display: inline-block;
   margin-right: 8px;
@@ -424,13 +420,6 @@
   letter-spacing: 0.04em;
   color: var(--ds-text-muted);
   vertical-align: 1px;
-}
-[data-workspace] .ws-empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
 }
 
 /* ============================================================
