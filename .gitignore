@@ -45,3 +45,6 @@ new-ui/
 supabase/.temp/
 .ds-token-versions.json
 supabase/.branches/
+
+# wrangler local state (pages dev)
+.wrangler/

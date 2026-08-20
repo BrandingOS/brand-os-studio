@@ -42,6 +42,46 @@ npm run type-check   # tsc --noEmit
 
 The landing page is a **completely separate Vite project** with its own `package.json`, `node_modules`, and Tailwind config. It shares no dependencies with the main app. Run `npm install` separately in each directory.
 
+### One deploy, two documents (2026-08-20)
+
+On **demo.brandingos.ai** the landing and the app ship together: `/` is
+the landing, everything else is the SPA. Both come out of the SAME Pages
+project (`demo`, root dir `.`) and the same `dist/`.
+
+- **The landing stays a separate build.** `landingpage/src/index.css`
+  redefines the very shadcn tokens the product paints with
+  (`--background`, `--foreground`, `--primary`, `--radius`, …) and its
+  Tailwind config renames the type scale. Importing it into the SPA
+  repaints the product. Do not "port the landing into a route".
+- **`landingpage/vite.embed.config.ts`** builds it into the app's `dist/`
+  with `assetsDir: 'landing-assets'` (the SPA owns `assets/`) and
+  `emptyOutDir: false`. The standalone `vite.config.ts` beside it is
+  untouched — that is what brandingos.ai still builds.
+- **`scripts/build-landing.mjs`** runs the embed build, then moves the
+  emitted document to `dist/landing/index.html` and gives
+  `dist/index.html` back to the SPA. It hangs off a `apply: 'build'`
+  plugin in the root `vite.config.ts`, not an npm script, because the
+  hosting project's build command lives outside this repo — anything
+  that runs `vite build` gets the landing. `SKIP_LANDING_BUILD=1` opts out.
+- **`functions/_middleware.ts`** is what actually serves the landing at
+  `/` and `/archive`. **A `_redirects` rule cannot do this**, and both
+  halves of that were measured against `wrangler pages dev`: an existing
+  asset is served BEFORE `_redirects` is consulted, and an unknown path
+  falls back to `/index.html` before a `/*` rewrite to any other document
+  applies. Fetch `/landing/` and not `/landing/index.html` — Pages
+  canonicalises an explicit `index.html` to its directory and answers 308.
+- **The failure mode is the old behaviour.** `dist/index.html` is still
+  the SPA and `_redirects` is still `/* /index.html 200`, so a missing
+  Function means `/` serves the app, not a broken site.
+- **`src/pages/Index.tsx` (the SPA's `/` route) hands `/` back** with a
+  full document load, guarded by a one-shot sessionStorage marker so a
+  deploy without the landing renders the legacy page instead of reloading
+  for ever. It is only reachable by in-app navigation.
+- **`landingpage/src/lib/appUrl.ts` is the one place that knows where the
+  product lives.** It defaults to the same origin; a deploy serving the
+  landing on its own host (brandingos.ai, `npm run dev` in that folder)
+  sets `VITE_APP_URL`. Never hard-code an app URL in a section.
+
 ### Test configuration
 Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/**/*.{test,spec}.{ts,tsx}`. Run a single test file: `npx vitest run src/path/to/file.test.ts`.
 

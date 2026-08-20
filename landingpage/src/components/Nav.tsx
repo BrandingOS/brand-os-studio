@@ -11,6 +11,7 @@
  * full-screen charcoal overlay that circle-expands from the button.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { appPath } from '@/lib/appUrl';
 import {
   AnimatePresence,
   motion,
@@ -319,7 +320,7 @@ export function Nav() {
               <div className="flex items-center gap-2 md:gap-6">
                 {/* TODO: point at the app's real login URL once decided */}
                 <a
-                  href="#"
+                  href={appPath('/login')}
                   className="hidden text-[15px] font-medium text-panel-foreground/60 transition-colors duration-300 hover:text-panel-foreground md:block"
                 >
                   Log in

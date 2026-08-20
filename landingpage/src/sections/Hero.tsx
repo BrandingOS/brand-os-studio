@@ -39,13 +39,8 @@ import {
   OUTER_DOTS,
 } from '@/components/brand/LogoMark';
 import { OrbitStage } from '@/sections/Orbit';
+import { APP_URL } from '@/lib/appUrl';
 
-/** Where the product app lives — the hero input hands the typed brand
- *  name to `/onboard-brand/create?name=…` there. Override per deploy
- *  with VITE_APP_URL. */
-const APP_URL: string =
-  (import.meta.env.VITE_APP_URL as string | undefined) ??
-  'http://localhost:8080';
 
 /* ── Core Burst intro (variant 02 from new-ui/logo-motion, verbatim):
    one heavy dot splits into the whole mark — the outer eight burst
