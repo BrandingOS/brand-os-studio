@@ -1186,6 +1186,92 @@ second renderer target is additive.
 The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen** and
 unlinked. It keeps its local-brand fallback (see the uuid gotcha below).
 
+## The demo brand — every new account starts with BrandingOS (2026-08-20)
+
+**The demo brand is a NORMAL BRAND ROW, and that is the whole design.** Not a
+fixture, not a seed merge, not a special case anywhere in the client. A new
+account is GIVEN a copy of it and can open, edit, export, generate from and
+delete it exactly as it would a brand it made itself. There is no demo mode and
+no demo code path.
+
+Seed brands were the previous answer and were the wrong one: they are merged at
+read time and **structurally undeletable** (`brands.local.ts` refuses by
+design). A demo the user cannot remove is worse than no demo. They are no longer
+listed anywhere — `list()` returns the user's own brands — but `getById` /
+`getBySlug` still resolve them, so direct URLs, tests and dev demos keep working.
+
+### How it works (migration 033)
+
+| | |
+|---|---|
+| the template | one `brands` row with `is_demo_template = true`, enforced unique by a partial index |
+| the copy | `clone_demo_brand(uuid)`, `SECURITY DEFINER`, fired by `on_auth_user_created_demo_brand` on `auth.users` |
+| what copies | the brand row, its `assets`, its `brand_folders`, its `designs` |
+| the marker on copies | `is_demo = true` → `Brand.isDemo` |
+
+**Rules that bind:**
+
+- **The clone must never enumerate columns.** Every row round-trips through
+  `to_jsonb(row) || overrides` into `jsonb_populate_record`, so a column added
+  to `brands` next month is copied with no change. Listing columns would mean
+  every future migration silently drops a field from every new user's demo, and
+  nobody would notice until someone asked why theirs has no typescale.
+- **`INSERT ... SELECT * FROM f(...) FROM t` does not parse** — two `FROM`
+  clauses. The row drives and the record-builder is a `CROSS JOIN LATERAL`.
+- **Folders clone in two passes.** `parent_id` points into the same table under
+  a composite same-brand FK; a single pass with a correlated subquery would
+  depend on insertion order.
+- **The clone does not choose the slug.** `brands_set_slug` (001) fires
+  `BEFORE INSERT` and regenerates whenever slug is null, appending `_2`, `_3`.
+  Pass NULL and let the existing trigger own uniqueness.
+- **The trigger must never fail the signup.** It is exception-wrapped. A
+  malformed template costs a user their demo brand, never their account.
+- **Trigger NAME ordering is load-bearing** — `AFTER INSERT` row triggers fire
+  alphabetically, and this one has to sort after `on_auth_user_created`.
+- **Deleting stays deleted for free.** The trigger runs once, at signup, and
+  never again — there is no marker, no provisioning check and no re-seed loop.
+  This is the main thing putting the copy in the database bought us.
+- **Nothing branches on `isDemo`.** It drives a badge and nothing else. The
+  moment a demo brand stops behaving like a real one it stops showing anyone
+  what the product does. The Supabase update path is an explicit allowlist, so
+  `is_demo` stays server-owned by construction.
+
+### Changing it later is not a deploy
+
+change the demo → open the template brand in the app and edit it · stop giving
+it out → `UPDATE brands SET is_demo_template = false` · remove it → delete the
+row, and `clone_demo_brand` no-ops · move logos to Storage → `UPDATE` the
+template's asset rows.
+
+### The two things the database cannot carry
+
+Kit lifecycle state (`brandos:brand-kit:state`) and guideline documents
+(`brandos:guideline:docs` + IndexedDB) have **no table, for ANY brand**. They
+cannot be cloned by SQL because they are not in SQL, so
+`features/demo-brand/stageDemoContent.ts` DERIVES them from the product's own
+generators (`buildDefaultDocument`, `defaultKitGenerator`) against the cloned
+brand. Nothing there is a fixture, so changing those generators changes the demo
+with them. It **only writes where there is nothing**, and waits for the
+guideline store's `persist` rehydration first — reading during the first tick
+sees an empty store and would build over a document the user had already
+written. Known cost: per-browser, so a second device regenerates it.
+
+### The logo files
+
+`public/brands/brandingos/*.svg` are **generated**, by
+`scripts/gen-brandingos-logos.py`, which reads the ring dots out of
+`BrandMark.tsx` — the only place that geometry may live. The wordmark is
+OUTLINED from Plus Jakarta Sans, never `<text>`: an SVG rasterised through
+`<img>` (how every export path works) cannot see the page's webfonts.
+
+### Testing
+
+`supabase/tests/run.sh` stands up a throwaway Postgres, stubs the Supabase
+objects the migrations assume, and runs the REAL migration files before
+asserting — 34 checks, including that a signup survives a deliberately broken
+template and that a column added after the function was written is still cloned.
+`brew install postgresql@16` first.
+
 ## The dashboard shows PROJECTS, not brands (2026-08-20)
 
 `/dashboard` (the card grid, `pages/workspace/Home.tsx`) and `/dashboard/brands`
