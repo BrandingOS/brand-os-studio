@@ -30,11 +30,30 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
     instance.getSelectedPath(),
   );
 
+  // Which document this canvas has actually loaded into the adapter.
+  //
+  // Keyed on the document's OWN id, not the `initialDocument` object's
+  // identity — a parent re-rendering for any unrelated reason (a toolbar
+  // click, a sibling state change) can hand this component a structurally
+  // identical but referentially NEW `initialDocument`, and reloading on
+  // that would call `loadDocument` again, which resets history and would
+  // throw away whatever the user had just typed. Same bug class, same fix
+  // shape as `BrandKitCardEditor`'s `loadedCardRef` — see canvas.browser.
+  // test.tsx's "survives a re-render that hands it an equal-but-new
+  // initialDocument" for the regression this guards.
+  const loadedDocIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (loadedDocIdRef.current === initialDocument.id) return;
+    loadedDocIdRef.current = initialDocument.id;
     void instance.loadDocument(initialDocument);
     setDoc(initialDocument);
-    return instance.on('change', setDoc);
   }, [instance, initialDocument]);
+
+  // The adapter's own change stream — kept in a separate effect, keyed
+  // only on `instance`, so subscribing/unsubscribing isn't tangled up
+  // with the load-guard above.
+  useEffect(() => instance.on('change', setDoc), [instance]);
 
   useEffect(
     () => instance.onSelectedPathChange(setSelectedPath),

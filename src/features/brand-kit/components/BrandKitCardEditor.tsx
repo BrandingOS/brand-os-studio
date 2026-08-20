@@ -38,6 +38,7 @@ import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { ScalingStage } from '@/shared/brand/ScalingStage';
 import { aspectForType, defaultOverridesForType, getDeliverable } from '../kit/registry';
 import { variantsForCard } from '../data/legacy-mapping';
+import { contentFromCustomization } from '../data/savedContent';
 
 const FLATICON_RR_LOOKUP = new Set(FLATICON_RR_NAMES);
 
@@ -536,14 +537,27 @@ export function BrandKitCardEditor({
   }, [markerTable, overrides]);
 
   /**
-   * The content a content-model preview paints from — always the brand's
-   * own defaults. There is no editing left to seed from a saved value:
-   * this modal previews the master, it doesn't hold a draft of it.
+   * The content a content-model preview paints from.
+   *
+   * There is no EDITING left here — this modal previews the master, it
+   * doesn't hold a draft of it — but a card the user already customized
+   * through the (now-retired) Quick Edit still has that customization on
+   * disk (`brandos:brand-kit:customizations`), and it is still what the
+   * drilldown's Download reads (`contentForTemplate`). A preview that
+   * ignored it would show "Acme Co." right next to a grid that downloads
+   * "Globex Corp" for the exact same card — the preview's whole job is to
+   * show what the card actually says, so it reads the same saved record
+   * through the same resolution rule (`contentFromCustomization`),
+   * falling back to the brand's defaults only when nothing was saved (or
+   * what was saved belongs to a different content kind).
    */
-  const previewContent = useMemo(
-    () => (contentKind ? defaultContentFor(contentKind, brand) : undefined),
-    [contentKind, brand],
-  );
+  const previewContent = useMemo(() => {
+    if (!contentKind) return undefined;
+    return (
+      contentFromCustomization(initialCustomization, contentKind, brand) ??
+      defaultContentFor(contentKind, brand)
+    );
+  }, [contentKind, brand, initialCustomization]);
 
   if (!target) return null;
 

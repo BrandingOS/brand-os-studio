@@ -87,6 +87,28 @@ async function mountCanvas(templateId = 'invoices-ext-3') {
   return adapter;
 }
 
+/** Same as `mountCanvas`, but also hands back `rerender` — for tests that
+ *  need to simulate a parent re-render handing this component a fresh
+ *  `initialDocument` prop object. */
+async function mountCanvasRerenderable(templateId = 'invoices-ext-3') {
+  const adapter = new TemplateInstanceAdapter();
+  await adapter.loadDocument(doc(templateId));
+  adapter.setBrand(brand());
+  const { rerender } = render(
+    <TemplateInstanceCanvas adapter={adapter} initialDocument={doc(templateId)} />,
+  );
+  return {
+    adapter,
+    /** Rerenders with a STRUCTURALLY EQUAL but referentially NEW
+     *  `initialDocument` — the shape a parent re-rendering for an
+     *  unrelated reason produces. */
+    rerenderWithFreshDocument: () =>
+      rerender(
+        <TemplateInstanceCanvas adapter={adapter} initialDocument={doc(templateId)} />,
+      ),
+  };
+}
+
 function invoiceContent(adapter: TemplateInstanceAdapter) {
   const body = adapter.getBody();
   if (body?.kind !== 'template-instance' || body.content.kind !== 'invoice') {
@@ -173,6 +195,30 @@ describe('the artifact is the editing surface', () => {
     expect(adapter.canUndo()).toBe(true);
     act(() => adapter.undo());
     expect(invoiceContent(adapter).clientName).toBe('Acme Co.');
+  });
+
+  it('survives a re-render that hands it an equal-but-new initialDocument object', async () => {
+    // The exact dependency-array shape CLAUDE.md records as having bitten
+    // this codebase before: a seeding effect keyed on an object identity
+    // that a parent can hand it fresh on every render for reasons that
+    // have nothing to do with the document (a toolbar click, a sibling
+    // state change) — re-running the seed and discarding whatever the
+    // user had just typed. `BrandKitCardEditor` guards this with
+    // `loadedCardRef`; `TemplateInstanceCanvas` guards it the same way
+    // with `loadedDocIdRef`, keyed on the document's own id rather than
+    // the prop object's identity.
+    const { adapter, rerenderWithFreshDocument } = await mountCanvasRerenderable();
+    editRegion('clientName', 'Globex Corporation');
+    expect(region('clientName').textContent).toBe('Globex Corporation');
+
+    rerenderWithFreshDocument();
+
+    expect(region('clientName').textContent).toBe('Globex Corporation');
+    expect(invoiceContent(adapter).clientName).toBe('Globex Corporation');
+    // The reload guard didn't just leave the DOM alone — it never called
+    // loadDocument again, so undo history from before the rerender is
+    // still there too.
+    expect(adapter.canUndo()).toBe(true);
   });
 });
 

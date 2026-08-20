@@ -24,6 +24,7 @@ import { BrandKitCardEditor, type EditorTarget } from '../components/BrandKitCar
 import { variantsForCard } from '../data/legacy-mapping';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
+import { defaultContentFor, type DeliverableContent } from '@/features/brandkit/content';
 
 const sourceBrand = {
   id: 'brand-qe',
@@ -136,6 +137,59 @@ describe('the preview is not an editing surface', () => {
   it('never offers the card thumbnail picker beside a live preview', () => {
     renderEditor(INVOICE());
     expect(screen.queryByText('Pick the cover for this card.')).toBeNull();
+  });
+});
+
+describe('the preview shows what the card actually says', () => {
+  // A brand with a customized invoice must not show "Globex Corp" on the
+  // grid tile / download and "Acme Co." in this modal for the SAME card —
+  // that contradiction was the bug. The preview reads the same saved
+  // record the drilldown's Download path reads (`contentForTemplate`),
+  // through the shared `contentFromCustomization` resolution rule.
+  function savedInvoiceCustomization(clientName: string): SavedCardCustomization {
+    const defaults = defaultContentFor('invoice', mockBrand);
+    return {
+      overrides: {},
+      cover: null,
+      color: null,
+      secondaryColor: null,
+      logoId: null,
+      logoColor: null,
+      fontId: null,
+      content: { ...defaults, clientName } as DeliverableContent,
+      savedAt: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  it('renders a saved customization instead of the brand defaults', () => {
+    renderEditor(INVOICE(), {
+      initialCustomization: savedInvoiceCustomization('Globex Corp'),
+    });
+    expect(region('clientName').textContent).toBe('Globex Corp');
+  });
+
+  it('falls back to the brand defaults when nothing was saved', () => {
+    renderEditor(INVOICE());
+    expect(region('clientName').textContent).toBe('Acme Co.');
+  });
+
+  it('ignores a saved record belonging to a different content kind', () => {
+    // A person-kind record under this card's key (stale data from a
+    // different deliverable type that once used the same storage key)
+    // must not be read as this invoice's content.
+    const saved: SavedCardCustomization = {
+      overrides: {},
+      cover: null,
+      color: null,
+      secondaryColor: null,
+      logoId: null,
+      logoColor: null,
+      fontId: null,
+      content: { kind: 'person', fullName: 'Someone Else', jobTitle: '', email: '', phone: '', website: '' },
+      savedAt: '2026-01-01T00:00:00.000Z',
+    };
+    renderEditor(INVOICE(), { initialCustomization: saved });
+    expect(region('clientName').textContent).toBe('Acme Co.');
   });
 });
 
