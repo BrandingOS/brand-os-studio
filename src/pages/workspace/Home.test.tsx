@@ -13,7 +13,14 @@ vi.mock('@/features/dashboard/components/BrandCardMenu', () => ({
 vi.mock('@/shared/brand/brandPalette', () => ({
   surfacePalette: () => ({ bg: '#123456', text: '#fff' }),
 }));
-vi.mock('@/shared/brand/logoOnBackground', () => ({ pickLogoOnBackground: () => undefined }));
+// PARTIAL: this test only needs "no logo resolves", and the card face
+// reaches for several other helpers in this module. A total mock breaks
+// the moment one more is added — which is exactly what happened when the
+// card-face work started calling variantsInPriorityOrder.
+vi.mock('@/shared/brand/logoOnBackground', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/brand/logoOnBackground')>()),
+  pickLogoOnBackground: () => undefined,
+}));
 vi.mock('@/shared/hooks/useUiPreference', () => ({ useUiPreference: () => 'studio' }));
 
 const loadAll = vi.fn(async () => {});

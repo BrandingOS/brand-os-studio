@@ -91,7 +91,7 @@ function LocationProbe() {
 }
 
 function mountMany(brands: Brand[]) {
-  useBrandStore.setState({ list: brands, current: brands[0], isLoading: false });
+  useBrandStore.setState({ list: brands, current: brands[0], isLoading: false, listReady: true });
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <WorkspaceHome />
@@ -101,7 +101,7 @@ function mountMany(brands: Brand[]) {
 }
 
 function mount(brand: Brand) {
-  useBrandStore.setState({ list: [brand], current: brand, isLoading: false });
+  useBrandStore.setState({ list: [brand], current: brand, isLoading: false, listReady: true });
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <WorkspaceHome />
@@ -113,7 +113,15 @@ function mount(brand: Brand) {
 beforeEach(() => {
   localStorage.clear();
   bootServices();
-  useSessionStore.setState({ user: { id: 'u1', email: 'q@a.test' } } as never);
+  // Home keeps the skeleton up until BOTH are confirmed — the signed-in
+  // identity and that identity's brand list — so that a visitor never
+  // sees someone else's brands flash past. A test that only puts brands
+  // in the store now renders skeletons.
+  useSessionStore.setState({
+    user: { id: 'u1', email: 'q@a.test' },
+    isAuthenticated: true,
+    isLoading: false,
+  } as never);
   lastPath = '';
 });
 
