@@ -12,16 +12,21 @@ describe('design renderer registry', () => {
     expect(getDesignRenderer('a-type-nobody-registered').id).toBe('fabric');
   });
 
-  // The OTHER fallback, and the one that is live in production right now.
-  // `invoice.config.ts` already declares `renderer: 'template-instance'`,
-  // which nothing registers until Task 7 lands that renderer. Until then
-  // every invoice opens on Fabric purely because `getDesignRenderer`
-  // tolerates a renderer id with no module behind it. Turning that
-  // tolerance into a throw would ship unopenable invoices, and the
-  // unknown-content-type case above would NOT catch it — that one exercises
-  // the try/catch around `getContentTypeConfig`, a different branch.
-  it('falls back to fabric when a REGISTERED type names an unregistered renderer', () => {
-    expect(getDesignRenderer('invoice').id).toBe('fabric');
+  // `invoice.config.ts` declares `renderer: 'template-instance'`, and
+  // Task 7 is what registers that id. Before this renderer registered,
+  // `getDesignRenderer('invoice')` fell back to Fabric purely because
+  // `RENDERERS` had no entry for the id it named — the test used to pin
+  // that fallback here. `DesignRendererIdSchema` is a closed two-value
+  // enum (`fabric` | `template-instance`) and both are now registered,
+  // so there is no longer a genuine content type that names a renderer
+  // id nothing backs; that branch (`RENDERERS[rendererId] ?? fabricRenderer`
+  // falling through) stays in the implementation as a safety net but has
+  // no live scenario to assert against until a third renderer id exists.
+  it('resolves invoice to the template-instance renderer', () => {
+    const r = getDesignRenderer('invoice');
+    expect(r.id).toBe('template-instance');
+    expect(r.supportsLayerEditing).toBe(false);
+    expect(r.Properties).not.toBeNull();
   });
 
   it('builds a working adapter', () => {

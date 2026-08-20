@@ -7,6 +7,7 @@
 
 import { getContentTypeConfig } from '@/features/editor/content-types';
 import { fabricRenderer } from './fabric';
+import { templateInstanceRenderer } from './template-instance';
 import type { DesignRenderer } from './types';
 
 export type {
@@ -17,6 +18,7 @@ export type {
 
 const RENDERERS: Record<string, DesignRenderer> = {
   fabric: fabricRenderer,
+  'template-instance': templateInstanceRenderer,
 };
 
 /**
@@ -29,9 +31,13 @@ const RENDERERS: Record<string, DesignRenderer> = {
  * `getContentTypeConfig` THROWS on an unregistered id (every config is
  * meant to be intentional), so the lookup is guarded — a document whose
  * content type has been retired must still open, not crash the shell.
- * A registered type naming a renderer nobody has registered YET (the
- * state `invoice` sits in until the template-instance renderer lands)
- * falls through the same way.
+ * A registered type naming a renderer nobody has registered falls
+ * through the same way — this was `invoice`'s own state until the
+ * template-instance renderer registered below. `DesignRendererIdSchema`
+ * is a closed two-value enum and both values are now registered, so
+ * that branch has no live scenario left to pin in `registry.test.ts`;
+ * it stays here as a safety net for a config that names a renderer id
+ * nothing backs.
  */
 export function getDesignRenderer(contentType: string): DesignRenderer {
   let rendererId: string | undefined;
