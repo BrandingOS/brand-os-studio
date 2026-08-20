@@ -17,7 +17,8 @@
     "typecheck:baseline": "node scripts/typecheck-ratchet.mjs --update",
     "deps:cycles": "npx --yes madge --circular --extensions ts,tsx src",
     "gen:tokens": "node scripts/gen-ds-tokens.mjs",
-    "gen:tokens:check": "node scripts/gen-ds-tokens.mjs --check"
+    "gen:tokens:check": "node scripts/gen-ds-tokens.mjs --check",
+    "gen:icons": "bash scripts/gen-app-icons.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.81.0",
