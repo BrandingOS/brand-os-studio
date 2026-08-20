@@ -67,10 +67,10 @@ export default function PublicDesignPage() {
   const ogImage = brandKit?.logos.primary?.url;
 
   useDocumentMeta({
-    title: brand && doc ? `${designName} · ${brand.name}` : 'BrandOS',
+    title: brand && doc ? `${designName} · ${brand.name}` : 'BrandingOS',
     description:
       brand && doc
-        ? `${designName} — a design from ${brand.name}, built with BrandOS.`
+        ? `${designName} — a design from ${brand.name}, built with BrandingOS.`
         : undefined,
     image: ogImage,
   });
@@ -136,7 +136,7 @@ export default function PublicDesignPage() {
         <Sparkles size={12} />
         <span>Made with</span>
         <Link to="/" className="font-semibold text-foreground hover:underline">
-          BrandOS
+          BrandingOS
         </Link>
       </footer>
     </div>

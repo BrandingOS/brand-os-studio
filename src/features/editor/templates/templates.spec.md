@@ -33,7 +33,7 @@ forcing them into the brand kit on save would distort the template.
 
 This is also how Canva templates are *not* structured. Canva templates
 have hard-coded brand values; opening one and applying your brand
-requires manual replacement of every color/font. BrandOS templates
+requires manual replacement of every color/font. BrandingOS templates
 resolve at open time via `applyBrandToDocument`, and round-trip
 losslessly for properly-templated docs.
 

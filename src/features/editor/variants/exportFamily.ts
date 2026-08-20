@@ -77,12 +77,12 @@ export async function buildFamilyZip(members: FamilyMember[]): Promise<{ blob: B
   zip.file(
     'README.txt',
     [
-      `BrandOS family export — ${familyId}`,
+      `BrandingOS family export — ${familyId}`,
       `Exported at ${manifest.exportedAt}`,
       ``,
       `${members.length} design${members.length === 1 ? '' : 's'} in this family.`,
       `Each *.brandos.json is a complete, portable design document.`,
-      `Re-import via IDesignStorage.saveDesign in another BrandOS workspace.`,
+      `Re-import via IDesignStorage.saveDesign in another BrandingOS workspace.`,
     ].join('\n'),
   );
 

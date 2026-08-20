@@ -1,5 +1,5 @@
 /**
- * BrandOS Design System — Design Tokens
+ * BrandingOS Design System — Design Tokens
  *
  * Central source of truth for all design values.
  * These tokens are used by components and map to CSS variables / Tailwind classes.

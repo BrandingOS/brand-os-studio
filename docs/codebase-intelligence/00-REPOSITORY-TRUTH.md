@@ -47,7 +47,7 @@ archaeology, not as pending features.** — VERIFIED
 
 | Package | Path | Stack | Tracked? | First / last commit | Status assessment |
 |---|---|---|---|---|---|
-| **Main app (BrandOS SPA)** | `/` (src/) | Vite + React 18 + TS + Zustand + Supabase + Fabric.js | yes | 2025-08-10 → 2026-08-08 | The product. VERIFIED |
+| **Main app (BrandingOS SPA)** | `/` (src/) | Vite + React 18 + TS + Zustand + Supabase + Fabric.js | yes | 2025-08-10 → 2026-08-08 | The product. VERIFIED |
 | **Landing page** | `landingpage/` | Separate Vite project (own package.json) | yes | 2026-04-07 → 2026-04-27 | Public marketing site; untouched ~3.5 months. VERIFIED |
 | **Supabase backend** | `supabase/` | Migrations + Edge Functions | yes | 2025-08-19 → 2026-05-18 | Live backend definition (project `ciojgoozobzbeglwdxcz`); production state NOT verifiable from repo alone — UNKNOWN |
 | **brand-vision** | `brand-vision/` | **Python** (uv/pyproject) | yes | 2026-08-02 → 2026-08-04 | Local AI image classifier feeding onboarding auto-placement (commit `0c06a23`). One of the two most active areas of the last 60 days. VERIFIED |

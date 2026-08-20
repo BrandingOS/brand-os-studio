@@ -1,7 +1,7 @@
 /**
  * EditorChrome — the canonical editor top-bar primitive.
  *
- * Every editor surface in BrandOS should mount this at the top, so the
+ * Every editor surface in BrandingOS should mount this at the top, so the
  * back button, title/breadcrumb, save-state indicator, and actions all
  * look and behave the same. See docs/ux-redesign/ARCHITECTURE.md §4
  * for the spec.

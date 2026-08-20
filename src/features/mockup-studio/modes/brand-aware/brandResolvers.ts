@@ -1,5 +1,5 @@
 /**
- * Brand resolvers — map BrandOS's `Brand` type onto the generic tokens
+ * Brand resolvers — map BrandingOS's `Brand` type onto the generic tokens
  * referenced by `brand_kit_hints` on templates.
  *
  * Adaptation plan §2.4 lists the mappings. These helpers are pure and

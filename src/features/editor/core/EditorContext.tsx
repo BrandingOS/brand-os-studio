@@ -1,7 +1,7 @@
 /**
  * Unified Editor Context
  *
- * Provides shared state and behavior for all editor experiences in BrandOS.
+ * Provides shared state and behavior for all editor experiences in BrandingOS.
  * Every editor (design, guidelines, social media, logo) shares the same
  * context model but can configure different view modes and available tools.
  */

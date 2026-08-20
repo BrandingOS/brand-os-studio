@@ -14,7 +14,7 @@ import '@/features/dev-features/dev-features.css';
 /**
  * /_dev/features — dev-only feature inventory page.
  *
- * Surfaces every routed surface in BrandOS (plus cross-cutting services)
+ * Surfaces every routed surface in BrandingOS (plus cross-cutting services)
  * with its current route + entry file, so the IA redesign can be planned
  * without pulling up a grep for each feature. Strictly static — no
  * feature components are imported here.
@@ -128,7 +128,7 @@ function DevFeaturesPage() {
           <h1 className="dfx-title">All features</h1>
           <p className="dfx-sub">
             <strong>{filtered.length}</strong> of {FEATURE_REGISTRY.length} features shown — every
-            routed surface in BrandOS, tagged with the tab it belongs to in the post-redesign shell.
+            routed surface in BrandingOS, tagged with the tab it belongs to in the post-redesign shell.
           </p>
         </header>
 

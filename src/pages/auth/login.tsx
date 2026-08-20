@@ -37,7 +37,7 @@ export default function LoginPage() {
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--accent-pop))] to-[hsl(var(--accent-pop)/0.75)] text-white shadow-lg">
             <Sparkles className="h-5 w-5" />
           </span>
-          <span className="font-display text-2xl font-bold tracking-tight">BrandOS</span>
+          <span className="font-display text-2xl font-bold tracking-tight">BrandingOS</span>
         </div>
       </div>
 

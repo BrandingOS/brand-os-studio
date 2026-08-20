@@ -15,7 +15,7 @@ import '@/shared/styles/workspace-home.css';
  * Differences vs WorkspaceShell:
  *   - No center tab pill nav. The header is brand-mark (left) +
  *     optional rightActions + theme toggle + profile pill (right).
- *   - No brand context. Always renders the BrandOS wordmark on the
+ *   - No brand context. Always renders the BrandingOS wordmark on the
  *     left; never the BrandSwitcher pill.
  *
  * Shared with WorkspaceShell:
@@ -26,7 +26,7 @@ import '@/shared/styles/workspace-home.css';
  */
 
 export function WorkspaceShell({
-  brandName = 'BrandOS',
+  brandName = 'BrandingOS',
   rightActions,
   children,
 }: {

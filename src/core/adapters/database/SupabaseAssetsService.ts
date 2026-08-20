@@ -244,6 +244,38 @@ export class SupabaseAssetsService implements IAssetsService {
     return (data ?? []).map(mapAsset);
   }
 
+  async listLibraryForBrands(brandIds: string[], q: LibraryQuery = {}): Promise<Map<string, Asset[]>> {
+    const grouped = new Map<string, Asset[]>();
+    if (!brandIds.length) return grouped;
+
+    // Chunk defensively: `in.(…)` travels in the query string, and while 40
+    // uuids fit comfortably, a power user's 300 would flirt with URL limits.
+    const CHUNK = 100;
+    for (let i = 0; i < brandIds.length; i += CHUNK) {
+      const chunk = brandIds.slice(i, i + CHUNK);
+      let query = assetsTable().select('*').in('brand_id', chunk);
+      if (!q.includeDeleted) query = query.is('deleted_at', null);
+      if (!q.includeArchived) query = query.is('archived_at', null);
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) {
+        // Pre-017 tolerance, same as listLibrary: fall back to the plain
+        // per-brand listing so the Library keeps working.
+        if (isMissingColumn(error)) {
+          for (const id of chunk) grouped.set(id, await this.listForBrand(id));
+          continue;
+        }
+        throw error;
+      }
+      for (const row of data ?? []) {
+        const list = grouped.get(row.brand_id);
+        if (list) list.push(mapAsset(row));
+        else grouped.set(row.brand_id, [mapAsset(row)]);
+      }
+    }
+    return grouped;
+  }
+
   async setFlags(id: string, flags: Partial<LibraryFlags>): Promise<Asset> {
     const current = await this.getById(id);
     if (!current) throw new Error(`SupabaseAssetsService.setFlags: asset not found: ${id}`);

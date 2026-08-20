@@ -60,7 +60,7 @@ export default function Pricing() {
         </div>
 
         <div className="mt-8 text-center text-sm text-muted-foreground" data-animate>
-          “We saved 20+ hours per month since switching to Brand OS” — Agency Owner
+          “We saved 20+ hours per month since switching to BrandingOS” — Agency Owner
         </div>
 
         <div className="mt-10" data-animate>

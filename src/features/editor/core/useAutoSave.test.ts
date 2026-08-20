@@ -1,5 +1,5 @@
 // Tests the save-state machine + debounce semantics of useAutoSave.
-// The hook is the save model every editor surface in BrandOS adopts;
+// The hook is the save model every editor surface in BrandingOS adopts;
 // regressions here would be felt across all of them.
 
 import { act, renderHook, waitFor } from '@testing-library/react';

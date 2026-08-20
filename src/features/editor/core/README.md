@@ -6,7 +6,7 @@
 
 ## 1. Why this folder exists
 
-BrandOS has six editor surfaces and they all reinvent the same wheels —
+BrandingOS has six editor surfaces and they all reinvent the same wheels —
 top bars, save semantics, undo, selection, brand-data loading. The result
 is a product that feels like six different apps stitched together. This
 folder is the home of the **shared editor primitives** that every editor
@@ -101,7 +101,7 @@ useEffect(() => {
 ```
 
 That's it. You now have:
-- A topbar that visually matches every other editor in BrandOS
+- A topbar that visually matches every other editor in BrandingOS
 - Auto-save with consistent semantics
 - A save indicator the user can see
 - Retry-on-failure UX

@@ -14,7 +14,7 @@ export const ProductModulesSection = () => {
           <div className="mx-auto max-w-3xl text-center mb-16 md:mb-20">
             <span className="eyebrow inline-flex items-center gap-2">
               <span className="h-1 w-1 rounded-full bg-accent-pop" />
-              Why Brand OS
+              Why BrandingOS
             </span>
             <h2 className="h-section mt-6">
               More than guidelines —

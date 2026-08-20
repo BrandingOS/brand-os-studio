@@ -49,7 +49,7 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
   }, [open]);
 
   const displayBrand = current?.slug === currentSlug ? current : list.find((b) => b.slug === currentSlug);
-  const displayName = displayBrand?.name ?? 'BrandOS';
+  const displayName = displayBrand?.name ?? 'BrandingOS';
 
   const handlePick = (brand: Brand) => {
     setOpen(false);

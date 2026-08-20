@@ -74,7 +74,7 @@ export function LogoSection({ brand, slug }: LogoSectionProps) {
         <div className="rounded-2xl border border-dashed border-border bg-card/30 px-6 py-12 text-center">
           <Sparkles className="mx-auto h-6 w-6 text-primary" />
           <p className="mt-3 text-sm text-muted-foreground">
-            No logo yet. Once added, BrandOS will generate {8} variants automatically.
+            No logo yet. Once added, BrandingOS will generate {8} variants automatically.
           </p>
         </div>
       </section>

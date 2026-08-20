@@ -295,7 +295,7 @@ export function AppRail({ brandSlug }: AppRailProps) {
            The same dropdown renders in both workspace and brand scope, so
            the user can always jump between them. The TRIGGER visual differs
            so the user always knows which context they're in:
-             • workspace → gradient "BrandOS" mark + "Workspace" eyebrow
+             • workspace → gradient "BrandingOS" mark + "Workspace" eyebrow
              • brand     → brand logo + brand name
       --------------------------------------------------------------------- */}
       <div className="px-2 pt-3 pb-3 border-b border-border/60">
@@ -332,7 +332,7 @@ export function AppRail({ brandSlug }: AppRailProps) {
                 </div>
               </div>
               {/* Context-scoped eyebrow + label. Workspace mode gets a
-                  "Workspace" eyebrow above "BrandOS" so the user can tell at
+                  "Workspace" eyebrow above "BrandingOS" so the user can tell at
                   a glance whether they're in workspace or brand scope. */}
               {currentBrand ? (
                 <span className="text-[10px] font-medium leading-tight text-foreground/80 max-w-[68px] truncate">
@@ -344,7 +344,7 @@ export function AppRail({ brandSlug }: AppRailProps) {
                     Workspace
                   </span>
                   <span className="text-[10px] font-semibold text-foreground/80">
-                    BrandOS
+                    BrandingOS
                   </span>
                 </div>
               )}

@@ -1,4 +1,4 @@
-// BrandOS Design System — Public API
+// BrandingOS Design System — Public API
 // Import from '@/shared/design-system' for all design system components
 
 // Tokens

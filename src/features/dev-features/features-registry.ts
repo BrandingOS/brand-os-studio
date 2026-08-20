@@ -1,7 +1,7 @@
 /**
  * Feature inventory — single source of truth for the dev-only
  * `/_dev/features` page. Every routed surface (and a few cross-cutting
- * services) in BrandOS is listed here, tagged with the tab it belongs to
+ * services) in BrandingOS is listed here, tagged with the tab it belongs to
  * in the post-redesign 5-tab brand shell.
  *
  * This file is transcribed from `docs/ux-v2/audit/features.md`. When that

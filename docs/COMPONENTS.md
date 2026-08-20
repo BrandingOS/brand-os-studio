@@ -1,4 +1,4 @@
-# BrandOS — Component Inventory
+# BrandingOS — Component Inventory
 
 > **READ THIS BEFORE BUILDING ANY UI.**
 > If a component listed here covers what you need, USE IT. Don't fork it,

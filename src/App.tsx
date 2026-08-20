@@ -669,7 +669,7 @@ const App = () => (
               the Studio block (and reachable from Classic via the same
               canonical /b/:slug/tools/<slug> URLs). */}
 
-          {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
+          {/* BrandingOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
           {/* v2 workspace: Templates marketplace now lives in WorkspaceShell. */}
           <Route path="/templates" element={
             <ProtectedRoute>

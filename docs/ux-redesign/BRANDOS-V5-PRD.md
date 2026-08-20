@@ -1,4 +1,4 @@
-# BrandOS v5 — Product Requirements Document
+# BrandingOS v5 — Product Requirements Document
 ## "All-in-One Brand Maker & Management Platform"
 
 > **Status:** Living document. Drafted 2026-04-08 as the master spec for the
@@ -12,7 +12,7 @@
 
 ## 0. North Star
 
-> **BrandOS is the place where a brand is born, lives, and ships.**
+> **BrandingOS is the place where a brand is born, lives, and ships.**
 > Frontify-grade governance and DAM, Canva-grade creation and templates,
 > Linear/Framer-grade craft. One product. One mental model.
 
@@ -52,7 +52,7 @@ shell. v5 does NOT re-litigate this.
 ## 3. What v5 adds — the feature inventory
 
 The IA already exists. v5 layers in the **Frontify + Canva feature set** that
-turns BrandOS from "a brand kit tool" into "a brand operating system."
+turns BrandingOS from "a brand kit tool" into "a brand operating system."
 
 ### 3.1 Brand Portal (Workspace + Public)
 *Inspired by Frontify portals.*
@@ -203,7 +203,7 @@ Already established by landing-v2 redesign — extend it consistently:
 --border:            220 10% 16%     (low-contrast hairline)
 --muted:             220 12% 12%
 --muted-foreground:  220 9% 60%
---primary:           250 95% 70%     (electric violet — the BrandOS accent)
+--primary:           250 95% 70%     (electric violet — the BrandingOS accent)
 --primary-foreground:220 13% 6%
 --accent:            190 95% 65%     (cyan, used sparingly for highlights)
 --ring:              250 95% 70%

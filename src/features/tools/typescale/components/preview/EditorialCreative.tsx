@@ -65,7 +65,7 @@ export function EditorialCreative({ draft, activeSurface, accent }: Props) {
             every story — the invisible rhythm behind a brand's voice.
           </p>
           <p className="ts-ce-byline" style={styleFor(draft, activeSurface, 'caption')}>
-            By the BrandOS editors · April 2026 · 8 min read
+            By the BrandingOS editors · April 2026 · 8 min read
           </p>
         </div>
 

@@ -16,12 +16,12 @@ const MAX_TOKENS = 1024;
 
 function buildSystemPrompt(brand?: Brand): string {
   if (!brand) {
-    return `You are the BrandOS Brand Assistant. The user has not selected a brand yet — guide them to open one before asking brand-specific questions.`;
+    return `You are the BrandingOS Brand Assistant. The user has not selected a brand yet — guide them to open one before asking brand-specific questions.`;
   }
   const strategy = brand.guidelines?.strategy;
   const palette = `${brand.primaryColor}${brand.secondaryColor ? ` and ${brand.secondaryColor}` : ''}`;
   return [
-    `You are the BrandOS Brand Assistant for the brand "${brand.name}".`,
+    `You are the BrandingOS Brand Assistant for the brand "${brand.name}".`,
     `Tone: ${brand.tone}.`,
     `Audience: ${brand.audience}.`,
     `Color palette: ${palette}.`,
@@ -63,7 +63,7 @@ export const claudeProvider: AssistantProvider = {
     try {
       return await callClaude(input);
     } catch (err) {
-      console.warn('[BrandOS] Claude provider failed, falling back to mock', err);
+      console.warn('[BrandingOS] Claude provider failed, falling back to mock', err);
       return mockProvider.send(input);
     }
   },

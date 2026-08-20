@@ -128,7 +128,7 @@ export function MultiStepEarlyAccess() {
             {name ? `Welcome aboard, ${name}!` : "You're on the list!"}
           </p>
           <p className="mt-3 text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-            We'll reach out as soon as Brand OS is ready for you.
+            We'll reach out as soon as BrandingOS is ready for you.
             <br />
             Thanks for being one of the early ones.
           </p>
@@ -293,7 +293,7 @@ export function MultiStepEarlyAccess() {
               What's your email?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              We'll send you one email when Brand OS is ready.
+              We'll send you one email when BrandingOS is ready.
             </p>
             <input
               type="email" inputMode="email" autoComplete="email" autoFocus required

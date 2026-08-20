@@ -1,4 +1,4 @@
-# BrandOS Editor — Product Vision
+# BrandingOS Editor — Product Vision
 
 > **Source:** Captured from Hamza's directive on April 27, 2026, after Phase 3 Step 1 of the Brand Engine. This document is the strategic frame for everything that ships from Phase 3 onward. It overrides any earlier scope assumptions in the master prompt (`brandos-editor-prompt.md`) where the two conflict.
 
@@ -6,14 +6,14 @@
 
 ## 1. The Core Insight
 
-BrandOS is not "a Canva clone with a brand engine bolted on."
+BrandingOS is not "a Canva clone with a brand engine bolted on."
 
-BrandOS is **one unified editor** where:
+BrandingOS is **one unified editor** where:
 1. **Every content type opens in the same editor** at the same URL pattern
 2. **AI is a first-class creator and editor**, not a feature button
 3. **The brand is the gravity** that pulls every design, AI generation, and template into a coherent identity
 
-The category we're competing in is not "graphic design tools." It's **"AI-native brand systems."** Canva, Figma, and Adobe Express are the past. Lovart, Recraft, and emerging AI design agents are the present. BrandOS competes by being **the only one of these grounded in a real brand operating system, not just a brand kit color picker.**
+The category we're competing in is not "graphic design tools." It's **"AI-native brand systems."** Canva, Figma, and Adobe Express are the past. Lovart, Recraft, and emerging AI design agents are the present. BrandingOS competes by being **the only one of these grounded in a real brand operating system, not just a brand kit color picker.**
 
 ---
 
@@ -47,11 +47,11 @@ The category we're competing in is not "graphic design tools." It's **"AI-native
 
 **One editor component. One URL pattern. Different `ContentTypeConfig` driving panels and dimensions.**
 
-This is exactly what Canva does (`canva.com/design/:slug`), and exactly what BrandOS must do.
+This is exactly what Canva does (`canva.com/design/:slug`), and exactly what BrandingOS must do.
 
 ### Why this matters strategically
 
-A user opening a presentation should not feel they've left BrandOS for a different app. Their brand is loaded, their assets are one click away, the AI assistant is the same one they used 5 minutes ago for a social post. **The cognitive continuity IS the product.** Multiple editors break that continuity and signal "Frankenstein product."
+A user opening a presentation should not feel they've left BrandingOS for a different app. Their brand is loaded, their assets are one click away, the AI assistant is the same one they used 5 minutes ago for a social post. **The cognitive continuity IS the product.** Multiple editors break that continuity and signal "Frankenstein product."
 
 ---
 
@@ -121,7 +121,7 @@ For `pageModel: 'multi'` content types (presentation, brand-guideline-slide). Fo
 
 ## 4. AI Integration — Four Modes (this is the differentiator)
 
-This is the heart of "BrandOS competes with Lovart, not just Canva." AI is **not** a button. AI is **a modality** that runs in four distinct modes.
+This is the heart of "BrandingOS competes with Lovart, not just Canva." AI is **not** a button. AI is **a modality** that runs in four distinct modes.
 
 ### Mode 1 — Generate from prompt (zero-state, document-creating)
 
@@ -209,13 +209,13 @@ User changes the canvas from 1080×1080 to 1920×1080. The content needs to **re
 
 User clicks "Generate variants" → picks 5 sizes (Instagram square, story, reel cover, Facebook cover, LinkedIn). System generates 5 documents at 5 dimensions, each with AI-reflowed layouts. Each variant becomes its own design at `/design/:variantSlug` but they're linked by a "design family" id.
 
-**Why it matters:** this is the single biggest workflow win for marketing teams. Canva does this manually one-by-one. BrandOS does it in one click.
+**Why it matters:** this is the single biggest workflow win for marketing teams. Canva does this manually one-by-one. BrandingOS does it in one click.
 
 ---
 
 ## 6. Templates — Not Just Starting Points
 
-Templates in BrandOS are richer than Canva's static templates because of the brand engine.
+Templates in BrandingOS are richer than Canva's static templates because of the brand engine.
 
 A template stores:
 - A `BrandOSDocument` skeleton
@@ -228,7 +228,7 @@ When a user opens a template:
 2. AI copy slots are filled (either with placeholder text, or with AI-generated copy if the user provided context).
 3. The user lands in the editor on a fully-branded, copy-filled design they can edit.
 
-**This makes BrandOS templates ≠ Canva templates.** Canva templates have hard-coded brands (Coca-Cola red, etc.) the user has to manually replace. BrandOS templates are brand-agnostic and resolve at open time.
+**This makes BrandingOS templates ≠ Canva templates.** Canva templates have hard-coded brands (Coca-Cola red, etc.) the user has to manually replace. BrandingOS templates are brand-agnostic and resolve at open time.
 
 ---
 
@@ -469,10 +469,10 @@ To stay focused, these are explicit non-goals for v1:
 
 The vision is realized when:
 
-1. **A user can open BrandOS, type "Create a 5-slide investor deck for our brand," and 30 seconds later be editing a fully-branded, well-designed deck.** (Mode 1 works end-to-end)
+1. **A user can open BrandingOS, type "Create a 5-slide investor deck for our brand," and 30 seconds later be editing a fully-branded, well-designed deck.** (Mode 1 works end-to-end)
 2. **The same user can then say "Make slide 3's headline bigger and change its color to the accent color" by typing it into the AI bar.** (Mode 3 works on the editor's existing document)
 3. **The user can then click "Generate variants" and get the same deck reformatted as 5 social posts in 5 different sizes, each on-brand.** (Resize Type C works)
 4. **The user can switch from this deck to editing a business card for the same brand without ever leaving the URL pattern `/design/:slug`** — they just open another design. (Unified editor works)
 5. **A second user, looking at the brand-kit colors page (Identity section), changes the primary color. They open the deck from above. The headline color updates automatically.** (Brand engine resolves at open time)
 
-If all five of these are real, BrandOS is ready for paid users.
+If all five of these are real, BrandingOS is ready for paid users.

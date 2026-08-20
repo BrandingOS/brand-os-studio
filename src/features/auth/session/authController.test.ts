@@ -38,11 +38,12 @@ const H = vi.hoisted(() => {
     workspaceLoadAll: vi.fn(async () => {}),
     workspaceReset: vi.fn(),
     brandLoadAll: vi.fn(async () => {}),
+    brandResetScope: vi.fn(),
     syncToSupabase: vi.fn(async () => {}),
     loadFromSupabase: vi.fn(async () => {}),
   };
 });
-const { listeners, authApi, reconfigureForAuth, migrate, workspaceLoadAll, workspaceReset, brandLoadAll, syncToSupabase, loadFromSupabase } = H;
+const { listeners, authApi, reconfigureForAuth, migrate, workspaceLoadAll, workspaceReset, brandLoadAll, brandResetScope, syncToSupabase, loadFromSupabase } = H;
 const emit = (event: AuthChangeEvent, session: Session | null) => H.emit(event, session);
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -57,7 +58,7 @@ vi.mock('@/shared/store/workspaceStore', () => ({
   useWorkspaceStore: { getState: () => ({ loadAll: H.workspaceLoadAll, reset: H.workspaceReset }) },
 }));
 vi.mock('@/shared/store/brandStore', () => ({
-  useBrandStore: { getState: () => ({ loadAll: H.brandLoadAll }) },
+  useBrandStore: { getState: () => ({ loadAll: H.brandLoadAll, resetScope: H.brandResetScope }) },
 }));
 vi.mock('@/shared/store/onboardingStore', () => ({
   useOnboardingStore: { getState: () => ({ syncToSupabase: H.syncToSupabase, loadFromSupabase: H.loadFromSupabase }) },
@@ -155,6 +156,24 @@ describe('lifecycle', () => {
     expect(reconfigureForAuth).toHaveBeenCalledTimes(1);
     expect(brandLoadAll).toHaveBeenCalledTimes(1);
     expect(useSessionStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('drops the brand store BEFORE reloading it whenever the identity changes', () => {
+    const order: string[] = [];
+    brandResetScope.mockImplementation(() => order.push('reset'));
+    brandLoadAll.mockImplementation(async () => { order.push('load'); });
+    startAuthController();
+    emit('SIGNED_IN', session());
+    expect(order).toEqual(['reset', 'load']);
+    // Same user again (token refresh) — nothing is dropped.
+    emit('TOKEN_REFRESHED', session());
+    expect(order).toEqual(['reset', 'load']);
+    // Sign-out drops the user's brands and re-reads guest data.
+    emit('SIGNED_OUT', null);
+    expect(order).toEqual(['reset', 'load', 'reset', 'load']);
+    // A second user gets a clean store too.
+    emit('SIGNED_IN', session(user('u2', 'c@d.co')));
+    expect(order).toEqual(['reset', 'load', 'reset', 'load', 'reset', 'load']);
   });
 
   it('a different user signing in re-runs the swap', () => {

@@ -146,7 +146,7 @@ export function ToolGate({
               <li>SVG, PDF, and high-resolution PNG exports</li>
               <li>Unlimited variants and custom colors</li>
               <li>Bulk kit export with naming conventions</li>
-              <li>Your work saved as a real brand in BrandOS</li>
+              <li>Your work saved as a real brand in BrandingOS</li>
             </ul>
           </div>
           <DialogFooter className="sm:justify-center">

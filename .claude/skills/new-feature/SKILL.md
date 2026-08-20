@@ -151,4 +151,4 @@ Add an entry to the features tracking page:
 - Use parallel agents for research (Phase 2) and exploration (Phase 5) to save time.
 - If a phase produces no meaningful output (e.g., no database needed), note it briefly and move on.
 - Always check the existing codebase for patterns before inventing new ones.
-- The feature should feel native to BrandOS — same UI quality, same patterns, same polish.
+- The feature should feel native to BrandingOS — same UI quality, same patterns, same polish.

@@ -1,4 +1,4 @@
-# BrandOS UX Overhaul — Execution Roadmap & Log
+# BrandingOS UX Overhaul — Execution Roadmap & Log
 
 > The roadmap (§1) is the plan. The log (§2) is what's been done. Append-only.
 

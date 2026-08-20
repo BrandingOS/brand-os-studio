@@ -1,7 +1,7 @@
 /**
  * Brand Token CSS Variables
  *
- * Single source of truth for brand-driven design tokens used across BrandOS.
+ * Single source of truth for brand-driven design tokens used across BrandingOS.
  * Components reference these via `var(--brand-primary)`, `var(--brand-font-heading)`,
  * etc. The values are written by `applyBrandTokens()` (see PresentationStyleAdapter)
  * whenever the active brand or presentation style changes.

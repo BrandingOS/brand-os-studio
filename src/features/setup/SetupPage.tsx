@@ -705,7 +705,7 @@ export function SetupPage({
       const slug = slugify(family);
       const fallback = font.fallback ?? 'sans-serif';
       const usageCss = [
-        `/* ${family} — BrandOS export */`,
+        `/* ${family} — BrandingOS export */`,
         `:root {`,
         `  --font-${slug}: "${family}", ${fallback};`,
         `}`,
@@ -719,7 +719,7 @@ export function SetupPage({
       if (!pkg || (pkg.ttfFiles.length === 0 && pkg.woff2Files.length === 0)) {
         const encoded = encodeURIComponent(family).replace(/%20/g, '+');
         const cssOnly = [
-          `/* ${family} — BrandOS export (CSS only — couldn't fetch font files) */`,
+          `/* ${family} — BrandingOS export (CSS only — couldn't fetch font files) */`,
           `@import url('https://fonts.googleapis.com/css2?family=${encoded}:wght@400;500;600;700&display=swap');`,
           ``,
           usageCss,
@@ -1273,7 +1273,7 @@ export function SetupPage({
             const familyFolder = zip.folder(slug);
             const fallback = font.fallback ?? 'sans-serif';
             const usageCss = [
-              `/* ${font.family} — BrandOS export */`,
+              `/* ${font.family} — BrandingOS export */`,
               `:root { --font-${slug}: "${font.family}", ${fallback}; }`,
               `.${slug} { font-family: "${font.family}", ${fallback}; }`,
               '',

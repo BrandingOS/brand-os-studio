@@ -1,7 +1,7 @@
 /**
  * Shared Presentation Settings
  *
- * Centralized types for any slide-based presentation in BrandOS:
+ * Centralized types for any slide-based presentation in BrandingOS:
  * brand guidelines, logo presentations, social media decks, etc.
  *
  * Each presentation type reuses these settings so that customization

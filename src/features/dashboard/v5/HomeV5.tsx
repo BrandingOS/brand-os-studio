@@ -1,5 +1,5 @@
 /**
- * HomeV5 — the BrandOS v5 workspace home.
+ * HomeV5 — the BrandingOS v5 workspace home.
  *
  * Replaces the dense card-grid look of DashboardMain with a portal-style
  * landing inspired by Frontify (cover hero) + Linear (calm density).

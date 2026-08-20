@@ -81,7 +81,7 @@ export function AdminLayout() {
             </span>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="font-display text-sm font-bold">BrandOS</span>
+                <span className="font-display text-sm font-bold">BrandingOS</span>
                 <Badge variant={platformRoleBadgeVariant(platformRole) as any} className="text-[10px] px-1.5 py-0">
                   {platformRoleLabel(platformRole)}
                 </Badge>

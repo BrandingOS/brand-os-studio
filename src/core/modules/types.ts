@@ -1,7 +1,7 @@
 /**
  * Platform Module System — Type Definitions
  *
- * Each feature in BrandOS is a module that can be:
+ * Each feature in BrandingOS is a module that can be:
  * - Enabled/disabled per plan
  * - Hidden from navigation
  * - Extracted as a standalone tool

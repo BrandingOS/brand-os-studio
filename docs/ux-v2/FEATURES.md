@@ -1,6 +1,6 @@
 # Feature Map — Old UI → v2 Tabs
 
-Every existing feature in BrandOS, mapped to its new home in the 5-tab v2 model. The goal: nothing gets dropped in the rebuild. If a feature isn't listed here, surface it — it may be missed.
+Every existing feature in BrandingOS, mapped to its new home in the 5-tab v2 model. The goal: nothing gets dropped in the rebuild. If a feature isn't listed here, surface it — it may be missed.
 
 Status legend: **Active** = live today · **Dead** = in codebase but unused · **Planned** = designed, not built.
 

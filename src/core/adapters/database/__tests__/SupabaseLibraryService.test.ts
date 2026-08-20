@@ -273,3 +273,34 @@ describe('CodeRabbit C1 — a tombstone must precede storage removal', () => {
     expect(updated.id).toBe('a1');
   });
 });
+
+describe('listLibraryForBrands (batched)', () => {
+  it('is ONE query for many brands, grouped by brand_id', async () => {
+    nextResult = {
+      data: [ROW, { ...ROW, id: 'a2', brand_id: 'b2' }, { ...ROW, id: 'a3' }],
+      error: null,
+    };
+    const grouped = await new SupabaseAssetsService().listLibraryForBrands(['b1', 'b2', 'b-empty']);
+    expect(calls.filter((c) => c.op === 'select')).toHaveLength(1);
+    expect(calls.some((c) => c.op === 'in' && c.payload === 'brand_id')).toBe(true);
+    expect(grouped.get('b1')?.map((a) => a.id)).toEqual(['a1', 'a3']);
+    expect(grouped.get('b2')?.map((a) => a.id)).toEqual(['a2']);
+    expect(grouped.has('b-empty')).toBe(false);
+  });
+
+  it('asks for nothing when given no brands', async () => {
+    const grouped = await new SupabaseAssetsService().listLibraryForBrands([]);
+    expect(grouped.size).toBe(0);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('degrades per-brand on a pre-017 schema', async () => {
+    resultQueue = [
+      MISSING_COLUMN,
+      { data: [ROW], error: null },
+      { data: [], error: null },
+    ];
+    const grouped = await new SupabaseAssetsService().listLibraryForBrands(['b1', 'b2']);
+    expect(grouped.get('b1')?.[0]?.id).toBe('a1');
+  });
+});

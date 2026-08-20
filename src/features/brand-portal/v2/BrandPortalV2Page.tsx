@@ -172,7 +172,7 @@ export default function BrandPortalV2Page() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <Sparkles className="h-3 w-3 text-primary" />
-            Powered by <span className="font-semibold text-foreground">BrandOS</span>
+            Powered by <span className="font-semibold text-foreground">BrandingOS</span>
           </div>
           <div>© {new Date().getFullYear()} {brand.name}</div>
         </div>
