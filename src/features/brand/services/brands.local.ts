@@ -17,16 +17,10 @@ export interface BrandsService {
 }
 
 /**
- * Seed brands are FIXTURES, not examples the product offers any more.
- *
- * They used to be merged into `list()`, so a signed-out visitor met five
- * brands that are not this product. The demo brand replaced that: it is an
- * ordinary row a new ACCOUNT is given (migration 033), which is what lets the
- * user delete it — these cannot be deleted at all, and `delete()` below still
- * refuses, which is exactly why they were the wrong answer.
- *
- * They stay resolvable by id and slug so direct URLs, tests and dev demos keep
- * working. They are simply no longer listed.
+ * Seed brands are always available as proper in-app data.
+ * They are NOT stored in localStorage — they're merged at read time
+ * from the app's seed data modules so they always exist regardless
+ * of browser storage state.
  */
 const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, uniexBrand, demoBrandIdentity];
 const SEED_BRAND_IDS = new Set(SEED_BRANDS.map(b => b.id));
@@ -43,12 +37,10 @@ export class LocalBrandsService implements BrandsService {
     }
   }
 
-  /**
-   * Everything RESOLVABLE — the user's brands plus the seed fixtures. This is
-   * the lookup surface (getById / getBySlug), deliberately wider than `list`.
-   */
   private getAllBrands(): Brand[] {
     const userBrands = this.getUserBrands();
+    // Merge: seed brands (with any saved overrides applied) that aren't
+    // already represented in user brands + the user brands.
     const userBrandIds = new Set(userBrands.map(b => b.id));
     const missingSeeds = SEED_BRANDS
       .filter(sb => !userBrandIds.has(sb.id))
@@ -56,15 +48,8 @@ export class LocalBrandsService implements BrandsService {
     return [...missingSeeds, ...userBrands];
   }
 
-  /**
-   * The user's OWN brands. Seeds are not listed — see SEED_BRANDS above.
-   *
-   * A guest therefore sees an empty dashboard, which is the intended answer:
-   * the demo brand is something an account is given, and that is a reason to
-   * make one rather than something to browse without one.
-   */
   async list(): Promise<Brand[]> {
-    return migrateBrands(this.getUserBrands());
+    return migrateBrands(this.getAllBrands());
   }
 
   async getById(id: string): Promise<Brand | null> {

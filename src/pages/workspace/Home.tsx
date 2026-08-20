@@ -143,13 +143,7 @@ function BrandCard({
       <div className="ws-brand-card-body">
         <div>
           <ProjectName brand={brand} className="ws-brand-card-title" />
-          <p className="ws-brand-card-sub">
-            {/* The demo brand says so, and says nothing else. It behaves
-                exactly like a real brand — the badge is there so the user
-                knows they may delete it, not to mark it as lesser. */}
-            {brand.isDemo && <span className="ws-brand-card-demo">Demo</span>}
-            {formatRelative(brand.updatedAt)}
-          </p>
+          <p className="ws-brand-card-sub">{formatRelative(brand.updatedAt)}</p>
         </div>
         <div className="ws-brand-card-foot">
           <span>Open</span>
@@ -445,15 +439,6 @@ export default function WorkspaceHome() {
         </section>
 
         {count === 0 ? (
-          /*
-           * A signed-in account is only ever empty here if it deleted what it
-           * was given — migration 033 hands every new account a demo brand.
-           *
-           * There is deliberately no second, guest-facing variant of this: the
-           * route is behind ProtectedRoute, so a signed-out visitor is sent to
-           * /login and never reaches it. The promise of a demo brand belongs
-           * where a guest actually stands, which is the sign-up form.
-           */
           <div className="ws-empty" role="region" aria-label="No brands yet">
             <h2 className="ws-empty-title">No brands yet — create your first</h2>
             <p className="ws-empty-sub">
