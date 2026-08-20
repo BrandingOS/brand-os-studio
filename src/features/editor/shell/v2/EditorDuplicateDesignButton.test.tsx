@@ -103,6 +103,24 @@ describe('EditorDuplicateDesignButton', () => {
     expect(savedDoc.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
+    // The document's id IS the storage key. The editor page autosaves to
+    // `doc.id` and loads by the key; when they differed, every edit made
+    // to a design created here was written where nothing would read it,
+    // and a reload restored the pre-edit body.
+    expect(args[1]).toBe(savedDoc.id);
+  });
+
+  it('deep-copies the source — the copy shares no nested object with it', async () => {
+    const source = fixtureDoc();
+    const { container } = wrap(
+      <EditorDuplicateDesignButton getDoc={() => source} brandId="b" brandSlug="raqm" />,
+    );
+    fireEvent.click(container.querySelector('[data-duplicate-design-button]')!);
+    await waitFor(() => expect(saveDesignMock).toHaveBeenCalledTimes(1));
+    const savedDoc = saveDesignMock.mock.calls[0][2] as BrandOSDocument;
+    expect(savedDoc.pages[0]).not.toBe(source.pages[0]);
+    source.pages[0].name = 'Renamed on the source';
+    expect(savedDoc.pages[0].name).toBe('P');
   });
 
   it('strips familyId + sourceDesignId so duplicates are independent', async () => {
@@ -160,6 +178,66 @@ describe('EditorDuplicateDesignButton', () => {
     expect(meta?.sourceTemplateId).toBe('master-1');
     // Fresh id — the copy is its own design, not the master itself.
     expect(savedDoc.id).not.toBe('master-1');
+    expect(args[1]).toBe(savedDoc.id);
+  });
+
+  it('using a template-instance master carries its content and its catalog id', async () => {
+    const master = {
+      ...fixtureDoc(),
+      id: '33333333-3333-4333-8333-333333333333',
+      contentType: 'invoice',
+      metadata: {
+        name: 'Invoice — Brute Force',
+        isTemplate: true,
+        sourceTemplateId: 'invoices-ext-4',
+      },
+      body: {
+        kind: 'template-instance',
+        templateId: 'invoices-ext-4',
+        design: {},
+        content: {
+          kind: 'invoice',
+          issuerName: 'SKAM',
+          issuerAddress: 'Tuned HQ · Cairo',
+          clientName: 'Acme Co.',
+          clientAddress: '',
+          number: '0014',
+          issueDate: '',
+          dueDate: '',
+          currency: 'USD',
+          lineItems: [{ id: 'li-1', label: 'Retainer', qty: 1, unitPrice: 100 }],
+          discountRate: 0,
+          taxRate: 5,
+          notes: '',
+        },
+      },
+    } as unknown as BrandOSDocument;
+    const { container } = wrap(
+      <EditorDuplicateDesignButton
+        getDoc={() => master}
+        brandId="b"
+        brandSlug="raqm"
+        isTemplate
+      />,
+    );
+    fireEvent.click(container.querySelector('[data-duplicate-design-button]')!);
+    await waitFor(() => expect(saveDesignMock).toHaveBeenCalledTimes(1));
+    const args = saveDesignMock.mock.calls[0];
+    const savedDoc = args[2] as BrandOSDocument;
+    const meta = args[3] as { isTemplate?: boolean; sourceTemplateId?: string };
+    if (savedDoc.body?.kind !== 'template-instance' || savedDoc.body.content.kind !== 'invoice') {
+      throw new Error('narrowing failed');
+    }
+    expect(savedDoc.body.content.issuerAddress).toBe('Tuned HQ · Cairo');
+    expect(savedDoc.metadata?.isTemplate).toBe(false);
+    // The catalog variant, not the master's design id — the one meaning
+    // `sourceTemplateId` carries everywhere else.
+    expect(savedDoc.metadata?.sourceTemplateId).toBe('invoices-ext-4');
+    expect(meta?.sourceTemplateId).toBe('invoices-ext-4');
+    // A deep copy: tuning the master afterwards cannot reach it.
+    const masterBody = master.body as { content: { issuerAddress: string } };
+    masterBody.content.issuerAddress = 'Moved Again';
+    expect(savedDoc.body.content.issuerAddress).toBe('Tuned HQ · Cairo');
   });
 
   it('falls back to "Untitled design" when no source name', async () => {

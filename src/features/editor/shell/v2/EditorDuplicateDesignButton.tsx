@@ -23,6 +23,10 @@ import { SERVICE_KEYS } from '@/core';
 import { container as serviceContainer } from '@/core/container/ServiceContainer';
 import type { IDesignStorage } from '@/core/types/services';
 import type { BrandOSDocument } from '@/features/editor/schema';
+import {
+  duplicateDocument,
+  instantiateFromMaster,
+} from '@/features/editor/renderers/template-instance/createDocument';
 
 interface Props {
   /** Lazy doc accessor — read fresh on click. */
@@ -35,14 +39,6 @@ interface Props {
    *  button's label and what gets written on save — see file header. */
   isTemplate?: boolean;
 }
-
-const slugify = (s: string): string =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
 
 export function EditorDuplicateDesignButton({
   getDoc, brandId, brandSlug, sourceName, isTemplate = false,
@@ -63,30 +59,42 @@ export function EditorDuplicateDesignButton({
       // reads like what it is (the same naming Brand Kit's own Use
       // Template action already uses).
       const newName = isTemplate ? baseName : `Copy of ${baseName}`;
-      const newId = `${slugify(newName)}-${Date.now().toString(36)}`;
-      // Copy the doc body, give it a fresh inner id + name so it's
-      // recognized as a distinct design. Variants/family pointers are
-      // intentionally NOT carried over — a duplicate is its OWN design,
-      // not a sibling variant.
+      // ONE id: the document's own and the key it is stored under.
+      // The editor page autosaves to `doc.id` but loads by the URL's
+      // design slug, which is the storage key — so a design whose two
+      // ids disagreed autosaved to a key nothing read, and a reload
+      // restored the body from before the user's first edit. Every other
+      // creator (Brand Kit's Use Template, ensureMasterDesign, the
+      // Templates panel) uses one uuid for both; so does this now.
+      const newId = crypto.randomUUID();
+      // Deep copy, never a spread: a shallow copy leaves the new design
+      // sharing every nested object — pages, layers, an invoice's line
+      // items — with the design it came from. Family lineage is dropped
+      // so a duplicate isn't bulk-republished with the source's variants.
+      const copied =
+        isTemplate && doc.body?.kind === 'template-instance'
+          ? instantiateFromMaster(doc, newId)
+          : duplicateDocument(doc, newId);
       const next: BrandOSDocument = {
-        ...doc,
-        id: crypto.randomUUID(),
+        ...copied,
         metadata: {
-          ...(doc.metadata ?? {}),
+          ...(copied.metadata ?? {}),
           name: newName,
-          // Explicit overrides AFTER the spread: a master's own
-          // metadata carries `isTemplate: true`, and that must never
-          // survive into the copy — this is what makes the copy a
-          // working design instead of a second master.
+          // Explicit, AFTER the spread: a master's own metadata carries
+          // `isTemplate: true`, and that must never survive into the copy
+          // — this is what makes the copy a working design instead of a
+          // second master. `sourceTemplateId` names the CATALOG variant
+          // when the master knew one (`instantiateFromMaster` carries it
+          // across); a master with no such record falls back to naming
+          // the design it was copied from.
           ...(isTemplate
-            ? { isTemplate: false, sourceTemplateId: doc.id }
+            ? {
+                isTemplate: false,
+                sourceTemplateId: copied.metadata?.sourceTemplateId ?? doc.id,
+              }
             : {}),
         },
       } as BrandOSDocument;
-      // Strip family lineage so the duplicate doesn't get bulk-
-      // republished alongside the source's variants.
-      delete (next as { familyId?: string }).familyId;
-      delete (next as { sourceDesignId?: string }).sourceDesignId;
 
       await ds.saveDesign(brandId, newId, next, {
         name: newName,
@@ -94,7 +102,10 @@ export function EditorDuplicateDesignButton({
         width: doc.pages[0]?.width,
         height: doc.pages[0]?.height,
         ...(isTemplate
-          ? { isTemplate: false, sourceTemplateId: doc.id }
+          ? {
+              isTemplate: false,
+              sourceTemplateId: next.metadata?.sourceTemplateId as string | undefined,
+            }
           : {}),
       });
       toast.success(
