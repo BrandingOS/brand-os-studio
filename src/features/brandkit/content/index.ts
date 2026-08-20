@@ -11,4 +11,5 @@ export * from './kinds';
 export * from './paths';
 export * from './compute';
 export * from './fields';
+export * from './schema';
 export { Bind, BindProvider, useBindContext, type BindFit, type BindContextValue } from './Bind';

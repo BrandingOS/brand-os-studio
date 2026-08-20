@@ -8,6 +8,15 @@
 
 import { z } from 'zod';
 
+// Import the LEAF module, not the barrel. `@/features/brandkit/content`
+// re-exports `Bind.tsx`, so importing the barrel here would pull React and
+// JSX into this schema's module graph — a schema that is parsed in plain
+// node contexts and by every test that touches a document.
+import {
+  DeliverableContentSchema,
+  TemplateDesignPicksSchema,
+} from '@/features/brandkit/content/schema';
+
 // ─── Primitives ────────────────────────────────────────────────────────────
 
 /** 6 or 8 hex digits (RGB or RGBA), `#` prefix required. */
@@ -243,6 +252,31 @@ export const BrandResolutionSchema = z.object({
 });
 export type BrandResolution = z.infer<typeof BrandResolutionSchema>;
 
+/**
+ * The document's payload, for renderers whose documents are not pages of
+ * layers.
+ *
+ * `pages` is deliberately NOT relaxed. A template-instance carries one
+ * page with zero layers, and that page still earns its place: the shell
+ * reads its width/height for zoom-to-fit, thumbnails and export sizing.
+ * Keeping `pages.min(1)` satisfiable is what makes this field purely
+ * additive.
+ *
+ * A discriminated union rather than a loose record, so adding a second
+ * layerless renderer later is a member here — and every existing reader
+ * keeps narrowing correctly.
+ */
+export const DesignBodySchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('template-instance'),
+    /** The Brand Kit design that paints this document. */
+    templateId: z.string().min(1),
+    content: DeliverableContentSchema,
+    design: TemplateDesignPicksSchema,
+  }),
+]);
+export type DesignBody = z.infer<typeof DesignBodySchema>;
+
 export const BrandOSDocumentSchema = z.object({
   schemaVersion: z.literal(1),
   id: z.string().uuid(),
@@ -279,5 +313,10 @@ export const BrandOSDocumentSchema = z.object({
    */
   familyId: z.string().uuid().optional(),
   sourceDesignId: z.string().uuid().optional(),
+  /**
+   * Payload for layerless renderers. Absent on every Fabric document —
+   * they serialize exactly as they did before this field existed.
+   */
+  body: DesignBodySchema.optional(),
 });
 export type BrandOSDocument = z.infer<typeof BrandOSDocumentSchema>;

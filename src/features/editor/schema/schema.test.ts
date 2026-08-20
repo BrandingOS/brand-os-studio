@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BrandOSDocumentSchema, SlotRefSchema } from './index';
 import socialPostFixture from './__fixtures__/social-post.sample.json';
+import { defaultContentFor } from '@/features/brandkit/content';
 
 describe('BrandOSDocumentSchema', () => {
   it('round-trips the social-post fixture', () => {
@@ -124,5 +125,58 @@ describe('SlotRefSchema', () => {
     expect(() =>
       SlotRefSchema.parse({ type: 'brand.color.neutral', neutralIndex: 5 }),
     ).not.toThrow();
+  });
+});
+
+const page = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'Page 1',
+  width: 1240,
+  height: 1754,
+  background: '#ffffff',
+  masterPageId: null,
+  layers: [],
+};
+
+const base = {
+  schemaVersion: 1 as const,
+  id: '22222222-2222-4222-8222-222222222222',
+  contentType: 'invoice',
+  brandId: 'skam',
+  masterPages: [],
+  pages: [page],
+  metadata: {},
+};
+
+describe('template-instance document body', () => {
+  it('parses a document carrying a template-instance body', () => {
+    const doc = BrandOSDocumentSchema.parse({
+      ...base,
+      body: {
+        kind: 'template-instance',
+        templateId: 'invoices-ext-4',
+        content: defaultContentFor('invoice', { name: 'SKAM' }),
+        design: { primaryColor: '#E5322D' },
+      },
+    });
+    expect(doc.body?.kind).toBe('template-instance');
+    if (doc.body?.kind !== 'template-instance') throw new Error('narrowing failed');
+    expect(doc.body.templateId).toBe('invoices-ext-4');
+    expect(doc.body.content.kind).toBe('invoice');
+  });
+
+  it('leaves a layer document unchanged — body is absent, not null', () => {
+    const doc = BrandOSDocumentSchema.parse(base);
+    expect(doc.body).toBeUndefined();
+    expect('body' in JSON.parse(JSON.stringify(doc))).toBe(false);
+  });
+
+  it('rejects a body whose content does not match the union', () => {
+    expect(() =>
+      BrandOSDocumentSchema.parse({
+        ...base,
+        body: { kind: 'template-instance', templateId: 'x', content: { kind: 'nope' }, design: {} },
+      }),
+    ).toThrow();
   });
 });
