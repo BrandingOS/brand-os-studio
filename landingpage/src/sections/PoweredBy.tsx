@@ -9,6 +9,7 @@
  */
 import { motion } from 'framer-motion';
 import { ChapterHead, reveal } from './shared';
+import { cssUrl } from '@/lib/cssUrl';
 import openaiUrl from '@/assets/tech/openai.svg';
 import anthropicUrl from '@/assets/tech/anthropic.svg';
 import geminiUrl from '@/assets/tech/gemini.svg';
@@ -22,8 +23,8 @@ import cloudflareUrl from '@/assets/tech/cloudflare.svg';
 
 const MASK = (url: string): React.CSSProperties => ({
   display: 'inline-block',
-  WebkitMaskImage: `url(${url})`,
-  maskImage: `url(${url})`,
+  WebkitMaskImage: cssUrl(url),
+  maskImage: cssUrl(url),
   WebkitMaskSize: 'contain',
   maskSize: 'contain',
   WebkitMaskRepeat: 'no-repeat',
