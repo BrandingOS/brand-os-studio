@@ -10,12 +10,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BindProvider, hydrateContent, setAtPath } from '@/features/brandkit/content';
 import { ScalingStage } from '@/shared/brand/ScalingStage';
-import { snapshotElementPng } from '@/features/brand-kit/data/templateSnapshot';
-import { aspectForType } from '@/features/brand-kit/kit/registry';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import type { DesignCanvasProps } from '../types';
 import type { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
-import { renderArtwork, resolveTemplate } from './templateArtwork';
+import { exportArtworkPng, renderArtwork, resolveAspect, resolveTemplate } from './templateArtwork';
 
 export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanvasProps) {
   const instance = adapter as TemplateInstanceAdapter;
@@ -43,7 +41,7 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
     instance.snapshot = async () => {
       const host = hostRef.current;
       if (!host) throw new Error('Nothing to export — the artwork is not mounted');
-      const blob = await snapshotElementPng(host, 4);
+      const blob = await exportArtworkPng(host, 4);
       if (!blob) throw new Error('Rasterization produced no image');
       return blob;
     };
@@ -103,7 +101,7 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
           onCommit: commitBoundValue,
         }}
       >
-        <ScalingStage aspect={aspectForType(template.type)} fontFamily={null} hideLogo={body.design.showLogo === false}>
+        <ScalingStage aspect={resolveAspect(template.type)} fontFamily={null} hideLogo={body.design.showLogo === false}>
           {renderArtwork(template, brand, mockBrand, content)}
         </ScalingStage>
       </BindProvider>
