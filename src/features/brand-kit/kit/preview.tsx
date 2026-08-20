@@ -16,7 +16,7 @@ import {
   contentKindForTemplateType,
   hydrateContent,
   type DeliverableContent,
-} from '../content/kinds';
+} from '@/features/brandkit/content/kinds';
 
 /** Project the brand through an item's saved color picks. */
 export function previewBrandFor(

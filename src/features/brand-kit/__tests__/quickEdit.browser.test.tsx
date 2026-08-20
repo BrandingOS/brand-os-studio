@@ -18,7 +18,7 @@ import type { Brand } from '@/shared/types/brand';
 import { BrandKitCardEditor, type EditorTarget } from '../components/BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
-import { invoiceTotals, type InvoiceContent } from '../content';
+import { invoiceTotals, type InvoiceContent } from '@/features/brandkit/content';
 
 const sourceBrand = {
   id: 'brand-qe',

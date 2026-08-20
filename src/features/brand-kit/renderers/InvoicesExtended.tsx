@@ -1,8 +1,8 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
-import { Bind } from '../content/Bind';
-import { defaultInvoiceContent, type InvoiceContent } from '../content/kinds';
-import { formatMoney, formatPercent, invoiceTotals, lineItemTotal } from '../content/compute';
+import { Bind } from '@/features/brandkit/content/Bind';
+import { defaultInvoiceContent, type InvoiceContent } from '@/features/brandkit/content/kinds';
+import { formatMoney, formatPercent, invoiceTotals, lineItemTotal } from '@/features/brandkit/content/compute';
 
 /**
  * Invoice designs — portrait business document with header,

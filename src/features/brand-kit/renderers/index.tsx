@@ -1,8 +1,8 @@
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
-import type { DeliverableContent } from '../content/kinds';
-import { isPerson, isLetter, isInvoice } from '../content/kinds';
+import type { DeliverableContent } from '@/features/brandkit/content/kinds';
+import { isPerson, isLetter, isInvoice } from '@/features/brandkit/content/kinds';
 import { renderTemplateDesign as renderLegacyTemplate } from '@/features/brandkit/components/TemplateCard';
 import {
   BrandAssetLogoRenderer,

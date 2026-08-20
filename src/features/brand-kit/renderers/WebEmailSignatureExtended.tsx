@@ -1,7 +1,7 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
-import { Bind } from '../content/Bind';
-import { defaultPersonContent, type PersonContent } from '../content/kinds';
+import { Bind } from '@/features/brandkit/content/Bind';
+import { defaultPersonContent, type PersonContent } from '@/features/brandkit/content/kinds';
 
 /**
  * Email-signature extensions — 30 designs. Each tile shows an email

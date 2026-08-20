@@ -13,7 +13,7 @@ import {
   type DeliverableContent,
   type FieldSpec,
   type InvoiceContent,
-} from '../../content';
+} from '@/features/brandkit/content';
 
 /**
  * The contextual panel.

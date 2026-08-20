@@ -12,7 +12,7 @@
  * card label for direct right-click edits.
  */
 import type { TemplateOverrides } from '../types';
-import type { DeliverableContent } from '../content/kinds';
+import type { DeliverableContent } from '@/features/brandkit/content/kinds';
 
 export type SavedCardCustomization = {
   overrides: TemplateOverrides;

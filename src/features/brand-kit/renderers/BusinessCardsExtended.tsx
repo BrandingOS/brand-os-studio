@@ -1,7 +1,7 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
-import { Bind } from '../content/Bind';
+import { Bind } from '@/features/brandkit/content/Bind';
 
 /**
  * Extended business-card designs for the cosmos Brand Kit.

@@ -12,7 +12,7 @@ import {
   contentKindForTemplateType,
   hydrateContent,
   type DeliverableContent,
-} from '../content/kinds';
+} from '@/features/brandkit/content/kinds';
 import { loadBrandCustomizations, type SavedCardCustomization } from './cardCustomizations';
 
 type BrandLike = { name: string };

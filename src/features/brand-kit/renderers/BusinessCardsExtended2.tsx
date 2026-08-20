@@ -2,7 +2,7 @@ import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 import { contrastRatio } from '../data/recolorLogo';
 import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
-import { Bind } from '../content/Bind';
+import { Bind } from '@/features/brandkit/content/Bind';
 
 /**
  * Business cards — second batch of extended designs (100 new).

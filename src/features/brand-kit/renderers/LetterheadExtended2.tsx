@@ -1,7 +1,7 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
-import { Bind } from '../content/Bind';
-import { defaultLetterContent, type LetterContent } from '../content/kinds';
+import { Bind } from '@/features/brandkit/content/Bind';
+import { defaultLetterContent, type LetterContent } from '@/features/brandkit/content/kinds';
 
 /**
  * Letterhead — Wave 2: 100 new designs (idx 0-99).

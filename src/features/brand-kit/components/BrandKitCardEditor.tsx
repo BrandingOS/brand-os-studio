@@ -23,7 +23,7 @@ import {
   setAtPath,
   type ContentKind,
   type DeliverableContent,
-} from '../content';
+} from '@/features/brandkit/content';
 import { ContentPanel } from './quick-edit/ContentPanel';
 // The editor portals to document.body and is mounted from more than one
 // page, so it brings its own styles rather than relying on whichever page
