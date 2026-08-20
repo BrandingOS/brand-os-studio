@@ -22,6 +22,7 @@ import { SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { createTemplateInstanceDocument } from '@/features/editor/renderers/template-instance/createDocument';
 import { defaultContentFor, contentKindForTemplateType } from '@/features/brandkit/content';
+import { ensureMasterDesign } from './kit/masterTemplates';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
 import { type KitSectionKey } from './components/BrandKitSidebar';
@@ -609,6 +610,54 @@ export function BrandKitCosmosPage({
     [sourceBrand, designStorage, effectiveBrand, navigate],
   );
 
+  /**
+   * `Edit Template` — opens the CANONICAL MASTER for this variant, not a
+   * new instance. Brand-level template tuning, never client data. The
+   * master is seeded lazily on first use (`ensureMasterDesign`) and reused
+   * on every later call — same (contentType, templateId) always resolves
+   * to the same design id.
+   */
+  const handleEditTemplate = useCallback(
+    async (template: BrandKitTemplate, deliverable: DeliverableDef) => {
+      const contentTypeId = deliverable.contentTypeId;
+      if (!contentTypeId) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      const kind = contentKindForTemplateType(template.type);
+      if (!kind) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      if (!sourceBrand) {
+        toast.error('Edit Template needs a saved brand');
+        return;
+      }
+      if (!designStorage) {
+        toast.error('Design storage is unavailable');
+        return;
+      }
+      let masterId: string;
+      try {
+        masterId = await ensureMasterDesign({
+          storage: designStorage,
+          brandId: sourceBrand.id,
+          contentType: contentTypeId,
+          templateId: template.id,
+          label: `${deliverable.label} — ${template.name}`,
+          seedContent: defaultContentFor(kind, effectiveBrand),
+        });
+      } catch (err) {
+        toast.error('Could not open master template', {
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+        return;
+      }
+      navigate(`/b/${sourceBrand.slug}/design/${masterId}`);
+    },
+    [sourceBrand, designStorage, effectiveBrand, navigate],
+  );
+
   // Section-level download (the small icon in each section header).
   // Brand Assets → the full kit bundle; template sections → a zip with
   // one rasterized PNG per card (its first variant).
@@ -1044,6 +1093,11 @@ export function BrandKitCosmosPage({
                       ? (template) => handleUseTemplate(template, drilldownDeliverable)
                       : undefined
                   }
+                  onEditTemplate={
+                    drilldownDeliverable?.contentTypeId
+                      ? (template) => handleEditTemplate(template, drilldownDeliverable)
+                      : undefined
+                  }
                   onPickVariant={(template) =>
                     setEditorTarget({ ...drilldownTarget, template })
                   }
@@ -1345,6 +1399,11 @@ type DrilldownProps = {
    *  real Design content type pass this down; every other card's tile
    *  stays a plain click-only button, unchanged. */
   onUseTemplate?: (template: BrandKitTemplate) => void;
+  /** Optional — when provided, right-clicking a variant tile also offers
+   *  "Edit Template", which opens the CANONICAL MASTER (brand-level
+   *  tuning) instead of a fresh independent instance. Gated identically
+   *  to `onUseTemplate` — same deliverables, same content-type check. */
+  onEditTemplate?: (template: BrandKitTemplate) => void;
 };
 
 /**
@@ -1379,6 +1438,7 @@ function BrandKitDrilldown({
   onAddColor,
   onDownload,
   onUseTemplate,
+  onEditTemplate,
 }: DrilldownProps) {
   // Right-click menu for a variant tile — only ever populated when
   // `onUseTemplate` is provided, so cards without it never gain a
@@ -1395,10 +1455,13 @@ function BrandKitDrilldown({
         items: [
           { label: 'Edit', onSelect: () => onPickVariant(tpl) },
           { label: 'Use Template', onSelect: () => onUseTemplate(tpl) },
+          ...(onEditTemplate
+            ? [{ label: 'Edit Template', onSelect: () => onEditTemplate(tpl) }]
+            : []),
         ],
       });
     },
-    [onUseTemplate, onPickVariant],
+    [onUseTemplate, onEditTemplate, onPickVariant],
   );
   // For the Icons card we re-derive templates from the live brand on
   // every render so user-added icons surface immediately. The
