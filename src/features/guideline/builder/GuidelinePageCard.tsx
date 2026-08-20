@@ -38,16 +38,18 @@ export interface GuidelinePageCardProps {
   onEdit: (pageId: string, contentEl: HTMLElement) => void;
   /** Write this page immediately — used when it loses selection. */
   onFlush: (pageId: string, contentEl: HTMLElement) => void;
+  /** The element the document scrolls inside — the deferred-render root. */
+  viewRoot?: Element | null;
 }
 
 export function GuidelinePageCard({
   page, index, total, sectionIndex, brand, layout,
-  snapshot, selected, onSelect, onEdit, onFlush,
+  snapshot, selected, onSelect, onEdit, onFlush, viewRoot,
 }: GuidelinePageCardProps) {
   const type = getPageType(page.type);
   const rootRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(rootRef, '900px');
+  const inView = useInView(rootRef, '900px', viewRoot);
   const dirty = useRef(false);
 
   const contentEl = useCallback(

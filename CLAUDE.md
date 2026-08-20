@@ -1112,6 +1112,25 @@ brand control that exists.
 - **Modals and confirmations render in `GuidelineBuilder`, never in a panel.**
   `.panel` is `position: sticky`, which creates a stacking context, so a scrim
   mounted inside it paints under the document.
+- **It is an APP SHELL above 1100px, not a scrolling page** (owner request
+  2026-08-20 — "same style as the Design page"). `[data-workspace]` becomes a
+  100vh column, `.gl-shell` claims what the top bar leaves, and
+  `.gl-doc-scroll` is the only thing that scrolls; the rail and the panel are
+  pinned by `align-self: start` in a `grid-template-rows: minmax(0, 1fr)` row.
+  **Do not pin them with a sticky offset instead** — a sticky GRID ITEM
+  stretches to its whole row by default, so its box already fills its
+  containing block and has nowhere to travel. That is exactly how the rail
+  scrolled away with a thirty-page document while `.panel`, which also sets
+  `align-self: start`, looked fine. Below 1100px the shell goes back to one
+  column and the page scrolls; the media query has to undo the height, the
+  row template and both overflows. Two consequences: `.gl-page`'s
+  `scroll-margin-top` is small, because the column already starts below the
+  top bar, and every IntersectionObserver on this page takes the scroll
+  container as its `root` — `rootMargin` expands the root rect only, never a
+  clipping ancestor's, so observing the viewport silently loses the lead time
+  that defers page rendering. Pinned by
+  `guidelineBuilder.browser.test.tsx` → "the tools stay where they are",
+  which has to widen Vitest's 414px default viewport first.
 - **Adding a page type = one entry in `model/pageLibrary.tsx`.** The renderers
   are NOT ours — they live in the legacy `features/guidelines/` family
   (`pages/templates/*`), which is the strongest guideline artwork in the repo.

@@ -8,8 +8,11 @@
  *
  * The chrome is the Studio's, not this feature's. `WorkspaceShell` +
  * `.shell` + `.panel` + `DsRail` are what Setup, Brand Kit and Tools already
- * render; the only structural thing this file adds is a third grid column for
- * the rail, because those pages have a sidebar and no rail.
+ * render. Two structural things are this file's own: a third grid column for
+ * the rail, because those pages have a sidebar and no rail, and a fixed-height
+ * shell — the rail and the panel are pinned and the DOCUMENT COLUMN is what
+ * scrolls, the way the design editor behaves. A brand book is long; tools that
+ * ride away with it are tools you have to scroll back for.
  *
  * State lives in four places, and the split is load-bearing:
  *   the page list + guideline-scoped brand values → `useGuidelineDocStore`
@@ -19,7 +22,7 @@
  *   undo/redo over the document → `useGuidelineHistory` on `@/shared/history`
  *   selection, scroll, which panel is open → component state
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LayoutList, Palette, Plus, Redo2, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -109,7 +112,9 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
   const [applyingBrand, setApplyingBrand] = useState(false);
   const [strategyTarget, setStrategyTarget] = useState<StrategyEditTarget | null>(null);
   const [typeEditorOpen, setTypeEditorOpen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // State, not a ref: the deferred-render observers in every page card need
+  // this element as their root, and a ref does not re-render them when it fills.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   const pages = doc.pages;
   const overrides = useMemo(() => doc.overrides ?? {}, [doc.overrides]);
@@ -153,12 +158,12 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
     scrollToPage(pageId);
   }, [scrollToPage]);
 
-  // Which page is filling the viewport — highlights the outline while the user
-  // scrolls, with no selection involved. The viewport is the scroll container:
-  // the document scrolls under the Studio top bar, and the negative top margin
-  // discounts the band that bar covers.
+  // Which page is filling the view — highlights the outline while the user
+  // scrolls, with no selection involved. The document column is the scroll
+  // container AND the observer's root, so no margin has to be subtracted for
+  // chrome: nothing overlaps it.
   useEffect(() => {
-    const root = scrollRef.current;
+    const root = scrollEl;
     if (!root || typeof IntersectionObserver === 'undefined') return;
     const nodes = Array.from(root.querySelectorAll<HTMLElement>('.gl-page'));
     if (nodes.length === 0) return;
@@ -174,11 +179,11 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
         ratios.forEach((ratio, id) => { if (ratio > bestRatio) { bestRatio = ratio; best = id; } });
         if (best) setActiveId(best);
       },
-      { rootMargin: '-90px 0px 0px 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
     );
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [pages]);
+  }, [pages, scrollEl]);
 
   // `DsRail` owns toggle-to-close and hands back null for it.
   const onRail = useCallback((next: RailMode | null) => {
@@ -343,7 +348,7 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
           </GuidelineSidebar>
         )}
 
-        <div className="gl-doc-scroll" ref={scrollRef}>
+        <div className="gl-doc-scroll" ref={setScrollEl}>
           <header className="gl-doc-head">
             <div>
               <span className="gl-doc-eyebrow">Brand Guidelines</span>
@@ -376,6 +381,7 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
                   onSelect={() => selectPage(page.id)}
                   onEdit={queue}
                   onFlush={saveNow}
+                  viewRoot={scrollEl}
                 />
               </div>
             ))}
