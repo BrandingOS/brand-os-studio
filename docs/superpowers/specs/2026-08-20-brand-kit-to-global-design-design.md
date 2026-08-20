@@ -343,3 +343,84 @@ revisited before a third family is added — not worked around.
 - **A master template seeded per brand + variant** could multiply Design objects.
   Mitigation: seed lazily on first Edit Template, not for all 26 deliverables up
   front.
+
+## 12. Outcome (Task 13, 2026-08-20)
+
+**Shipped.** `src/features/brand-kit/__tests__/brandKitToDesign.browser.test.tsx`
+proves the whole hand-off against the real components, with only
+`IDesignStorage` stubbed:
+
+- `Use Template` on the Invoice "Brute Force" variant saves a working design
+  (`isTemplate: false`, `contentType: 'invoice'`, `sourceTemplateId:
+  'invoices-ext-4'`, `body.kind: 'template-instance'`) and routes to
+  `/b/skam/design/<the id saveDesign was actually called with>` — asserted off
+  the mock's own recorded id, never a literal.
+- `Edit Template` clicked twice routes to the identical master id both times,
+  with exactly one `saveDesign` call total — the second click found the master
+  `ensureMasterDesign` seeded on the first, via `listDesigns`.
+- The §7.2 invariant (given in full in the task brief) is pinned directly
+  against `createDocument.ts`: editing a master's content, line items and
+  `templateId` after an instance was taken from it changes nothing on the
+  instance, confirmed through an actual JSON round-trip.
+
+One deviation from the brief: `useNavigate` is mocked (`vi.mock('react-router-
+dom', …)` overriding only that hook) rather than proven through a real
+destination `<Route>` the way `generationEntryPoints.browser.test.tsx` does.
+The Edit-Template case needs `BrandKitCosmosPage` to stay mounted across two
+clicks; a real `/b/:slug/design/:id` route would unmount it after the first
+navigate. Every other router primitive (`MemoryRouter`, etc.) is the real
+thing, and the mock still asserts on the exact string `navigate` was called
+with — not on whether react-router itself works, which is not what these
+tests are for.
+
+Full gate at the time of this task: `npm run lint` — 0 errors, 248
+pre-existing warnings; `npm run typecheck:ci` — no new errors, 279/321
+baseline (an improvement over the 321 the policy allows); `npx vitest run
+--project unit` — 242 files / 2482 tests passed, 1 skipped;
+`npx vitest run --project browser` — 30 files / 289 tests passed. The
+CLAUDE.md note that `recolorLogo.test.ts` fails on a clean checkout is
+confirmed stale — it passes.
+
+**The Business Card check — verdict: mostly clears the bar, with one naming
+wrinkle.** Read (not implemented): `business-card.config.ts`,
+`BusinessCardsExtended.tsx`, `BusinessCardsExtended2.tsx`, the
+`renderCosmosTemplate` dispatcher, `kinds.ts`, `schema.ts`, `fields.ts`, and
+every template-instance module (`createDocument.ts`, `TemplateInstanceAdapter
+.ts`, `TemplateInstanceCanvas.tsx`, `TemplateInstanceProperties.tsx`,
+`masterTemplates.ts`, `excludeTemplates`). All of it is already written
+generically over `contentType` / `content.kind`, with zero string branches on
+`'invoice'` outside comments. Concretely, wiring Business Card would be:
+
+1. Add `renderer: 'template-instance'` to a content-type config (one line,
+   mirroring `invoice.config.ts`).
+2. Add `contentTypeId: '<id>'` to the Business Card `DefInput` in
+   `kit/registry.ts` (one line, mirroring Invoice's).
+3. Nothing else — `contentKindForTemplateType('business-cards')` already
+   returns `'person'`; `DeliverableContentSchema` already has a `person`
+   member; `renderCosmosTemplate` already passes `content={person}` into both
+   business-card renderer waves; both renderer files already wrap every
+   identity field in `<Bind>`; `fieldGroupsFor('person')` already declares the
+   properties-panel controls (same kind Email Signature already uses); the
+   renderer registry maps `'template-instance'` generically by renderer id,
+   not by content type, so it needs no new entry; and `Use Template` / `Edit
+   Template` in both `BrandKitCosmosPage.tsx` and `BrandKitCardEditor.tsx` are
+   already gated generically on `deliverable.contentTypeId` being truthy.
+
+The wrinkle: `'business-card'` is not a free id to reuse for step 1. It is
+already a live, shared `contentType` — Phase 4.1's seed templates
+(`src/features/templates/seeds/index.ts:367`,
+`src/features/brandkit/templateSeeds.ts:201`) produce real Fabric-layer
+`business-card` documents through the current Templates panel today.
+Flipping the existing config's `renderer` to `'template-instance'` would
+repoint every one of those at a renderer that requires `body.kind ===
+'template-instance'`, and a Fabric-seeded document has no `body` — it would
+hit `TemplateInstanceCanvas`'s "This design is no longer available" state.
+The correct move is a **second, distinct content-type id** for the Brand Kit
+deliverable (e.g. a new `business-card-kit.config.ts` registered in
+`content-types/index.ts`, same two mechanical steps every existing type
+already follows) rather than repurposing `'business-card'`. That is still
+exactly family-specific work — a new config file, an id, a registry field —
+not a touch to the shell, the adapter split, routing, or the schema. No
+second editing surface and no parallel storage path are needed either way.
+Net: the design's success criterion holds; the only real decision left for
+whoever wires Business Card is which id names it.
