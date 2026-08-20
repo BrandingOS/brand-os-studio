@@ -25,9 +25,16 @@ const ITEMS: ReadonlyArray<{
 interface Props {
   active: RailItem;
   onChange: (item: RailItem) => void;
+  /**
+   * Insert adds a LAYER to the page — meaningless for a renderer that
+   * doesn't decompose its document into layers. Defaults to true so
+   * every existing (Fabric) caller is unaffected.
+   */
+  supportsLayerEditing?: boolean;
 }
 
-export function EditorAppRail({ active, onChange }: Props) {
+export function EditorAppRail({ active, onChange, supportsLayerEditing = true }: Props) {
+  const items = supportsLayerEditing ? ITEMS : ITEMS.filter((item) => item.id !== 'insert');
   return (
     <aside
       data-app-rail
@@ -45,7 +52,7 @@ export function EditorAppRail({ active, onChange }: Props) {
       }}
       aria-label="App rail"
     >
-      {ITEMS.map(({ id, label, Icon }) => (
+      {items.map(({ id, label, Icon }) => (
         <RailCard
           key={id}
           Icon={Icon}

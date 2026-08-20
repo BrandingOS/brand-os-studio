@@ -16,6 +16,7 @@ import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
 import {
   BindProvider,
+  ContentPanel,
   contentKindForTemplateType,
   coerceToPathType,
   defaultContentFor,
@@ -24,7 +25,6 @@ import {
   type ContentKind,
   type DeliverableContent,
 } from '@/features/brandkit/content';
-import { ContentPanel } from './quick-edit/ContentPanel';
 // The editor portals to document.body and is mounted from more than one
 // page, so it brings its own styles rather than relying on whichever page
 // happened to import them first.

@@ -700,14 +700,24 @@ export function Editor({
                 setActiveRail(item);
                 setSecondaryOpen(true);
               }}
+              supportsLayerEditing={renderer.supportsLayerEditing}
             />
           </div>
 
           {/* Panel — toggle controlled by the App Rail. When closed,
               the slot is UNMOUNTED entirely (not just slid off-screen).
               The earlier slide-out variant left the panel visible
-              behind the transparent rail. */}
-          {secondaryOpen && layerAdapter ? (
+              behind the transparent rail.
+
+              The SLOT is renderer-aware, not the panel: a renderer that
+              edits layers gets the full rail-switched EditorSecondaryPanel
+              (Generate/Templates/Insert/Brand — untouched, still requires
+              `layerAdapter`); a layerless renderer gets its own
+              `renderer.Properties` instead — the only editing surface it
+              has, so it stays open regardless of which rail item is
+              "active". This is the one place in the shell that branches
+              on renderer identity for the properties body. */}
+          {secondaryOpen && (layerAdapter || renderer.Properties) ? (
             <div
               data-editor-panel-slot
               data-panel-open="true"
@@ -720,42 +730,62 @@ export function Editor({
                 zIndex: 5,
               }}
             >
-              <EditorSecondaryPanel
-                active={activeRail}
-                adapter={layerAdapter}
-                doc={doc}
-                activePageId={activePageId}
-                brand={brand}
-                onCollapse={() => setSecondaryOpen(false)}
-                agent={effectiveAgent ?? null}
-                initialPrompt={initialPrompt}
-                generateOptions={initialAi ? {
-                  initialMode: initialAi.mode,
-                  initialModel: initialAi.model,
-                  initialFormatId: initialAi.formatId,
-                  initialCount: initialAi.count,
-                  autoStart: initialAi.autoStart,
-                } : undefined}
-                getContext={(): AICommandContext => ({
-                  activePageId,
-                  selection: selection.layerIds,
-                  brand: brand as Brand,
-                })}
-                onAIApply={(result: AICommandResult) => {
-                  applyAICommandResult(layerAdapter, result);
-                  if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
-                    void activityService.log({
-                      brandId: brand.id,
-                      brandName: brand.name,
-                      eventType: 'brand_updated',
-                      title: result.label || 'AI: design update',
-                      description: result.message,
-                      metadata: { ai: true, kind: result.kind, designId: doc.id },
-                    });
-                  }
-                }}
-                onActivePageChange={(id) => adapter.setActivePage(id)}
-              />
+              {layerAdapter ? (
+                <EditorSecondaryPanel
+                  active={activeRail}
+                  adapter={layerAdapter}
+                  doc={doc}
+                  activePageId={activePageId}
+                  brand={brand}
+                  onCollapse={() => setSecondaryOpen(false)}
+                  agent={effectiveAgent ?? null}
+                  initialPrompt={initialPrompt}
+                  generateOptions={initialAi ? {
+                    initialMode: initialAi.mode,
+                    initialModel: initialAi.model,
+                    initialFormatId: initialAi.formatId,
+                    initialCount: initialAi.count,
+                    autoStart: initialAi.autoStart,
+                  } : undefined}
+                  getContext={(): AICommandContext => ({
+                    activePageId,
+                    selection: selection.layerIds,
+                    brand: brand as Brand,
+                  })}
+                  onAIApply={(result: AICommandResult) => {
+                    applyAICommandResult(layerAdapter, result);
+                    if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
+                      void activityService.log({
+                        brandId: brand.id,
+                        brandName: brand.name,
+                        eventType: 'brand_updated',
+                        title: result.label || 'AI: design update',
+                        description: result.message,
+                        metadata: { ai: true, kind: result.kind, designId: doc.id },
+                      });
+                    }
+                  }}
+                  onActivePageChange={(id) => adapter.setActivePage(id)}
+                />
+              ) : renderer.Properties ? (
+                <div
+                  data-editor-panel-properties
+                  className="flex flex-col"
+                  style={{
+                    marginTop: 12,
+                    maxHeight: 'calc(100vh - 96px)',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    padding: 16,
+                    background: 'var(--surface-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <renderer.Properties adapter={adapter} brand={brand} />
+                </div>
+              ) : null}
             </div>
           ) : null}
 

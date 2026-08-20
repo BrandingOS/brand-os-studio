@@ -1,19 +1,15 @@
 import { useRef } from 'react';
 import { Plus, Trash2, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
+import { fieldGroupsFor, findFieldForPath, type FieldSpec } from './fields';
+import { getStringAtPath, setAtPath } from './paths';
+import { invoiceTotals, formatMoney } from './compute';
 import {
-  fieldGroupsFor,
-  findFieldForPath,
-  getStringAtPath,
-  invoiceTotals,
-  formatMoney,
   isInvoice,
   nextLineItemId,
-  setAtPath,
   type ContentKind,
   type DeliverableContent,
-  type FieldSpec,
   type InvoiceContent,
-} from '@/features/brandkit/content';
+} from './kinds';
 
 /**
  * The contextual panel.
