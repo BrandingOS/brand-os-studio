@@ -15,6 +15,7 @@ import {
   resolveBrandCover,
 } from './workspaceCard';
 import { contrastRatio } from './logoOnBackground';
+import { solidInk } from './logoInk';
 import type { Brand } from '@/shared/types/brand';
 
 const brand = (over: Partial<Brand> = {}): Brand =>
@@ -212,14 +213,16 @@ describe('the face a card draws', () => {
 
     // Measured as dark grey: same answer, now for the right reason — and the
     // brand keeps its own colour rather than the card turning white.
-    const measured = brandCardFace(brandWithDarkArtwork, { 'lockup.svg': '#3A3A3A' });
+    const measured = brandCardFace(brandWithDarkArtwork, {
+      'lockup.svg': solidInk('#3A3A3A'),
+    });
     expect(measured.logoUrl).toBe('white.svg');
     expect(measured.background.toLowerCase()).toBe('#1b1b1b');
   });
 
   it('keeps the Primary logo when its measured ink DOES read on the brand', () => {
     const b = withRoles({ primary: 'lockup.svg', monoWhite: 'white.svg' }, '#1B1B1B');
-    const face = brandCardFace(b, { 'lockup.svg': '#F5C518' });
+    const face = brandCardFace(b, { 'lockup.svg': solidInk('#F5C518') });
     expect(face.logoUrl).toBe('lockup.svg');
     expect(face.background.toLowerCase()).toBe('#1b1b1b');
   });
@@ -236,5 +239,92 @@ describe('the face a card draws', () => {
     const face = brandCardFace(withRoles({}));
     expect(face.logoUrl).toBeUndefined();
     expect(face.letter).toBe('A');
+  });
+});
+
+describe('a logo that is more than one colour', () => {
+  const kaafex = (): Brand =>
+    brand({
+      // The brand's own yellow.
+      primaryColor: '#F0C33C',
+      brandAssets: [
+        {
+          id: 'asset-lockup',
+          kind: 'logo',
+          name: 'Primary',
+          formats: { svg: { url: 'lockup.svg', size: 1 } },
+          tags: [],
+        },
+        {
+          id: 'asset-white',
+          kind: 'logo',
+          name: 'mono.white',
+          formats: { svg: { url: 'white.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: {
+        primary: { assetId: 'asset-lockup' },
+        mono: { white: { assetId: 'asset-white' } },
+      },
+    } as Partial<Brand>);
+
+  /** A yellow mark beside a near-black wordmark — the Kaafex lockup. */
+  const twoTone = {
+    clusters: [
+      { hex: '#1B1B1B', weight: 0.78 },
+      { hex: '#F0C33C', weight: 0.22 },
+    ],
+    mean: '#4E4324',
+    transparent: true,
+  };
+
+  it('rejects the variant whose MARK would vanish, even though its average reads', () => {
+    // The average is dark and clears the floor on yellow, which is exactly how
+    // the yellow asterisk ended up invisible on the brand's own yellow card.
+    expect(contrastRatio(twoTone.mean, '#F0C33C')).toBeGreaterThan(2.2);
+
+    const face = brandCardFace(kaafex(), { 'lockup.svg': twoTone });
+    expect(face.logoUrl).not.toBe('lockup.svg');
+  });
+
+  it('finds the pairing where the WHOLE logo reads, ground and all', () => {
+    // White on the brand's light yellow is barely there either, so the answer
+    // is not "swap the variant" or "move the ground" — it is the pair: the
+    // white twin, on a brand-tinted dark ground.
+    const face = brandCardFace(kaafex(), { 'lockup.svg': twoTone });
+    expect(face.logoUrl).toBe('white.svg');
+    expect(contrastRatio('#ffffff', face.background)).toBeGreaterThan(2.2);
+  });
+
+  it('shows the logo anyway when no ground carries all of it, losing least', () => {
+    const b = brand({
+      primaryColor: '#F0C33C',
+      brandAssets: [
+        {
+          id: 'asset-lockup',
+          kind: 'logo',
+          name: 'Primary',
+          formats: { svg: { url: 'lockup.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: { primary: { assetId: 'asset-lockup' } },
+    } as Partial<Brand>);
+
+    // A light accent beside a dark body wants two grounds at once. Showing the
+    // brand's initial would lose more of the logo than any pairing does.
+    const face = brandCardFace(b, { 'lockup.svg': twoTone });
+    expect(face.logoUrl).toBe('lockup.svg');
+    expect(face.letter).toBeUndefined();
+    // The larger half is the half that survives.
+    expect(contrastRatio('#1B1B1B', face.background)).toBeGreaterThan(2.2);
+  });
+
+  it('honours a variant the user forced, even when another would read better', () => {
+    // Automatic would have chosen the white twin. Forced means forced.
+    const b = { ...kaafex(), workspaceCard: { logoRole: 'primary' } } as Brand;
+    const face = brandCardFace(b, { 'lockup.svg': twoTone });
+    expect(face.logoUrl).toBe('lockup.svg');
   });
 });

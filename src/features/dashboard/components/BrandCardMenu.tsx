@@ -2,7 +2,11 @@ import { cloneElement, isValidElement, useCallback, useRef, useState } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
+import {
+  ContextMenu,
+  type ContextMenuItem,
+  type ContextMenuState,
+} from '@/features/setup/components/ContextMenu';
 // `.ctx-menu` lives in workspace.css. Importing it here means the menu looks
 // right on every page that uses this component, including the ones outside
 // the workspace shell (e.g. the /dashboard/brands list).
@@ -13,6 +17,8 @@ import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourc
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { mergeWorkspaceCard, resolveBrandCover } from '@/shared/brand/workspaceCard';
+import { variantsInPriorityOrder } from '@/shared/brand/logoOnBackground';
+import { logoRoleLabel } from '@/shared/brand/logoRoles';
 import { useProjectRename } from './useProjectRename';
 import type { Brand } from '@/shared/types/brand';
 
@@ -44,6 +50,12 @@ const CoverIcon = () => (
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <circle cx="8.5" cy="8.5" r="1.5" />
     <path d="m21 15-5-5L5 21" />
+  </svg>
+);
+const LogoIcon = () => (
+  <svg {...iconProps}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3a9 9 0 0 0 0 18" fill="currentColor" stroke="none" />
   </svg>
 );
 const CoverOffIcon = () => (
@@ -150,6 +162,16 @@ interface Props {
    * same either way; only the way in moves.
    */
   placement?: 'corner' | 'end';
+  /**
+   * Selection, when the surface supports it. The slot is where the checkbox
+   * belongs — it is the only element that wraps the card without being inside
+   * the link, which a checkbox must not be.
+   */
+  selectable?: boolean;
+  selected?: boolean;
+  /** True while ANY project is selected, so every card shows where it stands. */
+  selecting?: boolean;
+  onToggleSelect?: (modifiers: { shift: boolean; meta: boolean }) => void;
   /** A single element (card / link). The handler is attached to it directly
    *  so no extra element lands between the slot and the card. */
   children: React.ReactElement;
@@ -169,7 +191,16 @@ interface Props {
  * identity and still be told apart. The brand's real name is edited where the
  * brand is edited.
  */
-export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }: Props) {
+export function BrandCardMenu({
+  brand,
+  editUrl,
+  children,
+  placement = 'corner',
+  selectable = false,
+  selected = false,
+  selecting = false,
+  onToggleSelect,
+}: Props) {
   const navigate = useNavigate();
   const updateBrand = useBrandStore((s) => s.update);
   const deleteBrand = useBrandStore((s) => s.delete);
@@ -185,6 +216,22 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
 
   const { label, rename } = useProjectRename(brand);
   const hasCover = Boolean(resolveBrandCover(brand));
+  const variants = variantsInPriorityOrder(brand);
+  const forcedRole = brand.workspaceCard?.logoRole;
+
+  const setLogoRole = async (role: string | undefined) => {
+    setBusy(true);
+    try {
+      await saveCard({ logoRole: role });
+      toast.success(role ? `Showing the ${logoRoleLabel(role as never)}` : 'Logo chosen automatically');
+    } catch (err) {
+      toast.error('Could not change the logo', {
+        description: err instanceof Error ? err.message : 'Please try again.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const closeMenu = useCallback(() => {
     anchorRef.current?.classList.remove('is-ctx-active');
@@ -269,7 +316,7 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
     }
   };
 
-  const items = () => [
+  const items = (): ContextMenuItem[] => [
     {
       label: 'Rename project',
       icon: <RenameIcon />,
@@ -283,6 +330,30 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
       icon: <CoverIcon />,
       onSelect: () => setCoverOpen(true),
     },
+    // The card picks its own variant, and gets it right by measuring the
+    // artwork — but "by default" has to mean there is a way to overrule it.
+    ...(variants.length > 1
+      ? [
+          {
+            label: 'Logo on this card',
+            icon: <LogoIcon />,
+            // Ignored for a submenu — the type requires it all the same.
+            onSelect: () => {},
+            children: [
+              {
+                label: 'Automatic',
+                disabled: !forcedRole,
+                onSelect: () => void setLogoRole(undefined),
+              },
+              ...variants.map((v) => ({
+                label: logoRoleLabel(v.role),
+                disabled: forcedRole === v.role,
+                onSelect: () => void setLogoRole(v.role),
+              })),
+            ],
+          },
+        ]
+      : []),
     ...(hasCover
       ? [{ label: 'Remove cover', icon: <CoverOffIcon />, onSelect: () => void removeCover() }]
       : []),
@@ -334,8 +405,33 @@ export function BrandCardMenu({ brand, editUrl, children, placement = 'corner' }
   return (
     // `group/slot` lets a Tailwind-styled card react to hover on the SLOT, so
     // the card and its menu button behave as one thing (see brandCardMenu.css).
-    <div className={placement === 'end' ? 'bcm-slot bcm-slot--end group/slot' : 'bcm-slot group/slot'}>
+    <div
+      className={placement === 'end' ? 'bcm-slot bcm-slot--end group/slot' : 'bcm-slot group/slot'}
+      data-selected={selected ? 'true' : undefined}
+      data-selecting={selecting ? 'true' : undefined}
+      data-project-id={brand.id}
+    >
       {trigger}
+
+      {selectable && (
+        <button
+          type="button"
+          className="bcm-check"
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={`Select ${label}`}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSelect?.({ shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
+          }}
+        >
+          <svg {...iconProps} width={14} height={14}>
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </button>
+      )}
 
       <button
         type="button"

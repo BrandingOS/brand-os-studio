@@ -51,10 +51,13 @@
      read as a separate widget floating over it — which is exactly what it
      looked like. Same distance, same curve, same trigger. */
   transform: translateY(0);
+  /* Slow enough to read as motion rather than a jump. The card uses the same
+     duration and curve, so the two arrive together — a button that settled
+     first would look like it had come loose. */
   transition:
-    opacity 150ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .bcm-slot:hover .bcm-trigger,
 .bcm-slot:focus-within .bcm-trigger,
@@ -154,4 +157,131 @@
 }
 .bcm-name-input:focus {
   box-shadow: 0 0 0 3px var(--ds-focus-ring, rgba(20, 20, 20, 0.16));
+}
+
+/* ── Selecting projects ─────────────────────────────────────────────── */
+
+/* The checkbox is the third way to select, and the discoverable one. It follows
+   the menu button's rule: always THERE, its visibility waiting for the pointer
+   — except once a selection exists, when every card must show where it stands. */
+.bcm-check {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ds-border-strong, rgba(20, 20, 20, 0.22));
+  border-radius: 6px;
+  background: var(--ds-surface, #fff);
+  color: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bcm-slot:hover .bcm-check,
+.bcm-slot:focus-within .bcm-check,
+.bcm-slot[data-selecting='true'] .bcm-check {
+  opacity: 1;
+  transform: translateY(var(--bcm-lift));
+}
+.bcm-check[aria-checked='true'] {
+  opacity: 1;
+  background: var(--ds-text, #141414);
+  border-color: var(--ds-text, #141414);
+  color: var(--ds-surface, #fff);
+}
+.bcm-check:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring, rgba(20, 20, 20, 0.35));
+}
+
+/* A selected card says so from across the grid, not only at its checkbox. */
+.bcm-slot[data-selected='true'] > *:first-child {
+  box-shadow: 0 0 0 2px var(--ds-text, #141414);
+}
+
+/* The rubber band. Drawn in the grid's own coordinates, so it does not care
+   how the page is scrolled. */
+.bcm-band {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  border: 1px solid var(--ds-text, #141414);
+  background: color-mix(in srgb, var(--ds-text, #141414) 8%, transparent);
+  border-radius: 4px;
+}
+
+.bcm-grid-surface {
+  position: relative;
+}
+/* A band gesture must not paint the page blue behind it. */
+.bcm-grid-surface[data-banding='true'] {
+  user-select: none;
+}
+
+.bcm-selbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border, rgba(20, 20, 20, 0.12));
+  background: var(--ds-surface, #fff);
+  box-shadow: 0 4px 10px rgba(20, 18, 14, 0.08), 0 16px 40px rgba(20, 18, 14, 0.2);
+  animation: bcm-selbar-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes bcm-selbar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.bcm-selbar-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text, #141414);
+  white-space: nowrap;
+}
+.bcm-selbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.bcm-folder-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bcm-folder-chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border, rgba(20, 20, 20, 0.12));
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text, #141414);
+  cursor: pointer;
+}
+.bcm-folder-chip:hover {
+  background: var(--ds-surface-hover, rgba(20, 20, 20, 0.05));
+}
+.bcm-folder-chip--current {
+  border-color: var(--ds-text, #141414);
 }

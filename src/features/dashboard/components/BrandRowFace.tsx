@@ -13,7 +13,7 @@ export function BrandRowFace({ brand }: { brand: Brand }) {
 
   return (
     <div
-      className="w-12 h-12 rounded-md shrink-0 grid place-items-center overflow-hidden transition-transform duration-300 motion-safe:group-hover/slot:scale-105"
+      className="w-12 h-12 rounded-md shrink-0 grid place-items-center overflow-hidden transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover/slot:scale-105"
       style={{ background: face.background, color: face.color }}
       aria-hidden="true"
     >

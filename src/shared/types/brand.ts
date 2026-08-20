@@ -145,6 +145,17 @@ export interface WorkspaceCard {
   label?: string;
   coverAssetId?: string;
   coverUrl?: string;
+  /**
+   * A logo variant the user chose by hand.
+   *
+   * The card picks its own by default and gets it right by measuring the
+   * artwork — but "by default" has to mean there is a way to overrule it, and
+   * a forced variant is not a suggestion: the GROUND moves around it rather
+   * than the variant being dropped for a more convenient one.
+   */
+  logoRole?: string;
+  /** Which folder this project sits in on the dashboard. */
+  folder?: string;
 }
 
 export interface BrandUIStyle {

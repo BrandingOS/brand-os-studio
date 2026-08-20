@@ -109,12 +109,12 @@ export default function BrandsPage() {
                   // Hover is read from the SLOT (see brandCardMenu.css): the
                   // menu button is a sibling of this card, so a `hover:` here
                   // would leave the row still while its own control lit up.
-                  className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[280ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:group-hover/slot:-translate-y-0.5 group-hover/slot:shadow-xl group-hover/slot:border-primary/30"
+                  className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover/slot:-translate-y-0.5 group-hover/slot:shadow-xl group-hover/slot:border-primary/30"
                 >
                   <div className="flex flex-row">
                     {/* Color strip — gradient primary → secondary/accent */}
                     <div
-                      className="w-1.5 shrink-0 transition-[width] duration-[280ms] group-hover/slot:w-2"
+                      className="w-1.5 shrink-0 transition-[width] duration-[420ms] group-hover/slot:w-2"
                       style={{
                         background: colorIsSentinel
                           ? 'hsl(var(--border))'
@@ -143,7 +143,7 @@ export default function BrandsPage() {
                             {swatches.map((color, i) => (
                               <div
                                 key={`${color}-${i}`}
-                                className="w-4 h-4 rounded-full border border-border/60 shadow-sm transition-transform duration-300 motion-safe:group-hover/slot:scale-110"
+                                className="w-4 h-4 rounded-full border border-border/60 shadow-sm transition-transform duration-[420ms] motion-safe:group-hover/slot:scale-110"
                                 style={{
                                   backgroundColor: color,
                                   transitionDelay: `${i * 30}ms`,

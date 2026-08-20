@@ -1178,23 +1178,54 @@ design:
 2. **On that ground, Primary logo → Brand Icon → any other variant.** Priority
    chooses among variants that can be SEEN; it never promotes one that cannot.
 
-**"Can be seen" is MEASURED, not guessed** (`shared/brand/logoInk.ts`). Every
-contrast decision in the app used to assume a coloured variant was inked in the
-brand's primary colour — the only colour the record carries. A lockup with a
-yellow mark and a dark grey wordmark therefore scored as YELLOW, cleared the
-floor on a near-black card, and rendered as a yellow asterisk beside an
-invisible name. `readLogoInk` draws the artwork at 32² and averages its ink
-weighted by alpha; results are cached per url per tab, mono roles skip it
-entirely (white is white), and every failure — tainted canvas, dead url, sizeless
-SVG — falls back to the old guess rather than throwing. `variantsInPriorityOrder`
-+ `pickGroundForInk` in `logoOnBackground.ts` are the reusable halves.
+**"Can be seen" is MEASURED, and measured as CLUSTERS** (`shared/brand/logoInk.ts`).
+Two guesses failed here in turn, and the second is the instructive one:
 
-**A logo chosen as a COVER is shown whole.** `resolveBrandCover` returns
-`{ url, fit }` and picks `contain` for a `kind: 'logo'` asset, `cover` only for a
-photograph. Cropping a mark is not a crop; it is a mark cut in half. The band
-image also carries hard `max-height`/`max-width` ceilings — `width: auto` on an
-SVG with no intrinsic size resolves to the CSS default, not to the drawing, so a
-logo could be laid out far wider than the band and merely clipped by it.
+- Assuming a coloured variant is inked in the brand's primary colour — the only
+  colour the record carries — scored a yellow-mark-plus-dark-wordmark lockup as
+  YELLOW.
+- Measuring the artwork and AVERAGING it scored the same lockup as DARK: true of
+  most of its pixels and useless, because on the brand's yellow card the
+  wordmark read perfectly and the yellow mark vanished. **An average cannot
+  answer "does this logo read", because a logo reads only if every part of it
+  does.**
+
+So `readLogoInk` returns the ink as quantised, merged clusters with their
+shares, and `inkReadsOn` requires every cluster carrying ≥8% of the ink to clear
+the floor — one failing cluster is a failing logo. `inkCoverage` is the
+tie-breaker for artwork that reads nowhere in full (a light accent beside a dark
+body wants two grounds at once): the card takes the (variant, ground) pairing
+that loses least rather than falling back to an initial. Cached per url per tab,
+mono roles skip it, and every failure falls back to the brand's primary colour.
+`variantsInPriorityOrder` + `pickGroundForInk` in `logoOnBackground.ts` are the
+reusable halves. `workspaceCard.logoRole` is the manual override — a forced
+variant is not a suggestion, so the GROUND moves around it.
+
+**Nothing in the band may overflow it.** Three separate guards, because this
+failed twice: `resolveBrandCover` returns `{ url, fit }` and asks for `contain`
+on a `kind: 'logo'` asset; `useBrandCover` then asks the IMAGE via
+`useImageFit` — anything with a transparent field is artwork and is shown whole,
+and only a demonstrably opaque photograph may crop (`contain` also wins while
+the measurement is in flight). And the band image carries hard `max-height` /
+`max-width` ceilings, because `width: auto` on an SVG with no intrinsic size
+resolves to the CSS default rather than to the drawing, so a logo could be laid
+out far wider than its band and merely clipped by it.
+
+**Selecting projects** (`useProjectSelection` + `ProjectSelectionBar` +
+`MoveToFolderModal`): a checkbox on the card, ⌘-click and Shift-click, and a
+rubber band dragged across the grid, all sharing one piece of state so they
+compose. The band starts only on empty space — it bows out when the press lands
+on `a, button, input, [data-project-id]` — and measures in the SURFACE's
+coordinates, so it stays put while the page scrolls. Escape clears.
+
+**A folder is a NAME, not a record.** `workspaceCard.folder` is a string on the
+card; the set of folders is whatever names the projects currently carry, so the
+tab bar is derived and a folder disappears when the last project leaves it. No
+table, no id, no migration, nothing to orphan. If folders later need to be
+empty, renamed or nested they become a record then — and the stored names are
+the migration. Bulk writes go one at a time and awaited: the store re-reads the
+brand between writes, so firing them together would build each patch from a
+stale copy.
 
 **One menu, both surfaces.** `features/dashboard/components/BrandCardMenu.tsx`
 owns the items, the dialogs and every write, and uses `DsModal` /

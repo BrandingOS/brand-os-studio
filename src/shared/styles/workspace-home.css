@@ -207,10 +207,12 @@
   text-decoration: none;
   color: inherit;
   cursor: pointer;
+  /* 420ms, not 220: at the old duration the lift read as a snap rather than a
+     movement, and the shadow arrived after the card had already stopped. */
   transition:
-    transform 220ms var(--ds-ease),
-    box-shadow 220ms var(--ds-ease),
-    border-color 220ms var(--ds-ease);
+    transform 420ms var(--ds-ease),
+    box-shadow 420ms var(--ds-ease),
+    border-color 420ms var(--ds-ease);
 }
 /* Hover belongs to the SLOT, not the card.
    The menu button is a sibling of the card, not a child of it — it has to be,
@@ -524,4 +526,37 @@
 [data-workspace] .ws-subtab.is-active {
   color: var(--ds-text);
   background: var(--accent-muted);
+}
+
+/* ── Folders ────────────────────────────────────────────────────────────
+   A folder is a NAME a project carries, so this bar is derived from the
+   projects and appears only once one of them is in a folder. Tabs, not chips:
+   the choice filters the whole grid, which is what a tab means. */
+[data-workspace] .ws-folder-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 20px;
+}
+[data-workspace] .ws-folder-tab {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--ds-ease),
+    border-color 200ms var(--ds-ease),
+    color 200ms var(--ds-ease);
+}
+[data-workspace] .ws-folder-tab:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+[data-workspace] .ws-folder-tab.is-active {
+  border-color: var(--ds-text);
+  color: var(--ds-text);
 }

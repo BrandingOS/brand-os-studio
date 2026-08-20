@@ -18,12 +18,17 @@ import type { AssetFormat } from '@/shared/types/brandAssets';
 import { surfacePalette } from '@/shared/brand/brandPalette';
 import {
   FACE_PRIORITY,
-  contrastRatio,
   knownInkOfRole,
-  pickGroundForInk,
   variantsInPriorityOrder,
 } from '@/shared/brand/logoOnBackground';
-import { useLogoInks } from '@/shared/brand/logoInk';
+import {
+  inkCoverage,
+  inkReadsOn,
+  solidInk,
+  useImageFit,
+  useLogoInks,
+  type LogoInk,
+} from '@/shared/brand/logoInk';
 
 /** Format preference for a cover — a photograph, so raster before vector. */
 const COVER_FORMATS: AssetFormat[] = ['webp', 'png', 'jpg', 'svg'];
@@ -108,6 +113,8 @@ export function mergeWorkspaceCard(
   if (!next.label?.trim()) delete next.label;
   if (!next.coverAssetId) delete next.coverAssetId;
   if (!next.coverUrl) delete next.coverUrl;
+  if (!next.logoRole) delete next.logoRole;
+  if (!next.folder?.trim()) delete next.folder;
   // `null`, not `undefined`: a patch key set to undefined is skipped by every
   // layer between here and the database, so clearing the last field would
   // silently keep the old value. Null is the instruction to clear it.
@@ -157,24 +164,33 @@ const FACE_FLOOR = 2.2;
  */
 export function brandCardFace(
   brand: Brand | null | undefined,
-  inks?: Record<string, string | undefined>,
+  inks?: Record<string, LogoInk | undefined>,
 ): BrandCardFace {
   const brandGround = surfacePalette(brand as Brand, 'brand');
   const letter = (brand?.name ?? 'B').trim().slice(0, 1).toUpperCase() || 'B';
 
-  const variants = variantsInPriorityOrder(brand, FACE_PRIORITY);
-  if (variants.length === 0) {
+  const all = variantsInPriorityOrder(brand, FACE_PRIORITY);
+  if (all.length === 0) {
     return { background: brandGround.bg, color: brandGround.text, letter };
   }
 
-  const inkOf = (v: (typeof variants)[number]) =>
-    knownInkOfRole(v.role) ?? inks?.[v.resolved.url] ?? brand?.primaryColor;
+  // A variant the user picked by hand is not a suggestion. It leads, and if it
+  // is the only one they want, the ground is what moves around it.
+  const forced = brand?.workspaceCard?.logoRole;
+  const variants = forced ? all.filter((v) => v.role === forced) : all;
+  const candidates = variants.length > 0 ? variants : all;
 
-  // Rule 1 first: keep the brand's colour if ANY variant reads on it, and let
-  // priority choose among the ones that do.
-  for (const variant of variants) {
-    const ink = inkOf(variant);
-    if (ink && contrastRatio(ink, brandGround.bg) >= FACE_FLOOR) {
+  const inkOf = (v: (typeof all)[number]): LogoInk | undefined => {
+    const known = knownInkOfRole(v.role);
+    if (known) return solidInk(known);
+    return inks?.[v.resolved.url] ?? (brand?.primaryColor ? solidInk(brand.primaryColor) : undefined);
+  };
+
+  // Rule 1 first: keep the brand's colour if a variant READS on it — every
+  // significant part of it, not the average — and let priority choose among
+  // the ones that do.
+  for (const variant of candidates) {
+    if (inkReadsOn(inkOf(variant), brandGround.bg, FACE_FLOOR)) {
       return {
         background: brandGround.bg,
         color: brandGround.text,
@@ -187,20 +203,43 @@ export function brandCardFace(
   // in priority order — and move the ground to a brand-tinted extreme. Asking
   // the palette for `inverted` in both modes gives near-black and near-white,
   // both carrying the brand's hue.
-  const chosen = variants[0]!;
-  const ink = inkOf(chosen);
   const dark = surfacePalette(brand as Brand, 'inverted', 'light');
   const light = surfacePalette(brand as Brand, 'inverted', 'dark');
-  const ground = ink
-    ? pickGroundForInk(ink, [dark.bg, light.bg], FACE_FLOOR)
-    : undefined;
+  for (const variant of candidates) {
+    const ink = inkOf(variant);
+    for (const ground of [dark, light]) {
+      if (inkReadsOn(ink, ground.bg, FACE_FLOOR)) {
+        return { background: ground.bg, color: ground.text, logoUrl: variant.resolved.url };
+      }
+    }
+  }
 
-  if (!ground) return { background: brandGround.bg, color: brandGround.text, letter };
-  return {
-    background: ground,
-    color: ground === dark.bg ? dark.text : light.text,
-    logoUrl: chosen.resolved.url,
-  };
+  // No pairing is perfect. This happens for real artwork and is not a defect in
+  // it: a light accent beside a dark body wants two different grounds at once,
+  // and no flat colour is both. Showing the brand's initial instead would lose
+  // MORE of the logo than any of these, so take the pairing that loses least —
+  // and, on a tie, the brand's own colour.
+  let best: { face: BrandCardFace; coverage: number } | undefined;
+  for (const variant of candidates) {
+    const ink = inkOf(variant);
+    for (const ground of [brandGround, dark, light]) {
+      const coverage = inkCoverage(ink, ground.bg, FACE_FLOOR);
+      if (!best || coverage > best.coverage) {
+        best = {
+          coverage,
+          face: {
+            background: ground.bg,
+            color: ground.text,
+            logoUrl: variant.resolved.url,
+          },
+        };
+      }
+    }
+  }
+
+  if (best && best.coverage > 0) return best.face;
+  // Nothing of any variant can be seen anywhere. Only now is a letter right.
+  return { background: brandGround.bg, color: brandGround.text, letter };
 }
 
 /**
@@ -218,4 +257,23 @@ export function useBrandCardFace(brand: Brand | null | undefined): BrandCardFace
   const unknown = variants.filter((v) => !knownInkOfRole(v.role)).map((v) => v.resolved.url);
   const inks = useLogoInks(unknown);
   return brandCardFace(brand, inks);
+}
+
+/**
+ * A cover, with how it should sit decided by the picture rather than by what
+ * the Library happened to call it.
+ *
+ * `resolveBrandCover` reads the asset's kind, which is right when the kind is
+ * right — and a logo uploaded through the DAM as a plain image is filed as one.
+ * That is how a mark ended up scaled to fill a card and bleeding past both its
+ * edges. So the image itself is asked: anything with a transparent field is
+ * shown whole, and only a demonstrably opaque picture is allowed to crop.
+ */
+export function useBrandCover(brand: Brand | null | undefined): BrandCover | undefined {
+  const cover = resolveBrandCover(brand);
+  const measured = useImageFit(cover?.url);
+  if (!cover) return undefined;
+  // Either signal saying "artwork" is enough. Only agreement allows a crop.
+  const fit = cover.fit === 'contain' || measured === 'contain' ? 'contain' : 'cover';
+  return { url: cover.url, fit };
 }

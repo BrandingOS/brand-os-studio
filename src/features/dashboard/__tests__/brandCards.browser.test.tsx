@@ -90,6 +90,16 @@ function LocationProbe() {
   return null;
 }
 
+function mountMany(brands: Brand[]) {
+  useBrandStore.setState({ list: brands, current: brands[0], isLoading: false });
+  return render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <WorkspaceHome />
+      <LocationProbe />
+    </MemoryRouter>,
+  );
+}
+
 function mount(brand: Brand) {
   useBrandStore.setState({ list: [brand], current: brand, isLoading: false });
   return render(
@@ -414,5 +424,101 @@ describe('where the menu goes', () => {
     fireEvent.click(await screen.findByText('Share'));
 
     await waitFor(() => expect(lastPath).toBe('/b/acme/identity'));
+  });
+});
+
+describe('selecting projects', () => {
+  const three = () => [
+    seedBrand({ id: 'b1', slug: 'one', name: 'One' }),
+    seedBrand({ id: 'b2', slug: 'two', name: 'Two' }),
+    seedBrand({ id: 'b3', slug: 'three', name: 'Three' }),
+  ];
+
+  function installMany(brands: Brand[]) {
+    let stored = [...brands];
+    const patches: Array<{ id: string; patch: Partial<Brand> }> = [];
+    const deleted: string[] = [];
+    container.register(SERVICE_KEYS.BRANDS, () =>
+      ({
+        list: async () => stored,
+        getById: async (id: string) => stored.find((b) => b.id === id) ?? null,
+        getBySlug: async (slug: string) => stored.find((b) => b.slug === slug) ?? null,
+        create: async () => stored[0]!,
+        update: async (id: string, patch: Partial<Brand>) => {
+          patches.push({ id, patch });
+          stored = stored.map((b) => (b.id === id ? { ...b, ...patch } : b));
+          return stored.find((b) => b.id === id)!;
+        },
+        delete: async (id: string) => {
+          deleted.push(id);
+          stored = stored.filter((b) => b.id !== id);
+        },
+      }) as IBrandsService,
+    );
+    return { patches, deleted };
+  }
+
+  it('a checkbox selects one, and the bar says how many', async () => {
+    installMany(three());
+    mountMany(three());
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    expect(await screen.findByText('1 selected')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Three' }));
+    expect(await screen.findByText('2 selected')).toBeTruthy();
+  });
+
+  it('Shift takes the run between the two', async () => {
+    installMany(three());
+    mountMany(three());
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Three' }), { shiftKey: true });
+
+    expect(await screen.findByText('3 selected')).toBeTruthy();
+  });
+
+  it('a card click selects rather than opens once a selection is running', async () => {
+    installMany(three());
+    mountMany(three());
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    const card = document.querySelector('[data-project-id="b2"] .ws-brand-card') as HTMLElement;
+    fireEvent.click(card);
+
+    expect(await screen.findByText('2 selected')).toBeTruthy();
+    // The brand was NOT opened.
+    expect(lastPath).toBe('/dashboard');
+  });
+
+  it('moves the selected projects into a folder, and offers it afterwards', async () => {
+    const installed = installMany(three());
+    mountMany(three());
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Two' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move to folder' }));
+
+    const field = await screen.findByLabelText('Folder name');
+    fireEvent.change(field, { target: { value: 'Client work' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create and move' }));
+
+    await waitFor(() => expect(installed.patches.length).toBe(2));
+    expect(installed.patches.every((p) => p.patch.workspaceCard?.folder === 'Client work')).toBe(
+      true,
+    );
+    // A folder is a name the projects carry, so the bar is derived from them.
+    expect(await screen.findByRole('tab', { name: 'Client work' })).toBeTruthy();
+  });
+
+  it('Escape clears the selection', async () => {
+    installMany(three());
+    mountMany(three());
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    expect(await screen.findByText('1 selected')).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByText('1 selected')).toBeNull());
   });
 });
