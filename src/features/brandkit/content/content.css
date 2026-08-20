@@ -65,10 +65,17 @@
  * because otherwise the text itself would be unreadable. So the
  * affordance inherits the contrast the design already guarantees, and
  * the three states are told apart by WEIGHT and DASH rather than hue. */
-.bk-editor-preview-frame .bk-bind {
+/* Gated on [data-bind-editable] — set only by the ctx-present span in
+ * Bind.tsx — rather than on the .bk-editor-preview-frame ancestor alone.
+ * That class wraps both an editable canvas (Design's TemplateInstanceCanvas)
+ * and a non-editable preview (Brand Kit's master-template preview); without
+ * the attribute gate a hovered region in Brand Kit would draw the same
+ * "you can type here" affordance it has in Design, which is exactly the
+ * lie a preview must not tell. */
+.bk-editor-preview-frame .bk-bind[data-bind-editable] {
   cursor: text;
 }
-.bk-editor-preview-frame .bk-bind:hover {
+.bk-editor-preview-frame .bk-bind[data-bind-editable]:hover {
   outline-style: dashed;
   outline-color: color-mix(in srgb, currentColor 45%, transparent);
 }
@@ -82,7 +89,7 @@
   outline-color: currentColor;
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
-.bk-editor-preview-frame .bk-bind:focus-visible {
+.bk-editor-preview-frame .bk-bind[data-bind-editable]:focus-visible {
   outline-color: currentColor;
 }
 

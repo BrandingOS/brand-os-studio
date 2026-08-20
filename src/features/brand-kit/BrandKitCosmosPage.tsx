@@ -933,6 +933,17 @@ export function BrandKitCosmosPage({
     [drilldownTarget],
   );
 
+  /** Same lookup as `drilldownDeliverable`, but for whichever card is
+   *  open in the editor modal — the two can differ, since the editor
+   *  also opens directly from a section-page card (right-click Edit)
+   *  without going through the drilldown at all. Drives the modal's
+   *  `Use Template` / `Edit Template` footer. */
+  const editorDeliverable: DeliverableDef | undefined = useMemo(
+    () =>
+      editorTarget ? getDeliverable(editorTarget.sectionKey, editorTarget.label) : undefined,
+    [editorTarget],
+  );
+
   /**
    * The item the user is actually looking at — what the sidebar
    * highlights. This one IS gated on `view`, because exiting deliberately
@@ -1313,6 +1324,16 @@ export function BrandKitCosmosPage({
           await handleDownloadCard(t);
         }}
         onUpdateIconAt={handleUpdateIconAt}
+        onUseTemplate={
+          editorDeliverable?.contentTypeId
+            ? (template) => handleUseTemplate(template, editorDeliverable)
+            : undefined
+        }
+        onEditTemplate={
+          editorDeliverable?.contentTypeId
+            ? (template) => handleEditTemplate(template, editorDeliverable)
+            : undefined
+        }
       />
       <IconPickerModal
         open={iconPickerOpen}

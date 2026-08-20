@@ -165,6 +165,64 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* ── Left column: preview + variant switcher ──
+   Grid col 1 is now this column rather than the preview card directly,
+   so a deliverable can show its OTHER layouts underneath the preview
+   without the rail's own column stealing the strip (a bare 2-column
+   grid would place the strip in the rail's track, one row down from
+   where the preview sits — this wrapper keeps both preview and strip
+   in column 1). */
+.bk-editor-preview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+.bk-editor-preview-col > .bk-editor-preview-card {
+  flex: 1 1 auto;
+}
+
+/* Variant switcher — reuses the drilldown grid's own tile classes
+   (.bk-variant-card / .bk-variant-tile / .bk-variant-tile-render /
+   .bk-variant-tile-cover / .bk-variant-label) so a variant reads as
+   the same artifact in both places. Those classes' CONTAINER rules
+   are declared `[data-workspace] .bk-variant-card` / `[data-workspace]
+   .bk-variant-label` on the page, which never reaches this portal (see
+   the Radix-portal note in CLAUDE.md) — so the sizing for THIS context
+   is scoped here instead, unscoped, the same way every other
+   `.bk-editor-*` rule in this file already is. */
+.bk-editor-variants {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  flex: 0 0 auto;
+  padding-bottom: 2px;
+}
+.bk-editor-variants .bk-variant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  width: 128px;
+  flex: 0 0 auto;
+}
+.bk-editor-variants .bk-variant-tile {
+  aspect-ratio: 1.6 / 1;
+}
+.bk-editor-variants .bk-variant-tile.is-selected {
+  border-color: var(--bke-text);
+  box-shadow: 0 0 0 2px var(--bke-text), var(--ds-shadow-xs);
+}
+.bk-editor-variants .bk-variant-label {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--bke-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Left card: preview ──
    Image fills the card edge-to-edge; eyebrow/title and the logo /
    font overlays sit on top as glassy chips. */

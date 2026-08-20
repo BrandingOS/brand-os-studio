@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -8,22 +7,15 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Image as ImageIcon, RotateCcw } from 'lucide-react';
-import { DsButton, DsSwitch } from '@/shared/ds';
+import { DsButton } from '@/shared/ds';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
 import {
-  BindProvider,
-  ContentPanel,
   contentKindForTemplateType,
-  coerceToPathType,
   defaultContentFor,
-  hydrateContent,
-  setAtPath,
   type ContentKind,
-  type DeliverableContent,
 } from '@/features/brandkit/content';
 // The editor portals to document.body and is mounted from more than one
 // page, so it brings its own styles rather than relying on whichever page
@@ -41,16 +33,11 @@ import {
   withIconWeight,
 } from '../data/iconWeights';
 import type { KitSectionKey } from './BrandKitSidebar';
-import type { BusinessCardContent, TemplateOverrides } from '../types';
+import type { TemplateOverrides } from '../types';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { ScalingStage } from '@/shared/brand/ScalingStage';
-import {
-  aspectForType,
-  contentFieldsForType,
-  defaultOverridesForType,
-  getDeliverable,
-  type ControlGroupId,
-} from '../kit/registry';
+import { aspectForType, defaultOverridesForType, getDeliverable } from '../kit/registry';
+import { variantsForCard } from '../data/legacy-mapping';
 
 const FLATICON_RR_LOOKUP = new Set(FLATICON_RR_NAMES);
 
@@ -292,14 +279,32 @@ type Props = {
    *  user picks a different weight, the page rewrites brand.icons
    *  at this index so the drilldown tile matches on close. */
   onUpdateIconAt?: (index: number, newClassName: string) => void;
+  /**
+   * `Use Template` / `Edit Template` — Task 9/10's actions, reused rather
+   * than duplicated. Present only when the currently-previewed deliverable
+   * is one the page has wired to Design (`deliverable.contentTypeId`); the
+   * footer disables the corresponding button when a handler is absent
+   * rather than calling into a family that isn't wired yet ("Invoice
+   * remains the only wired family" for now). Never offered for a
+   * brand-asset target — those still Save.
+   */
+  onUseTemplate?: (template: BrandKitTemplate) => void;
+  onEditTemplate?: (template: BrandKitTemplate) => void;
 };
 
 /**
- * Full-screen-ish (90vw × 90vh) card editor. Left half shows the card
- * cover at large size; right half is a scrollable edit rail with the
- * brand's colors, logos, and fonts. Selection state is local — the
- * intent is to wire each control to a real renderer later, when the
- * card covers are generated per-brand instead of being stock photos.
+ * Full-screen-ish (90vw × 90vh) card editor.
+ *
+ * Two different jobs behind one shell, split by `isBrandAsset`:
+ *
+ *   • A brand-asset target (one specific icon, color, or font) is still a
+ *     real editor — weight/color/shades/scale — and still Saves, because
+ *     that's brand data, not a deliverable.
+ *   • A deliverable target (a business card, an invoice, …) is a PREVIEW
+ *     of its master template plus a switcher between the deliverable's
+ *     other layouts. Nothing here edits its content anymore — the footer
+ *     hands off to Design via `onUseTemplate` / `onEditTemplate` instead
+ *     of Save.
  *
  * Closes on Escape, backdrop click, or the Cancel button. Renders
  * through a portal so the dialog escapes the workspace's stacking
@@ -315,6 +320,8 @@ export function BrandKitCardEditor({
   onSave,
   onDownload,
   onUpdateIconAt,
+  onUseTemplate,
+  onEditTemplate,
 }: Props) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedCover, setSelectedCover] = useState<string | null>(null);
@@ -337,23 +344,16 @@ export function BrandKitCardEditor({
   const [hoveredFontWeight, setHoveredFontWeight] = useState<number | null>(null);
   const [overrides, setOverrides] = useState<TemplateOverrides>({});
   /**
-   * Structured content for deliverables that have a content kind.
+   * Which master template variant is currently PREVIEWED.
    *
-   * This — not `overrides` — is what the retrofitted renderers paint
-   * from, what the contextual panel edits, and what gets saved. `null`
-   * for a deliverable with no kind yet, which keeps every un-retrofitted
-   * family on exactly the behaviour it has today.
+   * Seeded from `target.template` (a variant chosen from the drilldown
+   * grid) or, absent that (right-click Edit on a card directly), the
+   * first of the deliverable's own variants — so the modal always opens
+   * on a real preview rather than a static cover. The variant switcher
+   * below reassigns this; it is a preview switch, never an edit, and
+   * nothing here is ever saved back to a template.
    */
-  const [content, setContent] = useState<DeliverableContent | null>(null);
-  /** Which bound region on the artifact is selected, if any. */
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  // Markers detected in the rendered preview by LivePreviewFrame.
-  // The Customize panel only shows fields whose marker actually
-  // appears in this design, so the right-side controls match what's
-  // visible on the card.
-  const [presentMarkers, setPresentMarkers] = useState<Set<keyof TemplateOverrides>>(
-    new Set(),
-  );
+  const [previewTemplate, setPreviewTemplate] = useState<BrandKitTemplate | null>(null);
   // Map of CopyIcon handles, keyed by hex (or 'preview' for the big
   // tile). Lives at the top of the component so the hook count stays
   // stable across renders — the `if (!target) return null` guard
@@ -364,11 +364,17 @@ export function BrandKitCardEditor({
     () => (target ? templateTypeFor(target) : ''),
     [target],
   );
-  const editorFields = useMemo(() => contentFieldsForType(templateType), [templateType]);
   /** The content model this deliverable has, or null if it has none yet. */
   const contentKind: ContentKind | null = useMemo(
     () => contentKindForTemplateType(templateType),
     [templateType],
+  );
+  /** Every master layout for this deliverable — drives the variant
+   *  switcher. Brand-asset targets (one specific icon/color/font) don't
+   *  use this; each is a single asset, not a family of layouts. */
+  const variants = useMemo(
+    () => (target ? variantsForCard(target.sectionKey, target.label, brand) : []),
+    [target, brand],
   );
 
   /**
@@ -384,8 +390,8 @@ export function BrandKitCardEditor({
    */
   const loadedCardRef = useRef<string | null>(null);
 
-  // Reset selection + content overrides whenever a new card opens so
-  // state from the previous card doesn't bleed into this one.
+  // Reset selection + preview whenever a new card opens so state from
+  // the previous card doesn't bleed into this one.
   useEffect(() => {
     if (!target) {
       loadedCardRef.current = null;
@@ -403,6 +409,7 @@ export function BrandKitCardEditor({
     setSelectedLogoColor(brand.colors.core[0]?.hex ?? '#0F1216');
     setSelectedFontId(brand.fonts[0]?.id ?? null);
     setSelectedIconColor(brand.colors.core[0]?.hex ?? '#0F1216');
+    setPreviewTemplate(target.template ?? variants[0] ?? null);
     // Seed the weight toggle from the current icon's prefix so a
     // brand that previously saved a Bold variant lands back on Bold,
     // not Regular.
@@ -419,15 +426,14 @@ export function BrandKitCardEditor({
       setSelectedIconWeight('rr');
     }
     setHoveredFontWeight(null);
-    setSelectedPath(null);
     setOverrides(defaultOverridesForType(templateType, brand));
-    // Structured content: the saved value when there is one, hydrated so
-    // anything it predates is filled in rather than rendering blank.
-    const kind = contentKindForTemplateType(templateType);
-    setContent(kind ? defaultContentFor(kind, brand) : null);
     // Re-apply the saved customization for this card, when one exists
     // (KIT-01). Saved ids are validated against the current brand so a
-    // deleted logo/font falls back to the defaults seeded above.
+    // deleted logo/font falls back to the defaults seeded above. This
+    // still matters for brand-asset Save (icon/color/font); a deliverable
+    // no longer writes any of these fields, but an OLD save from before
+    // this change may still be on disk, and restoring it here keeps that
+    // Save round-trip byte-for-byte unchanged for brand-asset targets.
     const saved = initialCustomization;
     if (saved) {
       setOverrides({ ...defaultOverridesForType(templateType, brand), ...saved.overrides });
@@ -441,27 +447,8 @@ export function BrandKitCardEditor({
       if (saved.fontId && brand.fonts.some((f) => f.id === saved.fontId)) {
         setSelectedFontId(saved.fontId);
       }
-      if (kind) {
-        if (saved.content) {
-          setContent(hydrateContent(kind, brand, saved.content));
-        } else if (kind === 'person') {
-          // A card saved before the content model existed kept its person
-          // in the flat overrides. Read it forward so nobody's saved name
-          // disappears the day the model arrives.
-          setContent(
-            hydrateContent(kind, brand, {
-              kind: 'person',
-              fullName: saved.overrides.title,
-              jobTitle: saved.overrides.subtitle,
-              email: saved.overrides.email,
-              phone: saved.overrides.phone,
-              website: saved.overrides.website,
-            }),
-          );
-        }
-      }
     }
-  }, [target, brand, templateType, initialCustomization]);
+  }, [target, brand, templateType, initialCustomization, variants]);
 
   useEffect(() => {
     if (!target) return;
@@ -549,18 +536,13 @@ export function BrandKitCardEditor({
   }, [markerTable, overrides]);
 
   /**
-   * A bound region on the artifact was committed.
-   *
-   * The text arrives as text — a caret has no idea it is a price — so the
-   * model coerces it against whatever the field already holds. This is
-   * the ONLY way artifact edits reach data; nothing reads the rendered
-   * DOM, and nothing substitutes strings into it.
+   * The content a content-model preview paints from — always the brand's
+   * own defaults. There is no editing left to seed from a saved value:
+   * this modal previews the master, it doesn't hold a draft of it.
    */
-  const commitBoundValue = useCallback(
-    (path: string, text: string) => {
-      setContent((prev) => (prev ? (setAtPath(prev, path, coerceToPathType(prev, path, text)) as DeliverableContent) : prev));
-    },
-    [],
+  const previewContent = useMemo(
+    () => (contentKind ? defaultContentFor(contentKind, brand) : undefined),
+    [contentKind, brand],
   );
 
   if (!target) return null;
@@ -573,19 +555,6 @@ export function BrandKitCardEditor({
   // would corrupt them). Hide the rails that don't reach the
   // renderer, and skip the img swap.
   const isBrandAsset = templateType.startsWith('brand-asset-');
-  // KIT ITEMS declare which control groups apply via the registry (a
-  // favicon has no typography rail). Non-kit edits — the original
-  // brand-kit page — keep every group, the pre-registry behavior.
-  // Which brand rails this deliverable actually supports.
-  //
-  // The registry has always declared this and the canonical page never
-  // consulted it — `target.kit` is only set on the lifecycle page, so
-  // every other card rendered every rail whether or not it reached the
-  // renderer. That is why an Invoice offered a Typography picker it
-  // could not apply.
-  const deliverableDef = getDeliverable(target.sectionKey, target.label);
-  const hasGroup = (g: ControlGroupId) =>
-    !deliverableDef || deliverableDef.controlGroups.includes(g);
   const isIconAsset = templateType === 'brand-asset-icon';
   const isFontAsset = templateType === 'brand-asset-font';
   const isColorAsset = templateType === 'brand-asset-color';
@@ -908,35 +877,16 @@ export function BrandKitCardEditor({
   const fontPreviewStack = fontPreview
     ? `${fontPreview.family}, ${fontPreview.fallback ?? 'sans-serif'}`
     : '';
-  // For business-cards we pass content as a prop straight to the
-  // renderer — the DOM-walker text substitution path is disabled
-  // for this type, so typing is reliable (no compounding, no
-  // accidental whole-string deletion).
+  // Content-model families (business-cards, invoices, …) paint from
+  // `previewContent` as PROPS — the DOM-walker text substitution below is
+  // for everything else (still real: it personalises the placeholder
+  // literals baked into the design with THIS brand's name/domain, which
+  // has always run automatically and isn't something the user edits).
   const isBusinessCard = templateType === 'business-cards';
-  // Structured content goes to the renderer as PROPS. There is no
-  // overrides→content mapping left here: the content model is the single
-  // source of truth, and `overrides` only still exists for the families
-  // that have no content kind yet.
-  const livePreview = previewBrand && target.template
-    ? renderTemplateDesign(target.template, previewBrand, brand, content ?? undefined)
+  const livePreview = previewBrand && previewTemplate
+    ? renderTemplateDesign(previewTemplate, previewBrand, brand, previewContent)
     : null;
-  /** A deliverable that paints from content edits IN PLACE. */
-  const isQuickEditable = Boolean(contentKind && content && livePreview);
   const previewAspect = aspectForType(templateType);
-
-  // Only show Content fields whose marker text actually appears in
-  // the rendered design. When the preview hasn't been scanned yet
-  // (initial render) `presentMarkers` is empty — fall back to the
-  // full list so the panel isn't blank for a frame.
-  // Business-cards are prop-driven — the DOM no longer contains the
-  // marker literals after the user types, so marker-based hiding
-  // doesn't apply. Show all 5 fields unconditionally for that type.
-  const visibleFields =
-    isBusinessCard
-      ? editorFields
-      : livePreview && presentMarkers.size > 0
-        ? editorFields.filter((f) => presentMarkers.has(f.key))
-        : editorFields;
 
   return createPortal(
     <div
@@ -950,6 +900,7 @@ export function BrandKitCardEditor({
       }}
     >
       <div className="bk-editor" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="bk-editor-preview-col">
         {isIconAsset && iconPreviewClass ? (
           // Custom large preview for the icon editor — the workspace-
           // scoped CSS for the brand-asset-icon glyph doesn't reach
@@ -1070,32 +1021,23 @@ export function BrandKitCardEditor({
             className="bk-editor-preview-card bk-editor-preview-card--live"
             aria-label={`${target.label} preview`}
           >
-            <BindProvider
-              value={{
-                selectedPath,
-                onSelect: setSelectedPath,
-                onCommit: commitBoundValue,
-              }}
+            {/* No BindProvider above this — every <Bind> the renderer
+                declares falls back to a plain, non-interactive span. This
+                is Brand Kit's PREVIEW of the master template, not an
+                editing surface; editing it happens in Design now. */}
+            <LivePreviewFrame
+              // A content-model family paints from PROPS, so the legacy
+              // DOM walker stays off for it — everything else still gets
+              // the brand's own name/domain substituted into the design's
+              // placeholder literals, which is personalisation, not editing.
+              replacements={contentKind || isBusinessCard ? EMPTY_REPLACEMENTS : previewReplacements}
+              aspect={previewAspect}
+              fontFamily={isBrandAsset ? null : selectedFontFamily}
+              showLogo={overrides.showLogo !== false}
+              logoSrc={isBrandAsset ? null : previewLogoSrc}
             >
-              <LivePreviewFrame
-                // A deliverable with a content model paints from PROPS, so
-                // the legacy DOM walker is switched off for it entirely —
-                // two owners of the same text is what made an edited
-                // artifact collide with itself.
-                replacements={
-                  isQuickEditable || isBusinessCard ? EMPTY_REPLACEMENTS : previewReplacements
-                }
-                markerTable={markerTable}
-                onMarkers={setPresentMarkers}
-                aspect={previewAspect}
-                fontFamily={isBrandAsset ? null : selectedFontFamily}
-                showLogo={overrides.showLogo !== false}
-                logoSrc={isBrandAsset ? null : previewLogoSrc}
-                onBackgroundClick={() => setSelectedPath(null)}
-              >
-                {livePreview}
-              </LivePreviewFrame>
-            </BindProvider>
+              {livePreview}
+            </LivePreviewFrame>
           </section>
         ) : (
           <section
@@ -1104,6 +1046,39 @@ export function BrandKitCardEditor({
             style={{ backgroundImage: `url(${selectedCover ?? target.cover})` }}
           />
         )}
+
+        {!isBrandAsset && variants.length > 1 && (
+          <div className="bk-editor-variants" aria-label="Other layouts for this deliverable">
+            {variants.map((tpl) => {
+              const isSelected = previewTemplate?.id === tpl.id;
+              return (
+                <figure key={tpl.id} className="bk-variant-card">
+                  <button
+                    type="button"
+                    className={`bk-variant-tile${isSelected ? ' is-selected' : ''}`}
+                    onClick={() => setPreviewTemplate(tpl)}
+                    aria-pressed={isSelected}
+                    aria-label={`Preview ${tpl.name}`}
+                  >
+                    {sourceBrand ? (
+                      <span className="bk-variant-tile-render" aria-hidden>
+                        {renderTemplateDesign(tpl, sourceBrand, brand)}
+                      </span>
+                    ) : (
+                      <span
+                        className="bk-variant-tile-cover"
+                        style={{ backgroundImage: `url(${target.cover})` }}
+                        aria-hidden
+                      />
+                    )}
+                  </button>
+                  <figcaption className="bk-variant-label">{tpl.name}</figcaption>
+                </figure>
+              );
+            })}
+          </div>
+        )}
+        </div>
 
         <aside className="bk-editor-rail-card" aria-label="Edit options">
           <header className="bk-editor-rail-head">
@@ -1121,62 +1096,6 @@ export function BrandKitCardEditor({
             </button>
           </header>
           <div className="bk-editor-rail-body">
-            {contentKind && content && (
-              <ContentPanel
-                kind={contentKind}
-                content={content}
-                onChange={setContent}
-                selectedPath={selectedPath}
-                onSelect={setSelectedPath}
-                onResetContent={() => {
-                  setSelectedPath(null);
-                  setContent(defaultContentFor(contentKind, brand));
-                }}
-              />
-            )}
-            {!contentKind && visibleFields.length > 0 && (
-              <RailGroup
-                title="Content"
-                hint="Type-specific text shown on this artifact."
-                action={
-                  <button
-                    type="button"
-                    className="bk-editor-group-reset"
-                    onClick={() => setOverrides(defaultOverridesForType(templateType, brand))}
-                    aria-label="Reset content"
-                    title="Reset"
-                  >
-                    <RotateCcw size={12} aria-hidden />
-                    <span>Reset</span>
-                  </button>
-                }
-              >
-                <div className="bk-editor-fields">
-                  {visibleFields.map((field) => {
-                    const Icon = field.icon;
-                    const value = (overrides[field.key] as string | undefined) ?? '';
-                    return (
-                      <label key={field.key} className="bk-editor-field">
-                        <span className="bk-editor-field-label">
-                          <Icon size={12} aria-hidden />
-                          {field.label}
-                        </span>
-                        <input
-                          type={field.type ?? 'text'}
-                          value={value}
-                          onChange={(e) =>
-                            setOverrides((prev) => ({ ...prev, [field.key]: e.target.value }))
-                          }
-                          placeholder={field.placeholder}
-                          className="bk-editor-field-input"
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-              </RailGroup>
-            )}
-
             {isIconAsset ? (
               <>
                 <RailGroup title="Weight" hint="Pick the stroke thickness for this icon.">
@@ -1298,181 +1217,9 @@ export function BrandKitCardEditor({
                   <span>Download shades</span>
                 </button>
               </RailGroup>
-            ) : livePreview ? null : (
-              // The cover is the card's THUMBNAIL in the grid, not
-              // anything on the artifact. Offering it beside a live
-              // artifact was the clearest sign the panel was generic:
-              // it changed something the user could not see from here.
-              <RailGroup title="Image" hint="Pick the cover for this card.">
-                <div className="bk-editor-covers">
-                  {target.covers.map((src) => {
-                    const isSelected = selectedCover === src;
-                    return (
-                      <button
-                        key={src}
-                        type="button"
-                        className={`bk-editor-cover${isSelected ? ' is-selected' : ''}`}
-                        onClick={() => setSelectedCover(src)}
-                        aria-pressed={isSelected}
-                        aria-label="Select image"
-                      >
-                        <span
-                          className="bk-editor-cover-thumb"
-                          style={{ backgroundImage: `url(${src})` }}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </RailGroup>
-            )}
-
-            {!isBrandAsset && hasGroup('colors') && (
-            <RailGroup title="Colors" hint="Tap a swatch to recolor primary or secondary.">
-              <div className="bk-editor-color-row">
-                <span className="bk-editor-color-row-label">Primary</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`p-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedColor === c.hex}
-                      aria-label={`Primary ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="bk-editor-color-row">
-                <span className="bk-editor-color-row-label">Secondary</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`s-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedSecondaryColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedSecondaryColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedSecondaryColor === c.hex}
-                      aria-label={`Secondary ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </RailGroup>
-            )}
-
-            {!isBrandAsset && hasGroup('logo') && (
-            <RailGroup
-              title="Logos"
-              hint="Choose a mark to drop on the artwork."
-              action={
-                <label className="bk-editor-toggle">
-                  <ImageIcon size={12} aria-hidden />
-                  <span className="bk-editor-toggle-label">Show Logo</span>
-                  {/* Bare control — the wrapping <label> names it. */}
-                  <DsSwitch
-                    checked={!!overrides.showLogo}
-                    onChange={(on) => setOverrides((prev) => ({ ...prev, showLogo: on }))}
-                  />
-                </label>
-              }
-            >
-              <div className="bk-editor-logos">
-                {brand.logos.map((logo) => (
-                  <button
-                    key={logo.id}
-                    type="button"
-                    className={`bk-editor-logo${selectedLogoId === logo.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedLogoId(logo.id)}
-                    aria-pressed={selectedLogoId === logo.id}
-                    aria-label={`${logo.label} logo`}
-                  >
-                    <span
-                      className="bk-editor-logo-thumb"
-                      dangerouslySetInnerHTML={{ __html: logo.svg }}
-                      aria-hidden
-                    />
-                    <span className="bk-editor-logo-label">{logo.label}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="bk-editor-color-row" style={{ marginTop: 12 }}>
-                <span className="bk-editor-color-row-label">Mark</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`logo-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedLogoColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedLogoColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedLogoColor === c.hex}
-                      aria-label={`Logo color ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </RailGroup>
-            )}
-
-            {!isBrandAsset && hasGroup('typography') && (
-            <RailGroup title="Typography" hint="Pick a face for the body copy.">
-              <div className="bk-editor-fonts">
-                {brand.fonts.map((font) => (
-                  <button
-                    key={font.id}
-                    type="button"
-                    className={`bk-editor-font${selectedFontId === font.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedFontId(font.id)}
-                    aria-pressed={selectedFontId === font.id}
-                  >
-                    <span className="bk-editor-font-role">{font.role}</span>
-                    <span
-                      className="bk-editor-font-family"
-                      style={{ fontFamily: `${font.family}, ${font.fallback ?? 'sans-serif'}` }}
-                    >
-                      {font.family}
-                    </span>
-                    <span className="bk-editor-font-weights">{font.weights}</span>
-                  </button>
-                ))}
-              </div>
-            </RailGroup>
-            )}
+            ) : null}
           </div>
           <footer className="bk-editor-rail-footer">
-            {!isBrandAsset && (
-              <DsButton
-                tone="tertiary"
-                className="bk-editor-btn--reset"
-                onClick={() => {
-                  // Reset EVERYTHING to the brand's defaults — content,
-                  // colors, logo, font, cover. Saving afterwards stores
-                  // the clean slate.
-                  setSelectedCover(target.cover);
-                  setSelectedColor(brand.colors.core[0]?.hex ?? null);
-                  setSelectedSecondaryColor(
-                    brand.colors.core[1]?.hex ?? brand.colors.accent[0]?.hex ?? null,
-                  );
-                  setSelectedLogoId(brand.logos[0]?.id ?? null);
-                  setSelectedLogoColor(brand.colors.core[0]?.hex ?? '#0F1216');
-                  setSelectedFontId(brand.fonts[0]?.id ?? null);
-                  setOverrides(defaultOverridesForType(templateType, brand));
-                  setSelectedPath(null);
-                  if (contentKind) setContent(defaultContentFor(contentKind, brand));
-                }}
-                title="Reset to brand defaults"
-              >
-                <RotateCcw size={13} aria-hidden />
-                <span>Reset</span>
-              </DsButton>
-            )}
             <DsButton tone="secondary" size="sm" onClick={onClose}>
               Cancel
             </DsButton>
@@ -1498,40 +1245,64 @@ export function BrandKitCardEditor({
             >
               Download
             </DsButton>
-            <DsButton
-              tone="primary"
-              size="sm"
-              onClick={() => {
-                // Persist the chosen weight when an icon was edited
-                // — `iconPreviewClass` already has the new prefix
-                // applied via withIconWeight.
-                if (
-                  isIconAsset &&
-                  iconIndex !== null &&
-                  iconPreviewClass &&
-                  onUpdateIconAt
-                ) {
-                  onUpdateIconAt(iconIndex, iconPreviewClass);
-                }
-                onSave(target, {
-                  overrides,
-                  cover: selectedCover,
-                  color: selectedColor,
-                  secondaryColor: selectedSecondaryColor,
-                  logoId: selectedLogoId,
-                  logoColor: selectedLogoColor,
-                  fontId: selectedFontId,
-                  // Saved as real nested data — an invoice's line items go
-                  // in as an array of objects and come back as one. It is
-                  // deliberately NOT flattened into `overrides`, which
-                  // cannot express it.
-                  ...(content ? { content } : {}),
-                  savedAt: new Date().toISOString(),
-                });
-              }}
-            >
-              Save
-            </DsButton>
+            {isBrandAsset ? (
+              // Brand-asset targets still Save — this is real brand data
+              // (the icon's weight write-back through onUpdateIconAt, plus
+              // the customization record itself), not a deliverable.
+              <DsButton
+                tone="primary"
+                size="sm"
+                onClick={() => {
+                  // Persist the chosen weight when an icon was edited
+                  // — `iconPreviewClass` already has the new prefix
+                  // applied via withIconWeight.
+                  if (
+                    isIconAsset &&
+                    iconIndex !== null &&
+                    iconPreviewClass &&
+                    onUpdateIconAt
+                  ) {
+                    onUpdateIconAt(iconIndex, iconPreviewClass);
+                  }
+                  onSave(target, {
+                    overrides,
+                    cover: selectedCover,
+                    color: selectedColor,
+                    secondaryColor: selectedSecondaryColor,
+                    logoId: selectedLogoId,
+                    logoColor: selectedLogoColor,
+                    fontId: selectedFontId,
+                    savedAt: new Date().toISOString(),
+                  });
+                }}
+              >
+                Save
+              </DsButton>
+            ) : (
+              // A deliverable is a preview now — editing it happens in
+              // Design. Both actions reuse Task 9/10's handlers verbatim;
+              // a family the page hasn't wired to Design yet (every
+              // deliverable except Invoice, for now) just gets a disabled
+              // button rather than a call that would only toast.
+              <>
+                <DsButton
+                  tone="secondary"
+                  size="sm"
+                  disabled={!previewTemplate || !onEditTemplate}
+                  onClick={() => previewTemplate && onEditTemplate?.(previewTemplate)}
+                >
+                  Edit Template
+                </DsButton>
+                <DsButton
+                  tone="primary"
+                  size="sm"
+                  disabled={!previewTemplate || !onUseTemplate}
+                  onClick={() => previewTemplate && onUseTemplate?.(previewTemplate)}
+                >
+                  Use Template
+                </DsButton>
+              </>
+            )}
           </footer>
         </aside>
       </div>
@@ -1541,9 +1312,12 @@ export function BrandKitCardEditor({
 }
 
 /**
- * Wraps the rendered template preview and stitches user content
- * overrides into it at the DOM level, so any renderer gets live
- * edits without modifying its hardcoded JSX.
+ * Wraps the rendered template preview and stitches brand-derived
+ * PERSONALISATION into it at the DOM level — the design's placeholder
+ * literals ("jane@company.com") become this brand's own defaults
+ * ("jane@raqm.com"). This is not editing: `replacements` is always built
+ * from `defaultOverridesForType`, never from anything a user typed, and
+ * content-model families skip this walker entirely in favour of props.
  *
  * Mechanics:
  *  • Walks every Element under the preview root.
@@ -1557,9 +1331,6 @@ export function BrandKitCardEditor({
  *    the element's first text child, and clears the rest. React's
  *    next reconciliation will restore the original split before our
  *    layout effect runs again, so substitutions never compound.
- *  • While computing combined values, also detects which marker
- *    keys appear in the design — `onMarkers` reports the set up so
- *    the editor can hide fields the design doesn't actually show.
  *
  * Limits: a marker split across element boundaries (e.g.
  *   `<div>jane@<span>{slug}</span>.com</div>`) still won't match
@@ -1567,18 +1338,19 @@ export function BrandKitCardEditor({
  */
 function LivePreviewFrame({
   replacements,
-  markerTable,
-  onMarkers,
   aspect,
   fontFamily,
   showLogo,
   logoSrc,
-  onBackgroundClick,
   children,
 }: {
+  /** Literal → brand value pairs, substituted directly into the rendered
+   *  DOM's text. This is PERSONALISATION (the design's placeholder
+   *  literals become this brand's real name/domain), computed once from
+   *  the brand's own defaults — never user input, and never anything a
+   *  caret writes. Content-model families skip this entirely (they paint
+   *  from props instead) by passing an empty array. */
   replacements: Array<[string, string]>;
-  markerTable: Array<[keyof TemplateOverrides, string]>;
-  onMarkers: (next: Set<keyof TemplateOverrides>) => void;
   /** Native aspect ratio (w/h) of the design. Drives the host's
    *  shape and the inner stage's height so the renderer's hardcoded
    *  pixel sizes don't get visually starved when the preview is
@@ -1599,15 +1371,9 @@ function LivePreviewFrame({
    *  `filter` (used to recolor PNG logos via brightness/invert) is
    *  also cleared, since the URI is already the right color. */
   logoSrc: string | null;
-  /** Clicking the artifact anywhere but a bound region clears selection. */
-  onBackgroundClick?: () => void;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  // Track the last reported marker set so we don't trigger the
-  // editor's setState when nothing changed (avoids an
-  // effect-render-effect loop).
-  const lastMarkersKey = useRef<string>('');
 
   useLayoutEffect(() => {
     const root = ref.current;
@@ -1615,7 +1381,6 @@ function LivePreviewFrame({
 
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     let element = walker.nextNode() as Element | null;
-    const present = new Set<keyof TemplateOverrides>();
 
     while (element) {
       const textChildren: Text[] = [];
@@ -1627,13 +1392,6 @@ function LivePreviewFrame({
 
       if (textChildren.length > 0) {
         const combined = textChildren.map((t) => t.nodeValue ?? '').join('');
-
-        // Detect markers from the combined original (before
-        // substitution) so the editor can hide fields whose marker
-        // doesn't appear in this design.
-        for (const [key, marker] of markerTable) {
-          if (marker && combined.includes(marker)) present.add(key);
-        }
 
         // Apply substitutions.
         let next = combined;
@@ -1667,16 +1425,10 @@ function LivePreviewFrame({
         }
       }
     }
-
-    const key = Array.from(present).sort().join(',');
-    if (key !== lastMarkersKey.current) {
-      lastMarkersKey.current = key;
-      onMarkers(present);
-    }
   });
 
   return (
-    <div ref={ref} className="bk-editor-preview-frame" onClick={onBackgroundClick}>
+    <div ref={ref} className="bk-editor-preview-frame">
       <ScalingStage aspect={aspect} fontFamily={fontFamily} hideLogo={!showLogo}>
         {children}
       </ScalingStage>
@@ -1692,8 +1444,7 @@ function RailGroup({
 }: {
   title: string;
   hint?: string;
-  /** Optional slot in the group header (right side) — used for
-   *  Reset buttons on Content and toggles on Logos. */
+  /** Optional slot in the group header (right side). */
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {

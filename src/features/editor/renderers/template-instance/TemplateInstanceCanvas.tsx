@@ -8,7 +8,12 @@
  * same component renders a plain span. One artwork, two hosts, no fork.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BindProvider, hydrateContent, setAtPath } from '@/features/brandkit/content';
+import {
+  BindProvider,
+  coerceToPathType,
+  hydrateContent,
+  setAtPath,
+} from '@/features/brandkit/content';
 import { ScalingStage } from '@/shared/brand/ScalingStage';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import type { DesignCanvasProps } from '../types';
@@ -68,8 +73,18 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
     (path: string, text: string) => {
       const current = instance.getBody();
       if (current?.kind !== 'template-instance') return;
+      // The text arrives as text — a caret has no idea it is a price — so
+      // the model coerces it against whatever the field already holds.
+      // This is the ONLY way an artifact edit reaches data.
       instance.updateBody(
-        { ...current, content: setAtPath(current.content, path, text) },
+        {
+          ...current,
+          content: setAtPath(
+            current.content,
+            path,
+            coerceToPathType(current.content, path, text),
+          ),
+        },
         `Edit ${path}`,
       );
     },
