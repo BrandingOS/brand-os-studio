@@ -1,0 +1,349 @@
+/* Self-hosted hero-critical faces (preloaded in index.html). The same
+   family+weight is EXCLUDED from the Google Fonts link so these always
+   win the cascade. Latin subset only — the page is English. */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/jakarta-800.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/jakarta-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────────────────────────
+   BrandingOS — Landing, on the BrandingOS Design System v1.
+
+   Source of truth: `src/shared/ds/tokens.json` in the main app
+   (generated tokens.css; /_dev/design-system is the explorer).
+   · "Printed paper, not screen white": bg #f5f4ef, surface #fff.
+   · The accent IS the ink (#111113) — no colour anywhere; the only
+     hues in the system are semantic (success/warning/danger).
+   · One product face: Plus Jakarta Sans. Mono for technical labels.
+   · Shape: control 8 / tile 10 / menu 12 / card 14 / panel 18 / pill.
+   · Warm-neutral shadows, one easing cubic-bezier(.22,1,.36,1).
+   ────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* Core palette — ds tokens (light map), as HSL triples */
+    --background: 50 23% 95%;          /* --ds-bg #f5f4ef */
+    --foreground: 0 0% 5.5%;           /* --ds-text #0e0e0e */
+
+    --card: 0 0% 100%;                 /* --ds-surface */
+    --card-foreground: 0 0% 5.5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5.5%;
+
+    --primary: 240 6% 7%;              /* --ds-accent #111113 (ink) */
+    --primary-foreground: 50 23% 95%;  /* --ds-accent-fg #f5f4ef */
+
+    --secondary: 48 33% 97%;           /* --ds-surface-subtle #faf9f5 */
+    --secondary-foreground: 0 0% 5.5%;
+
+    --muted: 51 18% 92%;               /* --ds-surface-hover #efeee8 */
+    --muted-foreground: 47 6% 32%;     /* --ds-text-secondary #55534c */
+
+    --accent: 51 18% 92%;
+    --accent-foreground: 0 0% 5.5%;
+
+    --destructive: 5 51% 47%;          /* --ds-danger #b4453a */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 47 15% 88%;              /* --ds-border #e6e4dd */
+    --input: 47 15% 88%;
+    --ring: 240 6% 7%;
+
+    --radius: 14px;                    /* --ds-radius-card */
+
+    /* Dark chapters — ds dark map (warm charcoal, never pure black) */
+    --panel: 0 0% 7.8%;                /* --ds-bg dark #141414 */
+    --panel-foreground: 48 20% 95%;    /* --ds-text dark #f5f4f0 */
+
+    /* Legacy alias kept for MultiStepEarlyAccess — the accent is ink. */
+    --accent-pop: 240 6% 7%;
+    --accent-pop-fg: 50 23% 95%;
+    --accent-pop-soft: 51 18% 92%;
+
+    /* Elevation — ds warm-neutral shadows, never tinted */
+    --shadow-soft: 0 2px 8px rgba(20, 18, 14, 0.08);            /* --ds-shadow-sm */
+    --shadow-elevated: 0 6px 20px rgba(20, 18, 14, 0.12);       /* --ds-shadow-md */
+    --shadow-elegant: 0 6px 20px rgba(20, 18, 14, 0.12);
+    --shadow-glow: 0 4px 10px rgba(20, 18, 14, 0.08), 0 16px 40px rgba(20, 18, 14, 0.16); /* --ds-shadow-float */
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    /* Lenis drives smoothing — native smooth would fight it */
+    scroll-behavior: auto;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    /* One product face — ds rule */
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(17, 17, 19, 0.16); /* --ds-focus-ring */
+  }
+}
+
+@layer utilities {
+  /* ── Layout ───────────────────────────────────────────────────── */
+
+  .container-tight {
+    @apply mx-auto px-6 sm:px-8 lg:px-12 xl:px-16;
+    max-width: 1440px;
+  }
+
+  .container-wide {
+    @apply mx-auto px-6 sm:px-8 lg:px-12 xl:px-16;
+    max-width: 1600px;
+  }
+
+  /* ── Typography ───────────────────────────────────────────────── */
+
+  .font-display {
+    font-family: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  /* Hero statement — sized so the single line fits the container */
+  .display-hero {
+    @apply font-display font-extrabold;
+    font-size: clamp(2.2rem, 4.8vw, 4.5rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  /* Chapter statements (manifesto lines) */
+  .display-chapter {
+    @apply font-display font-extrabold;
+    font-size: clamp(2rem, 4.8vw, 4.25rem);
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+  }
+
+  .h-section {
+    @apply font-display font-extrabold;
+    font-size: clamp(1.9rem, 3.6vw, 3.4rem);
+    line-height: 1.06;
+    letter-spacing: -0.028em;
+  }
+
+  /* Editorial accent — same face, italic cut (one product face rule) */
+  .serif-accent {
+    font-style: italic;
+    font-weight: 800;
+  }
+
+  /* Technical microlabel — the ds-eyebrow spec */
+  .microlabel {
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Section label with an ink dash (the accent IS the ink) */
+  .label-rule {
+    @apply inline-flex items-center gap-2.5;
+  }
+  .label-rule::before {
+    content: '';
+    display: inline-block;
+    width: 22px;
+    height: 2px;
+    border-radius: 99px;
+    background: currentColor;
+  }
+
+  /* ── Colour helpers (legacy names — both resolve to ink now) ──── */
+
+  .text-accent-pop { color: hsl(var(--primary)); }
+  .bg-accent-pop { background-color: hsl(var(--primary)); }
+
+  /* ── Surfaces & lines ─────────────────────────────────────────── */
+
+  .surface {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+
+  .hairline-t { border-top: 1px solid hsl(var(--border)); }
+  .hairline-b { border-bottom: 1px solid hsl(var(--border)); }
+
+  /* System card — ds card radius + warm shadow, lift on hover */
+  .card-soft {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .card-soft:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-4px);
+    border-color: rgba(13, 13, 13, 0.22); /* --ds-border-strong */
+  }
+
+  /* ── Buttons — the ds-btn tiers ───────────────────────────────── */
+
+  /* ds-btn--primary: one solid ink pill per view */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-[22px] h-12 text-sm font-semibold transition-all duration-150 ease-out-expo;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 2px 8px rgba(17, 17, 19, 0.18);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(17, 17, 19, 0.24);
+  }
+  .btn-primary:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  /* Primary on dark chapters — the dark map inverts the accent */
+  .btn-on-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-8 text-sm font-semibold transition-all duration-150 ease-out-expo;
+    height: 3.25rem;
+    background: hsl(var(--panel-foreground));
+    color: hsl(var(--panel));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  .btn-on-dark:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2.5 text-sm font-semibold transition-opacity duration-300;
+  }
+  .btn-ghost:hover { opacity: 0.6; }
+
+  /* ── Inputs (kept for the early-access form) ──────────────────── */
+
+  .input-pill {
+    @apply h-12 rounded-full border border-input bg-card px-5 text-sm placeholder:text-muted-foreground focus-visible:outline-none transition-all duration-200;
+  }
+  .input-pill:focus-visible {
+    border-color: #b3b0a6; /* --ds-focus-border */
+    box-shadow: 0 0 0 3px rgba(17, 17, 19, 0.16);
+  }
+
+  .input-area {
+    @apply rounded-lg border border-input bg-card px-5 py-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none transition-all duration-200 resize-none;
+  }
+  .input-area:focus-visible {
+    border-color: #b3b0a6; /* --ds-focus-border */
+    box-shadow: 0 0 0 3px rgba(17, 17, 19, 0.16);
+  }
+
+  /* ── Shadows ──────────────────────────────────────────────────── */
+
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
+  .shadow-elegant { box-shadow: var(--shadow-elegant); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  /* ── Greeked text — wireframe bars standing in for copy ───────── */
+
+  .greek {
+    display: block;
+    height: 5px;
+    border-radius: 99px;
+    background: currentColor;
+    opacity: 0.18;
+  }
+
+  /* ── Idle breathing for the logomark's outer dots ─────────────── */
+
+  .dot-breathe {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dot-breathe 5.2s ease-in-out infinite;
+  }
+
+  /* ── Scroll cue dots ──────────────────────────────────────────── */
+
+  .cue-dot {
+    animation: cue-fall 1.8s ease-in-out infinite;
+  }
+}
+
+/* ── Proof wall — demo-brand re-theming ─────────────────────────── */
+
+/* Every artifact colour flows from --b-* variables set on the wall
+   wrapper; when the active core changes, everything glides. Fonts swap
+   instantly (they can't interpolate) — that's honest. */
+.proof-wall *,
+.proof-wall *::before,
+.proof-wall *::after {
+  transition:
+    background-color 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    fill 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Short viewports — keep the hero composition breathing ──────── */
+
+@media (max-height: 760px) {
+  .display-hero {
+    font-size: clamp(2.5rem, 6.6vw, 5.5rem);
+  }
+  .hero-copy {
+    top: 12vh;
+  }
+}
+
+/* ── Keyframes ──────────────────────────────────────────────────── */
+
+@keyframes dot-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes cue-fall {
+  0% { opacity: 0; transform: translateY(-4px); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-breathe,
+  .cue-dot {
+    animation: none;
+  }
+}
