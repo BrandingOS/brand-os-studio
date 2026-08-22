@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { BrandSetupNudge } from './BrandSetupNudge';
 import { EMPTY_STRATEGY, type MockBrand } from '@/features/setup/data/mockBrand';
 
@@ -18,14 +17,12 @@ const blank: MockBrand = {
   links: [],
 };
 
-const wrap = (brand: MockBrand, brandId = 'b1') =>
-  render(
-    <MemoryRouter>
-      <BrandSetupNudge brand={brand} brandId={brandId} brandSlug="raqm" />
-    </MemoryRouter>,
-  );
+const wrap = (brand: MockBrand, brandId = 'b1', onPick = vi.fn()) => ({
+  onPick,
+  ...render(<BrandSetupNudge brand={brand} brandId={brandId} onPick={onPick} />),
+});
 
-/** The nudge waits for the page to paint before it appears. */
+/** The nudge waits for the board to paint before it appears. */
 const settle = () => act(() => { vi.advanceTimersByTime(1000); });
 
 beforeEach(() => {
@@ -75,6 +72,21 @@ describe('BrandSetupNudge', () => {
     });
     settle();
     expect(container.querySelector('[data-brand-setup-nudge]')).toBeNull();
+  });
+
+  // A row is a shortcut into the section, using Setup's OWN key for it —
+  // otherwise the nudge would name a board the page cannot jump to.
+  it('a row hands Setup the section key for that board', () => {
+    const { container, onPick } = wrap(blank);
+    settle();
+    fireEvent.click(container.querySelector('[data-step-id="logos"]') as HTMLElement);
+    expect(onPick).toHaveBeenCalledWith('logo');
+
+    fireEvent.click(container.querySelector('[data-step-id="typography"]') as HTMLElement);
+    expect(onPick).toHaveBeenCalledWith('fonts');
+
+    fireEvent.click(container.querySelector('[data-step-id="strategy"]') as HTMLElement);
+    expect(onPick).toHaveBeenCalledWith('voice');
   });
 
   it('dismissing hides it and remembers the brand', () => {
