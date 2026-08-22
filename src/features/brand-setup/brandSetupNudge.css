@@ -81,20 +81,49 @@
 
 .bsn-list {
   list-style: none;
-  margin: 10px 0 12px;
+  margin: 10px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
 }
 
+/* A row is a shortcut, not a status line: it jumps to the section on the
+   board and opens its add flow. */
 .bsn-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: var(--ds-radius-control);
+  background: none;
+  font-family: inherit;
   font-size: 12.5px;
   color: var(--ds-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+              color var(--ds-duration-state) var(--ds-ease);
 }
+.bsn-item:hover { background: var(--ds-surface-hover); color: var(--ds-text); }
+.bsn-item:focus-visible { outline: 3px solid var(--ds-focus-ring); outline-offset: -1px; }
+
+.bsn-item-label { flex: 1 1 auto; }
+
+/* Named only on approach — the four rows should read as a list, not as four
+   competing buttons. */
+.bsn-item-add {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ds-text-muted);
+  opacity: 0;
+  transition: opacity var(--ds-duration-state) var(--ds-ease);
+}
+.bsn-item:hover .bsn-item-add,
+.bsn-item:focus-visible .bsn-item-add { opacity: 1; }
 
 /* A hollow ring, not a warning icon. Nothing here is wrong yet. */
 .bsn-dot {
@@ -104,5 +133,3 @@
   border-radius: 999px;
   border: 1.5px solid var(--ds-dash-strong);
 }
-
-.bsn .ds-btn { width: 100%; justify-content: center; }

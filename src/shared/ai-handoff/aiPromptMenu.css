@@ -1,0 +1,87 @@
+/* The AI-handoff menu.
+ *
+ * Moved here verbatim from onboarding.css when the popover gained its second
+ * consumer (Setup's Brand Strategy section). One definition, so the two places
+ * that hand a prompt to the user's own AI tool cannot drift apart.
+ *
+ * Every value is a --ds-* token; the component owns this file, so importing
+ * the component is enough to style it.
+ */
+
+.aih { position: relative; }
+.aih-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  padding: 6px 11px 6px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+              border-color var(--ds-duration-state) var(--ds-ease);
+}
+.aih-btn:hover, .aih-btn.is-open {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+.aih-star { width: 13px; height: 13px; }
+.aih-chev {
+  width: 11px; height: 11px;
+  transition: transform var(--ds-duration-state) var(--ds-ease);
+}
+.aih-btn.is-open .aih-chev { transform: rotate(180deg); }
+
+.aih-pop {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 20;
+  width: 264px;
+  padding: var(--ds-space-1);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-menu);
+  box-shadow: var(--ds-shadow-float);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.985);
+  pointer-events: none;
+  transition: opacity var(--ds-duration-panel) var(--ds-ease),
+              transform var(--ds-duration-panel) var(--ds-ease);
+}
+.aih-pop.is-open { opacity: 1; transform: none; pointer-events: auto; }
+
+.aih-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--ds-space-2) 9px;
+  background: none;
+  border: 0;
+  border-radius: var(--ds-radius-control);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ds-text);
+}
+.aih-item:hover { background: var(--ds-surface-hover); }
+.aih-ico {
+  flex: 0 0 26px;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: 7px;
+  color: var(--ds-text-secondary);
+}
+.aih-ico svg { width: 14px; height: 14px; }
+.aih-copy b { display: block; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.aih-copy small { display: block; margin-top: 1px; font-size: 11.5px; color: var(--ds-text-muted); }
+.aih-ext { width: 11px; height: 11px; margin-left: 4px; vertical-align: -1px; }
+

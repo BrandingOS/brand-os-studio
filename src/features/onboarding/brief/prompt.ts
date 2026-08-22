@@ -128,18 +128,11 @@ Do not invent facts about the business — if you do not know something, leave a
 short, plainly-worded best guess and keep it brief.`;
 }
 
-/** Deep links that open a chat with the prompt prefilled, ready to send. */
-export const AI_TOOLS = [
-  {
-    id: 'chatgpt' as const,
-    label: 'Open in ChatGPT',
-    hint: 'Prompt prefilled — just hit send',
-    buildUrl: (prompt: string) => `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
-  },
-  {
-    id: 'claude' as const,
-    label: 'Open in Claude',
-    hint: 'Prompt prefilled — just hit send',
-    buildUrl: (prompt: string) => `https://claude.ai/new?q=${encodeURIComponent(prompt)}`,
-  },
-];
+/**
+ * Deep links that open a chat with the prompt prefilled.
+ *
+ * Re-exported from the shared handoff menu, which owns them now that two
+ * surfaces hand prompts over. Kept here so existing importers of this module
+ * are unaffected.
+ */
+export { AI_TOOLS } from '@/shared/ai-handoff/AiPromptMenu';

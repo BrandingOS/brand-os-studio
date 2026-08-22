@@ -70,12 +70,17 @@ function labelPattern(label: string): RegExp {
   return new RegExp(`^\\s*${escaped}\\s*:`, 'i');
 }
 
-/** Which label, if any, this line opens. */
-function labelAt(line: string): BriefLabel | null {
-  for (const label of BRIEF_LABELS) {
+/** Which label from `labels`, if any, this line opens. */
+function labelIn<L extends string>(line: string, labels: readonly L[]): L | null {
+  for (const label of labels) {
     if (labelPattern(label).test(line)) return label;
   }
   return null;
+}
+
+/** Which brief label, if any, this line opens. */
+function labelAt(line: string): BriefLabel | null {
+  return labelIn(line, BRIEF_LABELS);
 }
 
 /**
@@ -86,22 +91,33 @@ function labelAt(line: string): BriefLabel | null {
  * a false positive costs the user their meaning.
  */
 export function looksLikeBrief(text: string): boolean {
+  return looksLabelled(text, BRIEF_LABELS);
+}
+
+/**
+ * The same recognition, over any label list.
+ *
+ * Shared so a second prompt/parser pair (Setup's Brand Strategy import) gets
+ * the identical threshold and the identical tolerance for casing and spacing,
+ * rather than a near-copy that drifts.
+ */
+export function looksLabelled<L extends string>(text: string, labels: readonly L[]): boolean {
   if (!text.trim()) return false;
-  const seen = new Set<BriefLabel>();
+  const seen = new Set<L>();
   for (const line of text.split(/\r?\n/)) {
-    const label = labelAt(line);
+    const label = labelIn(line, labels);
     if (label) seen.add(label);
     if (seen.size >= DETECTION_THRESHOLD) return true;
   }
   return false;
 }
 
-function afterColon(line: string): string {
+export function afterColon(line: string): string {
   const i = line.indexOf(':');
   return i === -1 ? '' : line.slice(i + 1).trim();
 }
 
-function splitItems(raw: string): string[] {
+export function splitItems(raw: string): string[] {
   return raw
     .split(/[,;·•|]+/)
     .map((s) => s.trim().replace(/\.$/, ''))
@@ -119,12 +135,15 @@ function hexesIn(text: string): string[] {
   return out;
 }
 
-/** Groups a block's lines into `{ label, body }` runs. */
-function blocks(text: string): Array<{ label: BriefLabel | null; lines: string[] }> {
-  const out: Array<{ label: BriefLabel | null; lines: string[] }> = [];
-  let current: { label: BriefLabel | null; lines: string[] } = { label: null, lines: [] };
+/** Groups a block's lines into `{ label, body }` runs, over any label list. */
+export function labelledBlocks<L extends string>(
+  text: string,
+  labels: readonly L[],
+): Array<{ label: L | null; lines: string[] }> {
+  const out: Array<{ label: L | null; lines: string[] }> = [];
+  let current: { label: L | null; lines: string[] } = { label: null, lines: [] };
   for (const line of text.split(/\r?\n/)) {
-    const label = labelAt(line);
+    const label = labelIn(line, labels);
     if (label) {
       if (current.label !== null || current.lines.length) out.push(current);
       current = { label, lines: [afterColon(line)] };
@@ -142,6 +161,8 @@ function blocks(text: string): Array<{ label: BriefLabel | null; lines: string[]
   out.push(current);
   return out;
 }
+
+const blocks = (text: string) => labelledBlocks(text, BRIEF_LABELS);
 
 /**
  * Parses whatever it recognises.

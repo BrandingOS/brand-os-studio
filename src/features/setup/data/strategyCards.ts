@@ -38,8 +38,14 @@ export const STRATEGY_CARDS: StrategyCard[] = [
   { key: 'summary', name: 'Brand summary' },
   { key: 'industry', name: 'Industry', vocab: 'industry', max: 1, allowsOther: true },
   { key: 'products', name: 'Products / Services' },
-  { key: 'audience', name: 'Audience' },
-  { key: 'positioning', name: 'Positioning' },
+  { key: 'audience', name: 'Audience', vocab: 'audience', max: 1, allowsOther: true },
+  {
+    key: 'positioning',
+    name: 'Positioning',
+    vocab: 'positioning',
+    max: 1,
+    allowsOther: true,
+  },
   { key: 'mission', name: 'Mission' },
   {
     key: 'personality',

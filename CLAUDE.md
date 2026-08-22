@@ -731,24 +731,12 @@ NOT the alternate (`features/brand-kit-alt/`).
 **Entry & shell:**
 - Route page: `src/pages/b/[slug]/brand-kit.tsx` — fetches via
   `useBrandFromSlug`, converts to `MockBrand` shape (setup-era schema),
-  wraps in `WorkspaceShell`, and mounts `BrandSetupNudge` beside the page
-  when /setup still has empty sections.
-- **The setup prompt FLOATS; it is never in the flow** (`features/brand-setup/`,
-  owner request 2026-08-22). Its predecessor, `BrandSetupChecklist`, was a
-  full-width card rendered ahead of `BrandKitCosmosPage` in the same flex
-  column, so an unfinished brand pushed the whole Kit — WorkspaceShell's
-  sticky navbar included — down by the height of the prompt. Nothing that
-  merely SUGGESTS work may move the page the user came to look at. The
-  replacement is a 272px `position: fixed` card in the bottom-right corner,
-  at z-90 so it stays UNDER the drilldown and card-editor overlays (z-1000),
-  dismissible, and dismissed per brand id in `brandos:setup-nudge-dismissed`.
-- **It must not hold a second opinion about what is missing.**
-  `computeBrandSetupSteps` takes the `MockBrand` — the same projection Setup
-  renders — and names the four sections the way Setup's own sidebar names
-  them. Reading the raw `Brand` is what broke it before: the nudge demanded
-  `tone` or `audience` specifically while Setup counted Brand Strategy done
-  on ANY of its eleven answers, so a brand Setup showed as complete was
-  still being told to finish it. Pinned by `computeBrandSetupSteps.test.ts`.
+  wraps in `WorkspaceShell`.
+- **There is no setup prompt on this page.** `BrandSetupChecklist` used to
+  render ahead of `BrandKitCosmosPage` in the same flex column, so an
+  unfinished brand pushed the whole Kit — WorkspaceShell's sticky navbar
+  included — down by its own height. It now lives on Setup, floating; see
+  "The setup nudge" under Setup below.
 - Main component: `src/features/brand-kit/BrandKitCosmosPage.tsx`
   (~1.4k LOC). Single page, two views: **sections list** (default) +
   **drilldown overlay** (history-based back, popstate-aware).
@@ -1720,6 +1708,74 @@ cards and nothing else — so the rules that keep them together:
   Vertical); "On light" renders for old brands but is never offered.
 - **A logo uploaded in Setup is classified** by the same detector onboarding
   uses (`classifySetupLogo` → `readArtwork` + `roleFromArtwork`).
+- **The setup nudge FLOATS; it is never in the flow**
+  (`features/brand-setup/`, owner request 2026-08-22). `BrandSetupNudge` is a
+  272px `position: fixed` card in the bottom-right corner of `/b/:slug/setup`,
+  naming the sections that are still EMPTY. Two rules it exists to keep:
+  nothing that merely SUGGESTS work may move the page the user came to look
+  at, and the prompt belongs on the page where the work is done — it used to
+  sit on Brand Kit, which is neither. z-90 keeps it under modals and overlays;
+  dismissal is per brand id in `brandos:setup-nudge-dismissed`.
+- **It is not a second progress meter.** `SetupSidebar` already reports all
+  seven sections; the nudge names only the four that change how the product
+  LOOKS, and each row is a shortcut — it hands `handleSidebarAdd` Setup's own
+  `SectionKey`, which jumps to the board AND opens that section's add flow.
+- **It must not hold a second opinion about what is missing.**
+  `computeBrandSetupSteps` takes the `MockBrand`, the same projection Setup
+  renders. Reading the raw `Brand` is what broke it before: it demanded `tone`
+  or `audience` specifically while Setup counts Brand Strategy done on ANY of
+  its eleven answers, so a brand Setup showed as complete was still being told
+  to finish it. Pinned by `computeBrandSetupSteps.test.ts`.
+
+### Brand Strategy — built with the user's own AI (2026-08-22)
+
+The section has **two ways in, side by side in its header**: `+` is manual
+(unchanged — every card still opens `StrategyEditorModal`), and **Build with AI**
+opens `StrategyImportModal`. Get the prompt, run it in ChatGPT/Claude/anything,
+paste the reply, tick what to keep.
+
+- **The handoff menu is `@/shared/ai-handoff/AiPromptMenu`** (Copy prompt ·
+  Open in ChatGPT · Open in Claude), promoted out of onboarding when it gained
+  its second consumer. It owns its stylesheet (`aiPromptMenu.css`, the old
+  `onb-ai*` rules renamed `aih*`) and takes the PROMPT AS A PROP — it knows how
+  to hand one over and nothing about what is in it. `features/onboarding/brief/
+  BuildWithAI.tsx` is now a wrapper that supplies the brief prompt.
+- **The strategy prompt is a DIFFERENT prompt, deliberately**
+  (`setup/strategy/strategyPrompt.ts`). It asks for the eleven strategy answers
+  and forbids colours, typefaces and logos — a prompt that ranges wider than
+  the section it fills is a prompt that quietly edits the rest of the brand.
+  Answers the brand already holds are stated back as FACT, so the AI fills gaps
+  instead of proposing a second brand alongside the first.
+- **Prompt and parser are a two-way contract.** `STRATEGY_LABELS` +
+  `LABEL_BY_KEY` are the single map the prompt, the parser and the board all
+  read; a test asserts the prompt emits every label the parser knows, and that
+  the eleven labels are exactly the eleven cards. Because we authored the
+  labels this is a RECOGNITION — no assisted call, no key, no cost.
+- **The parser reuses onboarding's machinery, it does not copy it.**
+  `labelledBlocks` / `looksLabelled` / `afterColon` / `splitItems` are exported
+  from `features/onboarding/brief/parseBrief.ts` and generic over a label list.
+  The casing tolerance, the LLM's spacing around a slash, the three-label
+  detection threshold and the rule that a blank line CLOSES a block each cost a
+  bug to learn; a second implementation would relearn them.
+- **A vocabulary answer is normalised, never coerced** (`normalize` →
+  member or an honest `Other` with the wording intact), and capped by the
+  card's own `max`. **Nothing is written until the user says so**: the paste is
+  parsed live into a tick-list, and an answer that would REPLACE one the brand
+  already holds says so — filling a blank and overwriting a decision are
+  different acts. Applying is ONE `setBrand`, so an interrupted autosave cannot
+  leave a half-applied strategy.
+- **Seven of the eleven answers are now a choice, not a sentence.** `audience`
+  and `positioning` joined industry · personality · tone · style · values as
+  closed vocabularies (`onboarding/vocabulary/vocabularies.ts`), both `max: 1`
+  with `allowsOther`. They stay SCALAR strings holding a vocabulary id, exactly
+  like industry and tone — widening either to a list is a storage change
+  (`targetAudience` and `positioning` are scalars all the way to the canonical
+  brand), not a UI one. Older brands that stored a sentence there keep showing
+  it: `labelFor` returns an unknown id verbatim.
+- Prose stays prose where the meaning is in the wording: brand summary,
+  products/services, mission, slogan.
+- Tests: `setup/strategy/__tests__/*` (22) and
+  `setup/components/__tests__/StrategyImportModal.browser.test.tsx` (7).
 - **The On-dark tile is a dark GROUND, never a filter.** The `invert(1)` that
   used to sit on `.logo-tile.is-dark .logo-svg` is gone: the variant already IS
   the light artwork, so inverting showed a colour the brand does not own.

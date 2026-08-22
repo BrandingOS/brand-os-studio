@@ -585,6 +585,14 @@ type Props = {
   /** Rename the brand. A rename regenerates the slug server-side, so the
    *  caller is responsible for following the URL. */
   onChangeName?: (name: string) => void;
+  /**
+   * Rendered in the Brand Strategy section's header, beside the + button.
+   *
+   * A slot rather than a callback because what goes there is a control the
+   * page owns (the Build-with-AI entry point); the board only knows where it
+   * belongs.
+   */
+  strategyActions?: React.ReactNode;
   /** The brand's slogan — the same value the Brand Strategy card edits. */
   onChangeSlogan?: (slogan: string) => void;
   /** Per-section download handler. Omit to hide all download buttons. */
@@ -627,6 +635,7 @@ export function SetupBoard({
   canAddWebsite = true,
   onEditAbout,
   onEditStrategy,
+  strategyActions,
   onDeleteLink,
   onOpenLink,
   onDeleteAbout,
@@ -1592,6 +1601,7 @@ export function SetupBoard({
         spec={`${answeredStrategy.length} of ${STRATEGY_CARDS.length} answered`}
         onEdit={() => onEdit('voice')}
         onExport={exportFor('voice')}
+        addSlot={strategyActions}
       >
         {(() => {
           const filled = brand.about.filter((a) => a.content.trim().length > 0);

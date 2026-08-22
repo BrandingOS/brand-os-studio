@@ -790,6 +790,40 @@
   outline: none;
   box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }
+/* Build-with-AI: the one TEXT control in a row of icon buttons.
+ *
+ * It reads as a label rather than a glyph because "Build with AI" is not a
+ * thing anyone recognises from an icon, and because the + beside it is the
+ * manual way in — the two have to be told apart at a glance. Same height as
+ * .section-add so the row stays on one baseline. */
+[data-workspace] .section-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  margin: 0;
+  background: var(--surface-sunken);
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background 180ms var(--ds-ease), color 180ms var(--ds-ease);
+}
+[data-workspace] .section-ai:hover {
+  background: var(--accent-muted);
+  color: var(--ds-accent);
+}
+[data-workspace] .section-ai:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+[data-workspace] .section-ai svg { display: block; width: 13px; height: 13px; }
+
 /* Download variant — same pill, muted icon tint, never widens on hover so
    the + button next to it remains the dominant affordance. */
 [data-workspace] .section-add.section-download {

@@ -120,6 +120,55 @@ export const VALUES: VocabularyMember[] = [
   m('inclusivity', 'Inclusivity'),
 ];
 
+/**
+ * Who the brand is for.
+ *
+ * Audience used to be a free sentence, which meant no two brands describing
+ * the same market shared a token. These are audience TYPES — the axis a brand
+ * actually varies along — and `Other` still keeps anyone's own wording, so a
+ * sentence a brand wrote before this list existed reads back unchanged.
+ */
+export const AUDIENCE: VocabularyMember[] = [
+  m('consumers', 'Everyday consumers', 'Who'),
+  m('families', 'Families', 'Who'),
+  m('young-adults', 'Young adults', 'Who'),
+  m('professionals', 'Working professionals', 'Who'),
+  m('creatives', 'Creatives', 'Who'),
+  m('students', 'Students', 'Who'),
+  m('small-business', 'Small businesses', 'Business'),
+  m('startups', 'Startups', 'Business'),
+  m('enterprise', 'Large enterprises', 'Business'),
+  m('agencies', 'Agencies', 'Business'),
+  m('developers', 'Developers', 'Business'),
+  m('institutions', 'Institutions & government', 'Business'),
+  m('luxury-buyers', 'Luxury buyers', 'Segment'),
+  m('value-seekers', 'Value seekers', 'Segment'),
+  m('early-adopters', 'Early adopters', 'Segment'),
+  m('local-community', 'Local community', 'Segment'),
+];
+
+/**
+ * Where the brand sits in its market.
+ *
+ * One pick, like Tone: a brand claiming two positions holds neither. `Other`
+ * covers a genuinely unusual stance, and older brands that stored a sentence
+ * here keep showing that sentence.
+ */
+export const POSITIONING: VocabularyMember[] = [
+  m('premium', 'Premium'),
+  m('luxury', 'Luxury'),
+  m('accessible', 'Accessible'),
+  m('value', 'Best value'),
+  m('challenger', 'Challenger'),
+  m('market-leader', 'Market leader'),
+  m('specialist', 'Specialist'),
+  m('innovator', 'Innovator'),
+  m('boutique', 'Boutique'),
+  m('everyday', 'Everyday essential'),
+  m('sustainable', 'Sustainable choice'),
+  m('heritage', 'Heritage'),
+];
+
 /** What the business does. Written to Business Info, never to Core. */
 export const INDUSTRY: VocabularyMember[] = [
   m('real-estate', 'Real Estate'),
@@ -152,6 +201,8 @@ export const INDUSTRY: VocabularyMember[] = [
 /** Every vocabulary, by the concept it answers. */
 export const VOCABULARIES = {
   industry: INDUSTRY,
+  audience: AUDIENCE,
+  positioning: POSITIONING,
   style: STYLE,
   personality: PERSONALITY,
   tone: TONE,
@@ -168,6 +219,11 @@ export function labelsOf(name: VocabularyName): string[] {
 /** How many members a concept accepts. `tone` is deliberately singular. */
 export const CARDINALITY: Record<VocabularyName, { min: number; max: number }> = {
   industry: { min: 1, max: 1 },
+  // Audience is stored as ONE string, like industry and tone — so it takes one
+  // answer. Widening it to a list is a storage change (`targetAudience` is a
+  // scalar all the way down to the canonical brand), not a UI one.
+  audience: { min: 1, max: 1 },
+  positioning: { min: 1, max: 1 },
   style: { min: 2, max: 3 },
   personality: { min: 2, max: 4 },
   tone: { min: 1, max: 1 },

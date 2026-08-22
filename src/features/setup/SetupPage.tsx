@@ -5,6 +5,9 @@ import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
+import { BrandSetupNudge } from '@/features/brand-setup/BrandSetupNudge';
+import { StrategyImportModal } from './components/StrategyImportModal';
+import { applyStrategyFields, type ParsedStrategyField } from './strategy/parseStrategyBrief';
 import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
 import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
@@ -284,6 +287,8 @@ export function SetupPage({
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
   const [replaceLogoId, setReplaceLogoId] = useState<string | null>(null);
+  /** Open when the user is building the strategy from an AI reply. */
+  const [strategyImport, setStrategyImport] = useState(false);
   /** Open when the user is choosing WHICH variant they are about to add. */
   const [addingVariant, setAddingVariant] = useState(false);
   /**
@@ -1159,6 +1164,19 @@ export function SetupPage({
     [],
   );
 
+  /**
+   * Everything the user kept from an AI reply, written as ONE edit.
+   *
+   * One `setBrand` rather than a loop of them: the eleven answers were decided
+   * together and the autosave that follows should carry them together, so an
+   * interrupted save cannot leave a half-applied strategy.
+   */
+  const handleApplyStrategyImport = useCallback((fields: ParsedStrategyField[]) => {
+    setStrategyImport(false);
+    if (fields.length === 0) return;
+    setBrand((prev) => ({ ...prev, strategy: applyStrategyFields(prev.strategy, fields) }));
+  }, []);
+
   const handleDropFiles = useCallback(
     (kind: 'logo' | 'photos', files: File[]) => {
       files.forEach((file) => {
@@ -1551,6 +1569,18 @@ export function SetupPage({
         />
         <SetupBoard
           brand={brand}
+          strategyActions={
+            <button
+              type="button"
+              className="section-ai"
+              onClick={() => setStrategyImport(true)}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M12 2 13.5 8.5 20 10 13.5 11.5 12 18 10.5 11.5 4 10 10.5 8.5z" />
+              </svg>
+              Build with AI
+            </button>
+          }
           onChangeName={handleChangeName}
           onChangeSlogan={handleChangeSlogan}
           onEdit={handleEdit}
@@ -1643,7 +1673,19 @@ export function SetupPage({
         onClose={() => setStrategyEditing(null)}
         onSave={handleSaveStrategy}
       />
+      <StrategyImportModal
+        open={strategyImport}
+        brandName={brand.name}
+        strategy={brand.strategy}
+        description={brand.strategy.products || undefined}
+        onClose={() => setStrategyImport(false)}
+        onApply={handleApplyStrategyImport}
+      />
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
+      {/* Floats bottom-right, so it costs no layout. Not a second progress
+          meter — SetupSidebar already reports all seven sections; this names
+          only what is EMPTY and each row opens that section's add flow. */}
+      <BrandSetupNudge brand={brand} brandId={resolvedBrandId} onPick={handleSidebarAdd} />
     </WorkspaceShell>
   );
 }
