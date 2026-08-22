@@ -13,11 +13,9 @@ import {
 import '@/shared/styles/workspace.css';
 import './brandCardMenu.css';
 import { DsButton, DsConfirmDialog, DsInput, DsModal } from '@/shared/ds';
-import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourcePopover';
-import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { mergeWorkspaceCard, resolveBrandCover } from '@/shared/brand/workspaceCard';
-import { CardCoverModal, type CoverChoice } from './CardCoverModal';
+import { mergeWorkspaceCard } from '@/shared/brand/workspaceCard';
+import { CardCoverPopover, type CoverChange } from './CardCoverPopover';
 import { useProjectRename } from './useProjectRename';
 import type { Brand } from '@/shared/types/brand';
 
@@ -51,19 +49,6 @@ const CoverIcon = () => (
     <path d="m21 15-5-5L5 21" />
   </svg>
 );
-const LogoIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 3a9 9 0 0 0 0 18" fill="currentColor" stroke="none" />
-  </svg>
-);
-const CoverOffIcon = () => (
-  <svg {...iconProps}>
-    <rect x="3" y="3" width="18" height="18" rx="2" />
-    <path d="m3 21 7-7 4 4" />
-    <path d="m21 3-18 18" />
-  </svg>
-);
 const ShareIcon = () => (
   <svg {...iconProps}>
     <circle cx="18" cy="5" r="3" />
@@ -93,62 +78,6 @@ const MoreIcon = () => (
     <circle cx="19" cy="12" r="1.2" fill="currentColor" stroke="none" />
   </svg>
 );
-
-/**
- * The cover picker, mounted only while it is open.
- *
- * `useAssetUpload` resolves the assets service at render, so keeping it in the
- * menu would make every card on the dashboard require a booted container and
- * instantiate an uploader it will almost never use. Nobody picks a cover for
- * twenty brands at once; they pick one for one.
- */
-function CardCoverPicker({
-  brandId,
-  placement,
-  onPick,
-  onClose,
-}: {
-  brandId: string;
-  placement: 'corner' | 'end';
-  /** Receives the LIBRARY id — the cover's identity, whichever source it came from. */
-  onPick: (assetId: string) => void | Promise<void>;
-  onClose: () => void;
-}) {
-  const { upload } = useAssetUpload(brandId);
-
-  const handle = async (source: AssetSource) => {
-    if (source.kind === 'asset') {
-      await onPick(source.asset.id);
-      return;
-    }
-    const asset = await upload(source.file, { kind: 'image', silent: true });
-    // A failed upload has already said why; there is nothing to set.
-    if (asset) await onPick(asset.id);
-    else onClose();
-  };
-
-  return (
-    <AssetSourcePopover
-      brandId={brandId}
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-      align="end"
-      // Opened from the MENU, so its trigger is an anchor with no appearance of
-      // its own — the popover still needs somewhere on the card to point.
-      trigger={
-        <span
-          className={
-            placement === 'end' ? 'bcm-cover-anchor bcm-cover-anchor--end' : 'bcm-cover-anchor'
-          }
-          aria-hidden="true"
-        />
-      }
-      onPick={(source) => void handle(source)}
-    />
-  );
-}
 
 interface Props {
   brand: Brand;
@@ -209,27 +138,25 @@ export function BrandCardMenu({
   const [draftName, setDraftName] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
-  const [photoOpen, setPhotoOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const anchorRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { label, rename } = useProjectRename(brand);
-  const hasCover = Boolean(resolveBrandCover(brand));
 
   /**
-   * The logo and the ground it sits on, saved together.
+   * One half of the cover, applied at once and leaving the other half alone.
    *
-   * They are one decision. Saving them apart is what made the old logo submenu
-   * unable to fix an invisible mark: forcing a variant let the ground move to
-   * suit it, so the pair the user could see was never the pair they had set.
+   * A cover is a logo on a colour, so any pick here also clears a full-bleed
+   * photo: the photo IS the card while it is set, and a choice that changed
+   * nothing visible would look broken. The picture itself stays in Brand
+   * Assets — this is a decision about the card, not about the brand's
+   * material.
    */
-  const applyCoverChoice = async (choice: CoverChoice) => {
+  const applyCoverChange = async (change: CoverChange) => {
     setBusy(true);
     try {
-      await saveCard(choice);
-      setCoverOpen(false);
-      toast.success('Cover updated');
+      await saveCard({ ...change, coverAssetId: undefined, coverUrl: undefined });
     } catch (err) {
       toast.error('Could not change the cover', {
         description: err instanceof Error ? err.message : 'Please try again.',
@@ -258,40 +185,6 @@ export function BrandCardMenu({
     setBusy(true);
     try {
       if (await rename(draftName)) setRenaming(false);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const applyCover = async (assetId: string) => {
-    setCoverOpen(false);
-    setBusy(true);
-    try {
-      // The Library id is the cover's identity. The url the picker happens to be
-      // holding is a snapshot; storing it would leave the card pointing at bytes
-      // the brand can replace or delete out from under it.
-      await saveCard({ coverAssetId: assetId, coverUrl: undefined });
-      toast.success('Cover updated');
-    } catch (err) {
-      toast.error('Could not set the cover', {
-        description: err instanceof Error ? err.message : 'Please try again.',
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const removeCover = async () => {
-    setBusy(true);
-    try {
-      // The picture itself stays in Brand Assets — removing a cover is a
-      // decision about this card, not about the brand's material.
-      await saveCard({ coverAssetId: undefined, coverUrl: undefined });
-      toast.success('Cover removed');
-    } catch (err) {
-      toast.error('Could not remove the cover', {
-        description: err instanceof Error ? err.message : 'Please try again.',
-      });
     } finally {
       setBusy(false);
     }
@@ -339,14 +232,6 @@ export function BrandCardMenu({
       icon: <CoverIcon />,
       onSelect: () => setCoverOpen(true),
     },
-    {
-      label: hasCover ? 'Change photo' : 'Use a photo',
-      icon: <LogoIcon />,
-      onSelect: () => setPhotoOpen(true),
-    },
-    ...(hasCover
-      ? [{ label: 'Remove photo', icon: <CoverOffIcon />, onSelect: () => void removeCover() }]
-      : []),
     { label: 'Edit brand', icon: <EditIcon />, onSelect: () => navigate(editUrl) },
     {
       label: 'Share',
@@ -438,19 +323,11 @@ export function BrandCardMenu({
       </button>
 
       {coverOpen && (
-        <CardCoverModal
+        <CardCoverPopover
           brand={brand}
-          onSave={(choice) => applyCoverChoice(choice)}
-          onClose={() => !busy && setCoverOpen(false)}
-        />
-      )}
-
-      {photoOpen && (
-        <CardCoverPicker
-          brandId={brand.id}
           placement={placement}
-          onPick={(assetId) => applyCover(assetId)}
-          onClose={() => setPhotoOpen(false)}
+          onChange={(change) => applyCoverChange(change)}
+          onClose={() => setCoverOpen(false)}
         />
       )}
 
