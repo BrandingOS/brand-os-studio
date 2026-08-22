@@ -1,99 +1,112 @@
-// Phase 11.2 — computeBrandSetupSteps tests.
 import { describe, expect, it } from 'vitest';
-import { computeBrandSetupSteps, isBrandSetupComplete } from './computeBrandSetupSteps';
-import type { Brand } from '@/shared/types/brand';
+import {
+  computeBrandSetupSteps,
+  isBrandSetupComplete,
+  missingBrandSetupSteps,
+} from './computeBrandSetupSteps';
+import { EMPTY_STRATEGY, type MockBrand } from '@/features/setup/data/mockBrand';
 
-const blank: Brand = {
-  id: 'b',
-  slug: 'b',
+const blank: MockBrand = {
   name: 'B',
-  primaryColor: '',
-  fonts: { primary: '' },
-  tone: '',
-  audience: '',
-  assets: [],
-  createdAt: new Date(),
-  updatedAt: new Date(),
-} as unknown as Brand;
+  logos: [],
+  colors: { core: [], accent: [], grey: [] },
+  fonts: [],
+  icons: [],
+  photos: [],
+  websites: [],
+  voice: { essay: '', pillars: [] },
+  about: [],
+  strategy: { ...EMPTY_STRATEGY },
+  links: [],
+};
 
-describe('computeBrandSetupSteps', () => {
-  it('returns 4 steps in stable order: colors, logo, typography, voice', () => {
-    const steps = computeBrandSetupSteps(blank);
-    expect(steps.map((s) => s.id)).toEqual(['colors', 'logo', 'typography', 'voice']);
-  });
-
-  it('flags every step incomplete on a blank brand', () => {
-    const steps = computeBrandSetupSteps(blank);
-    expect(steps.every((s) => !s.done)).toBe(true);
-  });
-
-  it('marks colors done when primaryColor is non-empty', () => {
-    const steps = computeBrandSetupSteps({ ...blank, primaryColor: '#ff0000' });
-    expect(steps.find((s) => s.id === 'colors')?.done).toBe(true);
-  });
-
-  it('marks logo done via brandAssets', () => {
-    const steps = computeBrandSetupSteps({
-      ...blank,
-      brandAssets: [{ id: 'a1', type: 'logo', category: 'logo' } as never],
-    });
-    expect(steps.find((s) => s.id === 'logo')?.done).toBe(true);
-  });
-
-  it('marks logo done via legacy logo string', () => {
-    const steps = computeBrandSetupSteps({ ...blank, logo: '/url.svg' });
-    expect(steps.find((s) => s.id === 'logo')?.done).toBe(true);
-  });
-
-  it('marks typography done via legacy fonts.primary', () => {
-    const steps = computeBrandSetupSteps({
-      ...blank,
-      fonts: { primary: 'Inter' },
-    });
-    expect(steps.find((s) => s.id === 'typography')?.done).toBe(true);
-  });
-
-  it('marks typography done via v3 typography.primary.family', () => {
-    const steps = computeBrandSetupSteps({
-      ...blank,
-      typography: { primary: { family: 'Inter' } },
-    } as unknown as Brand);
-    expect(steps.find((s) => s.id === 'typography')?.done).toBe(true);
-  });
-
-  it('marks voice done when tone OR audience is set', () => {
-    const t = computeBrandSetupSteps({ ...blank, tone: 'playful' });
-    expect(t.find((s) => s.id === 'voice')?.done).toBe(true);
-    const a = computeBrandSetupSteps({ ...blank, audience: 'designers' });
-    expect(a.find((s) => s.id === 'voice')?.done).toBe(true);
-  });
-
-  it('builds slug-aware hrefs', () => {
-    const steps = computeBrandSetupSteps({ ...blank, slug: 'raqm' });
-    expect(steps.find((s) => s.id === 'colors')?.href).toBe('/b/raqm/brand-kit?tab=colors');
-    expect(steps.find((s) => s.id === 'voice')?.href).toBe('/b/raqm/identity?tab=voice');
-  });
-
-  it('treats whitespace-only strings as empty', () => {
-    const steps = computeBrandSetupSteps({ ...blank, primaryColor: '   ' });
-    expect(steps.find((s) => s.id === 'colors')?.done).toBe(false);
-  });
+const withLogo = (b: MockBrand): MockBrand => ({
+  ...b,
+  logos: [{ id: 'l', label: 'Primary', variant: 'light', svg: '<svg/>' } as MockBrand['logos'][number]],
 });
 
-describe('isBrandSetupComplete', () => {
-  it('false on a blank brand', () => {
+describe('computeBrandSetupSteps', () => {
+  it('returns the four sections in Setup order', () => {
+    expect(computeBrandSetupSteps(blank).map((s) => s.id)).toEqual([
+      'logos',
+      'colors',
+      'typography',
+      'strategy',
+    ]);
+  });
+
+  it('names each section the way Setup names it', () => {
+    expect(computeBrandSetupSteps(blank).map((s) => s.label)).toEqual([
+      'Brand logos',
+      'Colors',
+      'Typography',
+      'Brand strategy',
+    ]);
+  });
+
+  it('flags every section incomplete on a blank brand', () => {
+    expect(computeBrandSetupSteps(blank).every((s) => !s.done)).toBe(true);
+    expect(missingBrandSetupSteps(blank)).toHaveLength(4);
     expect(isBrandSetupComplete(blank)).toBe(false);
   });
 
-  it('true when every step is satisfied', () => {
-    const fullyConfigured: Brand = {
+  it('marks logos done once the board holds a variant', () => {
+    const steps = computeBrandSetupSteps(withLogo(blank));
+    expect(steps.find((s) => s.id === 'logos')?.done).toBe(true);
+  });
+
+  it('marks colors done from CORE only — an accent is not a brand color', () => {
+    const accentOnly: MockBrand = {
       ...blank,
-      primaryColor: '#ff0000',
-      logo: '/logo.svg',
-      fonts: { primary: 'Inter' },
-      tone: 'playful',
-      audience: 'designers',
+      colors: { core: [], accent: [{ hex: '#ff0000', name: 'Red' } as never], grey: [] },
     };
-    expect(isBrandSetupComplete(fullyConfigured)).toBe(true);
+    expect(computeBrandSetupSteps(accentOnly).find((s) => s.id === 'colors')?.done).toBe(false);
+  });
+
+  it('marks typography done once a font is set', () => {
+    const typed: MockBrand = {
+      ...blank,
+      fonts: [{ family: 'Inter' } as MockBrand['fonts'][number]],
+    };
+    expect(computeBrandSetupSteps(typed).find((s) => s.id === 'typography')?.done).toBe(true);
+  });
+
+  // The bug this rewrite exists to kill: the old check asked for tone AND
+  // audience specifically, so a brand Setup already counted as complete kept
+  // being told its Brand Strategy was missing.
+  it('marks strategy done from ANY one of the eleven answers, not tone specifically', () => {
+    const mission: MockBrand = {
+      ...blank,
+      strategy: { ...EMPTY_STRATEGY, mission: 'Make brands legible.' },
+    };
+    expect(computeBrandSetupSteps(mission).find((s) => s.id === 'strategy')?.done).toBe(true);
+  });
+
+  it('marks strategy done from a free-form About section alone', () => {
+    const about: MockBrand = {
+      ...blank,
+      about: [{ title: 'Brand promise', content: 'We ship.' } as MockBrand['about'][number]],
+    };
+    expect(computeBrandSetupSteps(about).find((s) => s.id === 'strategy')?.done).toBe(true);
+  });
+
+  it('ignores whitespace-only answers', () => {
+    const blankish: MockBrand = {
+      ...blank,
+      about: [{ title: 'X', content: '   ' } as MockBrand['about'][number]],
+      strategy: { ...EMPTY_STRATEGY, mission: '  ' },
+    };
+    expect(computeBrandSetupSteps(blankish).find((s) => s.id === 'strategy')?.done).toBe(false);
+  });
+
+  it('is complete when all four are answered', () => {
+    const full: MockBrand = {
+      ...withLogo(blank),
+      colors: { core: [{ hex: '#ff0000', name: 'Red' } as never], accent: [], grey: [] },
+      fonts: [{ family: 'Inter' } as MockBrand['fonts'][number]],
+      strategy: { ...EMPTY_STRATEGY, mission: 'Ship.' },
+    };
+    expect(isBrandSetupComplete(full)).toBe(true);
+    expect(missingBrandSetupSteps(full)).toHaveLength(0);
   });
 });

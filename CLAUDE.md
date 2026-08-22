@@ -731,8 +731,24 @@ NOT the alternate (`features/brand-kit-alt/`).
 **Entry & shell:**
 - Route page: `src/pages/b/[slug]/brand-kit.tsx` — fetches via
   `useBrandFromSlug`, converts to `MockBrand` shape (setup-era schema),
-  wraps in `WorkspaceShell`, mounts `BrandSetupChecklist` above for
-  incomplete-starter steps.
+  wraps in `WorkspaceShell`, and mounts `BrandSetupNudge` beside the page
+  when /setup still has empty sections.
+- **The setup prompt FLOATS; it is never in the flow** (`features/brand-setup/`,
+  owner request 2026-08-22). Its predecessor, `BrandSetupChecklist`, was a
+  full-width card rendered ahead of `BrandKitCosmosPage` in the same flex
+  column, so an unfinished brand pushed the whole Kit — WorkspaceShell's
+  sticky navbar included — down by the height of the prompt. Nothing that
+  merely SUGGESTS work may move the page the user came to look at. The
+  replacement is a 272px `position: fixed` card in the bottom-right corner,
+  at z-90 so it stays UNDER the drilldown and card-editor overlays (z-1000),
+  dismissible, and dismissed per brand id in `brandos:setup-nudge-dismissed`.
+- **It must not hold a second opinion about what is missing.**
+  `computeBrandSetupSteps` takes the `MockBrand` — the same projection Setup
+  renders — and names the four sections the way Setup's own sidebar names
+  them. Reading the raw `Brand` is what broke it before: the nudge demanded
+  `tone` or `audience` specifically while Setup counted Brand Strategy done
+  on ANY of its eleven answers, so a brand Setup showed as complete was
+  still being told to finish it. Pinned by `computeBrandSetupSteps.test.ts`.
 - Main component: `src/features/brand-kit/BrandKitCosmosPage.tsx`
   (~1.4k LOC). Single page, two views: **sections list** (default) +
   **drilldown overlay** (history-based back, popstate-aware).
@@ -1421,6 +1437,7 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos:guideline-theme:<brandId>` — Guideline theme preset pick (legacy canvas editor)
 - `brandos:guideline:docs` — the Brand Guidelines builder's documents, keyed by brand id (page list + guideline-scoped brand overrides). The page BODIES are not here — edited pages live in IndexedDB `brandos-snapshots/slides` under `brand-guides-<brandId>::<pageId>`
 - `brandos:editor-shortcuts-dismissed` — editor shortcuts hint dismissal
+- `brandos:setup-nudge-dismissed` — brand ids whose floating "finish setup" nudge has been dismissed (see the Brand Kit section)
 - `brandos-theme` — light/dark, and the ONLY theme key. It is `next-themes`'
   `storageKey` as well as what `[data-workspace] data-theme` reads, via
   `shared/theme/useWorkspaceTheme.ts`. (Before 2026-08-18 these were two

@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { BrandKitCosmosPage } from '@/features/brand-kit/BrandKitCosmosPage';
-import { BrandSetupChecklist } from '@/features/brand-setup/BrandSetupChecklist';
+import { BrandSetupNudge } from '@/features/brand-setup/BrandSetupNudge';
 import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
 
 /**
@@ -13,31 +14,23 @@ import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
  * just edited on the Setup tab. `key={brand.id}` forces a clean
  * remount on brand switch so scroll + active-section state reset.
  *
- * Phase 11.2 — mounts a `BrandSetupChecklist` above the Kit page when
- * starter steps remain incomplete; the widget hides itself entirely
- * once every step is done so configured brands aren't permanently
- * nagged.
+ * The incomplete-setup prompt is a FLOATING card (BrandSetupNudge), not a
+ * band above the page. The card it replaced sat in the flex column ahead of
+ * BrandKitCosmosPage, so an unfinished brand pushed the whole Kit — the
+ * shell's sticky navbar with it — down by the height of the prompt.
  */
 export default function BrandBrandKitPage() {
   const { slug } = useParams<{ slug: string }>();
   const { brand, isLoading } = useBrandFromSlug(slug);
 
-  if (!brand) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;
+  const mock = useMemo(() => (brand ? brandToMockBrand(brand) : null), [brand]);
 
-  // `empty:hidden` collapses the checklist wrapper to display:none
-  // whenever BrandSetupChecklist returns null for a fully-configured
-  // brand. Without it the empty wrapper + flex gap left a 32px band
-  // above the sticky WorkspaceShell navbar.
+  if (!brand || !mock) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;
+
   return (
-    <div className="flex flex-col">
-      <div className="px-4 sm:px-6 pt-4 empty:hidden">
-        <BrandSetupChecklist brand={brand} />
-      </div>
-      <BrandKitCosmosPage
-        key={brand.id}
-        brand={brandToMockBrand(brand)}
-        sourceBrand={brand}
-      />
-    </div>
+    <>
+      <BrandKitCosmosPage key={brand.id} brand={mock} sourceBrand={brand} />
+      <BrandSetupNudge brand={mock} brandId={brand.id} brandSlug={brand.slug} />
+    </>
   );
 }

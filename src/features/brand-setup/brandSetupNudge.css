@@ -1,0 +1,108 @@
+/* The setup nudge — a small floating card, bottom right.
+ *
+ * It used to be a full-width card ABOVE the page, which pushed the whole
+ * Brand Kit down including WorkspaceShell's sticky navbar. Nothing that
+ * merely suggests work should move the page you came to look at, so this
+ * is `position: fixed` and takes no space in the flow at all.
+ *
+ * Feature-local by design (one call site, product-specific behaviour), but
+ * every visual value is a --ds-* token. */
+
+.bsn {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  /* Above page content, deliberately BELOW the Brand Kit drilldown and card
+     editor overlays (z-1000) — a nudge must never sit on top of the thing
+     the user opened — and below the DS modal layer (200). */
+  z-index: 90;
+  width: 272px;
+  max-width: calc(100vw - 40px);
+  box-sizing: border-box;
+  padding: 14px 14px 12px;
+  border-radius: var(--ds-radius-card);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-float);
+  font-family: var(--ds-font);
+  color: var(--ds-text);
+  animation: bsn-in var(--ds-duration-panel) var(--ds-ease) both;
+}
+
+@keyframes bsn-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bsn { animation: none; }
+}
+
+.bsn-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bsn-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
+.bsn-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: -3px -3px 0 0;
+  border: none;
+  border-radius: var(--ds-radius-control);
+  background: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+              color var(--ds-duration-state) var(--ds-ease);
+}
+.bsn-close:hover { background: var(--ds-surface-hover); color: var(--ds-text); }
+.bsn-close:focus-visible { outline: 3px solid var(--ds-focus-ring); outline-offset: 1px; }
+
+.bsn-lede {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+}
+
+.bsn-list {
+  list-style: none;
+  margin: 10px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bsn-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ds-text-secondary);
+}
+
+/* A hollow ring, not a warning icon. Nothing here is wrong yet. */
+.bsn-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ds-dash-strong);
+}
+
+.bsn .ds-btn { width: 100%; justify-content: center; }
