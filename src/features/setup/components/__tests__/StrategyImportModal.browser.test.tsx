@@ -51,9 +51,12 @@ describe('StrategyImportModal', () => {
     paste(REPLY);
     const found = document.querySelector('[data-strategy-found]');
     expect(found?.getAttribute('data-strategy-found')).toBe('6');
-    expect(screen.getByText('Brand summary')).toBeTruthy();
+    // Scoped to the results — the ask-chips name every field too.
+    const labels = [...found!.querySelectorAll('.sti-label')].map((el) => el.textContent);
+    expect(labels).toContain('Brand summary');
     // A vocabulary id is shown as the word a person reads.
-    expect(screen.getByText('Small businesses')).toBeTruthy();
+    const values = [...found!.querySelectorAll('.sti-value')].map((el) => el.textContent);
+    expect(values).toContain('Small businesses');
   });
 
   it('says so plainly when a paste is not the reply we asked for', () => {
@@ -101,5 +104,70 @@ describe('StrategyImportModal', () => {
     fireEvent.click(row);
     expect(row.getAttribute('aria-pressed')).toBe('false');
     expect(getComputedStyle(tick).backgroundColor).not.toBe(filled);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Refusing the prompt, and choosing what to ask about.
+// ─────────────────────────────────────────────────────────────────────────
+describe('StrategyImportModal — refusing what is not a reply', () => {
+  it('names the mistake when the prompt itself is pasted', async () => {
+    const { buildStrategyPrompt } = await import('../../strategy/strategyPrompt');
+    open();
+    paste(buildStrategyPrompt('Northwind'));
+    const problem = document.querySelector('[data-problem]');
+    expect(problem?.getAttribute('data-problem')).toBe('prompt');
+    expect(problem?.textContent).toMatch(/That is the prompt, not the reply/);
+  });
+
+  it('cannot be applied when the paste was refused', async () => {
+    const { buildStrategyPrompt } = await import('../../strategy/strategyPrompt');
+    open();
+    paste(buildStrategyPrompt('Northwind'));
+    const btn = screen.getByText('Add answers').closest('button') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+  });
+
+  it('says so when every line is still an instruction', () => {
+    open();
+    paste(
+      'Industry: pick ONE from: Real Estate · Hospitality\nTone: pick ONE from: Formal · Warm\nMission: 1 sentence on why the brand exists — not what it sells.',
+    );
+    expect(document.querySelector('[data-problem]')?.getAttribute('data-problem')).toBe(
+      'unanswered',
+    );
+  });
+});
+
+describe('StrategyImportModal — choosing what to ask about', () => {
+  it('asks about everything by default', () => {
+    open();
+    expect(document.querySelector('[data-strategy-asks]')?.getAttribute('data-strategy-asks')).toBe('11');
+    expect(document.querySelectorAll('.sti-ask[aria-pressed="true"]').length).toBe(11);
+  });
+
+  it('marks which answers exist and which are empty', () => {
+    open({ strategy: { ...EMPTY_STRATEGY, mission: 'Make shipping boring.' } });
+    expect(document.querySelector('[data-ask="mission"]')?.getAttribute('data-filled')).toBe('true');
+    expect(document.querySelector('[data-ask="tone"]')?.getAttribute('data-filled')).toBe('false');
+    expect(document.querySelector('[data-ask="mission"]')?.textContent).toContain('Make shipping boring');
+    expect(document.querySelector('[data-ask="tone"]')?.textContent).toContain('empty');
+  });
+
+  it('unticking a field drops it from the prompt and hands it over as context', () => {
+    open({ strategy: { ...EMPTY_STRATEGY, mission: 'Make shipping boring.' } });
+    fireEvent.click(document.querySelector('[data-ask="mission"]') as HTMLElement);
+    expect(document.querySelector('[data-strategy-asks]')?.getAttribute('data-strategy-asks')).toBe('10');
+  });
+
+  it('"Only what is empty" leaves every answered field alone', () => {
+    open({
+      strategy: { ...EMPTY_STRATEGY, mission: 'Make shipping boring.', tone: 'direct' },
+    });
+    fireEvent.click(screen.getByText('Only what is empty'));
+    expect(document.querySelector('[data-ask="mission"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(document.querySelector('[data-ask="tone"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(document.querySelector('[data-ask="summary"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelector('[data-strategy-asks]')?.getAttribute('data-strategy-asks')).toBe('9');
   });
 });

@@ -1224,6 +1224,22 @@ mono roles skip it, and every failure falls back to the brand's primary colour.
 reusable halves. `workspaceCard.logoRole` is the manual override — a forced
 variant is not a suggestion, so the GROUND moves around it.
 
+**The logo and the ground are ONE choice, so they are chosen together**
+(`components/CardCoverModal.tsx`, "Change cover", owner request 2026-08-22).
+`logoRole` alone could never fix an invisible mark: forcing a variant let the
+ground move to suit it, so the pair the user set was not the pair they got.
+`workspaceCard.coverBackground` is the other half, and it ENDS the search —
+everything in `brandCardFace` below that check exists to guess a readable
+pairing, and guessing again under a choice someone made while looking at it is
+the bug, not the safeguard. The dialog shows the brand's logos over its colours,
+and its preview is rendered by `brandCardFace` over a DRAFT card: a preview that
+computed its own appearance would be a second opinion about the thing it claims
+to preview. `brandCardGrounds` is the offered list — the brand's own colours
+plus the two `surfacePalette(…, 'inverted')` extremes the automatic rule already
+reaches for, so the manual list can express every answer the measurement could
+have reached and the ones it could not. The full-bleed photo cover is a separate
+menu item ("Use a photo") and is unchanged.
+
 **Nothing in the band may overflow it.** Three separate guards, because this
 failed twice: `resolveBrandCover` returns `{ url, fit }` and asks for `contain`
 on a `kind: 'logo'` asset; `useBrandCover` then asks the IMAGE via
@@ -1751,6 +1767,39 @@ paste the reply, tick what to keep.
   read; a test asserts the prompt emits every label the parser knows, and that
   the eleven labels are exactly the eleven cards. Because we authored the
   labels this is a RECOGNITION — no assisted call, no key, no cost.
+- **THE PARSER MUST REFUSE THE PROMPT. This shipped broken once.** The prompt
+  is three inches from the paste box and every line of it is shaped like an
+  answer: `Industry: pick ONE from: Real Estate · Hospitality · …`. That
+  parsed — `Real Estate` is a real member so detection passed, then the first
+  comma-separated item, `pick ONE from: Real Estate`, matched no member and the
+  `Other` escape hatch stored the INSTRUCTION as the brand's industry. The
+  escape hatch is right; letting instructions through it was not. Three layers,
+  each catching what the one before cannot:
+  1. **The whole text is the prompt** — two of `PROMPT_SENTINELS` is proof.
+     Refused outright, with a message naming the mistake.
+  2. **A value IS its own field's instruction** — compared against `ASKS`,
+     which the prompt is BUILT from, so the check cannot fall behind the
+     wording. Catches a hand-edited or part-filled prompt.
+  3. **A value is instruction-shaped or is the option list** — an `Other` that
+     opens like an instruction, carries a colon, or runs past 48 chars is not
+     someone's own word; a vocabulary answer naming more than `max + 2` members
+     is the menu, not a choice.
+  `ASKS` and `PROMPT_SENTINELS` are exported from `strategyPrompt.ts` for
+  exactly this, and tests assert every sentinel and every ask is really in the
+  built prompt — a guard that silently stops firing is worse than none. The
+  bias is deliberate: a refused paste costs one retry, an accepted one costs
+  the user their brand strategy.
+- **The user chooses which fields the prompt asks about** (`StrategyContext.ask`,
+  the chip row in the modal, all ticked by default). A field left OUT that has
+  a value is still handed over as settled context — "do not restate, stay
+  consistent with" — so narrowing the ask never costs coherence. The chips say
+  plainly which answers exist and which are empty, and "Only what is empty" is
+  one click. Without this, every paste was an overwrite of everything.
+- **The `+` (manual) flow gets AI help too**, because someone who pressed + has
+  already decided they want to write something. `AboutEditorModal` takes an
+  optional `buildPrompt(title)`; SetupPage passes `buildSectionPrompt`, which
+  asks for ONE section as a plain paragraph with no label. Nothing to parse —
+  the reply IS the content and goes straight in the box.
 - **The parser reuses onboarding's machinery, it does not copy it.**
   `labelledBlocks` / `looksLabelled` / `afterColon` / `splitItems` are exported
   from `features/onboarding/brief/parseBrief.ts` and generic over a label list.
@@ -1774,8 +1823,8 @@ paste the reply, tick what to keep.
   it: `labelFor` returns an unknown id verbatim.
 - Prose stays prose where the meaning is in the wording: brand summary,
   products/services, mission, slogan.
-- Tests: `setup/strategy/__tests__/*` (22) and
-  `setup/components/__tests__/StrategyImportModal.browser.test.tsx` (7).
+- Tests: `setup/strategy/__tests__/*` (39) and
+  `setup/components/__tests__/StrategyImportModal.browser.test.tsx` (14).
 - **The On-dark tile is a dark GROUND, never a filter.** The `invert(1)` that
   used to sit on `.logo-tile.is-dark .logo-svg` is gone: the variant already IS
   the light artwork, so inverting showed a colour the brand does not own.

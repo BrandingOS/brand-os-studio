@@ -790,6 +790,22 @@
   outline: none;
   box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }
+/* The About editor's Content label sits beside its own AI menu, so the label
+   moves out of DsTextArea and onto this row. Same 13px/600 as ds-label. */
+.about-ai-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+.about-ai-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
 /* Build-with-AI: the one TEXT control in a row of icon buttons.
  *
  * It reads as a label rather than a glyph because "Build with AI" is not a

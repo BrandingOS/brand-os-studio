@@ -8,6 +8,7 @@ import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
 import { BrandSetupNudge } from '@/features/brand-setup/BrandSetupNudge';
 import { StrategyImportModal } from './components/StrategyImportModal';
 import { applyStrategyFields, type ParsedStrategyField } from './strategy/parseStrategyBrief';
+import { buildSectionPrompt } from './strategy/strategyPrompt';
 import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
 import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
@@ -1634,6 +1635,9 @@ export function SetupPage({
       <AboutEditorModal
         open={!!aboutEditing}
         initial={aboutEditing}
+        /* Someone who pressed + wants to write something — so offer the same
+           AI help here, scoped to the one section they are writing. */
+        buildPrompt={(title) => buildSectionPrompt(brand.name, title, brand.strategy)}
         takenTitles={brand.about
           .filter((a) => a.content.trim().length > 0)
           .map((a) => a.title)}

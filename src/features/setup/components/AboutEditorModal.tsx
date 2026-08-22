@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DsButton, DsInput, DsModal, DsTextArea } from '@/shared/ds';
+import { AiPromptMenu } from '@/shared/ai-handoff/AiPromptMenu';
 
 export type AboutEditorInitial = {
   id?: string;
@@ -29,6 +30,15 @@ type Props = {
    * it. Anything else falls through to the old behaviour.
    */
   onPickSuggestion?: (title: string) => boolean;
+  /**
+   * A prompt for the section being written, built from its current title.
+   *
+   * Someone who pressed + has already decided they want to write something, so
+   * the same AI help the section header offers belongs in here too. There is
+   * nothing to parse: the reply IS the content, and it goes straight into the
+   * box below the menu. Omit to hide the control.
+   */
+  buildPrompt?: (title: string) => string;
   onClose: () => void;
   onSave: (next: { id?: string; title: string; content: string }) => void;
   onDelete?: (id: string) => void;
@@ -57,6 +67,7 @@ export function AboutEditorModal({
   takenTitles,
   suggestions,
   onPickSuggestion,
+  buildPrompt,
   onClose,
   onSave,
   onDelete,
@@ -142,9 +153,18 @@ export function AboutEditorModal({
         )}
 
         <div style={{ marginTop: 16 }}>
+          {buildPrompt && (
+            <div className="about-ai-row">
+              <span className="about-ai-label">Content</span>
+              <AiPromptMenu
+                label="Write it with AI"
+                prompt={() => buildPrompt(title)}
+              />
+            </div>
+          )}
           <DsTextArea
             ref={contentRef}
-            label="Content"
+            label={buildPrompt ? undefined : 'Content'}
             placeholder="Who you're speaking to, what you're saying, where you're going…"
             value={content}
             onChange={(e) => setContent(e.target.value)}

@@ -1,30 +1,48 @@
 /**
- * Reading the strategy reply back.
+ * Reading the strategy reply back — and refusing everything that is not one.
  *
  * The other half of the contract in `strategyPrompt.ts`. Because we authored
- * the labels, this is a RECOGNITION rather than a guess — no assisted call, no
+ * the labels this is a RECOGNITION rather than a guess: no assisted call, no
  * key, no cost, and a result the user can see before it is applied.
  *
  * It reuses onboarding's labelled-text machinery (`labelledBlocks`,
  * `looksLabelled`) rather than a near-copy: the tolerance for casing, for the
  * spacing an LLM puts around a slash, and the rule that a blank line CLOSES a
- * block are all things that took a bug each to learn, and a second
- * implementation would relearn them.
+ * block are all things that took a bug each to learn.
  *
- * Two rules of its own:
+ * ## What it refuses, and why it has to
  *
- *  - **A vocabulary answer is normalised, never coerced.** `normalize` returns
- *    the member or an honest `Other` with the wording untouched. A closed list
- *    that silently rounds an answer off is worse than free text, because the
- *    rounding is invisible.
- *  - **Nothing is applied here.** This returns what it recognised, per field,
- *    so the caller can show it and let the user choose. Parsing and writing
- *    are different decisions and the user is entitled to stand between them.
+ * The single most likely mistake here is pasting the PROMPT where the reply
+ * belongs — the button that produces it is three inches away. And the prompt
+ * is a trap, because it is full of lines shaped exactly like answers:
+ *
+ *     Industry: pick ONE from: Real Estate · Hospitality · Food & Beverage · …
+ *
+ * That parsed. `Real Estate` is a real member, so detection passed; then the
+ * first comma-separated item, `pick ONE from: Real Estate`, matched no member
+ * and the `Other` escape hatch — which exists so a closed list never silently
+ * rounds off someone's own word — stored the instruction verbatim as the
+ * brand's industry. The escape hatch is right; letting INSTRUCTIONS through it
+ * was not.
+ *
+ * So there are three layers, each catching what the one before it cannot:
+ *
+ *  1. **The whole text is the prompt.** Two of `PROMPT_SENTINELS` is proof.
+ *     Refused outright with a message that says what to do instead.
+ *  2. **A value IS the instruction for its own field.** Compared against
+ *     `ASKS`, which the prompt is built from, so this cannot fall behind the
+ *     wording. Catches a hand-edited or partly-filled prompt.
+ *  3. **A value is instruction-SHAPED, or is the option list.** An `Other`
+ *     that opens like an instruction, carries a colon, or runs long is not
+ *     someone's own word; a vocabulary answer naming far more members than the
+ *     field accepts is the menu, not a choice.
+ *
+ * The bias is deliberate: a refused paste costs one retry, an accepted one
+ * costs the user their brand strategy.
  *
  * Pure — no service, no store, no React.
  */
 import {
-  afterColon,
   labelledBlocks,
   looksLabelled,
   splitItems,
@@ -33,7 +51,14 @@ import { normalize, storedValue } from '@/features/onboarding/vocabulary/normali
 import { CARDINALITY, VOCABULARIES } from '@/features/onboarding/vocabulary/vocabularies';
 import { STRATEGY_CARDS, type StrategyKey } from '../data/strategyCards';
 import type { BrandStrategyFields } from '../data/mockBrand';
-import { STRATEGY_LABELS, LABEL_BY_KEY, type StrategyLabel } from './strategyPrompt';
+import {
+  ASKS,
+  INSTRUCTION_OPENERS,
+  LABEL_BY_KEY,
+  PROMPT_SENTINELS,
+  STRATEGY_LABELS,
+  type StrategyLabel,
+} from './strategyPrompt';
 
 /** One field the paste actually answered. */
 export interface ParsedStrategyField {
@@ -46,10 +71,18 @@ export interface ParsedStrategyField {
   isOther: boolean;
 }
 
+/** Why a paste produced nothing, when the reason is worth saying out loud. */
+export type StrategyParseProblem =
+  /** They pasted the prompt instead of the reply. */
+  | 'prompt'
+  /** Labelled lines, but every value was still an instruction. */
+  | 'unanswered';
+
 export interface ParsedStrategy {
   fields: ParsedStrategyField[];
   /** Anything the parser did not recognise — offered as a free-form section. */
   residualProse: string;
+  problem?: StrategyParseProblem;
 }
 
 const KEY_BY_LABEL = new Map<StrategyLabel, StrategyKey>(
@@ -60,9 +93,53 @@ const KEY_BY_LABEL = new Map<StrategyLabel, StrategyKey>(
 
 const CARD_BY_KEY = new Map(STRATEGY_CARDS.map((c) => [c.key, c]));
 
-/** True when the text is recognisably the reply this product's prompt asked for. */
+/** How many sentinels prove it. One could appear in a quoted reply; two cannot. */
+const SENTINEL_THRESHOLD = 2;
+
+/** Longest an `Other` word may be. Beyond this it is a sentence, not a label. */
+const MAX_OTHER_LENGTH = 48;
+
+const fold = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** True when the text is this product's own prompt rather than a reply to it. */
+export function looksLikeStrategyPrompt(text: string): boolean {
+  const hay = fold(text);
+  let hits = 0;
+  for (const sentinel of PROMPT_SENTINELS) {
+    if (hay.includes(fold(sentinel))) hits += 1;
+    if (hits >= SENTINEL_THRESHOLD) return true;
+  }
+  return false;
+}
+
+/** True when the text is recognisably a reply this product's prompt asked for. */
 export function looksLikeStrategyBrief(text: string): boolean {
+  if (looksLikeStrategyPrompt(text)) return false;
   return looksLabelled(text, STRATEGY_LABELS);
+}
+
+/** True when a value is the instruction for its own field, echoed back. */
+function isOwnInstruction(key: StrategyKey, body: string): boolean {
+  const value = fold(body);
+  const ask = fold(ASKS[key]);
+  return value === ask || value.startsWith(ask) || ask.startsWith(value);
+}
+
+/** True when a value is shaped like an instruction rather than an answer. */
+function isInstructionShaped(body: string): boolean {
+  return INSTRUCTION_OPENERS.some((re) => re.test(body.trim()));
+}
+
+/**
+ * True when a word cannot be somebody's own answer.
+ *
+ * A colon is the giveaway — `Other` exists for a WORD ("Property Development"),
+ * and no one's own word for their industry contains a colon or runs to a
+ * sentence. Prose fields are exempt; this guards the vocabularies only.
+ */
+function isImplausibleOther(word: string): boolean {
+  const w = word.trim();
+  return w.length > MAX_OTHER_LENGTH || w.includes(':') || isInstructionShaped(w);
 }
 
 /**
@@ -73,8 +150,13 @@ export function looksLikeStrategyBrief(text: string): boolean {
  * text as residual prose, which the caller can still offer as a section.
  */
 export function parseStrategyBrief(text: string): ParsedStrategy {
+  if (looksLikeStrategyPrompt(text)) {
+    return { fields: [], residualProse: '', problem: 'prompt' };
+  }
+
   const fields: ParsedStrategyField[] = [];
   const residual: string[] = [];
+  let sawInstruction = false;
 
   for (const block of labelledBlocks(text, STRATEGY_LABELS)) {
     const body = block.lines.join('\n').trim();
@@ -91,6 +173,12 @@ export function parseStrategyBrief(text: string): ParsedStrategy {
     // An AI that omits an answer often says so rather than staying silent.
     if (/^(n\/a|none|unknown|not applicable|-+)$/i.test(body)) continue;
 
+    // Layer 2 + 3: the value is the ask, not the answer.
+    if (isOwnInstruction(key, body) || isInstructionShaped(body)) {
+      sawInstruction = true;
+      continue;
+    }
+
     if (!card.vocab) {
       const prose =
         key === 'slogan' ? body.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '') : body;
@@ -102,11 +190,29 @@ export function parseStrategyBrief(text: string): ParsedStrategy {
     const max = card.max ?? CARDINALITY[card.vocab].max;
     // "Other: Property Development" is the escape hatch the prompt offers.
     const raw = splitItems(body.replace(/^\s*other\s*:\s*/i, ''));
+
+    // Layer 3: the option list, not a choice. A reply naming far more members
+    // than the field accepts is the menu the prompt printed.
+    const memberHits = raw.filter(
+      (item) => normalize(item, vocab).kind === 'member',
+    ).length;
+    if (memberHits > max + 2) {
+      sawInstruction = true;
+      continue;
+    }
+
     const picked: string[] = [];
     let other = false;
     for (const item of raw) {
       const n = normalize(item, vocab);
-      if (n.kind === 'other') other = true;
+      if (n.kind === 'other') {
+        // The escape hatch keeps a WORD, never an instruction.
+        if (isImplausibleOther(n.text)) {
+          sawInstruction = true;
+          continue;
+        }
+        other = true;
+      }
       const stored = storedValue(n);
       if (stored && !picked.includes(stored)) picked.push(stored);
       if (picked.length >= max) break;
@@ -125,7 +231,10 @@ export function parseStrategyBrief(text: string): ParsedStrategy {
     });
   }
 
-  return { fields, residualProse: residual.join('\n\n').trim() };
+  const problem: StrategyParseProblem | undefined =
+    fields.length === 0 && sawInstruction ? 'unanswered' : undefined;
+
+  return { fields, residualProse: residual.join('\n\n').trim(), problem };
 }
 
 /** Applies chosen fields onto a strategy, leaving everything else alone. */

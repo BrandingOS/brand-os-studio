@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseStrategyBrief,
   looksLikeStrategyBrief,
+  looksLikeStrategyPrompt,
   applyStrategyFields,
   labelOf,
 } from '../parseStrategyBrief';
@@ -107,5 +108,98 @@ describe('labelOf', () => {
   it('names a field the way the board names it', () => {
     expect(labelOf('summary')).toBe('Brand summary');
     expect(labelOf('style')).toBe('Visual style');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Refusing what is not a reply.
+//
+// The regression that made this section unusable: the prompt is three inches
+// from the paste box and every one of its lines is shaped like an answer.
+// ─────────────────────────────────────────────────────────────────────────
+describe('refusing the prompt', () => {
+  it('recognises its own prompt and refuses the whole paste', async () => {
+    const { buildStrategyPrompt } = await import('../strategyPrompt');
+    const prompt = buildStrategyPrompt('Northwind');
+    const parsed = parseStrategyBrief(prompt);
+    expect(parsed.problem).toBe('prompt');
+    expect(parsed.fields).toEqual([]);
+  });
+
+  it('refuses it even with the brand’s settled answers embedded', async () => {
+    const { buildStrategyPrompt } = await import('../strategyPrompt');
+    const prompt = buildStrategyPrompt('Northwind', {
+      strategy: { ...EMPTY_STRATEGY, mission: 'Make shipping boring.' },
+      ask: ['summary', 'industry'],
+    });
+    expect(parseStrategyBrief(prompt).problem).toBe('prompt');
+  });
+
+  // The exact line from the bug report.
+  it('never stores an option list as an answer', () => {
+    const parsed = parseStrategyBrief(
+      [
+        'Industry: pick ONE from: Real Estate · Hospitality · Food & Beverage · Retail',
+        'Audience: pick ONE from: Everyday consumers · Families · Young adults',
+        'Mission: 1 sentence on why the brand exists — not what it sells.',
+        'Tone: pick ONE from: Formal · Conversational · Warm',
+        'Core values: pick 3–5 from: Quality · Integrity · Innovation · Sustainability',
+      ].join('\n'),
+    );
+    expect(parsed.fields).toEqual([]);
+    expect(parsed.problem).toBe('unanswered');
+  });
+
+  it('refuses an instruction even when it is the only thing pasted', () => {
+    const parsed = parseStrategyBrief(
+      'Products / Services: comma-separated, 3–6 items.\nSlogan: a short line that could sit under the brand name. Omit if none fits.\nMission: 1 sentence on why the brand exists — not what it sells.',
+    );
+    expect(parsed.fields).toEqual([]);
+    expect(parsed.problem).toBe('unanswered');
+  });
+
+  // The escape hatch stays open for a genuine word and shut to a sentence.
+  it('keeps a real "Other" word but refuses an instruction through it', () => {
+    const good = find('Industry: Other: Property Development\nTone: Direct\nMission: m', 'industry');
+    expect(good?.value).toBe('Property Development');
+
+    const bad = find('Industry: pick ONE from: Real Estate\nTone: Direct\nMission: m', 'industry');
+    expect(bad).toBeUndefined();
+  });
+
+  it('refuses an "Other" that is a sentence rather than a word', () => {
+    const f = find(
+      'Industry: Other: we mostly do a bit of everything depending on the season and the client\nTone: Direct\nMission: m',
+      'industry',
+    );
+    expect(f).toBeUndefined();
+  });
+
+  it('a real reply still parses cleanly beside all of that', () => {
+    const parsed = parseStrategyBrief(
+      'Industry: Logistics\nTone: Direct\nMission: To make shipping boring.',
+    );
+    expect(parsed.problem).toBeUndefined();
+    expect(parsed.fields).toHaveLength(3);
+  });
+
+  it('a mixed paste keeps the answers and drops the instructions', () => {
+    const parsed = parseStrategyBrief(
+      [
+        'Industry: Logistics',
+        'Audience: pick ONE from: Everyday consumers · Families',
+        'Mission: To make shipping boring.',
+      ].join('\n'),
+    );
+    expect(parsed.fields.map((f) => f.key)).toEqual(['industry', 'mission']);
+    // Something was recognised, so this is not a wholesale failure.
+    expect(parsed.problem).toBeUndefined();
+  });
+});
+
+describe('looksLikeStrategyBrief guards the same door', () => {
+  it('is false for the prompt, however well-labelled it is', async () => {
+    const { buildStrategyPrompt } = await import('../strategyPrompt');
+    expect(looksLikeStrategyBrief(buildStrategyPrompt('Northwind'))).toBe(false);
   });
 });
