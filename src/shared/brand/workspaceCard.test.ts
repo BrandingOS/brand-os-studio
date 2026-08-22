@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   brandCardFace,
+  brandCardGrounds,
   brandCardLabel,
   hasProjectLabel,
   mergeWorkspaceCard,
@@ -326,5 +327,101 @@ describe('a logo that is more than one colour', () => {
     const b = { ...kaafex(), workspaceCard: { logoRole: 'primary' } } as Brand;
     const face = brandCardFace(b, { 'lockup.svg': twoTone });
     expect(face.logoUrl).toBe('lockup.svg');
+  });
+});
+
+describe('a ground the user chose by hand', () => {
+  /** A brand carrying exactly the logo roles named. */
+  const withRoles = (roles: Record<string, string>, primaryColor = '#EF4444'): Brand =>
+    brand({
+      primaryColor,
+      brandAssets: Object.entries(roles).map(([role, url]) => ({
+        id: `asset-${role}`,
+        kind: 'logo',
+        name: role,
+        formats: { svg: { url, size: 1 } },
+        tags: [],
+      })),
+      logoSystem: {
+        primary: roles.primary ? { assetId: 'asset-primary' } : undefined,
+        iconmark: roles.iconmark ? { assetId: 'asset-iconmark' } : undefined,
+        mono: { white: roles.monoWhite ? { assetId: 'asset-monoWhite' } : undefined },
+      },
+    } as Partial<Brand>);
+
+  it('is used exactly as given, even where the measurement would have moved it', () => {
+    // The case the control exists for: one variant, inked in the brand's own
+    // colour, on that colour. Left alone the ground moves (the test above pins
+    // that). Asked for, it must not — the person looking at the card said this
+    // is the pairing they want.
+    const face = brandCardFace(
+      withRoles({ primary: 'primary.svg' }, '#EF4444'),
+    );
+    expect(face.background.toLowerCase()).not.toBe('#ef4444');
+
+    const chosen = brandCardFace({
+      ...withRoles({ primary: 'primary.svg' }, '#EF4444'),
+      workspaceCard: { coverBackground: '#EF4444' },
+    } as Brand);
+    expect(chosen.background).toBe('#EF4444');
+    expect(chosen.logoUrl).toBe('primary.svg');
+  });
+
+  it('honours the chosen logo on the chosen ground', () => {
+    const face = brandCardFace({
+      ...withRoles({ primary: 'primary.svg', monoWhite: 'white.svg' }, '#EF4444'),
+      workspaceCard: { coverBackground: '#101010', logoRole: 'mono.white' },
+    } as Brand);
+    expect(face.background).toBe('#101010');
+    expect(face.logoUrl).toBe('white.svg');
+  });
+
+  it('reads the letter against the chosen ground when the brand owns no logo', () => {
+    const face = brandCardFace({
+      ...brand({ name: 'Acme' }),
+      workspaceCard: { coverBackground: '#ffffff' },
+    } as Brand);
+    expect(face.background).toBe('#ffffff');
+    expect(face.letter).toBe('A');
+    expect(contrastRatio(face.color, '#ffffff')).toBeGreaterThan(4.5);
+  });
+
+  it('changes nothing when it is absent', () => {
+    const auto = brandCardFace(withRoles({ monoWhite: 'white.svg' }, '#EF4444'));
+    expect(auto.background.toLowerCase()).toBe('#ef4444');
+    expect(auto.logoUrl).toBe('white.svg');
+  });
+});
+
+describe('the grounds the picker offers', () => {
+  it('leads with the brand’s own colours, named', () => {
+    const grounds = brandCardGrounds(
+      brand({
+        primaryColor: '#EF4444',
+        colorSystem: {
+          primary: { hex: '#EF4444', name: 'Signal Red' },
+          secondary: { hex: '#1D4ED8' },
+        },
+      } as Partial<Brand>),
+    );
+    expect(grounds[0]).toEqual({ hex: '#EF4444', name: 'Signal Red' });
+    expect(grounds[1]).toEqual({ hex: '#1D4ED8', name: 'Secondary' });
+  });
+
+  it('always offers the two grounds the automatic rule reaches for', () => {
+    // Without these the manual list could not express the answer that fixes an
+    // invisible logo most often, and the control would be weaker than the
+    // measurement it overrules.
+    const grounds = brandCardGrounds(brand({ primaryColor: '#EF4444' }));
+    expect(grounds.map((g) => g.name)).toContain('Dark');
+    expect(grounds.map((g) => g.name)).toContain('Light');
+  });
+
+  it('never offers the same colour twice', () => {
+    const grounds = brandCardGrounds(
+      brand({ primaryColor: '#EF4444', secondaryColor: '#ef4444' }),
+    );
+    const seen = grounds.map((g) => g.hex.toLowerCase());
+    expect(new Set(seen).size).toBe(seen.length);
   });
 });

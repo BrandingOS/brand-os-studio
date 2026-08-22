@@ -19,6 +19,7 @@ import { surfacePalette } from '@/shared/brand/brandPalette';
 import {
   FACE_PRIORITY,
   knownInkOfRole,
+  pickFgOnBackground,
   variantsInPriorityOrder,
 } from '@/shared/brand/logoOnBackground';
 import {
@@ -114,11 +115,54 @@ export function mergeWorkspaceCard(
   if (!next.coverAssetId) delete next.coverAssetId;
   if (!next.coverUrl) delete next.coverUrl;
   if (!next.logoRole) delete next.logoRole;
+  if (!next.coverBackground) delete next.coverBackground;
   if (!next.folder?.trim()) delete next.folder;
   // `null`, not `undefined`: a patch key set to undefined is skipped by every
   // layer between here and the database, so clearing the last field would
   // silently keep the old value. Null is the instruction to clear it.
   return Object.keys(next).length > 0 ? next : null;
+}
+
+/** A ground the cover picker can offer, with something to call it. */
+export interface CardGroundOption {
+  hex: string;
+  name: string;
+}
+
+/**
+ * The grounds a card may be set to — the brand's own colours, and the two the
+ * automatic rule already reaches for.
+ *
+ * Those last two matter more than they look. When a logo cannot be seen on the
+ * brand's colour, the fix is almost always a near-black or near-white ground,
+ * and `surfacePalette(…, 'inverted')` returns them carrying the brand's hue —
+ * so the card stays the brand's rather than going neutral. Offering the same
+ * two the measurement uses means the manual list can express every answer the
+ * automatic one could have reached, plus the ones it could not.
+ */
+export function brandCardGrounds(brand: Brand | null | undefined): CardGroundOption[] {
+  const out: CardGroundOption[] = [];
+  const seen = new Set<string>();
+  const add = (hex: string | undefined, name: string) => {
+    const value = hex?.trim();
+    if (!value) return;
+    const key = value.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ hex: value, name });
+  };
+
+  const colors = brand?.colorSystem;
+  add(colors?.primary?.hex ?? brand?.primaryColor, colors?.primary?.name || 'Primary');
+  add(colors?.secondary?.hex ?? brand?.secondaryColor, colors?.secondary?.name || 'Secondary');
+  add(colors?.accent?.hex ?? brand?.accentColor, colors?.accent?.name || 'Accent');
+  colors?.neutrals?.forEach((token, i) => add(token?.hex, token?.name || `Neutral ${i + 1}`));
+  brand?.neutrals?.forEach((hex, i) => add(hex, `Neutral ${i + 1}`));
+
+  add(surfacePalette(brand as Brand, 'inverted', 'light').bg, 'Dark');
+  add(surfacePalette(brand as Brand, 'inverted', 'dark').bg, 'Light');
+
+  return out;
 }
 
 /** What a dashboard card draws behind its name — decided once, for both surfaces. */
@@ -170,6 +214,22 @@ export function brandCardFace(
   const letter = (brand?.name ?? 'B').trim().slice(0, 1).toUpperCase() || 'B';
 
   const all = variantsInPriorityOrder(brand, FACE_PRIORITY);
+
+  // A ground the user chose by hand ends the search rather than joining it.
+  // Everything below this line exists to GUESS a readable pairing; once the
+  // person looking at the card has said which one they want, guessing again —
+  // and moving the ground out from under their choice — is the bug, not the
+  // safeguard. It is why they were given the control.
+  const chosenGround = brand?.workspaceCard?.coverBackground;
+  if (chosenGround) {
+    const ink = pickFgOnBackground(chosenGround, ['#111111', '#ffffff']);
+    const forcedRole = brand?.workspaceCard?.logoRole;
+    const picked = forcedRole ? all.find((v) => v.role === forcedRole) : all[0];
+    return picked
+      ? { background: chosenGround, color: ink, logoUrl: picked.resolved.url }
+      : { background: chosenGround, color: ink, letter };
+  }
+
   if (all.length === 0) {
     return { background: brandGround.bg, color: brandGround.text, letter };
   }

@@ -154,6 +154,16 @@ export interface WorkspaceCard {
    * than the variant being dropped for a more convenient one.
    */
   logoRole?: string;
+  /**
+   * A ground the user chose by hand.
+   *
+   * The card measures its way to a ground, and when no pairing reads it takes
+   * the one that loses least — which is how a primary-colour logo can end up on
+   * the primary-colour card it disappears into. Choosing the logo was already
+   * possible; without this, choosing what it sits ON was not, so the pair could
+   * not be fixed. Absent means the measured answer, as before.
+   */
+  coverBackground?: string;
   /** Which folder this project sits in on the dashboard. */
   folder?: string;
 }

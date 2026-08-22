@@ -17,8 +17,7 @@ import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourc
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { mergeWorkspaceCard, resolveBrandCover } from '@/shared/brand/workspaceCard';
-import { variantsInPriorityOrder } from '@/shared/brand/logoOnBackground';
-import { logoRoleLabel } from '@/shared/brand/logoRoles';
+import { CardCoverModal, type CoverChoice } from './CardCoverModal';
 import { useProjectRename } from './useProjectRename';
 import type { Brand } from '@/shared/types/brand';
 
@@ -210,22 +209,29 @@ export function BrandCardMenu({
   const [draftName, setDraftName] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const anchorRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { label, rename } = useProjectRename(brand);
   const hasCover = Boolean(resolveBrandCover(brand));
-  const variants = variantsInPriorityOrder(brand);
-  const forcedRole = brand.workspaceCard?.logoRole;
 
-  const setLogoRole = async (role: string | undefined) => {
+  /**
+   * The logo and the ground it sits on, saved together.
+   *
+   * They are one decision. Saving them apart is what made the old logo submenu
+   * unable to fix an invisible mark: forcing a variant let the ground move to
+   * suit it, so the pair the user could see was never the pair they had set.
+   */
+  const applyCoverChoice = async (choice: CoverChoice) => {
     setBusy(true);
     try {
-      await saveCard({ logoRole: role });
-      toast.success(role ? `Showing the ${logoRoleLabel(role as never)}` : 'Logo chosen automatically');
+      await saveCard(choice);
+      setCoverOpen(false);
+      toast.success('Cover updated');
     } catch (err) {
-      toast.error('Could not change the logo', {
+      toast.error('Could not change the cover', {
         description: err instanceof Error ? err.message : 'Please try again.',
       });
     } finally {
@@ -325,37 +331,21 @@ export function BrandCardMenu({
         setRenaming(true);
       },
     },
+    // The card picks its logo AND its ground by measuring the artwork, and gets
+    // it right most of the time — but "by default" has to mean there is a way to
+    // overrule it, and overruling only half of it never worked.
     {
-      label: hasCover ? 'Change cover' : 'Choose cover',
+      label: 'Change cover',
       icon: <CoverIcon />,
       onSelect: () => setCoverOpen(true),
     },
-    // The card picks its own variant, and gets it right by measuring the
-    // artwork — but "by default" has to mean there is a way to overrule it.
-    ...(variants.length > 1
-      ? [
-          {
-            label: 'Logo on this card',
-            icon: <LogoIcon />,
-            // Ignored for a submenu — the type requires it all the same.
-            onSelect: () => {},
-            children: [
-              {
-                label: 'Automatic',
-                disabled: !forcedRole,
-                onSelect: () => void setLogoRole(undefined),
-              },
-              ...variants.map((v) => ({
-                label: logoRoleLabel(v.role),
-                disabled: forcedRole === v.role,
-                onSelect: () => void setLogoRole(v.role),
-              })),
-            ],
-          },
-        ]
-      : []),
+    {
+      label: hasCover ? 'Change photo' : 'Use a photo',
+      icon: <LogoIcon />,
+      onSelect: () => setPhotoOpen(true),
+    },
     ...(hasCover
-      ? [{ label: 'Remove cover', icon: <CoverOffIcon />, onSelect: () => void removeCover() }]
+      ? [{ label: 'Remove photo', icon: <CoverOffIcon />, onSelect: () => void removeCover() }]
       : []),
     { label: 'Edit brand', icon: <EditIcon />, onSelect: () => navigate(editUrl) },
     {
@@ -448,11 +438,19 @@ export function BrandCardMenu({
       </button>
 
       {coverOpen && (
+        <CardCoverModal
+          brand={brand}
+          onSave={(choice) => applyCoverChoice(choice)}
+          onClose={() => !busy && setCoverOpen(false)}
+        />
+      )}
+
+      {photoOpen && (
         <CardCoverPicker
           brandId={brand.id}
           placement={placement}
           onPick={(assetId) => applyCover(assetId)}
-          onClose={() => setCoverOpen(false)}
+          onClose={() => setPhotoOpen(false)}
         />
       )}
 

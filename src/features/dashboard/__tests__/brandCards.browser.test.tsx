@@ -274,7 +274,7 @@ describe('reaching a card’s actions', () => {
     });
     expect(within(menu).getByText('Rename project')).toBeTruthy();
     expect(within(menu).getByText('Delete project')).toBeTruthy();
-    expect(within(menu).getByText('Choose cover')).toBeTruthy();
+    expect(within(menu).getByText('Change cover')).toBeTruthy();
   });
 
   it('still opens on right-click — the button adds a way in, it removes none', async () => {
@@ -347,7 +347,7 @@ describe('choosing a cover', () => {
     mount(seedBrand());
 
     fireEvent.click(await screen.findByRole('button', { name: /actions for acme/i }));
-    fireEvent.click(await screen.findByText('Choose cover'));
+    fireEvent.click(await screen.findByText('Use a photo'));
 
     const tile = await screen.findByTitle('Studio shot');
     fireEvent.click(tile);
@@ -373,7 +373,7 @@ describe('choosing a cover', () => {
     mount(brand);
 
     fireEvent.click(await screen.findByRole('button', { name: /actions for acme/i }));
-    fireEvent.click(await screen.findByText('Remove cover'));
+    fireEvent.click(await screen.findByText('Remove photo'));
 
     await waitFor(() => expect(installed.patches.length).toBeGreaterThan(0));
     // The card is cleared; the asset is untouched.
@@ -520,5 +520,172 @@ describe('selecting projects', () => {
     expect(await screen.findByText('1 selected')).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByText('1 selected')).toBeNull());
+  });
+});
+
+/**
+ * The cover picker exists because the two halves of a card's face are ONE
+ * decision. The card measures its way to both, and when nothing reads it takes
+ * the pairing that loses least — which is how a primary-colour mark lands on
+ * the primary-colour ground it disappears into. Forcing the logo alone never
+ * fixed that: the ground simply moved to suit whichever variant was forced.
+ */
+describe('choosing the logo and the colour together', () => {
+  /** A brand whose only mark is inked in its own colour — the invisible case. */
+  const clashing = (): Brand =>
+    seedBrand({
+      primaryColor: '#EF4444',
+      brandAssets: [
+        {
+          id: 'asset-primary',
+          kind: 'logo',
+          name: 'primary',
+          formats: { svg: { url: 'https://cdn/primary.svg', size: 1 } },
+          tags: [],
+        },
+        {
+          id: 'asset-mono-white',
+          kind: 'logo',
+          name: 'mono.white',
+          formats: { svg: { url: 'https://cdn/white.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: {
+        primary: { assetId: 'asset-primary' },
+        mono: { white: { assetId: 'asset-mono-white' } },
+      },
+    } as Partial<Brand>);
+
+  const openPicker = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /actions for acme/i }));
+    fireEvent.click(await screen.findByText('Change cover'));
+    return screen.findByLabelText('Cover preview');
+  };
+
+  it('offers every logo the brand owns, and its colours', async () => {
+    installBrand(clashing());
+    mount(clashing());
+    await openPicker();
+
+    const logos = screen.getByRole('radiogroup', { name: 'Logo' });
+    // Automatic, plus one tile per variant the brand actually has.
+    expect(within(logos).getAllByRole('radio').length).toBe(3);
+    expect(within(logos).getByRole('radio', { name: 'Automatic' })).toBeTruthy();
+
+    const grounds = screen.getByRole('radiogroup', { name: 'Background' });
+    const names = within(grounds)
+      .getAllByRole('radio')
+      .map((el) => el.getAttribute('aria-label') ?? '');
+    expect(names.some((n) => n.startsWith('Primary'))).toBe(true);
+    // The two the automatic rule reaches for have to be offerable by hand, or
+    // the control could not express the answer that fixes an invisible mark.
+    expect(names.some((n) => n.startsWith('Dark'))).toBe(true);
+    expect(names.some((n) => n.startsWith('Light'))).toBe(true);
+  });
+
+  it('previews the pairing before it is saved, and writes nothing until Save', async () => {
+    const installed = installBrand(clashing());
+    mount(clashing());
+    const preview = await openPicker();
+
+    const grounds = screen.getByRole('radiogroup', { name: 'Background' });
+    fireEvent.click(within(grounds).getByRole('radio', { name: /^Primary/ }));
+
+    await waitFor(() =>
+      expect(preview.style.background.replace(/\s/g, '')).toBe('rgb(239,68,68)'),
+    );
+    // Looking is not choosing.
+    expect(installed.patches.length).toBe(0);
+  });
+
+  it('saves both halves as one change', async () => {
+    const installed = installBrand(clashing());
+    mount(clashing());
+    await openPicker();
+
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Logo' })).getByRole('radio', {
+        name: 'On dark',
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Background' })).getByRole('radio', {
+        name: /^Primary/,
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(installed.patches.length).toBeGreaterThan(0));
+    expect(installed.patches.at(-1)!.workspaceCard).toEqual({
+      logoRole: 'mono.white',
+      coverBackground: '#EF4444',
+    });
+  });
+
+  it('keeps the ground the user chose, where the measurement would have moved it', async () => {
+    // The whole point. This brand owns ONE mark and it is inked in the brand's
+    // own colour, so left alone the card refuses that colour and moves the
+    // ground. Asked for it, the card must obey — the person choosing can see
+    // the result and we cannot.
+    const soleColouredMark = seedBrand({
+      primaryColor: '#EF4444',
+      brandAssets: [
+        {
+          id: 'asset-primary',
+          kind: 'logo',
+          name: 'primary',
+          formats: { svg: { url: 'https://cdn/primary.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: { primary: { assetId: 'asset-primary' } },
+    } as Partial<Brand>);
+    installBrand(soleColouredMark);
+    mount(soleColouredMark);
+
+    await waitFor(() => {
+      const band = document.querySelector('.ws-brand-card-color') as HTMLElement;
+      expect(band.style.background.replace(/\s/g, '')).not.toBe('rgb(239,68,68)');
+    });
+
+    await openPicker();
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Background' })).getByRole('radio', {
+        name: /^Primary/,
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      const band = document.querySelector('.ws-brand-card-color') as HTMLElement;
+      expect(band.style.background.replace(/\s/g, '')).toBe('rgb(239,68,68)');
+    });
+  });
+
+  it('returns to automatic, clearing the card rather than storing a decision', async () => {
+    const brand = seedBrand({
+      workspaceCard: { coverBackground: '#EF4444', logoRole: 'mono.white' },
+    } as Partial<Brand>);
+    const installed = installBrand(brand);
+    mount(brand);
+    await openPicker();
+
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Logo' })).getByRole('radio', {
+        name: 'Automatic',
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Background' })).getByRole('radio', {
+        name: 'Automatic',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(installed.patches.length).toBeGreaterThan(0));
+    // Null, not an empty object: `{}` is a stored decision that says nothing,
+    // and `undefined` is dropped as "no change" by every layer below this one.
+    expect(installed.patches.at(-1)!.workspaceCard).toBeNull();
   });
 });

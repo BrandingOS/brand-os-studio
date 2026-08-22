@@ -1,0 +1,193 @@
+/**
+ * The cover picker's own layout.
+ *
+ * Every colour, radius, shadow and easing here comes from a --ds-* token: the
+ * dialog is chrome, and chrome never wears the customer's brand. The only
+ * brand colours in this file arrive as inline styles from the data — the
+ * preview's ground and each swatch's chip, which ARE the customer's brand and
+ * are the whole subject of the dialog.
+ *
+ * Unscoped, like brandCardMenu.css beside it: DsModal renders in place, and the
+ * dialog is opened from the grid (inside [data-workspace]) and from the list
+ * (outside it), so a scoped selector would style one surface and skip the other.
+ */
+
+.ccm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-6, 24px);
+  min-width: min(30rem, 78vw);
+}
+
+/* The preview is the feature, so it is the biggest thing in the dialog and
+   sits above the controls that change it. */
+.ccm-preview {
+  display: grid;
+  place-items: center;
+  height: 9.5rem;
+  border-radius: var(--ds-radius-card, 12px);
+  border: 1px solid var(--ds-border, rgba(0,0,0,0.08));
+  overflow: hidden;
+  transition: background var(--ds-duration-state, 150ms) var(--ds-ease, ease);
+}
+
+/* CONTAIN, never crop: a wide lockup keeps its proportions or it stops being
+   the logo. Percentage bounds so the mark never touches the band's edges. */
+.ccm-preview-logo {
+  max-width: 58%;
+  max-height: 58%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.ccm-preview-letter {
+  font-size: 2.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ccm-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3, 12px);
+}
+
+.ccm-heading {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ds-text-secondary, #57534e);
+}
+
+.ccm-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ds-text-muted, #78716c);
+}
+
+.ccm-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--ds-space-3, 12px);
+}
+
+.ccm-tile,
+.ccm-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-2, 8px);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ds-text-secondary, #57534e);
+}
+
+.ccm-tile-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--ds-radius-tile, 8px);
+  /* Two rings, so the selected state reads on a stage of ANY colour — the
+     inner one separates the artwork's ground from the ring itself. */
+  box-shadow: 0 0 0 1px var(--ds-border, rgba(0,0,0,0.08));
+  overflow: hidden;
+  transition:
+    box-shadow var(--ds-duration-state, 150ms) var(--ds-ease, ease),
+    background var(--ds-duration-state, 150ms) var(--ds-ease, ease);
+}
+
+.ccm-tile-logo {
+  max-width: 72%;
+  max-height: 72%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.ccm-tile-auto {
+  font-size: 0.75rem;
+  font-weight: 600;
+  /* On an unknown ground, a token colour could vanish. The stage is the card's
+     own ground and its text colour is already chosen to read on it. */
+  color: currentColor;
+  opacity: 0.75;
+}
+
+.ccm-tile-label,
+.ccm-swatch-label {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.ccm-tile.is-selected .ccm-tile-stage {
+  box-shadow:
+    0 0 0 2px var(--ds-surface, #fff),
+    0 0 0 4px var(--ds-text, #1c1917);
+}
+
+.ccm-tile.is-selected .ccm-tile-label,
+.ccm-swatch.is-selected .ccm-swatch-label {
+  color: var(--ds-text, #1c1917);
+  font-weight: 600;
+}
+
+.ccm-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
+  gap: var(--ds-space-3, 12px);
+}
+
+.ccm-swatch-chip {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--ds-radius-tile, 8px);
+  box-shadow: 0 0 0 1px var(--ds-border, rgba(0,0,0,0.08));
+  transition: box-shadow var(--ds-duration-state, 150ms) var(--ds-ease, ease);
+}
+
+/* The automatic swatch has no colour to show, so it shows that it has none. */
+.ccm-swatch-chip--auto {
+  background:
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 1px),
+      var(--ds-border-strong, rgba(0,0,0,0.24)) calc(50% - 1px),
+      var(--ds-border-strong, rgba(0,0,0,0.24)) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ),
+    var(--ds-surface-subtle, #f5f5f4);
+}
+
+.ccm-swatch.is-selected .ccm-swatch-chip {
+  box-shadow:
+    0 0 0 2px var(--ds-surface, #fff),
+    0 0 0 4px var(--ds-text, #1c1917);
+}
+
+/* Focus is a charcoal ring, never blue — and it lands on the visual element
+   rather than on the button box, which has no appearance of its own. */
+.ccm-tile:focus-visible,
+.ccm-swatch:focus-visible {
+  outline: none;
+}
+
+.ccm-tile:focus-visible .ccm-tile-stage,
+.ccm-swatch:focus-visible .ccm-swatch-chip {
+  box-shadow:
+    0 0 0 2px var(--ds-surface, #fff),
+    0 0 0 5px var(--ds-text, #1c1917);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccm-preview,
+  .ccm-tile-stage,
+  .ccm-swatch-chip {
+    transition: none;
+  }
+}
