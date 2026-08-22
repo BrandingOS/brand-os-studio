@@ -5,7 +5,6 @@ import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
-import { BrandSetupNudge } from '@/features/brand-setup/BrandSetupNudge';
 import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
 import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
@@ -1645,10 +1644,6 @@ export function SetupPage({
         onSave={handleSaveStrategy}
       />
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
-      {/* Floats bottom-right, so it costs no layout. Not a second progress
-          meter — SetupSidebar already reports all seven sections; this names
-          only what is EMPTY and each row opens that section's add flow. */}
-      <BrandSetupNudge brand={brand} brandId={resolvedBrandId} onPick={handleSidebarAdd} />
     </WorkspaceShell>
   );
 }

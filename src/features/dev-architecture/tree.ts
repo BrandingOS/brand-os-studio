@@ -39,6 +39,11 @@ export interface TreeNode {
    * Routes mounted at exactly this path. Usually 0 (a structural prefix) or 1.
    * More than one happens where a layout and its index route share a URL —
    * `/b/:slug` mounts both `BrandRouteLayout` and `StudioToClassicFallback`.
+   *
+   * One exception: a redirect-only prefix collapses into its single child (see
+   * `toTreeNode`) and rides along in that child's list, so `/b/:slug` also
+   * carries the `/b` doormat. The alternative is a whole tree level for a route
+   * that renders nothing, or dropping the route from the tree entirely.
    */
   routes: RouteNode[];
   children: TreeNode[];
@@ -162,17 +167,35 @@ function labelFor(node: Builder, hasChildren: boolean): string {
   return pathFromKeys(node.keys);
 }
 
+/**
+ * A route that forwards somewhere else and renders nothing of its own. Such a
+ * route never justifies a level in the tree; a page always does.
+ */
+function isDoormat(route: RouteNode): boolean {
+  return route.kind === 'redirect';
+}
+
 function toTreeNode(
   builder: Builder,
   group: RouteGroup,
   depth: number,
 ): TreeNode {
-  // Collapse structural chains: a prefix that owns no route and has exactly one
+  // Collapse structural chains: a prefix that owns no PAGE and has exactly one
   // child is not a level a human needs (`b` → `:slug` becomes `/b/:slug`).
+  //
+  // A redirect mounted on such a prefix is a doormat, not a level: `/b` exists
+  // only to send a slug-less URL to the dashboard, and letting it stand would
+  // bury the whole Studio — 35 pages — one row deeper behind an empty node.
+  // It is carried onto the collapsed node rather than dropped, so the tree
+  // still shows every route exactly once.
   let current = builder;
-  while (current.routes.length === 0 && current.children.size === 1) {
+  while (current.routes.every(isDoormat) && current.children.size === 1) {
     const [only] = [...current.children.values()];
-    current = { ...only, keys: [...current.keys, ...only.keys.slice(current.keys.length)] };
+    current = {
+      ...only,
+      keys: [...current.keys, ...only.keys.slice(current.keys.length)],
+      routes: [...current.routes, ...only.routes],
+    };
   }
 
   const childBuilders = [...current.children.values()];

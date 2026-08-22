@@ -1,23 +1,18 @@
-// The floating "finish your brand" card on /b/:slug/setup.
+// The setup nudge — replaces the full-width BrandSetupChecklist card that
+// used to sit above the Brand Kit and push the entire page, WorkspaceShell's
+// sticky navbar included, down by its own height.
 //
-// It began life as BrandSetupChecklist, a full-width card rendered ABOVE the
-// Brand Kit — which pushed the whole page, WorkspaceShell's sticky navbar
-// included, down by its own height. Two things changed: it floats now, so it
-// costs no layout at all; and it lives on Setup, because every one of the
-// things it names is fixed on Setup.
-//
-// It is not a second progress meter. SetupSidebar already reports completion
-// for all seven sections; this names only what is EMPTY, and each row is a
-// shortcut straight into that section's add flow.
+// Same job, no layout cost: a small floating card in the bottom-right corner
+// naming the /setup sections that still have nothing in them, with one way
+// in. It takes no space in the flow, it is dismissible, and a dismissal is
+// remembered per brand so a user who has said "not now" is not asked again.
 
 import { useEffect, useState } from 'react';
-import { DsEyebrow } from '@/shared/ds';
+import { useNavigate } from 'react-router-dom';
+import { DsButton, DsEyebrow } from '@/shared/ds';
 import { CloseIcon } from '@/shared/ds/icons';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
-import {
-  missingBrandSetupSteps,
-  type BrandSetupSectionKey,
-} from './computeBrandSetupSteps';
+import { missingBrandSetupSteps } from './computeBrandSetupSteps';
 import { isNudgeDismissed, dismissNudge } from './nudgeDismissal';
 import './brandSetupNudge.css';
 
@@ -25,36 +20,35 @@ interface BrandSetupNudgeProps {
   /** The same projection Setup renders, so both agree on what is missing. */
   brand: MockBrand;
   /** Identity for the dismissal record — the brand id, not the slug, which can change. */
-  brandId: string | undefined;
-  /** Jump to the section and open its add flow. */
-  onPick: (section: BrandSetupSectionKey) => void;
+  brandId: string;
+  brandSlug: string;
 }
 
 /** Long enough that the page has painted first — the nudge arrives after the
- *  board, rather than being part of what loads. */
+ *  Brand Kit, rather than being part of what loads. */
 const APPEAR_DELAY_MS = 700;
 
-export function BrandSetupNudge({ brand, brandId, onPick }: BrandSetupNudgeProps) {
+export function BrandSetupNudge({ brand, brandId, brandSlug }: BrandSetupNudgeProps) {
+  const navigate = useNavigate();
   const missing = missingBrandSetupSteps(brand);
-  const key = brandId ?? '';
 
-  const [dismissed, setDismissed] = useState(() => isNudgeDismissed(key));
+  const [dismissed, setDismissed] = useState(() => isNudgeDismissed(brandId));
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    setDismissed(isNudgeDismissed(key));
-  }, [key]);
+    setDismissed(isNudgeDismissed(brandId));
+  }, [brandId]);
 
   useEffect(() => {
     setShown(false);
     const t = window.setTimeout(() => setShown(true), APPEAR_DELAY_MS);
     return () => window.clearTimeout(t);
-  }, [key]);
+  }, [brandId]);
 
   if (missing.length === 0 || dismissed || !shown) return null;
 
   const handleDismiss = () => {
-    dismissNudge(key);
+    dismissNudge(brandId);
     setDismissed(true);
   };
 
@@ -87,22 +81,16 @@ export function BrandSetupNudge({ brand, brandId, onPick }: BrandSetupNudgeProps
 
       <ul className="bsn-list">
         {missing.map((step) => (
-          <li key={step.id}>
-            <button
-              type="button"
-              className="bsn-item"
-              data-step-id={step.id}
-              onClick={() => onPick(step.section)}
-            >
-              <span className="bsn-dot" aria-hidden />
-              <span className="bsn-item-label">{step.label}</span>
-              <span className="bsn-item-add" aria-hidden>
-                Add
-              </span>
-            </button>
+          <li key={step.id} className="bsn-item" data-step-id={step.id}>
+            <span className="bsn-dot" aria-hidden />
+            {step.label}
           </li>
         ))}
       </ul>
+
+      <DsButton size="sm" arrow onClick={() => navigate(`/b/${brandSlug}/setup`)}>
+        Open Setup
+      </DsButton>
     </aside>
   );
 }

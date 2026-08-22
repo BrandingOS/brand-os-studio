@@ -44,17 +44,6 @@ describe('computeBrandSetupSteps', () => {
     ]);
   });
 
-  // Setup's own keys — a step names the board it jumps to, and a wrong key
-  // is a row that scrolls nowhere.
-  it('carries Setup\'s section key for each step', () => {
-    expect(computeBrandSetupSteps(blank).map((s) => s.section)).toEqual([
-      'logo',
-      'colors',
-      'fonts',
-      'voice',
-    ]);
-  });
-
   it('flags every section incomplete on a blank brand', () => {
     expect(computeBrandSetupSteps(blank).every((s) => !s.done)).toBe(true);
     expect(missingBrandSetupSteps(blank)).toHaveLength(4);

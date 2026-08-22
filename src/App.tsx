@@ -469,6 +469,11 @@ const App = () => (
 
           {/* ─── Studio (/b/:slug/*) ─────────────────────────────────── */}
 
+          {/* /b and /b/ name no brand at all, so there is nothing to
+              show — send the user to their projects rather than a 404.
+              (v6 matches the trailing slash against this same path.) */}
+          <Route path="/b" element={<Navigate to="/dashboard" replace />} />
+
           {/* Studio launchpad uses BrandRouteLayout (AppRail). Other
               Cosmos sections render their own WorkspaceShell so
               they live as flat sibling routes below. */}

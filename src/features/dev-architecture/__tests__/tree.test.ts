@@ -154,18 +154,42 @@ describe('real route nesting is preserved', () => {
     expect(stray, 'the /b prefix should have been collapsed into /b/:slug').toBeUndefined();
   });
 
+  it('collapses a prefix that owns nothing but a redirect', () => {
+    // /b owns one route now — the doormat that sends a slug-less URL to the
+    // dashboard. It renders no page, so it must not become a level: letting it
+    // stand would bury the entire Studio surface one row deeper behind a node
+    // with nothing in it. The route itself is not lost; it rides on /b/:slug.
+    const doormat = tree.children
+      .flatMap((area) => area.children)
+      .flatMap((branch) => branch.routes)
+      .find((route) => route.path === '/b');
+
+    expect(doormat, 'the /b redirect must still appear in the tree').toBeDefined();
+    expect(doormat?.kind).toBe('redirect');
+    expect(doormat?.redirectTo).toBe('/dashboard');
+  });
+
   it('keeps a layout and the route at its index position on one node', () => {
     // /b/:slug mounts two things at the same URL: BrandRouteLayout (the shell)
     // and its index element StudioToClassicFallback. The index element is
     // classified `redirect` rather than `index` because that says more about what
     // it does — the tree just has to keep both on the one node.
+    //
+    // The third is the `/b` doormat that collapsed into this node: a slug-less
+    // /b renders nothing and forwards to the dashboard, so it earns no level of
+    // its own but must still appear somewhere.
     const branch = nodeAtPath('/b/:slug');
-    expect(branch?.routes.length).toBe(2);
+    expect(branch?.routes.length).toBe(3);
     expect(branch?.routes.map((route) => route.component).sort()).toEqual([
       'BrandRouteLayout',
+      'Navigate',
       'StudioToClassicFallback',
     ]);
-    expect(branch?.routes.map((route) => route.kind).sort()).toEqual(['layout', 'redirect']);
+    expect(branch?.routes.map((route) => route.kind).sort()).toEqual([
+      'layout',
+      'redirect',
+      'redirect',
+    ]);
   });
 
   it('keeps a plain layout + Navigate index pair on one node too', () => {
