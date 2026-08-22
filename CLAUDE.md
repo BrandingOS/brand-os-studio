@@ -813,13 +813,62 @@ falling back to `label:<label>` for direct card edits).
   `scale: 4` — mounting wide produces starved text.
 - Card editor Download: snapshots the LIVE `.bk-preview-host` DOM so the
   export includes the user's unsaved overrides.
-- Top-right "Export kit": one zip (colors/ fonts/ logos/ about.md
-  brand.json) via `kitExport.downloadKitZip`. Kit colors are deliberately
-  slim (core+accent, svg+png only) — the full-fidelity palette (all
-  neutrals, jpg + ai) is the dedicated Colors download; the per-color
-  `.ai` files are ~10MB each and once ballooned the kit zip to 590MB.
 - Do NOT add a tint/veil overlay over the stock card cover art — tried
   2026-08-10, explicitly rejected by the user, reverted.
+
+**"Export kit" means the whole kit (`data/exportEverything.tsx`, 2026-08-22).**
+Until this it shipped `colors/ fonts/ logos/ about.md brand.json` and
+**none of the deliverables** — a brand kit containing no application of the
+brand. `buildKitZipBlob({brand, sourceBrand, entries, saved,
+featuredIdsByLabel, onProgress, signal})` is the one walker; the per-group
+header download calls it with one group's entries, which is why the two
+can never disagree. Rules that bind:
+
+- **THE CATALOG decides what is in the zip.** `entries` comes from
+  `visibleGroups(viewer)`, so an experimental capability cannot leak into a
+  customer's download and a regrouped item cannot be missed. `planKitExport`
+  is pure and total — one unit per entry — so the count in the progress
+  toast is the count of things the user asked for.
+- **A logo file is the logo, not a wrapper around its URL.** Setup hands
+  the kit each variant as `<svg><rect/><image href="…"/></svg>` so a TILE
+  can paint it on a ground. Zipped verbatim that is an `.svg` pointing at a
+  URL the recipient cannot resolve and a `.png` that is **blank** —
+  Chromium does not paint an embedded `<image>` when the SVG is loaded
+  through `<img>`, which is `rasterizeSvg`'s only path (probed four ways:
+  plain href, xlink, data:, and after `decode()`). `extractLogoHref` pulls
+  the href and the export ships the referenced bytes under their true
+  extension. The generated lettermark has no href and still ships as SVG.
+- **Already-compressed bytes are STOREd** (`compressionFor`, applied by
+  `zipAdd`). DEFLATE over a PNG or a WOFF2 is main-thread time for ~0
+  bytes, and a kit is nearly all of them. Pinned by measuring the ARCHIVE
+  (`compressedSize === uncompressedSize`), not the flag.
+- **The page stays alive.** Every unit yields (`exportScheduler.ts`:
+  `scheduler.yield()`, else rAF + macrotask) and the font cushion is paid
+  ONCE (`primeRenderEnvironment`) rather than 250ms per snapshot. No Web
+  Worker: html2canvas needs the DOM, so the expensive half cannot move.
+- **Cancel is real.** `signal` is checked between units and inside the long
+  ones; the progress toast carries it. `isCancelled(err)` distinguishes it
+  from failure.
+- **A short export is never silent.** Anything left out comes back in
+  `skipped` with a reason, and the success toast names it.
+- Composed views are DOCUMENTS: `snapshotDocumentPng` mounts at 1120px with
+  auto height (`.bk-snapshot-host--auto` resets the `height: 100%` the card
+  contract imposes on children, or they collapse to nothing). Brand Board
+  snapshots `BrandBoardCanvas` at its own 1600×1000 — never `BrandBoardView`,
+  which contains a react-router `Link` and would throw outside a Router.
+- Kit colors stay deliberately slim (core+accent, svg+png only) — the
+  full-fidelity palette (all neutrals, jpg + ai) is the dedicated Colors
+  download; the per-color `.ai` files are ~10MB each and once ballooned the
+  kit zip to 590MB.
+- `downloadKitZip` remains the assets-only bundle (BrandKitNextPage,
+  `folders/useKitLibrary`) and now shares the very same folder builders.
+- A card's shape and its featured variants live in `data/cardPresentation.ts`
+  so the export snapshots what the user is actually looking at.
+- Tests: `data/kitExport.test.ts`, `data/exportEverything.test.ts`,
+  `__tests__/kitExport.browser.test.tsx` (the browser one imports
+  `brand-kit.css` on purpose — an offscreen mount that misses
+  `.bk-snapshot-host` lays every renderer out at 0×0 and the export
+  succeeds with a zip full of empty pictures).
 
 **Canonical vs alternate (recap):** `features/brand-kit/` is the
 read-only visual showcase (Studio). `features/brand-kit-alt/` is the

@@ -1,12 +1,26 @@
 /**
  * Brand Kit bundle exports (KIT-02 / KIT-03).
  *
- * Real downloadable artifacts for the kit surfaces that previously
- * only toasted a placeholder:
- *  - Logos  → zip of every logo variant as SVG + PNG
- *  - About  → markdown document of the brand's About sections
- *  - Export kit → one zip bundling colors + fonts + logos + about +
- *    a machine-readable brand.json
+ * The per-folder builders every kit export shares. `exportEverything.tsx`
+ * walks the catalog and calls these for the Brand Assets half; the card
+ * downloads call them one at a time; `downloadKitZip` is the assets-only
+ * bundle three other surfaces still ask for by name.
+ *
+ * Two rules live here rather than in any one caller:
+ *
+ *  • **A logo file is the logo, not a wrapper around its URL.** Setup
+ *    hands the Brand Kit each variant as `<svg><rect/><image href="…"/></svg>`
+ *    so a tile can paint it on a ground. That wrapper is a PREVIEW. Zipped
+ *    verbatim it produces an `.svg` that points at a URL the recipient
+ *    cannot resolve, and a `.png` that is blank — Chromium does not paint
+ *    an embedded `<image>` when the SVG is loaded through `<img>`, which
+ *    is the only path `rasterizeSvg` has. So the export pulls the href out
+ *    and ships the referenced bytes under their true extension.
+ *
+ *  • **Already-compressed bytes are STOREd, never DEFLATEd.** PNG, JPEG
+ *    and the font containers are compressed streams; re-running DEFLATE
+ *    over them costs the main thread real time for approximately zero
+ *    bytes saved, and that time is the freeze the user feels.
  */
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import {
@@ -17,9 +31,14 @@ import {
   triggerBlobDownload,
   type PaletteColor,
 } from './colorPaletteExport';
+import { yieldToBrowser, throwIfAborted } from './exportScheduler';
 
 export function slugifyName(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'brand';
+  const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  // A name made entirely of punctuation slugged to a run of dashes and
+  // sailed past the `|| 'brand'` guard, so the download landed as
+  // `--brand-kit.zip`. The guard means "nothing usable survived".
+  return /[a-z0-9]/.test(slug) ? slug : 'brand';
 }
 
 /** Flatten the mock brand's palette into the exporter's shape. */
@@ -36,28 +55,250 @@ export function paletteOf(brand: MockBrand): PaletteColor[] {
   ];
 }
 
-type ZipFolder = {
-  file: (name: string, data: Blob | string) => unknown;
+/* ─── Compression policy ──────────────────────────────────────────── */
+
+/**
+ * Extensions whose bytes are ALREADY a compressed stream.
+ *
+ * DEFLATE over these is pure main-thread cost: a PNG typically shrinks by
+ * a fraction of a percent, a WOFF2 by none at all, and a kit full of
+ * rasterized deliverables is nearly all of them.
+ */
+const STORED_EXTENSIONS: ReadonlySet<string> = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif',
+  'woff', 'woff2', 'ttf', 'otf', 'eot',
+  'zip', 'pdf', 'ai', 'mp4', 'webm', 'mov', 'mp3',
+]);
+
+export type ZipCompression = 'STORE' | 'DEFLATE';
+
+/** STORE for bytes that are already compressed, DEFLATE for text. */
+export function compressionFor(filename: string): ZipCompression {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  return STORED_EXTENSIONS.has(ext) ? 'STORE' : 'DEFLATE';
+}
+
+export type ZipFolder = {
+  file: (
+    name: string,
+    data: Blob | string | Uint8Array,
+    options?: { compression?: ZipCompression },
+  ) => unknown;
   folder: (name: string) => ZipFolder | null;
 };
 
-/** Add every logo variant (SVG + PNG) into a zip folder. */
-export async function addLogosToZip(folder: ZipFolder, brand: MockBrand): Promise<number> {
+/** Add a file under the right compression for its type. */
+export function zipAdd(
+  folder: ZipFolder,
+  name: string,
+  data: Blob | string | Uint8Array,
+): void {
+  folder.file(name, data, { compression: compressionFor(name) });
+}
+
+/** Something an export could not include, and why — surfaced, never silent. */
+export type ExportSkip = { label: string; reason: string };
+
+/* ─── Logos ───────────────────────────────────────────────────────── */
+
+/**
+ * The URL a Setup logo tile paints, pulled back out of its wrapper.
+ *
+ * Returns null for artwork that IS the SVG — the generated lettermark a
+ * brand with no logo falls back to. That one rasterizes correctly and
+ * ships as-is.
+ */
+export function extractLogoHref(svg: string): string | null {
+  const match =
+    /<image\b[^>]*?\sxlink:href\s*=\s*"([^"]*)"/i.exec(svg) ??
+    /<image\b[^>]*?\shref\s*=\s*"([^"]*)"/i.exec(svg);
+  const href = match?.[1]?.trim();
+  return href ? href : null;
+}
+
+/** File extension for a logo URL — the path first, the mime type second. */
+export function logoExtension(url: string, mime?: string): string {
+  const fromMime: Record<string, string> = {
+    'image/svg+xml': 'svg',
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  };
+  if (!url.startsWith('data:')) {
+    const path = url.split(/[?#]/)[0];
+    const ext = path.split('.').pop()?.toLowerCase();
+    if (ext && /^[a-z0-9]{2,5}$/.test(ext) && ext !== 'com') return ext === 'jpeg' ? 'jpg' : ext;
+  }
+  const declared = mime?.split(';')[0]?.trim().toLowerCase();
+  if (declared && fromMime[declared]) return fromMime[declared];
+  if (url.startsWith('data:')) {
+    const inline = url.slice(5).split(/[;,]/)[0].toLowerCase();
+    if (fromMime[inline]) return fromMime[inline];
+  }
+  return 'png';
+}
+
+/**
+ * Add every logo variant into a zip folder as its REAL file.
+ *
+ * One file per variant, under the variant's own name, with the extension
+ * the source actually has. A variant whose bytes cannot be fetched is
+ * reported rather than shipped as a blank tile.
+ */
+export async function addLogosToZip(
+  folder: ZipFolder,
+  brand: MockBrand,
+  signal?: AbortSignal,
+): Promise<{ added: number; skipped: ExportSkip[] }> {
   let added = 0;
+  const skipped: ExportSkip[] = [];
+  const used = new Set<string>();
   for (const logo of brand.logos) {
+    throwIfAborted(signal);
     if (!logo.svg) continue;
-    const base = slugifyName(`${logo.label || 'logo'}-${logo.variant || added + 1}`);
-    folder.file(`${base}.svg`, logo.svg);
-    try {
-      const { png } = await rasterizeSvg(logo.svg, 600, 600);
-      if (png) folder.file(`${base}.png`, png);
-    } catch {
-      // SVG rasterization can fail on exotic markup — the .svg still ships.
+    const label = logo.label || logo.id || `logo-${added + 1}`;
+    let base = slugifyName(label);
+    let n = 2;
+    while (used.has(base)) {
+      base = `${slugifyName(label)}-${n}`;
+      n += 1;
     }
+    used.add(base);
+
+    const href = extractLogoHref(logo.svg);
+    if (!href) {
+      // A genuine SVG (the generated lettermark) — ship it, and a raster
+      // beside it, because this one really does rasterize.
+      zipAdd(folder, `${base}.svg`, logo.svg);
+      try {
+        const { png } = await rasterizeSvg(logo.svg, 600, 600);
+        if (png) zipAdd(folder, `${base}.png`, png);
+      } catch {
+        // Exotic markup — the .svg still ships.
+      }
+      added += 1;
+      continue;
+    }
+
+    try {
+      const res = await fetch(href);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const blob = await res.blob();
+      if (blob.size === 0) throw new Error('empty');
+      zipAdd(folder, `${base}.${logoExtension(href, blob.type)}`, blob);
+      added += 1;
+    } catch {
+      skipped.push({
+        label: `Logo — ${label}`,
+        reason: "the file couldn't be read from storage",
+      });
+    }
+    await yieldToBrowser(signal);
+  }
+  return { added, skipped };
+}
+
+/* ─── Colors ──────────────────────────────────────────────────────── */
+
+/**
+ * The kit's colour folder: core + accent, each as swatch SVG, swatch PNG
+ * and a shade ladder.
+ *
+ * Deliberately slim. The dedicated Colors download is the full-fidelity
+ * bundle — every neutral, jpg and .ai — and the per-colour `.ai` files run
+ * to megabytes each, which once made this zip 590 MB.
+ */
+export async function addColorsToZip(
+  folder: ZipFolder,
+  brand: MockBrand,
+  signal?: AbortSignal,
+): Promise<number> {
+  const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
+  const kitColors: PaletteColor[] = [
+    ...brand.colors.core.map((c, i) => ({
+      hex: c.hex,
+      name: c.name,
+      role: CORE_ROLES[i] ?? `Core ${i + 1}`,
+    })),
+    ...brand.colors.accent.map((c) => ({ hex: c.hex, name: c.name, role: 'Accent' })),
+  ];
+  const used = new Set<string>();
+  let added = 0;
+  for (const color of kitColors) {
+    throwIfAborted(signal);
+    let folderName = color.name;
+    let n = 2;
+    while (used.has(folderName)) {
+      folderName = `${color.name} ${n}`;
+      n += 1;
+    }
+    used.add(folderName);
+    const dir = folder.folder(folderName);
+    if (!dir) continue;
+    const safe = slugifyName(folderName);
+    const baseSvg = buildBaseColorSvg(color);
+    zipAdd(dir, `${safe}.svg`, baseSvg);
+    const { png } = await rasterizeSvg(baseSvg, 600, 400);
+    if (png) zipAdd(dir, `${safe}.png`, png);
+    zipAdd(dir, `${safe}-shades.svg`, buildShadesSvg(buildShadeRows(color.hex)));
     added += 1;
+    await yieldToBrowser(signal);
   }
   return added;
 }
+
+/* ─── Fonts ───────────────────────────────────────────────────────── */
+
+function dataUrlToBytes(dataUrl: string): Uint8Array | null {
+  try {
+    const idx = dataUrl.indexOf(',');
+    if (idx < 0) return null;
+    const meta = dataUrl.slice(0, idx);
+    const payload = dataUrl.slice(idx + 1);
+    if (!/;base64$/i.test(meta)) return null;
+    const bin = atob(payload);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The kit's font folder: the files the user actually uploaded, plus a
+ * manifest naming every family.
+ *
+ * Google-hosted families are documented rather than fetched — the
+ * dedicated Fonts download owns the remote-bundle path, and a kit export
+ * that reaches the network per family is an export that can hang.
+ */
+export function addFontsToZip(folder: ZipFolder, brand: MockBrand): number {
+  let added = 0;
+  for (const f of brand.fonts) {
+    for (const file of f.files ?? []) {
+      const bytes = dataUrlToBytes(file.dataUrl);
+      if (bytes) {
+        zipAdd(folder, file.name, bytes);
+        added += 1;
+      }
+    }
+  }
+  zipAdd(
+    folder,
+    'fonts.txt',
+    brand.fonts
+      .map(
+        (f) =>
+          `${f.family} — ${f.weights || 'Regular'}${f.files?.length ? '' : ' (Google Fonts)'}`,
+      )
+      .join('\n'),
+  );
+  return added;
+}
+
+/* ─── About + brand.json ──────────────────────────────────────────── */
 
 /** Markdown document of the brand's About sections + voice. */
 export function buildAboutMarkdown(brand: MockBrand): string {
@@ -72,15 +313,33 @@ export function buildAboutMarkdown(brand: MockBrand): string {
   return lines.join('\n');
 }
 
+/** The machine-readable summary that sits at the root of every bundle. */
+export function buildBrandJson(brand: MockBrand): string {
+  return JSON.stringify(
+    {
+      name: brand.name,
+      colors: paletteOf(brand),
+      fonts: brand.fonts.map((f) => ({ family: f.family, weights: f.weights })),
+      icons: brand.icons,
+      about: brand.about,
+      strategy: brand.strategy,
+    },
+    null,
+    2,
+  );
+}
+
+/* ─── Whole-bundle helpers ────────────────────────────────────────── */
+
 /** Zip of logo variants only (the Logos card download). */
 export async function downloadLogosZip(brand: MockBrand): Promise<number> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
-  const count = await addLogosToZip(zip as unknown as ZipFolder, brand);
-  if (count === 0) return 0;
+  const { added } = await addLogosToZip(zip as unknown as ZipFolder, brand);
+  if (added === 0) return 0;
   const blob = await zip.generateAsync({ type: 'blob' });
   triggerBlobDownload(blob, `${slugifyName(brand.name)}-logos.zip`);
-  return count;
+  return added;
 }
 
 /** The About card download — a .md file. */
@@ -93,11 +352,12 @@ export function downloadAboutDoc(brand: MockBrand): void {
 }
 
 /**
- * The top-right "Export kit" action: one zip with colors/, fonts/,
- * logos/, about.md and brand.json. Colors reuse the palette bundle
- * builder (each color as its own sub-zip would be odd inside a kit,
- * so the full palette zip is unpacked into a colors/ folder by
- * generating it fresh here).
+ * The brand-assets bundle: colors/, fonts/, logos/, about.md, brand.json.
+ *
+ * Still called by name from the Kit library and the lifecycle page, which
+ * append their own approved deliverables through `extraFiles`. The
+ * catalog-wide export lives in `exportEverything.tsx` and reuses the very
+ * same folder builders, so the two cannot drift.
  */
 export async function downloadKitZip(
   brand: MockBrand,
@@ -110,106 +370,26 @@ export async function downloadKitZip(
 ): Promise<void> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
+  const root = zip as unknown as ZipFolder;
 
   opts?.onProgress?.('colors');
-  // Kit bundle keeps colors LIGHT: brand colors only (core + accent,
-  // not the 27-step neutral ramp) as svg + png. The dedicated Colors
-  // download still produces the full-fidelity bundle (all colors,
-  // shades, jpg + ai) via buildAllColorsZip.
-  const colorsDir = zip.folder('colors');
-  if (colorsDir) {
-    const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
-    const kitColors: PaletteColor[] = [
-      ...brand.colors.core.map((c, i) => ({
-        hex: c.hex,
-        name: c.name,
-        role: CORE_ROLES[i] ?? `Core ${i + 1}`,
-      })),
-      ...brand.colors.accent.map((c) => ({ hex: c.hex, name: c.name, role: 'Accent' })),
-    ];
-    const used = new Set<string>();
-    for (const color of kitColors) {
-      let folderName = color.name;
-      let n = 2;
-      while (used.has(folderName)) {
-        folderName = `${color.name} ${n}`;
-        n += 1;
-      }
-      used.add(folderName);
-      const dir = colorsDir.folder(folderName);
-      if (!dir) continue;
-      const safe = slugifyName(folderName);
-      const baseSvg = buildBaseColorSvg(color);
-      dir.file(`${safe}.svg`, baseSvg);
-      const { png } = await rasterizeSvg(baseSvg, 600, 400);
-      if (png) dir.file(`${safe}.png`, png);
-      const shades = buildShadeRows(color.hex);
-      const shadesSvg = buildShadesSvg(shades);
-      dir.file(`${safe}-shades.svg`, shadesSvg);
-    }
-  }
+  const colorsDir = root.folder('colors');
+  if (colorsDir) await addColorsToZip(colorsDir, brand);
 
   opts?.onProgress?.('fonts');
-  // Fonts: ship the files the user actually uploaded (data URLs decoded
-  // to bytes) plus a manifest naming every family. Google-hosted
-  // families are documented in the manifest rather than fetched here —
-  // the dedicated Fonts download owns the full remote-bundle path.
-  const fontsDir = zip.folder('fonts');
-  if (fontsDir) {
-    const dataUrlToBytes = (dataUrl: string): Uint8Array | null => {
-      try {
-        const idx = dataUrl.indexOf(',');
-        if (idx < 0) return null;
-        const meta = dataUrl.slice(0, idx);
-        const payload = dataUrl.slice(idx + 1);
-        if (/;base64$/i.test(meta)) {
-          const bin = atob(payload);
-          const bytes = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
-          return bytes;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    };
-    for (const f of brand.fonts) {
-      for (const file of f.files ?? []) {
-        const bytes = dataUrlToBytes(file.dataUrl);
-        if (bytes) fontsDir.file(file.name, bytes);
-      }
-    }
-    fontsDir.file(
-      'fonts.txt',
-      brand.fonts
-        .map((f) => `${f.family} — ${f.weights || 'Regular'}${f.files?.length ? '' : ' (Google Fonts)'}`)
-        .join('\n'),
-    );
-  }
+  const fontsDir = root.folder('fonts');
+  if (fontsDir) addFontsToZip(fontsDir, brand);
 
   opts?.onProgress?.('logos');
-  const logosDir = zip.folder('logos');
-  if (logosDir) await addLogosToZip(logosDir as unknown as ZipFolder, brand);
+  const logosDir = root.folder('logos');
+  if (logosDir) await addLogosToZip(logosDir, brand);
 
   opts?.onProgress?.('about');
-  zip.file('about.md', buildAboutMarkdown(brand));
-  zip.file(
-    'brand.json',
-    JSON.stringify(
-      {
-        name: brand.name,
-        colors: paletteOf(brand),
-        fonts: brand.fonts.map((f) => ({ family: f.family, weights: f.weights })),
-        icons: brand.icons,
-        about: brand.about,
-      },
-      null,
-      2,
-    ),
-  );
+  zipAdd(root, 'about.md', buildAboutMarkdown(brand));
+  zipAdd(root, 'brand.json', buildBrandJson(brand));
 
   for (const extra of opts?.extraFiles ?? []) {
-    zip.file(extra.path, extra.blob);
+    zipAdd(root, extra.path, extra.blob);
   }
 
   const blob = await zip.generateAsync({ type: 'blob' });

@@ -4,6 +4,7 @@
 // exports surface and the CJS module.exports pattern.
 import * as opentype from 'opentype.js';
 import { triggerBlobDownload } from './colorPaletteExport';
+import type { ZipFolder } from './kitExport';
 
 /**
  * Icons drilldown export pipeline. Produces a clean ZIP of editable
@@ -358,6 +359,26 @@ export async function downloadIconsBundle(
   zipName: string,
 ): Promise<void> {
   if (entries.length === 0) return;
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  await addIconsToZip(zip, entries, zipName);
+  triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${zipName}.zip`);
+}
+
+/**
+ * Write the icon bundle into a folder of an EXISTING zip.
+ *
+ * The whole-kit export needs the same SVG/PNG/JPG set the Icons card
+ * download produces, filed under `icons/` rather than in a zip of its
+ * own — so the builder is the shared thing and the download is a wrapper
+ * around it. Returns how many icons were written.
+ */
+export async function addIconsToZip(
+  zip: ZipFolder,
+  entries: IconExportEntry[],
+  zipName: string,
+): Promise<number> {
+  if (entries.length === 0) return 0;
 
   // Pre-load every font referenced by the icons. opentype.js parses
   // each font once; results land in `fontCache` for the per-icon
@@ -369,8 +390,6 @@ export async function downloadIconsBundle(
   }
   await Promise.all(Array.from(families).map((f) => getFont(f)));
 
-  const { default: JSZip } = await import('jszip');
-  const zip = new JSZip();
   const svgDir = zip.folder('SVG');
   const pngDir = zip.folder('PNG');
   const jpgDir = zip.folder('JPG');
@@ -419,5 +438,5 @@ export async function downloadIconsBundle(
     if (pdf) zip.file(`${zipName}.pdf`, pdf);
   }
 
-  triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${zipName}.zip`);
+  return grid.length;
 }

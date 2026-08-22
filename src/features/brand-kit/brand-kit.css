@@ -562,6 +562,16 @@
   width: 100%;
   height: 100%;
 }
+/* Page bodies, not cards. The composed views (Social System,
+   Presentation System) size themselves to a column and end where their
+   content ends, so the host must not impose a height on them — a
+   `height: 100%` child of an auto-height host is a child of nothing. */
+.bk-snapshot-host--auto {
+  height: auto;
+}
+.bk-snapshot-host--auto > * {
+  height: auto;
+}
 .bk-preview-stage {
   position: absolute;
   top: 0;
