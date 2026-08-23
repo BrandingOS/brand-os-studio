@@ -35,6 +35,7 @@ import {
   BrandKitCardEditor,
   type EditorTarget,
 } from './components/BrandKitCardEditor';
+import { ExportKitDialog } from './components/ExportKitDialog';
 import { IconPickerModal } from './components/IconPickerModal';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { variantsForCard } from './data/legacy-mapping';
@@ -527,10 +528,19 @@ export function BrandKitCosmosPage({
     [runKitExport],
   );
 
-  // Top-right "Export kit" — every entry this viewer can see.
-  const handleExportKit = useCallback(
-    () => runKitExport(groups.flatMap((g) => g.entries), 'Brand kit', 'brand-kit'),
-    [runKitExport, groups],
+  // Top-right "Export kit" — asks first. Everything is ticked, so the
+  // default is still "the whole kit"; the sheet exists so the user can
+  // take less than that without giving up the button.
+  const [exportPickerOpen, setExportPickerOpen] = useState(false);
+  const allEntries = useMemo(() => groups.flatMap((g) => g.entries), [groups]);
+  const handleExportKit = useCallback(() => setExportPickerOpen(true), []);
+  const handleExportChosen = useCallback(
+    (chosen: KitEntry[]) => {
+      setExportPickerOpen(false);
+      const whole = chosen.length === allEntries.length;
+      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit');
+    },
+    [runKitExport, allEntries.length],
   );
 
   // Apply a single rounded weight to every icon in the kit. Re-prefixes
@@ -1075,6 +1085,12 @@ export function BrandKitCosmosPage({
           await handleDownloadCard(t);
         }}
         onUpdateIconAt={handleUpdateIconAt}
+      />
+      <ExportKitDialog
+        open={exportPickerOpen}
+        onClose={() => setExportPickerOpen(false)}
+        entries={allEntries}
+        onExport={handleExportChosen}
       />
       <IconPickerModal
         open={iconPickerOpen}

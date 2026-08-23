@@ -133,6 +133,14 @@ describe('the kit export, end to end', () => {
     const height = view.getUint32(20);
     expect(width).toBeGreaterThan(1000);
     expect(height).toBeGreaterThan(width / 2);
+    // An UPPER bound as well, and it is the load-bearing half.
+    //
+    // Nearly every rule these views depend on is `[data-workspace] .bk-…`,
+    // so a host mounted outside that wrapper silently loses all of them,
+    // reflows as a column of unstyled text, and captures at ~7× its width.
+    // The first version of this test asserted only a lower bound and
+    // passed happily on exactly that picture.
+    expect(height).toBeLessThan(width * 3);
   }, 90_000);
 
   it('exports EVERYTHING the kit shows — the whole point of the button', async () => {
@@ -159,6 +167,29 @@ describe('the kit export, end to end', () => {
     }
     expect(added).toBeGreaterThan(8);
   }, 180_000);
+
+  it('writes the strategy as a real document, not only as data', async () => {
+    // "Export everything" that leaves out what the brand IS has exported
+    // the packaging. Three files, because the strategy is read three
+    // ways: as notes, as a document you send, and as data.
+    const STRATEGY = getEntryFor('brand-assets', 'About')!;
+    const { blob } = await buildKitZipBlob({ brand, sourceBrand, entries: [STRATEGY] });
+    const zip = await readZip(blob);
+
+    const md = await zip.file('strategy.md')!.async('string');
+    expect(md).toContain(brand.name);
+
+    const pdf = zip.file('strategy.pdf');
+    expect(pdf, 'a designed PDF, not just markdown').toBeTruthy();
+    const bytes = await pdf!.async('uint8array');
+    const head = String.fromCharCode(...bytes.slice(0, 5));
+    expect(head).toBe('%PDF-');
+    // More than a cover: the answers, the palette and the specimen each
+    // get their own page.
+    const text = new TextDecoder('latin1').decode(bytes);
+    const pages = (text.match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+    expect(pages).toBeGreaterThan(1);
+  }, 90_000);
 
   it('reports what it could not include instead of shipping a blank', async () => {
     const broken: MockBrand = {
@@ -222,8 +253,14 @@ describe('Export kit, from the Brand Kit itself', () => {
       </MemoryRouter>,
     );
 
-    const button = screen.getByRole('button', { name: /export kit/i });
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button', { name: /export kit/i }));
+
+    // The button ASKS first. Everything is ticked, so the default is still
+    // the whole kit — the sheet is there to take less, not to add a step
+    // to taking it all.
+    await screen.findByText('Choose what to export');
+    expect(screen.getByRole('button', { name: /essentials only/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Export everything$/ }));
 
     // The progress toast names the FIRST unit and the total — the count
     // of things this viewer can see, not a spinner with no end in sight.
@@ -238,5 +275,26 @@ describe('Export kit, from the Brand Kit itself', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /export kit/i })).not.toBeDisabled(),
     );
+  }, 60_000);
+
+  it('exports only what was ticked', async () => {
+    render(
+      <MemoryRouter>
+        <Toaster />
+        <BrandKitCosmosPage brand={brand} sourceBrand={sourceBrand} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /export kit/i }));
+    await screen.findByText('Choose what to export');
+
+    fireEvent.click(screen.getByRole('button', { name: /essentials only/i }));
+    // The brand's own material: Logos · Colors · Typography · Icons ·
+    // Photos · Strategy. The deliverables are left behind.
+    const go = await screen.findByRole('button', { name: /^Export 6 items$/ });
+    fireEvent.click(go);
+
+    // It starts on Logos and never reaches a deliverable, because none
+    // were asked for.
+    await screen.findByText(/Logos — 1 of 6/, undefined, { timeout: 10_000 });
   }, 60_000);
 });

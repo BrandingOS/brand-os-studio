@@ -77,6 +77,22 @@ async function withOffscreenHost<T>(
 ): Promise<T> {
   const host = document.createElement('div');
   host.className = autoHeight ? 'bk-snapshot-host bk-snapshot-host--auto' : 'bk-snapshot-host';
+  // THE HOST IS PART OF THE WORKSPACE, even though it hangs off <body>.
+  //
+  // Nearly every rule the Brand Kit's own markup depends on is written
+  // `[data-workspace] .bk-…`, so a host mounted outside that wrapper gets
+  // none of them: the system views' example frames lose `position:
+  // absolute; inset: 0`, collapse to zero height, and html2canvas dies
+  // parsing a gradient on a 0×0 box ("addColorStop … non-finite"). What
+  // survived that was a picture of unstyled text — an export that looked
+  // like it worked. Same family as the Radix-portal gotcha in CLAUDE.md:
+  // scoped CSS does not follow the element, it follows the ancestor.
+  //
+  // The theme is pinned LIGHT: an export is a document someone sends on,
+  // and it should not arrive dark because of how the author's screen was
+  // set at the moment they pressed the button.
+  host.setAttribute('data-workspace', '');
+  host.setAttribute('data-theme', 'light');
   Object.assign(host.style, style);
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -154,6 +170,8 @@ export async function withOffscreenMounts<T>(
     for (const el of elements) {
       const host = document.createElement('div');
       host.className = 'bk-snapshot-host';
+      host.setAttribute('data-workspace', '');
+      host.setAttribute('data-theme', 'light');
       host.style.width = `${width}px`;
       host.style.height = `${height}px`;
       document.body.appendChild(host);

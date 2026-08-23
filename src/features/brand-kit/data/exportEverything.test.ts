@@ -53,7 +53,7 @@ describe('planKitExport', () => {
     const strategy = KIT_CATALOG.find((e) => e.view === 'strategy');
     const [unit] = planKitExport([strategy!]);
     expect(unit.kind).toBe('about');
-    expect(unit.path).toBe('about.md');
+    expect(unit.path).toBe('strategy.pdf');
   });
 
   it('rasterizes a composed system as a page body, not as a card', () => {

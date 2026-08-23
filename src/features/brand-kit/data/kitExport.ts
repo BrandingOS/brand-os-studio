@@ -31,6 +31,8 @@ import {
   triggerBlobDownload,
   type PaletteColor,
 } from './colorPaletteExport';
+import { addFontFamiliesToZip } from './fontExport';
+import { lazyFolder, zipAdd, type ExportSkip, type ZipFolder } from './zipFile';
 import { yieldToBrowser, throwIfAborted } from './exportScheduler';
 
 export function slugifyName(name: string): string {
@@ -55,49 +57,14 @@ export function paletteOf(brand: MockBrand): PaletteColor[] {
   ];
 }
 
-/* ─── Compression policy ──────────────────────────────────────────── */
-
-/**
- * Extensions whose bytes are ALREADY a compressed stream.
- *
- * DEFLATE over these is pure main-thread cost: a PNG typically shrinks by
- * a fraction of a percent, a WOFF2 by none at all, and a kit full of
- * rasterized deliverables is nearly all of them.
- */
-const STORED_EXTENSIONS: ReadonlySet<string> = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif',
-  'woff', 'woff2', 'ttf', 'otf', 'eot',
-  'zip', 'pdf', 'ai', 'mp4', 'webm', 'mov', 'mp3',
-]);
-
-export type ZipCompression = 'STORE' | 'DEFLATE';
-
-/** STORE for bytes that are already compressed, DEFLATE for text. */
-export function compressionFor(filename: string): ZipCompression {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
-  return STORED_EXTENSIONS.has(ext) ? 'STORE' : 'DEFLATE';
-}
-
-export type ZipFolder = {
-  file: (
-    name: string,
-    data: Blob | string | Uint8Array,
-    options?: { compression?: ZipCompression },
-  ) => unknown;
-  folder: (name: string) => ZipFolder | null;
-};
-
-/** Add a file under the right compression for its type. */
-export function zipAdd(
-  folder: ZipFolder,
-  name: string,
-  data: Blob | string | Uint8Array,
-): void {
-  folder.file(name, data, { compression: compressionFor(name) });
-}
-
-/** Something an export could not include, and why — surfaced, never silent. */
-export type ExportSkip = { label: string; reason: string };
+export {
+  compressionFor,
+  lazyFolder,
+  zipAdd,
+  type ExportSkip,
+  type ZipCompression,
+  type ZipFolder,
+} from './zipFile';
 
 /* ─── Logos ───────────────────────────────────────────────────────── */
 
@@ -250,22 +217,6 @@ export async function addColorsToZip(
 
 /* ─── Fonts ───────────────────────────────────────────────────────── */
 
-function dataUrlToBytes(dataUrl: string): Uint8Array | null {
-  try {
-    const idx = dataUrl.indexOf(',');
-    if (idx < 0) return null;
-    const meta = dataUrl.slice(0, idx);
-    const payload = dataUrl.slice(idx + 1);
-    if (!/;base64$/i.test(meta)) return null;
-    const bin = atob(payload);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
-    return bytes;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * The kit's font folder: the files the user actually uploaded, plus a
  * manifest naming every family.
@@ -274,28 +225,42 @@ function dataUrlToBytes(dataUrl: string): Uint8Array | null {
  * dedicated Fonts download owns the remote-bundle path, and a kit export
  * that reaches the network per family is an export that can hang.
  */
-export function addFontsToZip(folder: ZipFolder, brand: MockBrand): number {
-  let added = 0;
-  for (const f of brand.fonts) {
-    for (const file of f.files ?? []) {
-      const bytes = dataUrlToBytes(file.dataUrl);
-      if (bytes) {
-        zipAdd(folder, file.name, bytes);
-        added += 1;
-      }
-    }
+export async function addFontsToZip(
+  folder: ZipFolder,
+  brand: MockBrand,
+  signal?: AbortSignal,
+): Promise<{ added: number; skipped: ExportSkip[] }> {
+  const skipped: ExportSkip[] = [];
+  if (brand.fonts.length === 0) return { added: 0, skipped };
+
+  // The real files — uploaded bytes where the user gave us any, fetched
+  // from Google otherwise. `addFontFamiliesToZip` is the same builder the
+  // dedicated Fonts download uses, so the kit cannot ship a thinner
+  // typography folder than the Typography card does.
+  const result = await addFontFamiliesToZip(
+    folder,
+    brand.fonts.map((f) => ({ name: f.family, files: f.files })),
+    { signal, lean: true },
+  );
+  for (const name of result.missing) {
+    skipped.push({
+      label: `Typeface — ${name}`,
+      reason: 'it is a licensed family; upload your copy in Setup → Typography',
+    });
   }
+  throwIfAborted(signal);
+
   zipAdd(
     folder,
     'fonts.txt',
     brand.fonts
       .map(
         (f) =>
-          `${f.family} — ${f.weights || 'Regular'}${f.files?.length ? '' : ' (Google Fonts)'}`,
+          `${f.family} — ${f.weights || 'Regular'}${f.files?.length ? ' (uploaded)' : ''}`,
       )
       .join('\n'),
   );
-  return added;
+  return { added: result.ok.length, skipped };
 }
 
 /* ─── About + brand.json ──────────────────────────────────────────── */
@@ -378,7 +343,7 @@ export async function downloadKitZip(
 
   opts?.onProgress?.('fonts');
   const fontsDir = root.folder('fonts');
-  if (fontsDir) addFontsToZip(fontsDir, brand);
+  if (fontsDir) await addFontsToZip(fontsDir, brand);
 
   opts?.onProgress?.('logos');
   const logosDir = root.folder('logos');

@@ -851,11 +851,55 @@ can never disagree. Rules that bind:
   from failure.
 - **A short export is never silent.** Anything left out comes back in
   `skipped` with a reason, and the success toast names it.
+- **THE SNAPSHOT HOST IS PART OF THE WORKSPACE.** `templateSnapshot` sets
+  `data-workspace` + `data-theme="light"` on the offscreen host. Nearly
+  every rule the kit's markup needs is written `[data-workspace] .bk-…`,
+  and a host hanging off `<body>` gets NONE of them: the system views'
+  example frames lose `position:absolute; inset:0`, collapse to 0×0, and
+  html2canvas dies parsing a gradient on a zero box ("addColorStop …
+  non-finite"). What survived that was a picture of unstyled text — an
+  export that looked like it worked, and a browser test that passed on it.
+  Same family as the Radix-portal gotcha: scoped CSS follows the ANCESTOR,
+  not the element. The theme is pinned light because an export is a
+  document someone sends on.
+- **The strategy ships as three files** (`data/strategyDocument.ts`):
+  `strategy.md`, `strategy.pdf` and the `brand.json` block. All three read
+  `STRATEGY_CARDS` — Setup's own list, order and names — so the export
+  cannot describe the brand differently from the screen the user filled
+  in. The PDF is VECTOR text (jsPDF), not a screenshot: cover on the
+  brand's colour with the real logo through `pickLogoOnBackground`, a
+  colour band that DROPS swatches too close to the ground, palette page,
+  type specimen, then the answers.
+- **jsPDF cannot render a VARIABLE font.** Google serves Inter, DM Sans
+  and most of its catalogue as variable faces; embedding one made every
+  line of the PDF render as a single stray glyph. `isVariableFont` reads
+  the sfnt table directory for `fvar` and refuses those, falling back to
+  Helvetica. A static uploaded face still embeds and still wins.
+- **Google's CSS API answers with one file PER SUBSET**
+  (`-latin`, `-cyrillic-ext`, `-greek`, …). `latinOnly` keeps the Latin
+  cut: embedding `cyrillic-ext` rendered the whole document as `A`, and
+  shipping all seven × TTF+OTF made `fonts/` 8 MB on its own.
+- **`lean` is the kit's cut of a dedicated download.** Fonts drop the OTF
+  duplicate and the non-Latin subsets; icons drop the JPG set and the
+  combined PDF (a raster of the grid — 8.7 MB of an 18 MB kit). The
+  dedicated Fonts and Icons downloads still ship everything. A whole kit
+  for a seed brand is 160 files / 7.4 MB / ~15s.
+- **The button ASKS first.** `components/ExportKitDialog.tsx` opens with
+  everything ticked, so the default is still the whole kit; the sheet
+  exists so a user can take less — `Everything` / `Essentials only`
+  presets, per-group and per-item checkboxes, and a rough size/time
+  estimate from measured per-kind costs. The list IS the catalog entries
+  the walker will be handed, so the sheet and the zip cannot diverge.
 - Composed views are DOCUMENTS: `snapshotDocumentPng` mounts at 1120px with
   auto height (`.bk-snapshot-host--auto` resets the `height: 100%` the card
   contract imposes on children, or they collapse to nothing). Brand Board
   snapshots `BrandBoardCanvas` at its own 1600×1000 — never `BrandBoardView`,
   which contains a react-router `Link` and would throw outside a Router.
+- No empty folders: `lazyFolder` (in `data/zipFile.ts`, a leaf both
+  `kitExport` and `fontExport` can import without a cycle) creates the
+  directory entry on first write. A brand with no icons was shipping
+  `icons/SVG/`, `icons/PNG/` and `icons/JPG/`, all empty, which reads as
+  "the export lost my icons".
 - Kit colors stay deliberately slim (core+accent, svg+png only) — the
   full-fidelity palette (all neutrals, jpg + ai) is the dedicated Colors
   download; the per-color `.ai` files are ~10MB each and once ballooned the

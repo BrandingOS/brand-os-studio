@@ -40,6 +40,7 @@ import { contentForTemplate } from './savedContent';
 import type { SavedCardCustomization } from './cardCustomizations';
 import { aspectForLabel, featuredTemplates } from './cardPresentation';
 import { addIconsToZip, type IconExportEntry } from './iconExport';
+import { buildStrategyMarkdown, buildStrategyPdf } from './strategyDocument';
 import {
   snapshotDocumentPng,
   snapshotTemplatePng,
@@ -51,6 +52,7 @@ import {
   addFontsToZip,
   addLogosToZip,
   buildAboutMarkdown,
+  lazyFolder,
   buildBrandJson,
   slugifyName,
   zipAdd,
@@ -115,7 +117,7 @@ export function planKitExport(entries: ReadonlyArray<KitEntry>): KitExportUnit[]
         entry,
         kind: assetKind,
         label: entry.label,
-        path: assetKind === 'about' ? 'about.md' : `${assetKind}/`,
+        path: assetKind === 'about' ? 'strategy.pdf' : `${assetKind}/`,
       });
       continue;
     }
@@ -125,7 +127,7 @@ export function planKitExport(entries: ReadonlyArray<KitEntry>): KitExportUnit[]
     } else if (entry.view === 'social-system' || entry.view === 'presentation-system') {
       units.push({ entry, kind: 'document', label: entry.label, path: file });
     } else if (entry.view === 'strategy') {
-      units.push({ entry, kind: 'about', label: entry.label, path: 'about.md' });
+      units.push({ entry, kind: 'about', label: entry.label, path: 'strategy.pdf' });
     } else {
       units.push({ entry, kind: 'card', label: entry.label, path: file });
     }
@@ -221,7 +223,7 @@ async function writeIcons(
         source: brand.icons[i] ?? '',
         element: el,
       }));
-      return addIconsToZip(folder, entries, `${slug}-icons`);
+      return addIconsToZip(folder, entries, `${slug}-icons`, { lean: true });
     },
   );
 }
@@ -284,8 +286,7 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
     try {
       switch (unit.kind) {
         case 'logos': {
-          const dir = root.folder('logos');
-          if (!dir) break;
+          const dir = lazyFolder(root, 'logos');
           const result = await addLogosToZip(dir, brand, signal);
           skipped.push(...result.skipped);
           if (result.added > 0) added += 1;
@@ -293,29 +294,29 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
           break;
         }
         case 'colors': {
-          const dir = root.folder('colors');
-          if (!dir) break;
+          const dir = lazyFolder(root, 'colors');
           if ((await addColorsToZip(dir, brand, signal)) > 0) added += 1;
           else skipped.push({ label: unit.label, reason: 'this brand has no colours yet' });
           break;
         }
         case 'fonts': {
-          const dir = root.folder('fonts');
-          if (!dir) break;
-          addFontsToZip(dir, brand);
-          added += 1;
+          const dir = lazyFolder(root, 'fonts');
+          const result = await addFontsToZip(dir, brand, signal);
+          skipped.push(...result.skipped);
+          if (result.added > 0) added += 1;
+          else if (result.skipped.length === 0) {
+            skipped.push({ label: unit.label, reason: 'this brand has no typefaces yet' });
+          }
           break;
         }
         case 'icons': {
-          const dir = root.folder('icons');
-          if (!dir) break;
+          const dir = lazyFolder(root, 'icons');
           if ((await writeIcons(dir, input, slug)) > 0) added += 1;
           else skipped.push({ label: unit.label, reason: 'this brand has no icons yet' });
           break;
         }
         case 'photos': {
-          const dir = root.folder('photos');
-          if (!dir) break;
+          const dir = lazyFolder(root, 'photos');
           const result = await writePhotos(dir, brand, signal);
           skipped.push(...result.skipped);
           if (result.added > 0) added += 1;
@@ -325,8 +326,23 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
           break;
         }
         case 'about': {
+          // Three files, because the strategy is read three ways: as
+          // notes, as a document you send someone, and as data.
+          zipAdd(root, 'strategy.md', buildStrategyMarkdown(brand));
           zipAdd(root, 'about.md', buildAboutMarkdown(brand));
           added += 1;
+          try {
+            const pdf = await buildStrategyPdf(brand, input.sourceBrand, { signal });
+            zipAdd(root, 'strategy.pdf', pdf);
+          } catch (err) {
+            if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+            // The markdown is already in — a PDF that would not build must
+            // not cost the user the strategy itself.
+            skipped.push({
+              label: 'Strategy (PDF)',
+              reason: err instanceof Error ? err.message : 'the document could not be built',
+            });
+          }
           break;
         }
         case 'card': {
