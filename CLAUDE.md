@@ -1225,20 +1225,35 @@ reusable halves. `workspaceCard.logoRole` is the manual override — a forced
 variant is not a suggestion, so the GROUND moves around it.
 
 **The logo and the ground are ONE choice, so they are chosen together**
-(`components/CardCoverModal.tsx`, "Change cover", owner request 2026-08-22).
+(`components/CardCoverPopover.tsx`, "Change cover", owner request 2026-08-22).
 `logoRole` alone could never fix an invisible mark: forcing a variant let the
 ground move to suit it, so the pair the user set was not the pair they got.
 `workspaceCard.coverBackground` is the other half, and it ENDS the search —
 everything in `brandCardFace` below that check exists to guess a readable
 pairing, and guessing again under a choice someone made while looking at it is
-the bug, not the safeguard. The dialog shows the brand's logos over its colours,
-and its preview is rendered by `brandCardFace` over a DRAFT card: a preview that
-computed its own appearance would be a second opinion about the thing it claims
-to preview. `brandCardGrounds` is the offered list — the brand's own colours
-plus the two `surfacePalette(…, 'inverted')` extremes the automatic rule already
-reaches for, so the manual list can express every answer the measurement could
-have reached and the ones it could not. The full-bleed photo cover is a separate
-menu item ("Use a photo") and is unchanged.
+the bug, not the safeguard.
+
+Rules that bind here:
+
+- **It is a POPOVER on the card and every pick applies at once.** A dialog over
+  the page with a Save button puts two steps and a closed panel between the
+  choice and the card it changes, which is the one thing that has to be seen. It
+  opens to the card's `side="right"` for the same reason — dropping it downwards
+  covers the band being changed.
+- **Every logo tile is drawn on the ground currently in force**, so a variant
+  that cannot be seen on it looks exactly as invisible in the picker as it does
+  on the card. That is the whole surface, not a flourish.
+- **Selection is a check badge, not only a ring.** Radix moves focus into the
+  panel on open, so the first tile wears a focus ring before anything has been
+  chosen and two rings meaning different things is one too many.
+- **`brandCardGrounds` is the offered list** — the brand's own colours plus the
+  two `surfacePalette(…, 'inverted')` extremes the automatic rule already
+  reaches for, so the manual list can express every answer the measurement could
+  have reached and the ones it could not.
+- **A pick also clears `coverAssetId`/`coverUrl`.** A full-bleed photo IS the
+  card while it is set, so a choice that changed nothing visible would look
+  broken. The picture stays in Brand Assets. There is deliberately no photo item
+  in the menu any more: a cover is a logo on a colour.
 
 **Nothing in the band may overflow it.** Three separate guards, because this
 failed twice: `resolveBrandCover` returns `{ url, fit }` and asks for `contain`
@@ -1442,6 +1457,7 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos:guideline:docs` — the Brand Guidelines builder's documents, keyed by brand id (page list + guideline-scoped brand overrides). The page BODIES are not here — edited pages live in IndexedDB `brandos-snapshots/slides` under `brand-guides-<brandId>::<pageId>`
 - `brandos:editor-shortcuts-dismissed` — editor shortcuts hint dismissal
 - `brandos:setup-nudge-dismissed` — brand ids whose floating "finish setup" nudge has been dismissed (see the Brand Kit section)
+- `brandos:branding-checkpoints:<brandId>` — Rebrand-with-AI before-states (cap 20, font files stripped; see the Rebrand section)
 - `brandos-theme` — light/dark, and the ONLY theme key. It is `next-themes`'
   `storageKey` as well as what `[data-workspace] data-theme` reads, via
   `shared/theme/useWorkspaceTheme.ts`. (Before 2026-08-18 these were two
@@ -1825,6 +1841,44 @@ paste the reply, tick what to keep.
   products/services, mission, slogan.
 - Tests: `setup/strategy/__tests__/*` (39) and
   `setup/components/__tests__/StrategyImportModal.browser.test.tsx` (14).
+
+### Rebrand with AI — the whole brand from one prompt (2026-08-24)
+
+**Everything except the logo.** A ghost pill in Setup's top bar ("Rebrand with
+AI") opens `RebrandModal`: an optional direction box ("what's changing?"),
+four ask-chips (Colors · Typography · Brand Strategy · Icons), the same
+`AiPromptMenu` handoff, one paste box. Spec:
+`docs/superpowers/specs/2026-08-24-rebrand-from-prompt-design.md`.
+
+- **`strategy/brandingPrompt.ts`** extends the strategy contract with two
+  identity labels — `Colors:` (3–5 hexes, NO example hexes in the instruction,
+  pinned by a test) and `Fonts:` (`Heading + Body`, placeholder families known
+  to the parser). Its sentinels differ from the strategy prompt's (it ASKS for
+  colours/fonts, so its logo line is "Never suggest a logo"). Asked sections
+  show today's values as a STARTING POINT to evolve; excluded sections become
+  SETTLED context. Icons have NO line — never asked from the AI.
+- **`strategy/parseBrandingBrief.ts`** walks the extended label set once;
+  strategy fields go through `parseStrategyValue` — the SAME function the
+  strategy import uses, refusal layers included (it was extracted for exactly
+  this; do not fork it). Palette = real hexes only (min 2, cap 8, first 3 →
+  Core, rest → Accent via `paletteToGroups`); pairing = two plausible family
+  names split on `+`. Refuses BOTH our prompts wholesale.
+- **Replacement is opt-in.** A section that would replace what the brand has
+  starts UNTICKED (per strategy answer too: filled → unticked, empty →
+  ticked). Replacing uploaded fonts warns that the files themselves are not
+  recoverable. Apply is ONE `setBrand`; colors keep the generated grey ramp.
+- **`strategy/checkpoints.ts`** — before-state of all four sections saved
+  BEFORE every apply (`brandos:branding-checkpoints:<brandId>`, cap 20,
+  newest first). Font FILES are stripped (`snapshotFonts`) so 20 checkpoints
+  cannot repeat the 1.5 MB history incident; restore is whole or per-section,
+  also one `setBrand`. The snapshot is taken OUTSIDE the updater — an updater
+  must stay pure or StrictMode saves the checkpoint twice.
+- **Icons are computed, not parsed**: `suggestIconsForBrand` over the
+  POST-apply strategy text + direction, previewed as a before/after grid. The
+  5 hand-curated industry icon sets are an approved follow-up that slots into
+  this same diff UI.
+- Tests: `strategy/__tests__/{brandingPrompt,parseBrandingBrief,checkpoints}`
+  (33) + `components/__tests__/RebrandModal.browser.test.tsx` (9).
 - **The On-dark tile is a dark GROUND, never a filter.** The `invert(1)` that
   used to sit on `.logo-tile.is-dark .logo-svg` is gone: the variant already IS
   the light artwork, so inverting showed a colour the brand does not own.

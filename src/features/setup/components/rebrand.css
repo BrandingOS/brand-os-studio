@@ -1,0 +1,163 @@
+/* The Rebrand modal — change the branding from one AI reply.
+ *
+ * Feature-local by design; every visual value is a --ds-* token. Shares the
+ * sti-* vocabulary with strategyImport.css (the strategy import ships both
+ * stylesheets on this page) and adds only what a VISUAL diff needs: swatch
+ * rows, typeface specimens, icon grids, and the checkpoint list. */
+
+.rb-block {
+  margin-top: var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  padding: 12px 14px;
+}
+.rb-block[data-on='false'] { opacity: 0.6; }
+
+.rb-block-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rb-block-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+/* Replacing an existing value is the act that needs the user's eyes. */
+.rb-block-flag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-warning-fg);
+}
+.rb-block-flag--fill { color: var(--ds-success-fg); }
+
+.rb-diff {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.rb-diff-arrow { color: var(--ds-text-muted); }
+.rb-col-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+
+/* Colours — swatches with their hex under them. */
+.rb-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.rb-swatch { width: 64px; }
+.rb-swatch-chip {
+  height: 34px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+}
+.rb-swatch-name {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Fonts — each family rendered in its own face. */
+.rb-face { font-size: 17px; line-height: 1.3; color: var(--ds-text); }
+.rb-face small {
+  display: block;
+  font-family: var(--ds-font);
+  font-size: 10.5px;
+  color: var(--ds-text-muted);
+}
+.rb-files-warning {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ds-warning-fg);
+}
+
+/* Icons — a small grid of glyphs. */
+.rb-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 72px;
+  overflow: hidden;
+}
+.rb-icons i {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--ds-hairline);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+}
+.rb-icons-more { font-size: 10.5px; color: var(--ds-text-muted); align-self: center; }
+
+/* Strategy rows reuse .sti-item wholesale. */
+
+/* ── checkpoints ─────────────────────────────────────────────────── */
+
+.rb-history { margin-top: var(--ds-space-5); border-top: 1px solid var(--ds-hairline); padding-top: var(--ds-space-3); }
+.rb-history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+}
+.rb-history-toggle:hover { color: var(--ds-text); }
+
+.rb-cp {
+  margin-top: var(--ds-space-2);
+  padding: 10px 12px;
+  border: 1px solid var(--ds-hairline);
+  border-radius: var(--ds-radius-control);
+}
+.rb-cp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rb-cp-title { font-size: 12.5px; font-weight: 600; color: var(--ds-text); }
+.rb-cp-when { font-size: 11px; color: var(--ds-text-muted); }
+.rb-cp-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rb-cp-restore {
+  padding: 3px 9px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+.rb-cp-restore:hover { background: var(--ds-surface-hover); color: var(--ds-text); }

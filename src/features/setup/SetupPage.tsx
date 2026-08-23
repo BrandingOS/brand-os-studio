@@ -9,6 +9,14 @@ import { BrandSetupNudge } from '@/features/brand-setup/BrandSetupNudge';
 import { StrategyImportModal } from './components/StrategyImportModal';
 import { applyStrategyFields, type ParsedStrategyField } from './strategy/parseStrategyBrief';
 import { buildSectionPrompt } from './strategy/strategyPrompt';
+import { RebrandModal, type RebrandApply } from './components/RebrandModal';
+import {
+  saveCheckpoint,
+  snapshotFonts,
+  type BrandingCheckpoint,
+  type BrandingSectionId,
+  type BrandingSnapshot,
+} from './strategy/checkpoints';
 import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
 import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
@@ -231,6 +239,10 @@ export function SetupPage({
   // hard-coded Nuworld mock when rendered at the flat /setup route or
   // when no brand resolves.
   const [brand, setBrand] = useState<MockBrand>(initialBrand ?? mockBrand);
+  // The live brand for handlers that need the CURRENT value without being
+  // re-created on every edit (the rebrand apply snapshots it for a checkpoint).
+  const brandRef = useRef(brand);
+  brandRef.current = brand;
 
   // Debounced persistence: after any mutation settles (400ms of
   // stillness), hand the full brand state up to the parent. Skip the
@@ -290,6 +302,8 @@ export function SetupPage({
   const [replaceLogoId, setReplaceLogoId] = useState<string | null>(null);
   /** Open when the user is building the strategy from an AI reply. */
   const [strategyImport, setStrategyImport] = useState(false);
+  /** Open when the user is changing the whole branding from an AI reply. */
+  const [rebrandOpen, setRebrandOpen] = useState(false);
   /** Open when the user is choosing WHICH variant they are about to add. */
   const [addingVariant, setAddingVariant] = useState(false);
   /**
@@ -1178,6 +1192,80 @@ export function SetupPage({
     setBrand((prev) => ({ ...prev, strategy: applyStrategyFields(prev.strategy, fields) }));
   }, []);
 
+  /**
+   * An approved rebrand, written as ONE edit — checkpoint first.
+   *
+   * The checkpoint is the before-state of all four sections, saved even for
+   * sections this apply leaves alone: a checkpoint is a moment, and restoring
+   * "Colors only" from it must mean the colours of that moment. The grey ramp
+   * is untouched — it is generated, never AI-written.
+   */
+  const handleApplyRebrand = useCallback((result: RebrandApply) => {
+    setRebrandOpen(false);
+    const applied: BrandingSectionId[] = [
+      ...(result.palette ? (['colors'] as const) : []),
+      ...(result.pairing ? (['fonts'] as const) : []),
+      ...(result.strategy ? (['strategy'] as const) : []),
+      ...(result.icons ? (['icons'] as const) : []),
+    ];
+    if (applied.length === 0) return;
+
+    // The snapshot is taken OUTSIDE the updater: a state updater must stay
+    // pure (StrictMode runs it twice, which would save the checkpoint twice).
+    const current = brandRef.current;
+    const before: BrandingSnapshot = {
+      colors: { core: current.colors.core, accent: current.colors.accent },
+      fonts: snapshotFonts(current.fonts),
+      strategy: current.strategy,
+      about: current.about,
+      icons: current.icons,
+    };
+    saveCheckpoint(resolvedBrandId ?? 'local', before, applied, result.direction);
+
+    setBrand((prev) => {
+      const stamp = Date.now();
+      return {
+        ...prev,
+        ...(result.palette
+          ? { colors: { ...prev.colors, core: result.palette.core, accent: result.palette.accent } }
+          : {}),
+        ...(result.pairing
+          ? {
+              fonts: [
+                { id: `font_${stamp}_h`, family: result.pairing.heading, role: 'Display', weights: 'Regular · Bold' },
+                { id: `font_${stamp}_b`, family: result.pairing.body, role: 'Text', weights: 'Regular · Bold' },
+              ],
+            }
+          : {}),
+        ...(result.strategy
+          ? { strategy: applyStrategyFields(prev.strategy, result.strategy) }
+          : {}),
+        ...(result.icons ? { icons: result.icons } : {}),
+      };
+    });
+  }, [resolvedBrandId]);
+
+  /** The way back. Also one edit; the sections not chosen stay as they are. */
+  const handleRestoreCheckpoint = useCallback(
+    (checkpoint: BrandingCheckpoint, sections: BrandingSectionId[]) => {
+      const chosen = new Set(sections);
+      setBrand((prev) => ({
+        ...prev,
+        ...(chosen.has('colors')
+          ? { colors: { ...prev.colors, core: checkpoint.before.colors.core, accent: checkpoint.before.colors.accent } }
+          : {}),
+        ...(chosen.has('fonts')
+          ? { fonts: checkpoint.before.fonts.map(({ hadFiles: _hadFiles, ...font }) => font) }
+          : {}),
+        ...(chosen.has('strategy')
+          ? { strategy: checkpoint.before.strategy, about: checkpoint.before.about }
+          : {}),
+        ...(chosen.has('icons') ? { icons: checkpoint.before.icons } : {}),
+      }));
+    },
+    [],
+  );
+
   const handleDropFiles = useCallback(
     (kind: 'logo' | 'photos', files: File[]) => {
       files.forEach((file) => {
@@ -1538,6 +1626,19 @@ export function SetupPage({
     <WorkspaceShell
       rightActions={
         <>
+          {/* The whole-brand AI flow — everything except the logo. Ghost, so
+              Brand Identity keeps the one solid pill this bar is allowed. */}
+          <button
+            type="button"
+            className="pill-btn pill-btn--ghost"
+            onClick={() => setRebrandOpen(true)}
+            data-rebrand-open
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 2 13.5 8.5 20 10 13.5 11.5 12 18 10.5 11.5 4 10 10.5 8.5z" />
+            </svg>
+            <span>Rebrand with AI</span>
+          </button>
           {/*
             Brand Identity, replacing "Export brand".
             
@@ -1676,6 +1777,15 @@ export function SetupPage({
         target={strategyEditing}
         onClose={() => setStrategyEditing(null)}
         onSave={handleSaveStrategy}
+      />
+      <RebrandModal
+        open={rebrandOpen}
+        brandName={brand.name}
+        brand={brand}
+        brandId={resolvedBrandId ?? 'local'}
+        onClose={() => setRebrandOpen(false)}
+        onApply={handleApplyRebrand}
+        onRestore={handleRestoreCheckpoint}
       />
       <StrategyImportModal
         open={strategyImport}

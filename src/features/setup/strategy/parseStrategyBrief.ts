@@ -126,7 +126,7 @@ function isOwnInstruction(key: StrategyKey, body: string): boolean {
 }
 
 /** True when a value is shaped like an instruction rather than an answer. */
-function isInstructionShaped(body: string): boolean {
+export function isInstructionShaped(body: string): boolean {
   return INSTRUCTION_OPENERS.some((re) => re.test(body.trim()));
 }
 
@@ -140,6 +140,81 @@ function isInstructionShaped(body: string): boolean {
 function isImplausibleOther(word: string): boolean {
   const w = word.trim();
   return w.length > MAX_OTHER_LENGTH || w.includes(':') || isInstructionShaped(w);
+}
+
+/**
+ * One labelled block, judged.
+ *
+ * Exported for `parseBrandingBrief`, which walks a wider label set but wants
+ * the identical judgement for the eleven strategy fields — the refusal layers
+ * included. `'instruction'` means the value was the ask echoed back;
+ * `'skip'` means an explicit non-answer (N/A, none, …) or nothing usable.
+ */
+export function parseStrategyValue(
+  key: StrategyKey,
+  body: string,
+): { kind: 'field'; field: ParsedStrategyField } | { kind: 'instruction' } | { kind: 'skip' } {
+  const card = CARD_BY_KEY.get(key);
+  if (!card || !body) return { kind: 'skip' };
+
+  // An AI that omits an answer often says so rather than staying silent.
+  if (/^(n\/a|none|unknown|not applicable|-+)$/i.test(body)) return { kind: 'skip' };
+
+  // Layer 2 + 3: the value is the ask, not the answer.
+  if (isOwnInstruction(key, body) || isInstructionShaped(body)) {
+    return { kind: 'instruction' };
+  }
+
+  if (!card.vocab) {
+    const prose =
+      key === 'slogan' ? body.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '') : body;
+    return { kind: 'field', field: { key, value: prose, display: prose, isOther: false } };
+  }
+
+  const vocab = VOCABULARIES[card.vocab];
+  const max = card.max ?? CARDINALITY[card.vocab].max;
+  // "Other: Property Development" is the escape hatch the prompt offers.
+  const raw = splitItems(body.replace(/^\s*other\s*:\s*/i, ''));
+
+  // Layer 3: the option list, not a choice. A reply naming far more members
+  // than the field accepts is the menu the prompt printed.
+  const memberHits = raw.filter(
+    (item) => normalize(item, vocab).kind === 'member',
+  ).length;
+  if (memberHits > max + 2) return { kind: 'instruction' };
+
+  const picked: string[] = [];
+  let other = false;
+  let refusedOther = false;
+  for (const item of raw) {
+    const n = normalize(item, vocab);
+    if (n.kind === 'other') {
+      // The escape hatch keeps a WORD, never an instruction.
+      if (isImplausibleOther(n.text)) {
+        refusedOther = true;
+        continue;
+      }
+      other = true;
+    }
+    const stored = storedValue(n);
+    if (stored && !picked.includes(stored)) picked.push(stored);
+    if (picked.length >= max) break;
+  }
+  if (picked.length === 0) return refusedOther ? { kind: 'instruction' } : { kind: 'skip' };
+
+  const display = picked
+    .map((id) => vocab.find((m) => m.id === id)?.label ?? id)
+    .join(' · ');
+
+  return {
+    kind: 'field',
+    field: { key, value: max === 1 ? picked[0] : picked, display, isOther: other },
+  };
+}
+
+/** The strategy key a label answers. Shared with the branding parser. */
+export function strategyKeyForLabel(label: string): StrategyKey | undefined {
+  return KEY_BY_LABEL.get(label as StrategyLabel);
 }
 
 /**
@@ -164,71 +239,11 @@ export function parseStrategyBrief(text: string): ParsedStrategy {
       if (body) residual.push(body);
       continue;
     }
-    if (!body) continue;
-
     const key = KEY_BY_LABEL.get(block.label);
-    const card = key ? CARD_BY_KEY.get(key) : undefined;
-    if (!key || !card) continue;
-
-    // An AI that omits an answer often says so rather than staying silent.
-    if (/^(n\/a|none|unknown|not applicable|-+)$/i.test(body)) continue;
-
-    // Layer 2 + 3: the value is the ask, not the answer.
-    if (isOwnInstruction(key, body) || isInstructionShaped(body)) {
-      sawInstruction = true;
-      continue;
-    }
-
-    if (!card.vocab) {
-      const prose =
-        key === 'slogan' ? body.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '') : body;
-      fields.push({ key, value: prose, display: prose, isOther: false });
-      continue;
-    }
-
-    const vocab = VOCABULARIES[card.vocab];
-    const max = card.max ?? CARDINALITY[card.vocab].max;
-    // "Other: Property Development" is the escape hatch the prompt offers.
-    const raw = splitItems(body.replace(/^\s*other\s*:\s*/i, ''));
-
-    // Layer 3: the option list, not a choice. A reply naming far more members
-    // than the field accepts is the menu the prompt printed.
-    const memberHits = raw.filter(
-      (item) => normalize(item, vocab).kind === 'member',
-    ).length;
-    if (memberHits > max + 2) {
-      sawInstruction = true;
-      continue;
-    }
-
-    const picked: string[] = [];
-    let other = false;
-    for (const item of raw) {
-      const n = normalize(item, vocab);
-      if (n.kind === 'other') {
-        // The escape hatch keeps a WORD, never an instruction.
-        if (isImplausibleOther(n.text)) {
-          sawInstruction = true;
-          continue;
-        }
-        other = true;
-      }
-      const stored = storedValue(n);
-      if (stored && !picked.includes(stored)) picked.push(stored);
-      if (picked.length >= max) break;
-    }
-    if (picked.length === 0) continue;
-
-    const display = picked
-      .map((id) => vocab.find((m) => m.id === id)?.label ?? id)
-      .join(' · ');
-
-    fields.push({
-      key,
-      value: max === 1 ? picked[0] : picked,
-      display,
-      isOther: other,
-    });
+    if (!key) continue;
+    const judged = parseStrategyValue(key, body);
+    if (judged.kind === 'instruction') sawInstruction = true;
+    else if (judged.kind === 'field') fields.push(judged.field);
   }
 
   const problem: StrategyParseProblem | undefined =
