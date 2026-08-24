@@ -71,6 +71,11 @@ const DevArchitecturePage = import.meta.env.DEV
 const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 // DS v1 component showcase (self-gated on import.meta.env.DEV or ?dev=1).
 const DevDesignSystemPage = lazy(() => import("./pages/_dev/design-system"));
+// Guideline editor component lab (self-gated on import.meta.env.DEV or ?dev=1).
+const DevGuidelineEditorPage = lazy(() => import("./pages/_dev/guideline-editor"));
+const DevElementsPage = lazy(() => import("./pages/_dev/elements"));
+// Toolbar editor — every toolbar in one mini editor. Self-gated (DEV or ?dev=1).
+const DevToolbarEditorPage = lazy(() => import("./pages/_dev/toolbar-editor"));
 const EditorLauncherPage = lazy(() => import("./pages/editor-launcher"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -793,6 +798,15 @@ const App = () => (
           )}
           {/* DS v1 showcase — self-gated (DEV or ?dev=1), never in nav. */}
           <Route path="/_dev/design-system" element={<DevDesignSystemPage />} />
+          {/* Guideline editor component lab — every editing surface of
+              /b/:slug/guideline on one page. Self-gated (DEV or ?dev=1). */}
+          <Route path="/_dev/guideline-editor" element={<DevGuidelineEditorPage />} />
+          {/* Element library — the Insert menu's charts + widget shapes, every
+              entrance animated. Self-gated (DEV or ?dev=1). */}
+          <Route path="/_dev/elements" element={<DevElementsPage />} />
+          {/* Toolbar editor — one mini editor with every toolbar working for
+              real: insert, chart, card, text, image. Self-gated (DEV or ?dev=1). */}
+          <Route path="/_dev/toolbar-editor" element={<DevToolbarEditorPage />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />

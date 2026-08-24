@@ -27,6 +27,12 @@ export interface GuidelinePage {
   id: string;
   /** A `PAGE_TYPES` id. */
   type: string;
+  /**
+   * The user's label for this page — what the outline and the caption above
+   * the slide say. NEVER rendered on the page itself; renaming a page must
+   * not rewrite its content, which is what `title` is.
+   */
+  name?: string;
   /** Chapter/page title. Real page content for types with `titleIsContent`. */
   title?: string;
   subtitle?: string;
@@ -186,7 +192,7 @@ export function chapterTitleFor(pages: GuidelinePage[], pageId: string): string 
   return undefined;
 }
 
-/** Display name in the outline — the user's title, else the type's name. */
+/** Display name in the outline — the user's label, else the title, else the type's name. */
 export function pageDisplayName(page: GuidelinePage): string {
-  return page.title?.trim() || getPageType(page.type)?.name || 'Page';
+  return page.name?.trim() || page.title?.trim() || getPageType(page.type)?.name || 'Page';
 }

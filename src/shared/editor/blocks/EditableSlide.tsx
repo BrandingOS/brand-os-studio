@@ -56,6 +56,66 @@ function detectBlockType(el: HTMLElement): BlockType {
   return 'text';
 }
 
+/** Screen rects of the element's rendered text lines. */
+function textLineRects(el: HTMLElement): DOMRect[] {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  return Array.from(range.getClientRects());
+}
+
+/**
+ * Editing fills a text element with INLINE children — <br> per Enter,
+ * styled <span>s per highlighted toolbar change, b/i from formatting.
+ * None of that makes it a container: an element is a text LEAF until it
+ * holds a real block child. Every leaf/container decision (selection,
+ * drag, delete, the words-only rule) must go through this, or a paragraph
+ * stops being selectable the moment the user presses Enter in it
+ * (owner bug 2026-08-22).
+ */
+const INLINE_FORMAT_TAGS = new Set([
+  'BR', 'SPAN', 'B', 'I', 'EM', 'STRONG', 'U', 'S', 'FONT', 'MARK', 'SUB', 'SUP', 'SMALL', 'WBR',
+]);
+function hasBlockChildren(el: HTMLElement): boolean {
+  for (const child of Array.from(el.children)) {
+    if (!INLINE_FORMAT_TAGS.has(child.tagName)) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether a point lands on the element's CONTENT, not merely inside its
+ * box. A text element's box can be far wider than its words (an explicit
+ * width, a stretched block) — and grabbing the empty part of that box makes
+ * whatever sits under or beside it unreachable (owner request 2026-08-21:
+ * "البوكس يظهر لو دوست فقط عالكلام"). The slop keeps the words comfortable
+ * to hit without swallowing the neighbourhood.
+ */
+const TEXT_HIT_SLOP = 8;
+function hitsContent(el: HTMLElement, x: number, y: number): boolean {
+  const type = detectBlockType(el);
+  if (type !== 'text' && type !== 'heading') return true;
+  if (hasBlockChildren(el)) return true; // containers keep box behaviour
+  const rects = textLineRects(el);
+  if (rects.length === 0) return true;
+  return rects.some(
+    (r) =>
+      x >= r.left - TEXT_HIT_SLOP &&
+      x <= r.right + TEXT_HIT_SLOP &&
+      y >= r.top - TEXT_HIT_SLOP &&
+      y <= r.bottom + TEXT_HIT_SLOP,
+  );
+}
+
+/**
+ * The one selection colour. Deliberately NOT a DS token: the DS is warm
+ * charcoal/cream and owns no blue at all (its focus ring is charcoal by
+ * rule), while canvas selection must stay readable over arbitrary brand
+ * artwork — which is exactly why every canvas editor picks an
+ * out-of-palette hue. Everything else the selection draws — radius,
+ * surface, shadow — comes from `--ds-*` tokens.
+ */
+const SELECTION_COLOR = '#3B82F6';
+
 /** Remove selection styles from an element */
 function removeSelectionStyles(el: HTMLElement) {
   el.style.outline = '';
@@ -74,22 +134,22 @@ function removeSelectionStyles(el: HTMLElement) {
   }
 }
 
-/** Apply visible selection highlight to an element */
+/** Apply selection state to an element (cursor + drag affordance).
+ *  The VISIBLE box is not drawn here: it is the `.scale-zone-box` overlay
+ *  that addScaleZones tracks every frame, sized to the rendered WORDS
+ *  (3px off them) rather than the element's box — a block element can be
+ *  far wider than its own text (owner request 2026-08-22). */
 function applySelectionStyles(el: HTMLElement) {
   if (!el.dataset.originalBg) {
     el.dataset.originalBg = el.style.backgroundColor || '';
   }
-  el.style.outline = '2px solid #3B82F6';
-  el.style.outlineOffset = '3px';
-  el.style.borderRadius = '6px';
-  el.style.boxShadow = '0 0 0 6px rgba(59, 130, 246, 0.12)';
 
   // Only LEAF elements (no element children) and images can be dragged.
   // Dragging a container would visually move all its descendants because
   // they live in its coordinate space — the user hits this as "moving
   // the first layer moves the whole slide".
   const isImage = el.tagName === 'IMG' || el.tagName === 'SVG';
-  const isLeaf = el.children.length === 0;
+  const isLeaf = !hasBlockChildren(el);
   const canDrag = isImage || isLeaf;
 
   if (canDrag) {
@@ -114,145 +174,340 @@ function applySelectionStyles(el: HTMLElement) {
 }
 
 /**
- * Add resize handles overlay for the selected element. Works for
- * images, text blocks, divs — any element that can take an explicit
- * width / height. Text blocks reflow inside the new bounding box.
+ * Selection box + scale zones — every handle is invisible; the CURSOR is
+ * the affordance (owner decisions 2026-08-21/22: the arcs experiment was
+ * dropped, then the edge pills too).
  *
- * Eight handles: four corners + four edge midpoints. The corner /
- * edge directions encode in `cursor`:
- *   n → top, s → bottom, w → left, e → right.
+ *   the box — `.scale-zone-box`, the ONLY visible selection chrome. It
+ *     hugs the rendered WORDS (a Range over the element's contents), 3
+ *     screen-px off them, never the element's own box, which for a block
+ *     element can be far wider than its text. Stroke, gap and the DS
+ *     control radius are divided by the canvas scale so they look
+ *     identical at any zoom and any text size.
+ *   corners (4) — an invisible hover target centered ON the corner.
+ *     Dragging SCALES the element — font size for text (the words
+ *     themselves grow), the whole box for images — smoothed through a
+ *     rAF ease so it feels light, never steppy.
+ *   edges (2, left + right midpoints) — invisible, ew-resize cursor.
+ *     Dragging sets the element's WIDTH; text re-wraps inside the box the
+ *     user sized ("اسحب يمين وشمال والكلام يكون جوه البوكس").
  *
- * For absolutely-positioned elements, dragging the n/w sides also
- * adjusts left/top so the OPPOSITE corner stays anchored.
+ * A per-container rAF loop re-places the box and every zone each frame,
+ * so the selection rides the words instantly through moves, scaling and
+ * typing — it never lags behind and never snaps at the end of a gesture.
  */
-function addResizeHandles(el: HTMLElement, container: HTMLElement) {
-  // Remove existing handles
-  container.querySelectorAll('.resize-handle').forEach(h => h.remove());
 
-  // Inline / inline-block elements need 'inline-block' display to
-  // honor explicit width. <span> defaults to inline; force it.
-  const display = window.getComputedStyle(el).display;
-  if (display === 'inline') {
+/** Character-level styles that may hit a HIGHLIGHTED range instead of the
+ *  whole element. Layout styles (align, width, opacity…) stay element-level. */
+const RANGE_STYLE_KEYS = new Set(['fontWeight', 'fontStyle', 'color', 'fontSize']);
+
+/** While editing, a toolbar change lands on the words the user highlighted
+ *  — wrapped in a styled span — not on the whole block. Returns false when
+ *  there is no usable in-element selection; the caller styles the element. */
+function applyStyleToHighlight(el: HTMLElement, key: string, value: string): boolean {
+  if (!RANGE_STYLE_KEYS.has(key)) return false;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed || !el.contains(range.commonAncestorContainer)) return false;
+  const span = document.createElement('span');
+  (span.style as any)[key] = value;
+  try {
+    range.surroundContents(span);
+  } catch {
+    // A range that partially covers nodes cannot be surrounded — extract
+    // (which splits the boundary text nodes) and wrap what came out.
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+  }
+  // Keep the words highlighted so the next toolbar change stacks on them.
+  sel.removeAllRanges();
+  const keep = document.createRange();
+  keep.selectNodeContents(span);
+  sel.addRange(keep);
+  return true;
+}
+
+/** The rect the user SEES as selected: the rendered words for text (what
+ *  the `.scale-zone-box` hugs), the element box for everything else. The
+ *  floating toolbar centers on this, so bar and box always agree.
+ *
+ *  `data-user-sized` flips a text element to element-box mode: it is set
+ *  the moment the user drags an edge to size the box themselves, and it
+ *  serializes into snapshots so a sized box stays sized. Typing alone
+ *  never sets it — an untouched box keeps hugging the words. */
+function visualRect(el: HTMLElement): DOMRect {
+  const type = detectBlockType(el);
+  if ((type === 'text' || type === 'heading') && !el.dataset.userSized) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const rr = range.getBoundingClientRect();
+    if (rr.width > 0 && rr.height > 0) return rr;
+  }
+  return el.getBoundingClientRect();
+}
+
+/** One tracking loop per container, cancelled by removeScaleZones. */
+const zoneLoops = new WeakMap<HTMLElement, number>();
+
+export function addScaleZones(el: HTMLElement, container: HTMLElement) {
+  removeScaleZones(container);
+
+  // Inline elements need inline-block so an explicit width sticks when a
+  // non-text element is scaled.
+  if (window.getComputedStyle(el).display === 'inline') {
     el.style.display = 'inline-block';
   }
 
-  const rect = el.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
+  const type = detectBlockType(el);
+  const isText = type === 'text' || type === 'heading';
 
-  // The pitch-deck stage scales 1920×1080 down to fit the viewport via
-  // SlideScaler's `transform: scale(s)`. getBoundingClientRect returns
-  // SCREEN-space coords (scaled), but handles are positioned in the
-  // CONTAINER's local 1920-space. Divide every offset by the scale so
-  // handles land on the actual element corners.
-  const scale = containerRect.width && container.offsetWidth
-    ? containerRect.width / container.offsetWidth
-    : 1;
-
-  // Keep handles ~12px on screen regardless of the slide zoom.
-  const HANDLE_SCREEN_PX = 12;
-  const HANDLE_SIZE = HANDLE_SCREEN_PX / scale;
-  const BORDER_PX = 2 / scale;
-  const off = HANDLE_SIZE / 2;
-  const top = (rect.top - containerRect.top) / scale;
-  const left = (rect.left - containerRect.left) / scale;
-  const right = (rect.right - containerRect.left) / scale;
-  const bottom = (rect.bottom - containerRect.top) / scale;
-  const midX = (left + right) / 2;
-  const midY = (top + bottom) / 2;
-
-  const positions: Array<{ cursor: string; top: number; left: number }> = [
-    { cursor: 'nw-resize', top: top - off,    left: left - off },
-    { cursor: 'n-resize',  top: top - off,    left: midX - off },
-    { cursor: 'ne-resize', top: top - off,    left: right - off },
-    { cursor: 'e-resize',  top: midY - off,   left: right - off },
-    { cursor: 'se-resize', top: bottom - off, left: right - off },
-    { cursor: 's-resize',  top: bottom - off, left: midX - off },
-    { cursor: 'sw-resize', top: bottom - off, left: left - off },
-    { cursor: 'w-resize',  top: midY - off,   left: left - off },
+  // sx/sy: which direction counts as "outward", so dragging away from the
+  // element always grows it. `edge` marks the width-only zones.
+  const specs: Array<{
+    kind: 'nw' | 'ne' | 'se' | 'sw' | 'w' | 'e';
+    sx: number; sy: number; cursor: string; edge?: boolean;
+  }> = [
+    { kind: 'nw', sx: -1, sy: -1, cursor: 'nwse-resize' },
+    { kind: 'ne', sx: 1,  sy: -1, cursor: 'nesw-resize' },
+    { kind: 'se', sx: 1,  sy: 1,  cursor: 'nwse-resize' },
+    { kind: 'sw', sx: -1, sy: 1,  cursor: 'nesw-resize' },
+    { kind: 'w',  sx: -1, sy: 0,  cursor: 'ew-resize', edge: true },
+    { kind: 'e',  sx: 1,  sy: 0,  cursor: 'ew-resize', edge: true },
   ];
 
-  positions.forEach(pos => {
-    const handle = document.createElement('div');
-    handle.className = 'resize-handle';
-    handle.style.cssText = [
+  const zones = specs.map((spec) => {
+    const zone = document.createElement('div');
+    zone.className = 'scale-zone';
+    zone.dataset.zone = spec.edge ? 'edge' : 'corner';
+    zone.style.cssText = [
       'position:absolute',
-      `width:${HANDLE_SIZE}px`,
-      `height:${HANDLE_SIZE}px`,
-      'background:#3B82F6',
-      `border:${BORDER_PX}px solid #fff`,
-      'border-radius:50%',
-      `cursor:${pos.cursor}`,
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'background:transparent',
+      `cursor:${spec.cursor}`,
       'z-index:60',
-      `top:${pos.top}px`,
-      `left:${pos.left}px`,
-      `box-shadow:0 ${1 / scale}px ${4 / scale}px rgba(0,0,0,0.25)`,
       'pointer-events:auto',
     ].join(';');
+    container.appendChild(zone);
+    return zone;
+  });
 
-    const startResize = (clientX: number, clientY: number) => {
-      const startX = clientX;
-      const startY = clientY;
-      const startW = el.offsetWidth;
+  // The visible selection box. pointer-events:none — it is chrome, never
+  // a hit target; elementsFromPoint skips it, so fall-through selection
+  // keeps working under it.
+  const box = document.createElement('div');
+  box.className = 'scale-zone-box';
+  box.style.cssText = [
+    'position:absolute',
+    'pointer-events:none',
+    'box-sizing:border-box',
+    'z-index:59',
+    `border:1px solid ${SELECTION_COLOR}`,
+  ].join(';');
+  container.appendChild(box);
+
+  // The DS control radius, resolved once — kept screen-constant below by
+  // dividing by the canvas scale ("الراوندد مظبوط في كل الأحوال").
+  const controlRadius =
+    parseFloat(getComputedStyle(container).getPropertyValue('--ds-radius-control')) || 8;
+
+  /**
+   * Position the box and every zone from the CURRENT rendered bounds.
+   * Runs every frame (below), which is what keeps the selection glued to
+   * the words through drags, scaling and typing — instantly, no
+   * end-of-gesture snap.
+   */
+  const place = () => {
+    // The selection hugs the WORDS for untouched text — but an element
+    // the user has sized (data-user-sized, set by an edge drag) shows its
+    // own box. Everything (box, corners, edges) rides this visual rect.
+    const vis = visualRect(el);
+    const containerRect = container.getBoundingClientRect();
+    // The deck stage scales 1920×1080 down via `transform: scale(s)`;
+    // rects are screen-space, zones live in the container's local space.
+    const scale = containerRect.width && container.offsetWidth
+      ? containerRect.width / container.offsetWidth
+      : 1;
+    // ~18px on screen: forgiving to aim for, still tight to the corner.
+    const ZONE = 18 / scale;
+    // 3 SCREEN px between the words and the stroke, at any zoom — but an
+    // IMAGE is its own crisp rectangle: the box sits flush on it, no gap.
+    const isMedia = el.tagName === 'IMG' || el.tagName === 'SVG';
+    const pad = isMedia ? 0 : 3 / scale;
+    // A HAIRLINE: half a screen px — retina draws it truly finer, and it
+    // reads as a guide, not a frame (owner request 2026-08-22).
+    const stroke = 0.5 / scale;
+    const t = (vis.top - containerRect.top) / scale;
+    const l = (vis.left - containerRect.left) / scale;
+    const r = (vis.right - containerRect.left) / scale;
+    const b = (vis.bottom - containerRect.top) / scale;
+
+    box.style.top = `${t - pad - stroke}px`;
+    box.style.left = `${l - pad - stroke}px`;
+    box.style.width = `${r - l + 2 * (pad + stroke)}px`;
+    box.style.height = `${b - t + 2 * (pad + stroke)}px`;
+    box.style.borderWidth = `${stroke}px`;
+    // Text gets the DS control radius (screen-constant). An IMAGE'S box
+    // takes the image's OWN corner radius — the selection follows the
+    // artwork's shape: a rounded image gets a rounded box, a sharp one a
+    // sharp box. Computed values are local px, same space as the box.
+    if (isMedia) {
+      const cs = getComputedStyle(el);
+      box.style.borderRadius = cs.borderRadius || cs.borderTopLeftRadius;
+    } else {
+      box.style.borderRadius = `${controlRadius / scale}px`;
+    }
+
+    // Corners CENTER on the box's corner point, so the hover works from
+    // inside AND outside (owner request 2026-08-21). The edge zones are
+    // STRIPS on the stroke line spanning the whole side — grab anywhere
+    // along the edge, not just its midpoint (owner request 2026-08-22) —
+    // inset by the corner zones so the corners keep their scale gesture.
+    // On a box too small for a strip they fall back to a centered square.
+    const lineOff = pad + stroke / 2;
+    const edgeH = Math.max(ZONE, b - t - ZONE);
+    const edgeTop = (t + b) / 2 - edgeH / 2;
+    const pos: Record<string, [number, number]> = {
+      nw: [t - ZONE / 2, l - ZONE / 2],
+      ne: [t - ZONE / 2, r - ZONE / 2],
+      se: [b - ZONE / 2, r - ZONE / 2],
+      sw: [b - ZONE / 2, l - ZONE / 2],
+      w:  [edgeTop, l - lineOff - ZONE / 2],
+      e:  [edgeTop, r + lineOff - ZONE / 2],
+    };
+    zones.forEach((zone, i) => {
+      const spec = specs[i];
+      const [zt, zl] = pos[spec.kind];
+      zone.style.top = `${zt}px`;
+      zone.style.left = `${zl}px`;
+      zone.style.width = `${ZONE}px`;
+      zone.style.height = `${spec.edge ? edgeH : ZONE}px`;
+    });
+    return scale;
+  };
+  place();
+
+  const tick = () => {
+    if (!el.isConnected || !container.isConnected) {
+      removeScaleZones(container);
+      return;
+    }
+    place();
+    zoneLoops.set(container, requestAnimationFrame(tick));
+  };
+  zoneLoops.set(container, requestAnimationFrame(tick));
+
+  zones.forEach((zone, i) => {
+    const spec = specs[i];
+    zone.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startRect = el.getBoundingClientRect();
+      const startDiag = Math.hypot(startRect.width, startRect.height) || 1;
+      const cs = window.getComputedStyle(el);
+      const startFont = parseFloat(cs.fontSize) || 16;
+      // Everything scales together, Adobe-shift-drag style: the font, the
+      // element's own padding, and any explicit width/height it carries.
+      // Scaling width WITH the font is what keeps the line breaks where
+      // they are — the whole block grows as one object.
+      const startPad = [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft]
+        .map((p) => parseFloat(p) || 0);
+      const hadExplicitW = el.style.width !== '';
+      const hadExplicitH = el.style.height !== '';
+      const containerRect = container.getBoundingClientRect();
+      const scale = containerRect.width && container.offsetWidth
+        ? containerRect.width / container.offsetWidth
+        : 1;
+      // An edge drag on text that was never sized starts from the WORDS'
+      // width — the edge the user grabbed sits on the words-hugging box,
+      // so the drag continues from there, never jumping to the element's
+      // (often much wider) block width.
+      const startW =
+        spec.edge && isText && !el.dataset.userSized
+          ? Math.max(30, Math.round(visualRect(el).width / scale))
+          : el.offsetWidth;
       const startH = el.offsetHeight;
-      const computed = window.getComputedStyle(el);
-      const isAbsolute = computed.position === 'absolute' || computed.position === 'fixed';
-      const startLeft = parseFloat(el.style.left || '0') || 0;
-      const startTop  = parseFloat(el.style.top  || '0') || 0;
-      const cursor = pos.cursor;
 
-      const onMove = (moveX: number, moveY: number) => {
-        // Mouse events are in screen pixels; the element lives in
-        // local 1920-space. Convert by the same scale factor used to
-        // place the handles.
-        const dx = (moveX - startX) / scale;
-        const dy = (moveY - startY) / scale;
-        let newW = startW;
-        let newH = startH;
-        let newL = startLeft;
-        let newT = startTop;
+      // Smoothed drag: mousemove only records the TARGET; a rAF loop eases
+      // the applied value toward it (critically-damped-ish lerp), so the
+      // gesture feels light and fluid instead of stepping per mouse event.
+      // mouseup lands exactly on the target — no residual lag.
+      let factorTarget = 1;
+      let factorApplied = 1;
+      let widthTarget = startW;
+      let widthApplied = startW;
+      let raf = 0;
 
-        if (cursor.includes('e')) newW = Math.max(20, startW + dx);
-        if (cursor.includes('w')) {
-          newW = Math.max(20, startW - dx);
-          if (isAbsolute) newL = startLeft + dx;
+      const apply = () => {
+        if (spec.edge) {
+          // Width only — the text re-wraps inside the box the user sizes.
+          el.style.width = `${Math.max(30, Math.round(widthApplied))}px`;
+          return;
         }
-        if (cursor.includes('s')) newH = Math.max(20, startH + dy);
-        if (cursor.includes('n')) {
-          newH = Math.max(20, startH - dy);
-          if (isAbsolute) newT = startTop + dy;
-        }
-
-        if (cursor.includes('e') || cursor.includes('w')) el.style.width  = `${Math.round(newW)}px`;
-        if (cursor.includes('s') || cursor.includes('n')) el.style.height = `${Math.round(newH)}px`;
-        if (isAbsolute) {
-          if (cursor.includes('w')) el.style.left = `${Math.round(newL)}px`;
-          if (cursor.includes('n')) el.style.top  = `${Math.round(newT)}px`;
+        const f = factorApplied;
+        el.style.padding = startPad.map((p) => `${(p * f).toFixed(1)}px`).join(' ');
+        if (isText) {
+          el.style.fontSize = `${Math.max(6, startFont * f).toFixed(1)}px`;
+          if (hadExplicitW) el.style.width = `${Math.max(20, Math.round(startW * f))}px`;
+          if (hadExplicitH) el.style.height = `${Math.max(20, Math.round(startH * f))}px`;
+        } else {
+          el.style.width = `${Math.max(20, Math.round(startW * f))}px`;
+          el.style.height = `${Math.max(20, Math.round(startH * f))}px`;
         }
       };
 
-      const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+      const ease = () => {
+        factorApplied += (factorTarget - factorApplied) * 0.35;
+        widthApplied += (widthTarget - widthApplied) * 0.35;
+        apply();
+        raf = requestAnimationFrame(ease);
+      };
+      raf = requestAnimationFrame(ease);
+
+      const onMouseMove = (moveE: MouseEvent) => {
+        if (spec.edge) {
+          // The first real movement marks the element USER-SIZED: from now
+          // on the selection box IS the element box being sized, not the
+          // words (typing alone never sets this). Width applied at once so
+          // the box never flashes at the block's full width.
+          if (!el.dataset.userSized) {
+            el.dataset.userSized = 'true';
+            el.style.width = `${Math.max(30, Math.round(startW))}px`;
+          }
+          // dx is screen px; the width is set in local px → divide by scale.
+          widthTarget = startW + ((moveE.clientX - startX) * spec.sx) / scale;
+          return;
+        }
+        // Corner: project the drag onto the outward diagonal and turn it
+        // into a proportional factor of the element's own diagonal.
+        const d = (moveE.clientX - startX) * spec.sx + (moveE.clientY - startY) * spec.sy;
+        factorTarget = Math.min(8, Math.max(0.2, (startDiag + d) / startDiag));
+      };
       const onMouseUp = () => {
+        cancelAnimationFrame(raf);
+        factorApplied = factorTarget;
+        widthApplied = widthTarget;
+        apply();
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
-        // Re-place the handles so they track the new size.
-        addResizeHandles(el, container);
       };
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
-    };
-
-    handle.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      startResize(e.clientX, e.clientY);
     });
-
-    container.appendChild(handle);
   });
 }
 
-function removeResizeHandles(container: HTMLElement) {
-  container.querySelectorAll('.resize-handle').forEach(h => h.remove());
+export function removeScaleZones(container: HTMLElement) {
+  const loop = zoneLoops.get(container);
+  if (loop !== undefined) {
+    cancelAnimationFrame(loop);
+    zoneLoops.delete(container);
+  }
+  container.querySelectorAll('.scale-zone, .scale-zone-box').forEach((z) => z.remove());
 }
 
 export function EditableSlide({ children, frozenHtml, onSelectionChange }: EditableSlideProps) {
@@ -261,6 +516,11 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
   const [editing, setEditing] = useState(false);
   const selectedRef = useRef<SelectedElement | null>(null);
   const editingRef = useRef(false);
+  // Set when a move-drag just committed. Pointer capture makes the click
+  // that follows the drag target the CONTENT WRAPPER, and handleClick would
+  // re-select that wrapper — the selection (and its pills) visibly jumped
+  // from the dragged text to the whole canvas. A drag is not a click.
+  const suppressClickRef = useRef(false);
 
   // Keep refs in sync with state for event handlers
   useEffect(() => {
@@ -283,7 +543,7 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     if (selectedRef.current) {
       setSelected(null);
       setEditing(false);
-      if (containerRef.current) removeResizeHandles(containerRef.current);
+      if (containerRef.current) removeScaleZones(containerRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frozenHtml]);
@@ -300,12 +560,30 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
   //      background would walk all the way up to the slide root and
   //      "delete background" would nuke the whole slide.
   const findMeaningfulElement = useCallback((target: HTMLElement): HTMLElement => {
-    // Container click → select the container as-is
-    if (target.children.length > 0) return target;
+    // Container click → select the container as-is. Inline formatting
+    // children (brs, styled spans) do NOT make a container — see
+    // hasBlockChildren.
+    if (hasBlockChildren(target)) return target;
 
     // Leaf click → walk up until we find a meaningful node
     let el = target;
     while (el.parentElement && el.parentElement !== containerRef.current) {
+      // Inline formatting created while editing (a styled highlight span,
+      // b/i, the text around a <br>) belongs to its text BLOCK — climb
+      // while the parent is itself a pure text block. A standalone label
+      // span in a layout div stays its own thing: its parent has block
+      // children, so the climb refuses.
+      const parent = el.parentElement;
+      if (
+        INLINE_FORMAT_TAGS.has(el.tagName) &&
+        parent !== containerRef.current &&
+        !hasBlockChildren(parent) &&
+        (parent.textContent ?? '').trim().length >= 1
+      ) {
+        el = parent;
+        continue;
+      }
+
       const tag = el.tagName.toLowerCase();
 
       // Hard stops — these are always "the thing"
@@ -320,8 +598,9 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
         .join('');
       if (directText.length >= 1) break;
 
-      // Single-text-child leaf
-      if (el.children.length === 0) {
+      // A text block whose children are only inline formatting is the
+      // thing itself — never walk past it to its layout parent.
+      if (!hasBlockChildren(el)) {
         const leafText = (el.textContent ?? '').trim();
         if (leafText.length >= 1) break;
       }
@@ -331,8 +610,86 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     return el;
   }, []);
 
+  /** Apply full selection (styles + zones + state) to one element. */
+  const selectElement = useCallback((el: HTMLElement) => {
+    if (selectedRef.current?.element && selectedRef.current.element !== el) {
+      removeSelectionStyles(selectedRef.current.element);
+    }
+    applySelectionStyles(el);
+    if (containerRef.current) addScaleZones(el, containerRef.current);
+    setSelected({ element: el, type: detectBlockType(el), rect: el.getBoundingClientRect() });
+    setEditing(false);
+  }, []);
+
+  /**
+   * What a point actually selects. findMeaningfulElement names the
+   * candidate; the words-only rule (hitsContent) can veto it, and a veto
+   * falls through to the next element under the point that IS hit — so
+   * things sitting under a wide, mostly-empty text box stay reachable.
+   *
+   * A CONTAINER is selectable only when it is visibly a thing — it paints
+   * its own background or border (a card, a coloured section). A
+   * transparent layout wrapper turning into a giant do-nothing selection
+   * on every between-the-elements click is exactly what this refuses
+   * (owner request 2026-08-22).
+   */
+  const isSelectable = useCallback((cand: HTMLElement): boolean => {
+    if (!hasBlockChildren(cand)) return true;
+    const cs = window.getComputedStyle(cand);
+    const bg = cs.backgroundColor;
+    const hasBg = bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)';
+    const hasImage = cs.backgroundImage !== 'none';
+    const hasBorder =
+      parseFloat(cs.borderTopWidth) > 0 ||
+      parseFloat(cs.borderRightWidth) > 0 ||
+      parseFloat(cs.borderBottomWidth) > 0 ||
+      parseFloat(cs.borderLeftWidth) > 0;
+    return hasBg || hasImage || hasBorder;
+  }, []);
+
+  const resolveHit = useCallback(
+    (target: HTMLElement, x: number, y: number): HTMLElement | null => {
+      const el = findMeaningfulElement(target);
+      if (isSelectable(el) && hitsContent(el, x, y)) return el;
+      for (const below of document.elementsFromPoint(x, y)) {
+        if (!containerRef.current?.contains(below)) continue;
+        if (below === containerRef.current) break;
+        const c = below as HTMLElement;
+        if (c.closest('.scale-zone')) continue;
+        // Never fall through to the missed element itself, its descendants,
+        // or its ANCESTORS — beside-the-words is background, not "select my
+        // whole container".
+        if (c === el || el.contains(c) || c.contains(el)) continue;
+        const m = findMeaningfulElement(c);
+        if (m !== el && !m.contains(el) && isSelectable(m) && hitsContent(m, x, y)) return m;
+      }
+      return null;
+    },
+    [findMeaningfulElement, isSelectable],
+  );
+
+  /** True when a click is just the tail of a TEXT-SELECTION drag: while
+   *  editing, highlighted words inside the element mean the user was
+   *  selecting text — a release that strayed outside the box must not
+   *  read as "clicked away" and kill the selection they just made. */
+  const isSelectionDragTail = useCallback(() => {
+    if (!editingRef.current) return false;
+    const el = selectedRef.current?.element;
+    if (!el) return false;
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    return !!range && !range.collapsed && el.contains(range.commonAncestorContainer);
+  }, []);
+
   // Handle click on slide content — select element
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // The click that follows a committed move-drag is the drag's tail, not
+    // a selection gesture — swallow it (see suppressClickRef).
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    if (isSelectionDragTail()) return;
     const target = e.target as HTMLElement;
     if (!containerRef.current?.contains(target)) return;
 
@@ -342,41 +699,31 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
       return;
     }
 
-    const el = findMeaningfulElement(target);
-
-    // If the clicked element is the SAME one already selected and we
-    // are currently in editing mode, this is the user clicking inside
-    // the contentEditable to position the cursor — leave edit state
-    // alone. (Otherwise we'd kick them out of edit mode every time
-    // they click to place a caret or start a text-selection range.)
-    if (selectedRef.current?.element === el && editingRef.current) {
+    // Clicks inside the actively-editing element are caret placement —
+    // leave them entirely to the browser.
+    if (editingRef.current && selectedRef.current?.element?.contains(target)) {
       return;
     }
 
-    // Clear previous selection styles
-    if (selectedRef.current?.element && selectedRef.current.element !== el) {
-      removeSelectionStyles(selectedRef.current.element);
+    // A click on the empty part of a wide text box selects what is under
+    // it — or, when nothing is, clears like a background click.
+    const el = resolveHit(target, e.clientX, e.clientY);
+    if (!el) {
+      clearSelection();
+      return;
     }
-
-    const rect = el.getBoundingClientRect();
-    const type = detectBlockType(el);
-
-    applySelectionStyles(el);
-    if (containerRef.current) {
-      removeResizeHandles(containerRef.current);
-      // Resize handles for ANY selected element — text blocks reflow
-      // inside the new bounding box, images / logos scale.
-      addResizeHandles(el, containerRef.current);
-    }
-    setSelected({ element: el, type, rect });
-    setEditing(false);
-  }, [findMeaningfulElement]);
+    selectElement(el);
+  }, [resolveHit, selectElement]);
 
   // Handle double-click for text editing
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const el = findMeaningfulElement(target);
     const type = detectBlockType(el);
+
+    // Same words-only rule as selection: double-clicking the empty part of
+    // a wide box must not start editing the text far away from the cursor.
+    if (!hitsContent(el, e.clientX, e.clientY)) return;
 
     if (type === 'text' || type === 'heading') {
       el.contentEditable = 'true';
@@ -387,16 +734,30 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
       el.style.userSelect = 'text';
       (el.style as any).webkitUserSelect = 'text';
       el.style.cursor = 'text';
+      // The browser paints its own focus ring around a focused
+      // contentEditable — a second box around the whole element. The
+      // selection overlay is the only chrome; keep the native one off.
+      el.style.outline = 'none';
       el.focus();
       setEditing(true);
 
-      // Select all text in the element so the user can immediately
-      // overtype, or click to position the caret precisely.
-      const range = document.createRange();
-      range.selectNodeContents(el);
+      // Native-like double-click: select the WORD under the cursor, not
+      // the whole block. The canvas carries user-select:none, so the
+      // browser's own double-click word selection was suppressed before
+      // contentEditable flipped on — recreate it at the click point.
+      // Everything after this first gesture IS native: drag to select a
+      // word or two, triple-click for the line, click for the caret.
       const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+      const caret = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+      if (sel && caret && el.contains(caret.startContainer)) {
+        sel.removeAllRanges();
+        sel.addRange(caret);
+        const modify = (sel as any).modify?.bind(sel);
+        if (modify) {
+          modify('move', 'backward', 'word');
+          modify('extend', 'forward', 'word');
+        }
+      }
 
       // Update selected to this element
       const rect = el.getBoundingClientRect();
@@ -412,19 +773,19 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     if (selectedRef.current?.element) {
       removeSelectionStyles(selectedRef.current.element);
     }
-    if (containerRef.current) {
-      removeResizeHandles(containerRef.current);
-    }
+    if (containerRef.current) removeScaleZones(containerRef.current);
     setSelected(null);
     setEditing(false);
   }, []);
 
-  // Click on the outer container (not on any child) clears selection
+  // Click on the outer container (not on any child) clears selection —
+  // unless it is the tail of a text-selection drag that strayed outside.
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
     if (e.target === containerRef.current) {
+      if (isSelectionDragTail()) return;
       clearSelection();
     }
-  }, [clearSelection]);
+  }, [clearSelection, isSelectionDragTail]);
 
   // Close selection when clicking outside the entire editor.
   //
@@ -437,7 +798,9 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
   // on any wrapper the host wants protected.
   useEffect(() => {
     const handleDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
+      // Document-level listener: e.target can be document itself or a text
+      // node — only Elements have closest().
+      const target = e.target instanceof Element ? e.target : null;
       if (!target) return;
       if (containerRef.current?.contains(target)) return;
       if (target.closest('[data-editor-chrome="true"]')) return;
@@ -452,6 +815,19 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     const handleKey = (e: KeyboardEvent) => {
       // Skip if user is typing in an input/textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // Enter while TYPING inserts a line break INSIDE the element. The
+      // contentEditable default wraps every new line in its own <div>,
+      // and each of those divs then selects as an element of its own —
+      // one paragraph became a selection per line (owner bug 2026-08-22).
+      if (e.key === 'Enter' && editingRef.current) {
+        const el = selectedRef.current?.element;
+        if (el && el.isConnected && el.contains(document.activeElement ?? null)) {
+          e.preventDefault();
+          document.execCommand('insertLineBreak');
+        }
+        return;
+      }
 
       if (e.key === 'Escape') {
         if (selectedRef.current) {
@@ -474,13 +850,13 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
           return;
         }
 
-        const isLeaf = el.children.length === 0;
+        const isLeaf = !hasBlockChildren(el);
         const isSlideRoot = el.parentElement === containerRef.current;
 
         if (isLeaf && !isSlideRoot) {
           // Real removal — leaf element with no children
           removeSelectionStyles(el);
-          if (containerRef.current) removeResizeHandles(containerRef.current);
+          if (containerRef.current) removeScaleZones(containerRef.current);
           el.remove();
           setSelected(null);
           setEditing(false);
@@ -521,19 +897,50 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     };
   }, [selected]);
 
-  // Get computed styles for toolbar
+  // Get computed styles for toolbar. While EDITING they come from the
+  // CARET/HIGHLIGHT position, not the block — standing on bold words must
+  // light the B button, so pressing it again UN-bolds them (toggle).
   const getElementStyles = useCallback(() => {
     if (!selected?.element) return {};
-    const computed = window.getComputedStyle(selected.element);
+    let src: HTMLElement = selected.element;
+    if (editingRef.current) {
+      const sel = window.getSelection();
+      const node = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).commonAncestorContainer : null;
+      const elOf =
+        node && (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement));
+      if (elOf && selected.element.contains(elOf)) src = elOf;
+    }
+    const computed = window.getComputedStyle(src);
     return {
-      fontWeight: selected.element.style.fontWeight || computed.fontWeight || undefined,
-      fontStyle: selected.element.style.fontStyle || computed.fontStyle || undefined,
-      color: selected.element.style.color || undefined,
-      textAlign: (selected.element.style.textAlign || computed.textAlign || undefined) as string | undefined,
-      fontSize: selected.element.style.fontSize || computed.fontSize || undefined,
+      fontWeight: src.style.fontWeight || computed.fontWeight || undefined,
+      fontStyle: src.style.fontStyle || computed.fontStyle || undefined,
+      color: src.style.color || undefined,
+      textAlign: (src.style.textAlign || computed.textAlign || undefined) as string | undefined,
+      fontSize: src.style.fontSize || computed.fontSize || undefined,
       objectFit: (selected.element as HTMLImageElement).style?.objectFit || undefined,
     };
   }, [selected]);
+
+  // While editing, moving the caret or the highlight changes what the
+  // toolbar should show — re-render on selectionchange so B/I/color/size
+  // always describe the words under the cursor.
+  useEffect(() => {
+    if (!editing) return;
+    const onSelectionChange = () => {
+      setSelected((prev) => (prev ? { ...prev } : prev));
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+  }, [editing]);
+
+  // Remount the toolbar per selected ELEMENT so its entrance animation
+  // replays for each new selection — but not for rect updates (scroll,
+  // style edits) on the same one. Render-time ref mutation is safe here:
+  // the guard makes it idempotent across StrictMode double-renders.
+  const toolbarKeyRef = useRef({ el: null as HTMLElement | null, key: 0 });
+  if (selected && toolbarKeyRef.current.el !== selected.element) {
+    toolbarKeyRef.current = { el: selected.element, key: toolbarKeyRef.current.key + 1 };
+  }
 
   // When a frozen snapshot is supplied, render it via dangerouslySetInnerHTML
   // so React never reconciles the inner DOM. The wrapper stays React-managed
@@ -577,7 +984,6 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
           // selection-range start.
           if (e.button !== 0) return; // primary button only
           const targetEl = e.target as HTMLElement;
-          if (targetEl.closest('.resize-handle')) return;
 
           // If we're inside an actively-editing element, let the
           // browser handle native selection / caret entirely.
@@ -585,19 +991,18 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
             return;
           }
 
-          const candidate = findMeaningfulElement(targetEl);
+          // Words-only rule applies to drags too: the empty part of a wide
+          // text box must not start moving it.
+          const candidate = resolveHit(targetEl, e.clientX, e.clientY);
+          if (!candidate) return;
           const isImage = candidate.tagName === 'IMG' || candidate.tagName === 'SVG';
-          const isLeaf = candidate.children.length === 0;
-          if (!candidate || !(isImage || isLeaf) || candidate === containerRef.current) return;
+          const isLeaf = !hasBlockChildren(candidate);
+          if (!(isImage || isLeaf) || candidate === containerRef.current) return;
 
           // Phase A — pre-select. Click-then-no-drag still works as
           // selection. Click event downstream confirms the same thing.
           if (selectedRef.current?.element !== candidate) {
-            if (selectedRef.current?.element && selectedRef.current.element !== candidate) {
-              removeSelectionStyles(selectedRef.current.element);
-            }
-            applySelectionStyles(candidate);
-            setSelected({ element: candidate, type: detectBlockType(candidate), rect: candidate.getBoundingClientRect() });
+            selectElement(candidate);
           }
 
           const dispatcher = e.currentTarget as HTMLElement;
@@ -620,6 +1025,15 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
 
           const onMove = (moveE: PointerEvent) => {
             if (moveE.pointerId !== e.pointerId) return;
+            // A release the browser never delivered (pointer left the
+            // window, capture failed, OS ate the up) would leave the drag
+            // stuck to the cursor forever — the element following a mouse
+            // whose button is UP. Any move without a pressed button IS the
+            // missed release: finish exactly as pointerup would.
+            if (moveE.buttons === 0) {
+              onUp(moveE);
+              return;
+            }
             const dx = moveE.clientX - startX;
             const dy = moveE.clientY - startY;
             if (!committed) {
@@ -632,19 +1046,30 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
           };
           const onUp = (upE: PointerEvent) => {
             if (upE.pointerId !== e.pointerId) return;
-            dispatcher.removeEventListener('pointermove', onMove);
-            dispatcher.removeEventListener('pointerup', onUp);
-            dispatcher.removeEventListener('pointercancel', onUp);
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
             if (committed) {
               try { dispatcher.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
               document.body.style.userSelect = previousBodySelect;
               setSelected((prev) => (prev ? { ...prev, rect: candidate.getBoundingClientRect() } : null));
               window.getSelection()?.removeAllRanges();
+              // No zone re-place needed: the per-frame tracking loop in
+              // addScaleZones already followed the element while it moved.
+              // Swallow the click this pointerup is about to synthesize —
+              // under pointer capture it targets the content wrapper and
+              // would re-select it out from under the dragged element. The
+              // timeout is the backstop for a release that fires no click.
+              suppressClickRef.current = true;
+              setTimeout(() => { suppressClickRef.current = false; }, 0);
             }
           };
-          dispatcher.addEventListener('pointermove', onMove);
-          dispatcher.addEventListener('pointerup', onUp);
-          dispatcher.addEventListener('pointercancel', onUp);
+          // WINDOW, not the dispatcher: without capture (it can fail, and
+          // is only requested after the 3px commit) a release outside the
+          // slide never reaches the dispatcher — the drag would never end.
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
         }}
         // Stable content boundary. This element's innerHTML is exactly what
         // `frozenHtml` is fed back in as, so a host that captures HERE gets a
@@ -659,6 +1084,7 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
       {/* Floating toolbar for selected element */}
       {selected && (
         <FloatingToolbar
+          key={toolbarKeyRef.current.key}
           blockType={selected.type}
           style={getElementStyles()}
           onChangeType={(newType) => {
@@ -701,8 +1127,10 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
                 el.style.backgroundSize = 'cover';
                 el.style.backgroundPosition = 'center';
               }
-            } else {
-              // Apply the style directly to the DOM element
+            } else if (!(editingRef.current && applyStyleToHighlight(el, key, value))) {
+              // No highlighted words to scope to — the whole element it is.
+              // (The editing guard matters: a stale document selection can
+              // outlive edit mode and would silently steal the style.)
               (el.style as any)[key] = value;
             }
 
@@ -714,7 +1142,7 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
             const el = selectedRef.current?.element || selected?.element;
             if (!el) return;
             removeSelectionStyles(el);
-            if (containerRef.current) removeResizeHandles(containerRef.current);
+            if (containerRef.current) removeScaleZones(containerRef.current);
             el.remove();
             setSelected(null);
             setEditing(false);
@@ -728,11 +1156,10 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
             clone.contentEditable = 'false';
             selected.element.parentElement?.insertBefore(clone, selected.element.nextSibling);
           }}
-          position={{
-            top: selected.rect.top,
-            left: selected.rect.left,
-            width: selected.rect.width,
-          }}
+          position={(() => {
+            const vr = visualRect(selected.element);
+            return { top: vr.top, left: vr.left, width: vr.width, height: vr.height };
+          })()}
         />
       )}
     </div>

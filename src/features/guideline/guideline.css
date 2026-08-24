@@ -18,19 +18,12 @@
 /* ─── Shell ─────────────────────────────────────────────────── */
 
 /*
- * `.shell` is the Studio's two-column page grid — sidebar + board, with its
- * own padding and ≤1100px collapse. The guideline takes it and changes two
- * things: a third column for the rail, and an APP SHELL rather than a
- * scrolling page.
- *
- * The app shell is the design editor's behaviour and it is the point: the
- * rail and the panel stay exactly where they are and only the document
- * moves. Sticky was tried first and cannot express it — a sticky GRID ITEM
- * stretches to the whole row by default, so its box already fills its
- * containing block and has nowhere to travel. `.panel` looked fine only
- * because it also sets `align-self: start`; the rail did not, so it scrolled
- * away with the document. Pinning by layout instead of by offset means
- * neither one can drift again.
+ * `.shell` is the Studio's two-column page grid; the guideline overrides it
+ * to a LAYERED app shell instead (Chronicle's model): the document owns the
+ * full width and the tools float above it. A grid was tried first and cannot
+ * express "the slides never move" — any column the tools occupy is width the
+ * document loses, so opening a panel re-centered every slide. Layering makes
+ * the slide position a function of the viewport alone.
  */
 /*
  * The height is TAKEN, not guessed. `.shell` subtracts a hard-coded 68px for
@@ -53,30 +46,37 @@
 [data-workspace] .gl-shell {
   --gl-rail-w: 43px;
   --gl-sidebar-w: 268px;
-  grid-template-columns: var(--gl-rail-w) var(--gl-sidebar-w) minmax(0, 1fr);
-  /* An explicit 1fr row, not `auto`: an auto row grows to its tallest item,
-     so a 30-page document would size the row and the columns would scroll
-     with the window again. `minmax(0, …)` lets the items shrink below their
-     content, which is what allows the document to scroll inside its own. */
-  grid-template-rows: minmax(0, 1fr);
-  gap: 14px;
+  /* Slides are sized against the SCREEN, not a leftover grid column. The
+     170px headroom is what keeps the document clear of the floating rail on
+     mid-width viewports; past ~1370px it resolves to the flat 1200px cap. */
+  --gl-doc-w: min(1176px, (100vw - 170px) * 0.98);
+  position: relative;
+  display: block;
   height: calc(100vh - 68px);
   min-height: 0;
   overflow: hidden;
 }
-[data-workspace] .gl-shell[data-sidebar='closed'] {
-  grid-template-columns: var(--gl-rail-w) minmax(0, 1fr);
-}
-/* Pinned by the shell. `.panel` carries sticky offsets for a scrolling page;
-   inside a fixed shell those only misplace it. */
+/*
+ * Chronicle-style layering: the document IS the page — full width, slides
+ * centered on the viewport — and the rail + panel FLOAT above its left edge.
+ * Because the document no longer shares a grid with the tools, opening or
+ * closing a panel cannot move the slides: they stay in the middle of the
+ * screen no matter what the chrome does.
+ */
 [data-workspace] .gl-shell .ds-rail {
-  align-self: start;
+  position: absolute;
+  left: 20px;
+  top: 10px;
+  z-index: 30;
 }
 [data-workspace] .gl-shell .panel {
-  position: static;
-  top: auto;
-  align-self: start;
-  max-height: 100%;
+  position: absolute;
+  left: calc(20px + var(--gl-rail-w) + 12px);
+  top: 10px;
+  width: var(--gl-sidebar-w);
+  max-height: calc(100% - 30px);
+  z-index: 30;
+  box-shadow: var(--ds-shadow-md, var(--ds-shadow-sm));
 }
 
 /* ─── Panel header ──────────────────────────────────────────── */
@@ -388,16 +388,26 @@
 
 /* ─── The document ──────────────────────────────────────────── */
 
-/* The one thing on this page that scrolls. */
+/* The one thing on this page that scrolls. Full width — the scrollbar lives
+   at the screen edge — while the content inside centers on the viewport. */
 [data-workspace] .gl-doc-scroll {
   min-width: 0;
   min-height: 0;
   height: 100%;
-  max-width: 1040px;
-  margin: 0 auto;
   width: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Deck-like snap: each flick settles on a slide. The head and foot carry
+     their own snap alignment so the document's edges stay reachable. */
+  scroll-snap-type: y mandatory;
+}
+[data-workspace] .gl-doc-head { scroll-snap-align: start; }
+[data-workspace] .gl-doc-foot { scroll-snap-align: end; }
+[data-workspace] .gl-doc-head,
+[data-workspace] .gl-doc,
+[data-workspace] .gl-doc-foot {
+  width: min(var(--gl-doc-w), 100%);
+  margin-inline: auto;
 }
 [data-workspace] .gl-doc-scroll::-webkit-scrollbar { width: 8px; }
 [data-workspace] .gl-doc-scroll::-webkit-scrollbar-thumb {
@@ -459,9 +469,9 @@
 /* ─── A page ────────────────────────────────────────────────── */
 
 [data-workspace] .gl-page {
-  /* Clearance from the top of the DOCUMENT COLUMN, which already starts below
-     the Studio top bar — the 96px this used to reserve was the height of that
-     bar, and inside the column it just parked every page a bar's-worth low. */
+  /* Snap target: label + frame together settle in the middle of the
+     scrollport, so every flick lands on a slide framed like a deck. */
+  scroll-snap-align: center;
   scroll-margin-top: 10px;
   display: flex;
   flex-direction: column;
@@ -475,7 +485,16 @@
   color: var(--ds-text-muted);
 }
 [data-workspace] .gl-page-num { font-variant-numeric: tabular-nums; }
-[data-workspace] .gl-page-name { color: var(--ds-text-secondary); }
+[data-workspace] .gl-page-name { color: var(--ds-text-secondary); cursor: text; }
+/* Renaming happens on the text itself — no border, no background, no box.
+   The caret and the darker ink are the entire "editing" signal. */
+[data-workspace] .gl-page-name.is-renaming {
+  outline: none;
+  color: var(--ds-text);
+  caret-color: var(--ds-text);
+  min-width: 1ch;
+  white-space: pre-wrap;
+}
 [data-workspace] .gl-page[data-selected] .gl-page-name { color: var(--ds-text); font-weight: 500; }
 [data-workspace] .gl-page-edited {
   font-size: 10px;
@@ -533,12 +552,12 @@
 
 [data-workspace] .gl-insert {
   position: relative;
-  height: 26px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-[data-workspace] .gl-insert.is-last { height: 40px; }
+[data-workspace] .gl-insert.is-last { height: 64px; }
 [data-workspace] .gl-insert::before {
   content: '';
   position: absolute;
@@ -676,8 +695,7 @@
 @media (max-width: 1100px) {
   [data-workspace] .gl-shell,
   [data-workspace] .gl-shell[data-sidebar='closed'] {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
+    --gl-doc-w: 100%;
     height: auto;
     min-height: calc(100vh - 68px);
     overflow: visible;
@@ -685,10 +703,14 @@
   [data-workspace] .gl-shell .ds-rail {
     position: static;
     flex-direction: row;
+    margin-bottom: 12px;
   }
   [data-workspace] .gl-shell .panel {
     position: static;
+    width: auto;
     max-height: 46vh;
+    margin-bottom: 14px;
+    box-shadow: var(--ds-shadow-sm);
   }
   [data-workspace]:has(> .gl-shell) {
     display: block;
