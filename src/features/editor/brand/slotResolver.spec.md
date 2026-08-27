@@ -174,7 +174,7 @@ maps tiers to pixel values:
 | `'spacious'` | 12 |
 
 `8` is the default when `uiStyle` is missing or `spacing` is undefined
-— matching the implicit default everywhere else in BrandOS (the Brand
+— matching the implicit default everywhere else in BrandingOS (the Brand
 Board generator picks `comfortable` on first save).
 
 ### Adding a new spacing tier

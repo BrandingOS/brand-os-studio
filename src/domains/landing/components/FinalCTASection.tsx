@@ -55,7 +55,7 @@ export const FinalCTASection = () => {
               transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="mt-8 text-lg md:text-xl text-white/65 max-w-2xl mx-auto leading-relaxed"
             >
-              Be first in line when Brand OS launches. Three quick questions
+              Be first in line when BrandingOS launches. Three quick questions
               and we'll save your spot.
             </motion.p>
 

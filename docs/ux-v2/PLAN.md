@@ -1,6 +1,6 @@
 # v2 Execution Plan — Restructure the app end-to-end
 
-This is the master execution plan for rebuilding BrandOS's structure to match the v2 direction laid out in `README.md`. Phases run in dependency order. Within a phase, work that's independent runs in parallel via agents.
+This is the master execution plan for rebuilding BrandingOS's structure to match the v2 direction laid out in `README.md`. Phases run in dependency order. Within a phase, work that's independent runs in parallel via agents.
 
 Design tools (Claude Design, Google Stitch) are not blocking. We ground the implementation in the existing `/setup` and `/onboard-brand` pages — they already embody the direction. We refine visuals later.
 
@@ -158,7 +158,7 @@ Wired into `BrandShell` top-left.
 ### 2.1 WorkspaceShell
 
 New shell at `src/shared/layouts/WorkspaceShell.tsx`:
-- Top bar: BrandOS logo left, profile menu right, "+ New brand" CTA right
+- Top bar: BrandingOS logo left, profile menu right, "+ New brand" CTA right
 - No tabs, no sidebar
 - Same visual tokens as `BrandShell` (cream light / charcoal dark, soft floating feel)
 

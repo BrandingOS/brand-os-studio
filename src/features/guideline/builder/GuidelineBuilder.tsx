@@ -8,10 +8,10 @@
  *
  * The chrome is the Studio's, not this feature's. `WorkspaceShell` +
  * `.shell` + `.panel` + `DsRail` are what Setup, Brand Kit and Tools already
- * render. Two structural things are this file's own: a third grid column for
- * the rail, because those pages have a sidebar and no rail, and a fixed-height
- * shell — the rail and the panel are pinned and the DOCUMENT COLUMN is what
- * scrolls, the way the design editor behaves. A brand book is long; tools that
+ * render. The structure is this file's own: a fixed-height LAYERED shell —
+ * the document owns the full width so the slides always center on the
+ * viewport, and the rail + panel float above its left edge (Chronicle's
+ * model). Only the document scrolls; a brand book is long, and tools that
  * ride away with it are tools you have to scroll back for.
  *
  * State lives in four places, and the split is load-bearing:
@@ -62,7 +62,7 @@ const PAGE_LAYOUT = getLayoutById('hyperhyve');
 
 export type RailMode = 'content' | 'brand' | 'add';
 
-const RAIL_ITEMS: DsRailItem[] = [
+export const RAIL_ITEMS: DsRailItem[] = [
   { value: 'content', label: 'Content', icon: <LayoutList size={17} strokeWidth={1.8} aria-hidden /> },
   { value: 'brand', label: 'Brand', icon: <Palette size={17} strokeWidth={1.8} aria-hidden /> },
   { value: 'add', label: 'Add', icon: <Plus size={17} strokeWidth={1.8} aria-hidden /> },
@@ -146,8 +146,10 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
   const scrollToPage = useCallback((pageId: string) => {
     // rAF so a page that has just been inserted exists in the DOM first.
     requestAnimationFrame(() => {
+      // `center`, matching the snap alignment — `start` would glide to the
+      // top and then visibly re-snap to the middle.
       document.getElementById(`gl-page-${pageId}`)?.scrollIntoView({
-        behavior: 'smooth', block: 'start',
+        behavior: 'smooth', block: 'center',
       });
     });
   }, []);
@@ -381,6 +383,7 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
                   onSelect={() => selectPage(page.id)}
                   onEdit={queue}
                   onFlush={saveNow}
+                  onRename={(name) => actions.updatePage(page.id, { name })}
                   viewRoot={scrollEl}
                 />
               </div>
@@ -451,7 +454,7 @@ function resolvePanel({
   return { eyebrow: 'Guideline', title: 'Content' };
 }
 
-function UndoRedo() {
+export function UndoRedo() {
   const { canUndo, canRedo, undo, redo, undoLabel, redoLabel } = useUndoState();
   return (
     <div className="gl-undo-group">
@@ -485,7 +488,7 @@ function UndoRedo() {
  * Always in the DOM rather than mounted on hover, so it is reachable by
  * keyboard — a hover-only control is invisible to anyone not using a mouse.
  */
-function InsertBar({
+export function InsertBar({
   index, onInsert, last,
 }: {
   index: number;
@@ -506,7 +509,7 @@ function InsertBar({
   );
 }
 
-function SaveIndicator({ state, loaded }: { state: string; loaded: boolean }) {
+export function SaveIndicator({ state, loaded }: { state: string; loaded: boolean }) {
   if (!loaded) return <span className="gl-save">Loading edits…</span>;
   if (state === 'saving' || state === 'pending') return <span className="gl-save">Saving…</span>;
   if (state === 'error') return <span className="gl-save is-error">Not saved</span>;

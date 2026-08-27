@@ -2,7 +2,7 @@
  * useMockupRenderer — React lifecycle wrapper around MockupRenderer.
  *
  * We intentionally do NOT use @pixi/react — its v8-beta is shaky on
- * React 18 (BrandOS is 18.3.1), and we only need the narrow subset
+ * React 18 (BrandingOS is 18.3.1), and we only need the narrow subset
  * covered here (mount, template swap, state-driven repaint, unmount).
  *
  * The canvas is usually mounted conditionally (only when a template is

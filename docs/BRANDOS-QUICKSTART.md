@@ -1,4 +1,4 @@
-# BrandOS — Quick Reference Card
+# BrandingOS — Quick Reference Card
 
 > For full details, see [BRANDOS-PROJECT-MASTER.md](./BRANDOS-PROJECT-MASTER.md)
 

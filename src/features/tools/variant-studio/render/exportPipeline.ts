@@ -140,7 +140,7 @@ export async function exportKit(items: KitItem[], kitName: string): Promise<Blob
   }
   zip.file(
     'README.txt',
-    `${kitName}\n\nGenerated with BrandOS Logo Variant Studio.\nIncludes ${items.length} variants in SVG and PNG (1x and 2x).\n`,
+    `${kitName}\n\nGenerated with BrandingOS Logo Variant Studio.\nIncludes ${items.length} variants in SVG and PNG (1x and 2x).\n`,
   );
   return zip.generateAsync({ type: 'blob' });
 }

@@ -1,6 +1,6 @@
 # Epic 6+ QA Audit Report & Task List
 
-> Full end-to-end audit of BrandOS after Epics 0-6 completion.
+> Full end-to-end audit of BrandingOS after Epics 0-6 completion.
 > Date: April 1, 2026
 
 ---

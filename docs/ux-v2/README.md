@@ -1,4 +1,4 @@
-# BrandOS UI v2 — Planning Document
+# BrandingOS UI v2 — Planning Document
 
 Internal planning source of truth for the UI rebuild. When handing off to Claude Design, use `BRIEF.md`. For the exhaustive old→new feature map, see `FEATURES.md`.
 
@@ -18,7 +18,7 @@ The current UI has three problems:
 
 Simpler shell. No tabs. Just:
 
-- Top header: BrandOS logo (left), profile menu (right)
+- Top header: BrandingOS logo (left), profile menu (right)
 - Main content: brand cards, settings, learn, templates library
 
 Routes:

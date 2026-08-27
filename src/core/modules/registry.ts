@@ -1,7 +1,7 @@
 /**
  * Platform Module Registry
  *
- * Central registry of all BrandOS feature modules.
+ * Central registry of all BrandingOS feature modules.
  * Controls visibility, access, and navigation for the entire platform.
  */
 import type { PlatformModule, PlanTier } from './types';

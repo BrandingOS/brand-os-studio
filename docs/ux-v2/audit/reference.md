@@ -17,7 +17,7 @@ File: `src/shared/layouts/CosmosWorkspaceShell.tsx`
 ```tsx
 <CosmosWorkspaceShell
   tabs?={WorkspaceTab[]}      // default DEFAULT_WORKSPACE_TABS (5 tabs)
-  brandName?={string}          // default "BrandOS" (top-left mark)
+  brandName?={string}          // default "BrandingOS" (top-left mark)
   rightActions?={ReactNode}    // top-right slot (Publish button, etc.)
 >
   {children}

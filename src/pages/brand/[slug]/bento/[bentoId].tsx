@@ -40,7 +40,7 @@ export default function PublicBentoPage() {
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="text-center space-y-2">
           <div className="text-lg font-semibold">Brand not found</div>
-          <Link to="/" className="text-sm text-primary underline">Back to BrandOS</Link>
+          <Link to="/" className="text-sm text-primary underline">Back to BrandingOS</Link>
         </div>
       </div>
     );
@@ -54,7 +54,7 @@ export default function PublicBentoPage() {
           <div className="text-muted-foreground">
             This brand hasn't published a bento yet.
           </div>
-          <Link to="/" className="inline-block text-sm text-primary underline">Visit BrandOS</Link>
+          <Link to="/" className="inline-block text-sm text-primary underline">Visit BrandingOS</Link>
         </div>
       </div>
     );
@@ -64,7 +64,7 @@ export default function PublicBentoPage() {
     <div className="fixed inset-0 bg-background flex flex-col">
       <header className="h-12 shrink-0 border-b flex items-center justify-between px-4">
         <div className="font-semibold text-sm">{brand.name}</div>
-        <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">Made with BrandOS</Link>
+        <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">Made with BrandingOS</Link>
       </header>
       <BentoCanvas
         design={design}

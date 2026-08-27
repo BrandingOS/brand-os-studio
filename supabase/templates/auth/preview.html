@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BrandingOS — transactional e-mail templates</title>
+<style>
+  :root {
+    --bg:#f5f4ef; --surface:#ffffff; --subtle:#faf9f5; --border:#e6e4dd;
+    --text:#0e0e0e; --secondary:#55534c; --muted:#8a877e;
+    --font:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--font);
+         -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1320px; margin:0 auto; padding:56px 32px 96px; }
+  .page-head { border-bottom:1px solid var(--border); padding-bottom:28px; margin-bottom:44px; }
+  .page-head img { display:block; width:168px; height:auto; margin-bottom:26px; }
+  .page-eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+                  font-weight:600; margin:0 0 12px; }
+  h1 { font-size:30px; line-height:1.2; letter-spacing:-0.02em; font-weight:600; margin:0 0 12px; }
+  .lede { margin:0; font-size:15px; line-height:1.65; color:var(--secondary); max-width:62ch; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(540px,1fr)); gap:44px 36px; align-items:start; }
+  @media (max-width:1140px) { .grid { grid-template-columns:1fr; } }
+  @media (max-width:640px) { .wrap { padding:36px 16px 64px; } .grid { grid-template-columns:1fr; gap:36px; } }
+  .item { min-width:0; }
+  .meta { padding:0 2px 16px; }
+  .meta-top { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:10px; }
+  .eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .size { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; color:var(--muted); }
+  .subject { margin:0 0 8px; font-size:17px; line-height:1.4; font-weight:600; letter-spacing:-0.01em; }
+  .file { margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+          font-size:11.5px; line-height:1.6; color:var(--muted); word-break:break-all; }
+  .dot { padding:0 2px; }
+  .frame { background:var(--bg); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+           box-shadow:0 2px 8px rgba(20,18,14,.08); }
+  iframe { display:block; width:100%; height:660px; border:0; background:var(--bg); }
+  footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--border);
+           font-size:12px; line-height:1.7; color:var(--muted); }
+  footer a { color:var(--muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="page-head">
+      <img src="https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png" alt="BrandingOS">
+      <p class="page-eyebrow">Design review</p>
+      <h1>Transactional e-mail</h1>
+      <p class="lede">All six Supabase auth templates, rendered with sample values. Each frame is the exact HTML that ships &mdash; table-based, inline-styled, 520px, light&nbsp;only.</p>
+    </div>
+    <div class="grid">
+
+      <section class="item">
+        <header class="meta">
+          <div class="meta-top">
+            <span class="eyebrow">Confirmation</span>
+            <span class="size">4.6 KB</span>
+          </div>
+          <h2 class="subject">482913 is your BrandingOS confirmation code</h2>
+          <p class="file">confirmation.html <span class="dot">&middot;</span> mailer_templates_confirmation_content</p>
+        </header>
+        <div class="frame">
+          <iframe name="confirmation" title="Confirmation" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;!-- Subject: 482913 is your BrandingOS confirmation code --&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light only&quot;&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light only&quot;&gt;
+&lt;title&gt;Confirm your email&lt;/title&gt;
+&lt;style&gt;
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&quot;bg&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;&quot;&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;&quot;&gt;Your confirmation code is 482913 — it expires in 15 minutes.&amp;#8203;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&lt;/div&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;background-color:#f5f4ef;&quot;&gt;
+  &lt;tr&gt;
+    &lt;td align=&quot;center&quot; class=&quot;shell&quot; style=&quot;padding:40px 16px 56px;&quot;&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;520&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:520px;max-width:520px;&quot;&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:0 4px 22px;&quot;&gt;
+            &lt;img src=&quot;https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png&quot; width=&quot;168&quot; alt=&quot;BrandingOS&quot; style=&quot;display:block;width:168px;max-width:168px;height:auto;border:0;&quot;&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;
+            &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;card&quot; bgcolor=&quot;#ffffff&quot; style=&quot;background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;&quot;&gt;
+              &lt;tr&gt;
+                &lt;td class=&quot;pad&quot; align=&quot;left&quot; style=&quot;padding:40px 36px;&quot;&gt;
+                  &lt;p style=&quot;margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;&quot;&gt;Account setup&lt;/p&gt;
+                  &lt;h1 class=&quot;h1&quot; style=&quot;margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;&quot;&gt;Confirm your email&lt;/h1&gt;
+                  &lt;p style=&quot;margin:0 0 28px;font-size:15px;line-height:1.65;color:#55534c;&quot;&gt;Enter this code in BrandingOS to finish setting up your account.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;subtle&quot; bgcolor=&quot;#faf9f5&quot; style=&quot;background-color:#faf9f5;border-collapse:separate;border-spacing:0;border-radius:10px;overflow:hidden;&quot;&gt;
+                    &lt;tr&gt;
+                      &lt;td align=&quot;center&quot; class=&quot;code&quot; style=&quot;padding:26px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:1.1;letter-spacing:.35em;text-indent:.35em;color:#0e0e0e;font-weight:600;&quot;&gt;482913&lt;/td&gt;
+                    &lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:22px 0 0;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;The code expires in 15 minutes.&lt;/p&gt;
+                  &lt;p style=&quot;margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;If you didn&amp;#39;t create a BrandingOS account, you can ignore this e&amp;#8209;mail.&lt;/p&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            &lt;/table&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:26px 4px 0;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;You&amp;#39;re receiving this because an account on BrandingOS uses this address.&lt;/p&gt;
+            &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;&amp;copy; BrandingOS &amp;middot; &lt;a href=&quot;https://brandingos.ai&quot; style=&quot;color:#8a877e;text-decoration:underline;&quot;&gt;brandingos.ai&lt;/a&gt;&lt;/p&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;script&gt;
+(function(){
+  function h(){
+    var t = document.querySelector('table');
+    return t ? Math.ceil(t.getBoundingClientRect().height) : document.documentElement.scrollHeight;
+  }
+  function send(){ try { parent.postMessage({ __h: h(), __id: window.name }, '*'); } catch(e){} }
+  window.addEventListener('load', function(){ send(); setTimeout(send, 250); setTimeout(send, 900); setTimeout(send, 2000); });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+        </div>
+      </section>
+
+      <section class="item">
+        <header class="meta">
+          <div class="meta-top">
+            <span class="eyebrow">Password recovery</span>
+            <span class="size">5.0 KB</span>
+          </div>
+          <h2 class="subject">Reset your BrandingOS password</h2>
+          <p class="file">recovery.html <span class="dot">&middot;</span> mailer_templates_recovery_content</p>
+        </header>
+        <div class="frame">
+          <iframe name="recovery" title="Password recovery" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;!-- Subject: Reset your BrandingOS password --&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light only&quot;&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light only&quot;&gt;
+&lt;title&gt;Reset your password&lt;/title&gt;
+&lt;style&gt;
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&quot;bg&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;&quot;&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;&quot;&gt;Choose a new password — this link expires in 1 hour.&amp;#8203;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&lt;/div&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;background-color:#f5f4ef;&quot;&gt;
+  &lt;tr&gt;
+    &lt;td align=&quot;center&quot; class=&quot;shell&quot; style=&quot;padding:40px 16px 56px;&quot;&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;520&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:520px;max-width:520px;&quot;&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:0 4px 22px;&quot;&gt;
+            &lt;img src=&quot;https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png&quot; width=&quot;168&quot; alt=&quot;BrandingOS&quot; style=&quot;display:block;width:168px;max-width:168px;height:auto;border:0;&quot;&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;
+            &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;card&quot; bgcolor=&quot;#ffffff&quot; style=&quot;background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;&quot;&gt;
+              &lt;tr&gt;
+                &lt;td class=&quot;pad&quot; align=&quot;left&quot; style=&quot;padding:40px 36px;&quot;&gt;
+                  &lt;p style=&quot;margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;&quot;&gt;Password reset&lt;/p&gt;
+                  &lt;h1 class=&quot;h1&quot; style=&quot;margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;&quot;&gt;Reset your password&lt;/h1&gt;
+                  &lt;p style=&quot;margin:0 0 30px;font-size:15px;line-height:1.65;color:#55534c;&quot;&gt;We received a request to reset the password for your BrandingOS account.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;
+                      &lt;td bgcolor=&quot;#111113&quot; style=&quot;background-color:#111113;border-radius:8px;&quot;&gt;
+                        &lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;display:inline-block;padding:14px 26px;font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1;font-weight:600;color:#f5f4ef;text-decoration:none;&quot;&gt;Choose a new password&lt;/a&gt;
+                      &lt;/td&gt;
+                    &lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:28px 0 26px;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;This link expires in 1 hour. If you didn&amp;#39;t ask for this, ignore this e&amp;#8209;mail &amp;mdash; your password won&amp;#39;t change.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;&lt;td style=&quot;padding:24px 0 0;border-top:1px solid #e6e4dd;font-size:0;line-height:0;&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;Or paste this link into your browser:&lt;br&gt;&lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;color:#8a877e;text-decoration:underline;word-break:break-all;&quot;&gt;https://demo.brandingos.ai/auth/callback?code=sample&lt;/a&gt;&lt;/p&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            &lt;/table&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:26px 4px 0;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;You&amp;#39;re receiving this because an account on BrandingOS uses this address.&lt;/p&gt;
+            &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;&amp;copy; BrandingOS &amp;middot; &lt;a href=&quot;https://brandingos.ai&quot; style=&quot;color:#8a877e;text-decoration:underline;&quot;&gt;brandingos.ai&lt;/a&gt;&lt;/p&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;script&gt;
+(function(){
+  function h(){
+    var t = document.querySelector('table');
+    return t ? Math.ceil(t.getBoundingClientRect().height) : document.documentElement.scrollHeight;
+  }
+  function send(){ try { parent.postMessage({ __h: h(), __id: window.name }, '*'); } catch(e){} }
+  window.addEventListener('load', function(){ send(); setTimeout(send, 250); setTimeout(send, 900); setTimeout(send, 2000); });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+        </div>
+      </section>
+
+      <section class="item">
+        <header class="meta">
+          <div class="meta-top">
+            <span class="eyebrow">Magic link</span>
+            <span class="size">5.0 KB</span>
+          </div>
+          <h2 class="subject">Your BrandingOS sign-in link</h2>
+          <p class="file">magic_link.html <span class="dot">&middot;</span> mailer_templates_magic_link_content</p>
+        </header>
+        <div class="frame">
+          <iframe name="magic_link" title="Magic link" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;!-- Subject: Your BrandingOS sign-in link --&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light only&quot;&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light only&quot;&gt;
+&lt;title&gt;Sign in to BrandingOS&lt;/title&gt;
+&lt;style&gt;
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&quot;bg&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;&quot;&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;&quot;&gt;Your sign-in link is ready — it expires in 1 hour.&amp;#8203;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&lt;/div&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;background-color:#f5f4ef;&quot;&gt;
+  &lt;tr&gt;
+    &lt;td align=&quot;center&quot; class=&quot;shell&quot; style=&quot;padding:40px 16px 56px;&quot;&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;520&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:520px;max-width:520px;&quot;&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:0 4px 22px;&quot;&gt;
+            &lt;img src=&quot;https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png&quot; width=&quot;168&quot; alt=&quot;BrandingOS&quot; style=&quot;display:block;width:168px;max-width:168px;height:auto;border:0;&quot;&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;
+            &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;card&quot; bgcolor=&quot;#ffffff&quot; style=&quot;background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;&quot;&gt;
+              &lt;tr&gt;
+                &lt;td class=&quot;pad&quot; align=&quot;left&quot; style=&quot;padding:40px 36px;&quot;&gt;
+                  &lt;p style=&quot;margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;&quot;&gt;Sign in&lt;/p&gt;
+                  &lt;h1 class=&quot;h1&quot; style=&quot;margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;&quot;&gt;Sign in to BrandingOS&lt;/h1&gt;
+                  &lt;p style=&quot;margin:0 0 30px;font-size:15px;line-height:1.65;color:#55534c;&quot;&gt;Use the link below to sign in. No password needed.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;
+                      &lt;td bgcolor=&quot;#111113&quot; style=&quot;background-color:#111113;border-radius:8px;&quot;&gt;
+                        &lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;display:inline-block;padding:14px 26px;font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1;font-weight:600;color:#f5f4ef;text-decoration:none;&quot;&gt;Sign in&lt;/a&gt;
+                      &lt;/td&gt;
+                    &lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:28px 0 26px;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;This link expires in 1 hour and can be used once. If you didn&amp;#39;t request it, ignore this e&amp;#8209;mail.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;&lt;td style=&quot;padding:24px 0 0;border-top:1px solid #e6e4dd;font-size:0;line-height:0;&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;Or paste this link into your browser:&lt;br&gt;&lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;color:#8a877e;text-decoration:underline;word-break:break-all;&quot;&gt;https://demo.brandingos.ai/auth/callback?code=sample&lt;/a&gt;&lt;/p&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            &lt;/table&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:26px 4px 0;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;You&amp;#39;re receiving this because an account on BrandingOS uses this address.&lt;/p&gt;
+            &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;&amp;copy; BrandingOS &amp;middot; &lt;a href=&quot;https://brandingos.ai&quot; style=&quot;color:#8a877e;text-decoration:underline;&quot;&gt;brandingos.ai&lt;/a&gt;&lt;/p&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;script&gt;
+(function(){
+  function h(){
+    var t = document.querySelector('table');
+    return t ? Math.ceil(t.getBoundingClientRect().height) : document.documentElement.scrollHeight;
+  }
+  function send(){ try { parent.postMessage({ __h: h(), __id: window.name }, '*'); } catch(e){} }
+  window.addEventListener('load', function(){ send(); setTimeout(send, 250); setTimeout(send, 900); setTimeout(send, 2000); });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+        </div>
+      </section>
+
+      <section class="item">
+        <header class="meta">
+          <div class="meta-top">
+            <span class="eyebrow">Email change</span>
+            <span class="size">5.1 KB</span>
+          </div>
+          <h2 class="subject">Confirm your new BrandingOS email</h2>
+          <p class="file">email_change.html <span class="dot">&middot;</span> mailer_templates_email_change_content</p>
+        </header>
+        <div class="frame">
+          <iframe name="email_change" title="Email change" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;!-- Subject: Confirm your new BrandingOS email --&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light only&quot;&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light only&quot;&gt;
+&lt;title&gt;Confirm your new email&lt;/title&gt;
+&lt;style&gt;
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&quot;bg&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;&quot;&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;&quot;&gt;Confirm the new address on your BrandingOS account.&amp;#8203;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&lt;/div&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;background-color:#f5f4ef;&quot;&gt;
+  &lt;tr&gt;
+    &lt;td align=&quot;center&quot; class=&quot;shell&quot; style=&quot;padding:40px 16px 56px;&quot;&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;520&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:520px;max-width:520px;&quot;&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:0 4px 22px;&quot;&gt;
+            &lt;img src=&quot;https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png&quot; width=&quot;168&quot; alt=&quot;BrandingOS&quot; style=&quot;display:block;width:168px;max-width:168px;height:auto;border:0;&quot;&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;
+            &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;card&quot; bgcolor=&quot;#ffffff&quot; style=&quot;background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;&quot;&gt;
+              &lt;tr&gt;
+                &lt;td class=&quot;pad&quot; align=&quot;left&quot; style=&quot;padding:40px 36px;&quot;&gt;
+                  &lt;p style=&quot;margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;&quot;&gt;Email change&lt;/p&gt;
+                  &lt;h1 class=&quot;h1&quot; style=&quot;margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;&quot;&gt;Confirm your new email&lt;/h1&gt;
+                  &lt;p style=&quot;margin:0 0 24px;font-size:15px;line-height:1.65;color:#55534c;&quot;&gt;You asked to change the address on your BrandingOS account from &lt;span style=&quot;color:#0e0e0e;&quot;&gt;hamza@example.com&lt;/span&gt; to &lt;span style=&quot;color:#0e0e0e;&quot;&gt;hamza@brandingos.ai&lt;/span&gt;. Confirm it to finish the change.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;
+                      &lt;td bgcolor=&quot;#111113&quot; style=&quot;background-color:#111113;border-radius:8px;&quot;&gt;
+                        &lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;display:inline-block;padding:14px 26px;font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1;font-weight:600;color:#f5f4ef;text-decoration:none;&quot;&gt;Confirm new email&lt;/a&gt;
+                      &lt;/td&gt;
+                    &lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:28px 0 26px;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;If you didn&amp;#39;t request this, secure your account by changing your password.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;&lt;td style=&quot;padding:24px 0 0;border-top:1px solid #e6e4dd;font-size:0;line-height:0;&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;Or paste this link into your browser:&lt;br&gt;&lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;color:#8a877e;text-decoration:underline;word-break:break-all;&quot;&gt;https://demo.brandingos.ai/auth/callback?code=sample&lt;/a&gt;&lt;/p&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            &lt;/table&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:26px 4px 0;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;You&amp;#39;re receiving this because an account on BrandingOS uses this address.&lt;/p&gt;
+            &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;&amp;copy; BrandingOS &amp;middot; &lt;a href=&quot;https://brandingos.ai&quot; style=&quot;color:#8a877e;text-decoration:underline;&quot;&gt;brandingos.ai&lt;/a&gt;&lt;/p&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;script&gt;
+(function(){
+  function h(){
+    var t = document.querySelector('table');
+    return t ? Math.ceil(t.getBoundingClientRect().height) : document.documentElement.scrollHeight;
+  }
+  function send(){ try { parent.postMessage({ __h: h(), __id: window.name }, '*'); } catch(e){} }
+  window.addEventListener('load', function(){ send(); setTimeout(send, 250); setTimeout(send, 900); setTimeout(send, 2000); });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+        </div>
+      </section>
+
+      <section class="item">
+        <header class="meta">
+          <div class="meta-top">
+            <span class="eyebrow">Invite</span>
+            <span class="size">5.1 KB</span>
+          </div>
+          <h2 class="subject">You've been invited to BrandingOS</h2>
+          <p class="file">invite.html <span class="dot">&middot;</span> mailer_templates_invite_content</p>
+        </header>
+        <div class="frame">
+          <iframe name="invite" title="Invite" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;!-- Subject: You've been invited to BrandingOS --&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light only&quot;&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light only&quot;&gt;
+&lt;title&gt;You are invited&lt;/title&gt;
+&lt;style&gt;
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&quot;bg&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;&quot;&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;&quot;&gt;Accept your invitation and set up your BrandingOS account.&amp;#8203;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&lt;/div&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;background-color:#f5f4ef;&quot;&gt;
+  &lt;tr&gt;
+    &lt;td align=&quot;center&quot; class=&quot;shell&quot; style=&quot;padding:40px 16px 56px;&quot;&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;520&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:520px;max-width:520px;&quot;&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:0 4px 22px;&quot;&gt;
+            &lt;img src=&quot;https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png&quot; width=&quot;168&quot; alt=&quot;BrandingOS&quot; style=&quot;display:block;width:168px;max-width:168px;height:auto;border:0;&quot;&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;
+            &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;card&quot; bgcolor=&quot;#ffffff&quot; style=&quot;background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;&quot;&gt;
+              &lt;tr&gt;
+                &lt;td class=&quot;pad&quot; align=&quot;left&quot; style=&quot;padding:40px 36px;&quot;&gt;
+                  &lt;p style=&quot;margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;&quot;&gt;Invitation&lt;/p&gt;
+                  &lt;h1 class=&quot;h1&quot; style=&quot;margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;&quot;&gt;You&amp;#39;re invited&lt;/h1&gt;
+                  &lt;p style=&quot;margin:0 0 30px;font-size:15px;line-height:1.65;color:#55534c;&quot;&gt;hamza@example.com has been invited to BrandingOS &amp;mdash; the workspace where brand identity systems are designed, kept consistent and shipped. Accept below to set up your account.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;
+                      &lt;td bgcolor=&quot;#111113&quot; style=&quot;background-color:#111113;border-radius:8px;&quot;&gt;
+                        &lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;display:inline-block;padding:14px 26px;font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1;font-weight:600;color:#f5f4ef;text-decoration:none;&quot;&gt;Accept invitation&lt;/a&gt;
+                      &lt;/td&gt;
+                    &lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:28px 0 26px;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;If you weren&amp;#39;t expecting this invitation, you can ignore this e&amp;#8209;mail.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+                    &lt;tr&gt;&lt;td style=&quot;padding:24px 0 0;border-top:1px solid #e6e4dd;font-size:0;line-height:0;&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;Or paste this link into your browser:&lt;br&gt;&lt;a href=&quot;https://demo.brandingos.ai/auth/callback?code=sample&quot; style=&quot;color:#8a877e;text-decoration:underline;word-break:break-all;&quot;&gt;https://demo.brandingos.ai/auth/callback?code=sample&lt;/a&gt;&lt;/p&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            &lt;/table&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:26px 4px 0;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;You&amp;#39;re receiving this because an account on BrandingOS uses this address.&lt;/p&gt;
+            &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;&amp;copy; BrandingOS &amp;middot; &lt;a href=&quot;https://brandingos.ai&quot; style=&quot;color:#8a877e;text-decoration:underline;&quot;&gt;brandingos.ai&lt;/a&gt;&lt;/p&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;script&gt;
+(function(){
+  function h(){
+    var t = document.querySelector('table');
+    return t ? Math.ceil(t.getBoundingClientRect().height) : document.documentElement.scrollHeight;
+  }
+  function send(){ try { parent.postMessage({ __h: h(), __id: window.name }, '*'); } catch(e){} }
+  window.addEventListener('load', function(){ send(); setTimeout(send, 250); setTimeout(send, 900); setTimeout(send, 2000); });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+        </div>
+      </section>
+
+      <section class="item">
+        <header class="meta">
+          <div class="meta-top">
+            <span class="eyebrow">Reauthentication</span>
+            <span class="size">4.6 KB</span>
+          </div>
+          <h2 class="subject">482913 is your BrandingOS verification code</h2>
+          <p class="file">reauthentication.html <span class="dot">&middot;</span> mailer_templates_reauthentication_content</p>
+        </header>
+        <div class="frame">
+          <iframe name="reauthentication" title="Reauthentication" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;!-- Subject: 482913 is your BrandingOS verification code --&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light only&quot;&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light only&quot;&gt;
+&lt;title&gt;Confirm it is you&lt;/title&gt;
+&lt;style&gt;
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&quot;bg&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;&quot;&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;&quot;&gt;Your verification code is 482913.&amp;#8203;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&amp;#8204;&amp;nbsp;&amp;#8205;&amp;nbsp;&lt;/div&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#f5f4ef&quot; style=&quot;background-color:#f5f4ef;&quot;&gt;
+  &lt;tr&gt;
+    &lt;td align=&quot;center&quot; class=&quot;shell&quot; style=&quot;padding:40px 16px 56px;&quot;&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;520&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:520px;max-width:520px;&quot;&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:0 4px 22px;&quot;&gt;
+            &lt;img src=&quot;https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png&quot; width=&quot;168&quot; alt=&quot;BrandingOS&quot; style=&quot;display:block;width:168px;max-width:168px;height:auto;border:0;&quot;&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;
+            &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;card&quot; bgcolor=&quot;#ffffff&quot; style=&quot;background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;&quot;&gt;
+              &lt;tr&gt;
+                &lt;td class=&quot;pad&quot; align=&quot;left&quot; style=&quot;padding:40px 36px;&quot;&gt;
+                  &lt;p style=&quot;margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;&quot;&gt;Verification&lt;/p&gt;
+                  &lt;h1 class=&quot;h1&quot; style=&quot;margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;&quot;&gt;Confirm it&amp;#39;s you&lt;/h1&gt;
+                  &lt;p style=&quot;margin:0 0 28px;font-size:15px;line-height:1.65;color:#55534c;&quot;&gt;Enter this code to confirm the change you&amp;#39;re making in BrandingOS.&lt;/p&gt;
+                  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; class=&quot;subtle&quot; bgcolor=&quot;#faf9f5&quot; style=&quot;background-color:#faf9f5;border-collapse:separate;border-spacing:0;border-radius:10px;overflow:hidden;&quot;&gt;
+                    &lt;tr&gt;
+                      &lt;td align=&quot;center&quot; class=&quot;code&quot; style=&quot;padding:26px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:1.1;letter-spacing:.35em;text-indent:.35em;color:#0e0e0e;font-weight:600;&quot;&gt;482913&lt;/td&gt;
+                    &lt;/tr&gt;
+                  &lt;/table&gt;
+                  &lt;p style=&quot;margin:22px 0 0;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;The code expires shortly.&lt;/p&gt;
+                  &lt;p style=&quot;margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a877e;&quot;&gt;If you didn&amp;#39;t start this change, don&amp;#39;t enter the code &amp;mdash; and change your password.&lt;/p&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            &lt;/table&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td align=&quot;left&quot; style=&quot;padding:26px 4px 0;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;You&amp;#39;re receiving this because an account on BrandingOS uses this address.&lt;/p&gt;
+            &lt;p style=&quot;margin:0;font-size:12px;line-height:1.7;color:#8a877e;&quot;&gt;&amp;copy; BrandingOS &amp;middot; &lt;a href=&quot;https://brandingos.ai&quot; style=&quot;color:#8a877e;text-decoration:underline;&quot;&gt;brandingos.ai&lt;/a&gt;&lt;/p&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;script&gt;
+(function(){
+  function h(){
+    var t = document.querySelector('table');
+    return t ? Math.ceil(t.getBoundingClientRect().height) : document.documentElement.scrollHeight;
+  }
+  function send(){ try { parent.postMessage({ __h: h(), __id: window.name }, '*'); } catch(e){} }
+  window.addEventListener('load', function(){ send(); setTimeout(send, 250); setTimeout(send, 900); setTimeout(send, 2000); });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+        </div>
+      </section>
+    </div>
+    <footer>
+      Sample values: token <strong>482913</strong> &middot; link <em>demo.brandingos.ai/auth/callback?code=sample</em> &middot; hamza@example.com &rarr; hamza@brandingos.ai.<br>
+      &copy; BrandingOS &middot; <a href="https://brandingos.ai">brandingos.ai</a>
+    </footer>
+  </div>
+<script>
+  window.addEventListener('message', function (e) {
+    var d = e.data; if (!d || typeof d.__h !== 'number') return;
+    var f = document.querySelector('iframe[name="' + d.__id + '"]');
+    if (f) f.style.height = Math.max(320, d.__h + 2) + 'px';
+  });
+</script>
+</body>
+</html>

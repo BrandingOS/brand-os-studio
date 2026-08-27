@@ -1,7 +1,7 @@
 /**
  * applyBrandKit — unit tests.
  *
- * Exercises the mapping from BrandOS's richer `Brand` type onto the
+ * Exercises the mapping from BrandingOS's richer `Brand` type onto the
  * generic template-level tokens. Relies on no PixiJS — the engine is
  * not mounted here.
  */

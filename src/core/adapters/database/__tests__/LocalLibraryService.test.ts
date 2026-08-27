@@ -281,3 +281,16 @@ describe('CodeRabbit review — regressions', () => {
     expect(withTombs[0].deletedAt).toBeTruthy();
   });
 });
+
+describe('listLibraryForBrands (batched)', () => {
+  it('groups by brand and omits empty brands', async () => {
+    const a = await svc.create(input({ name: 'one' }));
+    await svc.create(input({ name: 'two' }));
+    await svc.create(input({ brandId: OTHER, name: 'theirs' }));
+    const grouped = await svc.listLibraryForBrands([BRAND, 'brand-none']);
+    expect(grouped.get(BRAND)?.length).toBe(2);
+    expect(grouped.has('brand-none')).toBe(false);
+    expect(grouped.has(OTHER)).toBe(false); // only asked-for brands come back
+    expect(grouped.get(BRAND)?.some((x) => x.id === a.id)).toBe(true);
+  });
+});

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# BrandOS — Architecture Guide
+# BrandingOS — Architecture Guide
 
 ## Build & Dev Commands
 
@@ -42,6 +42,68 @@ npm run type-check   # tsc --noEmit
 
 The landing page is a **completely separate Vite project** with its own `package.json`, `node_modules`, and Tailwind config. It shares no dependencies with the main app. Run `npm install` separately in each directory.
 
+### One deploy, two documents (2026-08-20)
+
+On **demo.brandingos.ai** the landing and the app ship together: `/` is
+the landing, everything else is the SPA. Both come out of the SAME Pages
+project (`demo`, root dir `.`) and the same `dist/`.
+
+- **The landing stays a separate build.** `landingpage/src/index.css`
+  redefines the very shadcn tokens the product paints with
+  (`--background`, `--foreground`, `--primary`, `--radius`, …) and its
+  Tailwind config renames the type scale. Importing it into the SPA
+  repaints the product. Do not "port the landing into a route".
+- **`landingpage/vite.embed.config.ts`** builds it into the app's `dist/`
+  with `assetsDir: 'landing-assets'` (the SPA owns `assets/`) and
+  `emptyOutDir: false`. The standalone `vite.config.ts` beside it is
+  untouched — that is what brandingos.ai still builds.
+- **`scripts/build-landing.mjs`** runs the embed build, then moves the
+  emitted document to `dist/landing/index.html` and gives
+  `dist/index.html` back to the SPA. It hangs off a `apply: 'build'`
+  plugin in the root `vite.config.ts`, not an npm script, because the
+  hosting project's build command lives outside this repo — anything
+  that runs `vite build` gets the landing. `SKIP_LANDING_BUILD=1` opts out.
+- **`functions/_middleware.ts`** is what actually serves the landing at
+  `/` and `/archive`. **A `_redirects` rule cannot do this**, and both
+  halves of that were measured against `wrangler pages dev`: an existing
+  asset is served BEFORE `_redirects` is consulted, and an unknown path
+  falls back to `/index.html` before a `/*` rewrite to any other document
+  applies. Fetch `/landing/` and not `/landing/index.html` — Pages
+  canonicalises an explicit `index.html` to its directory and answers 308.
+- **The failure mode is the old behaviour.** `dist/index.html` is still
+  the SPA and `_redirects` is still `/* /index.html 200`, so a missing
+  Function means `/` serves the app, not a broken site.
+- **`src/pages/Index.tsx` (the SPA's `/` route) hands `/` back** with a
+  full document load, guarded by a one-shot sessionStorage marker so a
+  deploy without the landing renders the legacy page instead of reloading
+  for ever. It is only reachable by in-app navigation.
+- **Dev serves it too.** `landingPageDevPlugin` (root `vite.config.ts`)
+  builds the landing into `landingpage/dist-dev` and serves it at `/` on
+  port 8080, rebuilding whenever anything under `landingpage/` is newer,
+  so localhost is the same front door as the demo. It cannot proxy the
+  landing's own dev server: both Vite servers answer `/src/main.tsx` and
+  `/@vite/client`, so a proxied document would load the APP's modules.
+  **There is no HMR for the landing on 8080** — to iterate ON the landing
+  use `cd landingpage && npm run dev` (port 5174), which reads
+  `landingpage/.env.development` for the app's origin.
+- **The dev middleware is registered in `configureServer`'s BODY, not its
+  return**, so it runs before Vite's html middleware — which would
+  otherwise answer `/` with the app.
+- **Cloudflare builds with `NODE_ENV=production`**, under which npm omits
+  devDependencies — which is everything that BUILDS a Vite app. Nested
+  installs must pass `--include=dev`; the root project is installed by
+  Pages itself and escapes this.
+- **A mask URL must be quoted** (`landingpage/src/lib/cssUrl.ts`). Vite
+  inlines assets under 4 KB as data URIs that keep the SVG's own quote
+  characters, and an unquoted CSS `url()` token may not contain quotes —
+  the declaration is dropped, `mask-image` becomes `none`, and a masked
+  element paints as a solid block. It fails with no console error and
+  only in a BUILD. This ate seven of the ten logos in the tech strip.
+- **`landingpage/src/lib/appUrl.ts` is the one place that knows where the
+  product lives.** It defaults to the same origin; a deploy serving the
+  landing on its own host (brandingos.ai, `npm run dev` in that folder)
+  sets `VITE_APP_URL`. Never hard-code an app URL in a section.
+
 ### Test configuration
 Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/**/*.{test,spec}.{ts,tsx}`. Run a single test file: `npx vitest run src/path/to/file.test.ts`.
 
@@ -49,7 +111,7 @@ Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/*
 
 | | Main App (root) | Landing Page (`landingpage/`) |
 |---|---|---|
-| Purpose | Full BrandOS SPA | Public marketing site with early-access form |
+| Purpose | Full BrandingOS SPA | Public marketing site with early-access form |
 | Stack | Vite + React + React Router + Zustand + Supabase + Fabric.js | Vite + React (no router) + framer-motion + Supabase |
 | Port | 8080 | auto-assigned (typically 5173/5174) |
 | Deploy target | Cloudflare Pages (root dir: `.`) | Cloudflare Pages (root dir: `landingpage`) |
@@ -105,7 +167,7 @@ Notes that will save you an hour:
 
 ## UI Architecture (Phase A — 2026-05-05)
 
-BrandOS has **two brand-scoped UI experiences**:
+BrandingOS has **two brand-scoped UI experiences**:
 
 - **Studio** (canonical): `/b/:slug/...`. The active development surface.
   All new features land here. Cosmos top-segmented chrome via
@@ -164,7 +226,7 @@ in a second hop.
 
 ## UX & IA — current structure (post-redesign)
 
-BrandOS has **three scopes**: Workspace · Brand · Editor. Each scope has
+BrandingOS has **three scopes**: Workspace · Brand · Editor. Each scope has
 exactly one sidebar and one shell. See `docs/ux-redesign/ARCHITECTURE.md`.
 
 **Workspace sidebar** (`/dashboard`): Home · Brands · Templates · Learn · Settings.
@@ -231,7 +293,7 @@ never hard-code a color/weight/spacing value there.
 
 ### Phase 4 — Content Universe (shipped 2026-05-04)
 
-Phase 4 ships the BrandOS content universe in 4 sub-phases. Read
+Phase 4 ships the BrandingOS content universe in 4 sub-phases. Read
 `docs/editor/PHASE_4_SPEC.md` for the source spec.
 
 - **4.1 Templates Foundation** — `template_categories` + `templates`
@@ -1952,10 +2014,18 @@ The auth session layer was rebuilt after twenty stacked `fix(auth)` patches
   `SIGNUP_CODE_LENGTH`) → `verifySignupCode` (`verifyOtp type:'signup'`) →
   session → `becomeAuthenticated`. Logging in with an unconfirmed address
   re-sends the code and opens the same panel. There is no confirm-password
-  field. **Until custom SMTP is configured, Supabase's built-in mailer only
-  delivers to project team-member addresses and rejects others with
-  `email_address_invalid`** — real sign-ups need an SMTP provider set in the
-  Supabase dashboard (Authentication → SMTP).
+  field.
+- **Transactional e-mail goes through Resend** (custom SMTP set 2026-08-18:
+  `smtp.resend.com:465`, user `resend`, sender `BrandingOS
+  <no-reply@brandingos.ai>`, domain verified, `rate_limit_email_sent=60`/h,
+  Site URL `https://demo.brandingos.ai`). The Resend key lives ONLY in
+  Supabase's auth config — never in the repo or `.env`. Before this, the
+  built-in mailer delivered only to team-member addresses (2/h) and rejected
+  everyone else with `email_address_invalid`. Logo PNGs for e-mails are in the
+  public Storage bucket `email-assets`. Templates are versioned under
+  `supabase/templates/auth/` and pushed with `scripts/push-auth-templates.mjs`.
+- **The product name is "BrandingOS"** (renamed from BrandingOS/BrandingOS in all
+  user-facing strings 2026-08-18; localStorage keys stay `brandos:*`).
 - **Password reset:** `sessionStore.recovery` is set by `PASSWORD_RECOVERY`;
   the reset page is valid when that flag is set or the link carried a recovery
   hash / PKCE code and a session now exists.

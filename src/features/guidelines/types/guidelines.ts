@@ -8,7 +8,7 @@ export interface GuidelineTemplate extends PresentationTemplate {
 
 /**
  * GuidelineSettings is now an alias for the shared PresentationSettings.
- * All presentation types in BrandOS share the same settings structure.
+ * All presentation types in BrandingOS share the same settings structure.
  */
 export type GuidelineSettings = PresentationSettings;
 

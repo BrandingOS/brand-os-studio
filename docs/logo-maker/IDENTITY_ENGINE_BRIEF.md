@@ -1,4 +1,4 @@
-# BrandOS Identity Engine / Logo System Studio
+# BrandingOS Identity Engine / Logo System Studio
 ## Strategic brief — 10 deliverables
 
 **Owner:** Hamza  ·  **Drafted:** 2026-04-17  ·  **Status:** Strategy locked, MVP in build
@@ -8,7 +8,7 @@
 
 ## TL;DR — the thesis in one paragraph
 
-Every logo maker on the market treats a logo as a *file*. BrandOS treats a logo as the *seed of a brand*. The Identity Engine is the one system that creates, owns, and evolves a logo across its full lifecycle — from a first-time founder who has nothing, to a design team refining an existing brand's mark. Same engine, two entry points, one source of truth. Output isn't a PNG — it's an `IdentitySystem`: 16 variants, a typography system, a color system, a live quality report, and a lineage trail, all persisted into the brand and read by every downstream BrandOS feature (social, landing pages, video ads, guidelines).
+Every logo maker on the market treats a logo as a *file*. BrandingOS treats a logo as the *seed of a brand*. The Identity Engine is the one system that creates, owns, and evolves a logo across its full lifecycle — from a first-time founder who has nothing, to a design team refining an existing brand's mark. Same engine, two entry points, one source of truth. Output isn't a PNG — it's an `IdentitySystem`: 16 variants, a typography system, a color system, a live quality report, and a lineage trail, all persisted into the brand and read by every downstream BrandingOS feature (social, landing pages, video ads, guidelines).
 
 Three advantages nobody else combines:
 1. **System output** — 16 variants, not 1 file.
@@ -41,7 +41,7 @@ Three advantages nobody else combines:
 3. **The "mode gap"** — wizard tools lock out designers. Pro tools lock out founders. Nobody offers Quick ↔ Hybrid ↔ Craft that the *same user* can switch between as they learn.
 4. **The "quality evaluation gap"** — every tool lets you ship a 1px-detail logo that dies at favicon size, or a low-contrast mark that fails on dark backgrounds. No live feedback during editing.
 5. **The "dual-entry gap"** — every tool is either "start from scratch as a new user" or "you already have a design app." Nobody has one engine that serves both "I have nothing" and "I'm updating my existing brand's logo inside my brand portal."
-6. **The "source-of-truth gap"** — even BrandOS itself (today) has a config-driven `/dashboard/logo-maker` and the new 6-screen flow; they don't share state or models. Downstream tools have no canonical logo record to read from.
+6. **The "source-of-truth gap"** — even BrandingOS itself (today) has a config-driven `/dashboard/logo-maker` and the new 6-screen flow; they don't share state or models. Downstream tools have no canonical logo record to read from.
 
 The Identity Engine closes all six.
 
@@ -53,7 +53,7 @@ The Identity Engine closes all six.
 
 ---
 
-## 2. Product strategy — how BrandOS wins
+## 2. Product strategy — how BrandingOS wins
 
 ### 2.1 The positioning
 
@@ -63,7 +63,7 @@ The Identity Engine closes all six.
 
 1. **System over asset.** The unit we deliver is an `IdentitySystem`, not a logo. This reframes the whole product — pricing, marketing, output, even the file names in the ZIP.
 2. **One engine, two entry points.** The same `IdentityEngine` module runs the external funnel and the internal brand's Identity tab. This is a *technical* strategy that becomes a *product* advantage: the minute a user signs up after the external flow, their brand is already populated with the logo system they just built.
-3. **Live craft feedback.** Every other tool evaluates after the fact ("download and see"). BrandOS evaluates during editing: contrast vs. common backgrounds, scalability at 16px, balance, readability, optical centering. Failing checks are inline, not a blocked export.
+3. **Live craft feedback.** Every other tool evaluates after the fact ("download and see"). BrandingOS evaluates during editing: contrast vs. common backgrounds, scalability at 16px, balance, readability, optical centering. Failing checks are inline, not a blocked export.
 4. **Continuation by default.** Approving a logo doesn't end the session — it starts the brand build. Color palette, typography pairing, mini brand board, starter guidelines, starter templates, asset folder structure all auto-seed and are immediately editable. Competitors don't do this because they don't have a brand OS.
 
 ### 2.3 Pricing implications

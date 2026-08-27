@@ -33,7 +33,7 @@ interface Notification {
 }
 
 const initialNotifications: Notification[] = [
-  { id: '1', title: 'Welcome to BrandOS!', time: '1 min ago', read: false },
+  { id: '1', title: 'Welcome to BrandingOS!', time: '1 min ago', read: false },
   { id: '2', title: 'New export feature available', time: '5 min ago', read: false },
   { id: '3', title: 'WCAG color checker added', time: '1 hour ago', read: false },
 ];

@@ -1,4 +1,4 @@
-# BrandOS UI/UX Audit — Action List
+# BrandingOS UI/UX Audit — Action List
 
 > Senior UI/UX Designer Audit | April 1, 2026
 > Verdict: Core guidelines generator is strong. Shell needs to match its quality.

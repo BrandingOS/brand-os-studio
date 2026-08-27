@@ -26,7 +26,7 @@ interface ComposeArgs {
 }
 
 const BRAND_LOCK_PREAMBLE = `
-You are the BrandOS Brand Consistency Engine. You write copy that lives
+You are the BrandingOS Brand Consistency Engine. You write copy that lives
 inside a STRUCTURED, brand-locked rendering system. You DO NOT control
 colors, fonts, layout, logo, or imagery — those are fixed by the brand
 token system. Your only job is to write words that fit a fixed brand

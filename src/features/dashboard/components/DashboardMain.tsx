@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export function DashboardMain() {
-  // BrandOS v5 — the workspace home is now composed by HomeV5.
+  // BrandingOS v5 — the workspace home is now composed by HomeV5.
   // The legacy implementation below is kept dormant but unreachable.
   return <HomeV5 />;
 }

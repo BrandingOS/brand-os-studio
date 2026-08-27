@@ -57,7 +57,22 @@ async function withLibraryProjection<T extends Brand | undefined | null>(brand: 
 }
 
 async function projectAll(brands: Brand[]): Promise<Brand[]> {
-  return Promise.all(brands.map((b) => withLibraryProjection(b)));
+  if (!brands.length) return brands;
+  // ONE batched Library read for the whole list — per-brand reads here were
+  // an N+1 (42 brands = 42 requests) and the dashboard sat on its skeleton
+  // until the slowest one answered. Same enhancement-never-a-gate contract
+  // as withLibraryProjection: if the Library cannot be read, the brands
+  // still load with whatever stored assets they have.
+  try {
+    const assets = container.get<IAssetsService>(SERVICE_KEYS.ASSETS);
+    const grouped = await assets.listLibraryForBrands(
+      brands.map((b) => b.id),
+      { includeArchived: true, includeDeleted: true },
+    );
+    return brands.map((b) => projectLibraryOntoBrand(b, grouped.get(b.id) ?? []));
+  } catch {
+    return brands;
+  }
 }
 
 interface BrandStore {
@@ -65,6 +80,13 @@ interface BrandStore {
   current?: Brand;
   isLoading: boolean;
   error?: string;
+  /**
+   * True once `list` has been CONFIRMED by a successful `loadAll` for the
+   * current data scope (the signed-in user, or guest). Consumers that render
+   * "you have no brands" must gate on this — an empty `list` before it is
+   * merely "not loaded yet".
+   */
+  listReady: boolean;
 
   loadById: (id: string) => Promise<void>;
   loadBySlug: (slug: string) => Promise<void>;
@@ -72,6 +94,13 @@ interface BrandStore {
   update: (id: string, patch: Partial<Brand>) => Promise<void>;
   delete: (id: string) => Promise<void>;
   loadAll: () => Promise<void>;
+  /**
+   * The data scope changed (a different user signed in, or the user signed
+   * out). Drops every brand held in memory IMMEDIATELY — nothing loaded for
+   * one identity may be shown to another — and invalidates in-flight loads
+   * so a slow response from the previous scope can never land afterwards.
+   */
+  resetScope: () => void;
   setCurrent: (brand: Brand | undefined) => void;
   setError: (error: string | undefined) => void;
   setLoading: (loading: boolean) => void;
@@ -129,6 +158,15 @@ export function mirrorTypographyFromTypescale(
   };
 }
 
+/**
+ * Load bookkeeping kept outside React state: `scopeGeneration` is bumped by
+ * `resetScope`, and a `loadAll` only applies its result when the generation
+ * it started under is still current. `inflight` de-duplicates concurrent
+ * `loadAll` calls (the auth controller and the page both ask on sign-in).
+ */
+let scopeGeneration = 0;
+let inflight: { generation: number; promise: Promise<void> } | null = null;
+
 export const useBrandStore = create<BrandStore>()(
   devtools(
     (set) => ({
@@ -136,6 +174,7 @@ export const useBrandStore = create<BrandStore>()(
       current: undefined,
       isLoading: false,
       error: undefined,
+      listReady: false,
 
       loadById: async (id: string) => {
         set({ isLoading: true, error: undefined }, false, 'loadById/start');
@@ -366,14 +405,37 @@ export const useBrandStore = create<BrandStore>()(
         }
       },
 
-      loadAll: async () => {
-        set({ isLoading: true, error: undefined }, false, 'loadAll/start');
-        try {
-          const brands = await projectAll(await getBrandsService().list());
-          set({ list: brands, isLoading: false }, false, 'loadAll/success');
-        } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to load brands', isLoading: false }, false, 'loadAll/error');
-        }
+      loadAll: () => {
+        if (inflight && inflight.generation === scopeGeneration) return inflight.promise;
+        const generation = scopeGeneration;
+        const run = async () => {
+          set({ isLoading: true, error: undefined }, false, 'loadAll/start');
+          try {
+            const brands = await projectAll(await getBrandsService().list());
+            // The scope moved on while this request was in the air — its
+            // answer belongs to a previous identity. Drop it.
+            if (generation !== scopeGeneration) return;
+            set({ list: brands, isLoading: false, listReady: true }, false, 'loadAll/success');
+          } catch (error) {
+            if (generation !== scopeGeneration) return;
+            set({ error: error instanceof Error ? error.message : 'Failed to load brands', isLoading: false }, false, 'loadAll/error');
+          } finally {
+            if (inflight?.generation === generation) inflight = null;
+          }
+        };
+        const promise = run();
+        inflight = { generation, promise };
+        return promise;
+      },
+
+      resetScope: () => {
+        scopeGeneration += 1;
+        inflight = null;
+        set(
+          { list: [], current: undefined, isLoading: false, error: undefined, listReady: false },
+          false,
+          'resetScope',
+        );
       },
 
       reprojectLibrary: async (brandId: string) => {

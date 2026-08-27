@@ -1,6 +1,6 @@
 // EditorAdapter — the boundary between the editor shell and Fabric.js.
 //
-// The rest of BrandOS (brand engine, AI, templates, content-type configs)
+// The rest of BrandingOS (brand engine, AI, templates, content-type configs)
 // MUST NOT import from `fabric` directly; everything goes through this
 // interface. The lint guard in `eslint.config.js` enforces it.
 //

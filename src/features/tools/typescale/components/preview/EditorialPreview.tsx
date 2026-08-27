@@ -70,7 +70,7 @@ export function EditorialPreview({ draft, activeSurface }: Props) {
           className="ts-editorial-byline"
           style={styleFor(draft, activeSurface, 'caption')}
         >
-          Written by the BrandOS team · 8 min read
+          Written by the BrandingOS team · 8 min read
         </p>
       </header>
 
@@ -124,7 +124,7 @@ export function EditorialPreview({ draft, activeSurface }: Props) {
 
       <footer className="ts-editorial-footer">
         <p style={styleFor(draft, activeSurface, 'caption')}>
-          — BrandOS · Typescale preview
+          — BrandingOS · Typescale preview
         </p>
       </footer>
     </article>

@@ -1,8 +1,8 @@
-# BrandOS Design System
+# BrandingOS Design System
 
 ## Overview
 
-The BrandOS Design System provides a unified set of tokens, components, and patterns for building consistent UI across the entire platform. Import from `@/shared/design-system`.
+The BrandingOS Design System provides a unified set of tokens, components, and patterns for building consistent UI across the entire platform. Import from `@/shared/design-system`.
 
 ## Tokens
 

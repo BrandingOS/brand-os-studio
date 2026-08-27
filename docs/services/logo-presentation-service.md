@@ -356,9 +356,9 @@ WHAT'S NEXT
 - Animated presentation (video)
 - Client portal access
 
-### How to Productize This in BrandOS
+### How to Productize This in BrandingOS
 
-Build this as a **Logo Presentation Generator** inside BrandOS:
+Build this as a **Logo Presentation Generator** inside BrandingOS:
 
 1. **Input**: Upload 3 logo files + fill brand brief form
 2. **Auto-generate**: System creates the 28-slide deck using the template
@@ -370,7 +370,7 @@ This turns a manual 4-8 hour process into a 30-minute workflow.
 
 ---
 
-## Implementation in BrandOS
+## Implementation in BrandingOS
 
 To build this as a product feature:
 

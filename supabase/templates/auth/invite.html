@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!-- Subject: You've been invited to BrandingOS -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>You are invited</title>
+<style>
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+</style>
+</head>
+<body class="bg" bgcolor="#f5f4ef" style="margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;">Accept your invitation and set up your BrandingOS account.&#8203;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f4ef" style="background-color:#f5f4ef;">
+  <tr>
+    <td align="center" class="shell" style="padding:40px 16px 56px;">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="width:520px;max-width:520px;">
+        <tr>
+          <td align="left" style="padding:0 4px 22px;">
+            <img src="https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png" width="168" alt="BrandingOS" style="display:block;width:168px;max-width:168px;height:auto;border:0;">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card" bgcolor="#ffffff" style="background-color:#ffffff;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;">
+              <tr>
+                <td class="pad" align="left" style="padding:40px 36px;">
+                  <p style="margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;">Invitation</p>
+                  <h1 class="h1" style="margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;">You&#39;re invited</h1>
+                  <p style="margin:0 0 30px;font-size:15px;line-height:1.65;color:#55534c;">{{ .Email }} has been invited to BrandingOS &mdash; the workspace where brand identity systems are designed, kept consistent and shipped. Accept below to set up your account.</p>
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td bgcolor="#111113" style="background-color:#111113;border-radius:8px;">
+                        <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 26px;font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1;font-weight:600;color:#f5f4ef;text-decoration:none;">Accept invitation</a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:28px 0 26px;font-size:13px;line-height:1.7;color:#8a877e;">If you weren&#39;t expecting this invitation, you can ignore this e&#8209;mail.</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding:24px 0 0;border-top:1px solid #e6e4dd;font-size:0;line-height:0;">&nbsp;</td></tr>
+                  </table>
+                  <p style="margin:0;font-size:12px;line-height:1.7;color:#8a877e;">Or paste this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#8a877e;text-decoration:underline;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td align="left" style="padding:26px 4px 0;">
+            <p style="margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;">You&#39;re receiving this because an account on BrandingOS uses this address.</p>
+            <p style="margin:0;font-size:12px;line-height:1.7;color:#8a877e;">&copy; BrandingOS &middot; <a href="https://brandingos.ai" style="color:#8a877e;text-decoration:underline;">brandingos.ai</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

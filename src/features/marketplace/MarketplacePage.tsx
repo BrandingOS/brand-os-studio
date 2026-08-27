@@ -49,7 +49,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Figma,
     color: 'from-pink-500/30 to-purple-500/30',
     short: 'Sync brand tokens to your Figma libraries.',
-    long: 'Push BrandOS colors, typography, and components to Figma as a managed library. Refresh anytime; designers get the latest tokens automatically.',
+    long: 'Push BrandingOS colors, typography, and components to Figma as a managed library. Refresh anytime; designers get the latest tokens automatically.',
     status: 'available',
     permissions: ['Read brand tokens', 'Write to Figma library'],
   },
@@ -82,7 +82,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Box,
     color: 'from-slate-500/30 to-zinc-500/30',
     short: 'Embed brand portals as Notion blocks.',
-    long: 'Drop a BrandOS embed into any Notion page. Always shows the latest version of your guidelines.',
+    long: 'Drop a BrandingOS embed into any Notion page. Always shows the latest version of your guidelines.',
     status: 'coming-soon',
     permissions: ['Embed external content'],
   },
@@ -92,7 +92,7 @@ const INTEGRATIONS: Integration[] = [
     category: 'automation',
     icon: Zap,
     color: 'from-amber-500/30 to-yellow-500/30',
-    short: 'Connect BrandOS to 6,000+ apps.',
+    short: 'Connect BrandingOS to 6,000+ apps.',
     long: 'Triggers for new brands, asset uploads, and approvals. Actions to create assets, push notifications, and update metadata.',
     status: 'available',
     permissions: ['Trigger workflows', 'Receive webhooks'],
@@ -148,7 +148,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Database,
     color: 'from-orange-500/30 to-red-500/30',
     short: 'Bring your own S3 bucket.',
-    long: 'Store assets in your own S3 (or compatible) bucket. BrandOS handles the index; storage stays under your control.',
+    long: 'Store assets in your own S3 (or compatible) bucket. BrandingOS handles the index; storage stays under your control.',
     status: 'coming-soon',
     permissions: ['Upload to your bucket', 'Read your bucket'],
   },
@@ -159,7 +159,7 @@ const INTEGRATIONS: Integration[] = [
     icon: Layers,
     color: 'from-purple-500/30 to-violet-500/30',
     short: 'Sync to a design system repo (Tailwind, CSS vars).',
-    long: 'Generate Tailwind config, CSS variables, or Style Dictionary tokens from BrandOS. Commit on every change.',
+    long: 'Generate Tailwind config, CSS variables, or Style Dictionary tokens from BrandingOS. Commit on every change.',
     status: 'beta',
     permissions: ['Push to a Git repo'],
   },
@@ -194,7 +194,7 @@ export default function MarketplacePage() {
       <PageHeader
         eyebrow="Marketplace"
         title="Integrations & extensions"
-        subtitle="Connect BrandOS to your stack — design tools, comms, automation, developer APIs."
+        subtitle="Connect BrandingOS to your stack — design tools, comms, automation, developer APIs."
       />
 
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

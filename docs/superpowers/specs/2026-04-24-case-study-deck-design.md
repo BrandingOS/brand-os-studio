@@ -7,7 +7,7 @@
 
 ## Goal
 
-Every brand in BrandOS produces a Behance-style case-study deck — 10 slides
+Every brand in BrandingOS produces a Behance-style case-study deck — 10 slides
 of identity presentation — automatically from its own logo, palette,
 typography, strategy, and assets. The deck must not feel stamped: two
 brands should yield decks that read as distinct identities.

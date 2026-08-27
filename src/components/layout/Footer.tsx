@@ -81,7 +81,7 @@ export default function Footer() {
 
           <div className="relative mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p className="text-xs text-white/45">
-              &copy; {new Date().getFullYear()} Brand OS. All rights reserved.
+              &copy; {new Date().getFullYear()} BrandingOS. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-xs text-white/45">
               <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy</a>

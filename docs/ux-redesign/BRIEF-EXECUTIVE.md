@@ -1,4 +1,4 @@
-# BrandOS Redesign — 1-Page Brief
+# BrandingOS Redesign — 1-Page Brief
 
 > Paste this entire file into v0.dev / Lovable / Bolt / Cursor / Figma AI as a
 > single prompt. For more depth, point the generator at `REDESIGN-BRIEF.md`
@@ -6,7 +6,7 @@
 
 ## What
 
-**BrandOS** — a creative SaaS workspace where founders and designers build,
+**BrandingOS** — a creative SaaS workspace where founders and designers build,
 manage, and ship a brand identity (logo, colors, type, voice, guidelines,
 deliverables). One brand or fifty. Premium and quiet.
 
@@ -113,7 +113,7 @@ Activity feed examples:
 
 ## North star
 
-> **BrandOS should feel like a tool a senior designer would willingly show
+> **BrandingOS should feel like a tool a senior designer would willingly show
 > their clients — quietly confident, considered in every detail, and
 > completely out of the user's way.**
 

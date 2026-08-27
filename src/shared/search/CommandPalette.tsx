@@ -1,7 +1,7 @@
 /**
  * Universal Command Palette — ⌘K from anywhere.
  *
- * Part of BrandOS v5. See docs/ux-redesign/BRANDOS-V5-PRD.md §3.2
+ * Part of BrandingOS v5. See docs/ux-redesign/BRANDOS-V5-PRD.md §3.2
  *
  * This is a self-contained palette built on cmdk. It pulls its index from
  * `useSearchIndex()` which composes brand list, templates, guidelines pages,
@@ -106,7 +106,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl backdrop-blur-xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <Command label="BrandOS command palette" className="w-full">
+        <Command label="BrandingOS command palette" className="w-full">
           <div className="flex items-center gap-3 border-b border-border px-5 py-4">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Command.Input
@@ -171,7 +171,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <kbd className="rounded border border-border bg-background px-1 py-0.5">↵</kbd> select
               </span>
             </div>
-            <span className="font-medium tracking-wide">BrandOS · ⌘K</span>
+            <span className="font-medium tracking-wide">BrandingOS · ⌘K</span>
           </div>
         </Command>
       </div>

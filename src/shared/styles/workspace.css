@@ -89,11 +89,15 @@
  *
  * Reset for any cosmos element that is itself a Radix popper
  * (`data-state` is open/closed on every Radix Content) or that lives
- * inside one (the popper wrapper).
+ * inside one (the popper wrapper) — and for the editor floating
+ * toolbar's color menu, a hand-rolled body portal that carries the
+ * attribute for the same token-inheritance reason (same bug class,
+ * caught again 2026-08-22).
  */
 [data-workspace][data-state],
 [data-workspace][data-radix-popper-content-wrapper],
-[data-radix-popper-content-wrapper] [data-workspace] {
+[data-radix-popper-content-wrapper] [data-workspace],
+[data-workspace="floating-toolbar"] {
   min-height: 0;
 }
 
@@ -1656,6 +1660,36 @@
 [data-workspace] .cp-body.is-compact .cp-swatch-preview {
   width: 22px;
   height: 22px;
+}
+
+/* Floating-toolbar host (.cp-toolbar-host wraps the picker inside the
+   editor bar's color menu). The menu is already a dark card, so the
+   cp-body card chrome would double-frame it and pad the popup top and
+   bottom — flatten it and tighten every vertical measure. Placed after
+   the is-compact block on purpose: equal-or-higher specificity wins by
+   order here. */
+[data-workspace].cp-toolbar-host .cp-body,
+[data-workspace] .cp-toolbar-host .cp-body {
+  border: none;
+  background: transparent;
+  padding: 0;
+  gap: 7px;
+}
+[data-workspace].cp-toolbar-host .cp-body .cp-sv,
+[data-workspace] .cp-toolbar-host .cp-body .cp-sv {
+  height: 140px;
+}
+[data-workspace].cp-toolbar-host .cp-body .cp-hue,
+[data-workspace] .cp-toolbar-host .cp-body .cp-hue {
+  height: 8px;
+}
+[data-workspace].cp-toolbar-host .cp-body .cp-footer,
+[data-workspace] .cp-toolbar-host .cp-body .cp-footer {
+  gap: 6px;
+}
+[data-workspace].cp-toolbar-host .cp-add-btn,
+[data-workspace] .cp-toolbar-host .cp-add-btn {
+  padding: 5px 12px;
 }
 
 /* Palette dropdown — same visual footprint as hex-wrap so they read as

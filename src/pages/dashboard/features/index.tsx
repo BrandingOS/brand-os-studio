@@ -1,5 +1,5 @@
 /**
- * FeaturesIndexPage — the workspace-level "everything in BrandOS" index.
+ * FeaturesIndexPage — the workspace-level "everything in BrandingOS" index.
  *
  * Lists every page and tool in the product, grouped by scope, so:
  *   1. The user can FIND a feature even if it isn't linked from the
@@ -125,12 +125,12 @@ const WORKSPACE_FEATURES: FeatureEntry[] = [
   { id: 'learn',         title: 'Learn',               description: 'Tutorials, lessons, and brand strategy guides.',           icon: GraduationCap,  href: '/learn',               status: 'linked' },
   { id: 'logo-maker',    title: 'Logo Maker',          description: 'Standalone logo generator. Save outputs to a brand.',      icon: Wand2,          href: '/dashboard/logo-maker', status: 'orphan' },
   { id: 'templates-w',   title: 'Guideline Templates', description: 'Cross-brand catalog of guideline document templates.',     icon: LayoutTemplate, href: '/dashboard/templates', status: 'orphan' },
-  { id: 'templates-mp',  title: 'Templates Marketplace', description: 'BrandOS v5 marketplace of community templates.',         icon: Store,          href: '/templates',           status: 'orphan' },
+  { id: 'templates-mp',  title: 'Templates Marketplace', description: 'BrandingOS v5 marketplace of community templates.',         icon: Store,          href: '/templates',           status: 'orphan' },
   { id: 'marketplace',   title: 'Marketplace',         description: 'General-purpose marketplace surface.',                     icon: Store,          href: '/marketplace',         status: 'orphan' },
   { id: 'editor',        title: 'Design Editor',       description: 'Canva-style design editor — shapes, templates, text, images, filters, layers.',  icon: PenTool,        href: '/editor',              status: 'linked' },
   { id: 'bento-tool',    title: 'Bento Grid',          description: 'Bento-style collage generator. Templates, shuffle, multi-size export — standalone or brand-powered.',  icon: Layers,         href: '/tools/bento',         status: 'linked' },
   { id: 'activity',      title: 'Activity feed',       description: 'Real-time feed of all brand actions, filterable by type.', icon: Activity,       href: '/dashboard/activity',  status: 'linked' },
-  { id: 'dashboard-v2',  title: 'Dashboard v2 landing', description: 'Experimental landing page (BrandOS v5 sprint).',          icon: Sparkles,       href: '/v2',                  status: 'experiment' },
+  { id: 'dashboard-v2',  title: 'Dashboard v2 landing', description: 'Experimental landing page (BrandingOS v5 sprint).',          icon: Sparkles,       href: '/v2',                  status: 'experiment' },
 ];
 
 const ACCOUNT_FEATURES: FeatureEntry[] = [
@@ -167,7 +167,7 @@ const BRAND_DEEP_FEATURES: FeatureEntry[] = [
 
 const PUBLIC_FEATURES: FeatureEntry[] = [
   { id: 'showcase',  title: 'Public showcase',  description: 'Anonymous brand showcase page.',  icon: Eye,    href: (s) => `/brand/${s}/showcase`, status: 'public', needsBrand: true },
-  { id: 'portal',    title: 'Brand Portal v2',  description: 'BrandOS v5 public-facing portal.', icon: Globe, href: (s) => `/p/${s}`,              status: 'public', needsBrand: true },
+  { id: 'portal',    title: 'Brand Portal v2',  description: 'BrandingOS v5 public-facing portal.', icon: Globe, href: (s) => `/p/${s}`,              status: 'public', needsBrand: true },
 ];
 
 const ADMIN_FEATURES: FeatureEntry[] = [
@@ -291,8 +291,8 @@ export default function FeaturesIndexPage() {
         title="Features index"
         subtitle={
           orphanCount > 0
-            ? `Every page and tool in BrandOS. ${orphanCount} feature${orphanCount === 1 ? '' : 's'} aren't linked from the sidebar yet — find a home for them.`
-            : 'Every page and tool in BrandOS, grouped by scope.'
+            ? `Every page and tool in BrandingOS. ${orphanCount} feature${orphanCount === 1 ? '' : 's'} aren't linked from the sidebar yet — find a home for them.`
+            : 'Every page and tool in BrandingOS, grouped by scope.'
         }
       />
 

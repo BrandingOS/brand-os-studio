@@ -36,7 +36,7 @@ export default function BrandShowcasePage() {
             to="/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
           >
-            Go to BrandOS
+            Go to BrandingOS
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -59,7 +59,7 @@ export default function BrandShowcasePage() {
             to="/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
           >
-            Go to BrandOS
+            Go to BrandingOS
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

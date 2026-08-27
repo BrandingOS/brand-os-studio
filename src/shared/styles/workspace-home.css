@@ -227,6 +227,19 @@
   box-shadow: var(--ds-shadow-md);
   border-color: var(--ds-border-strong);
 }
+/* Loading stand-in: same box as a card, none of the affordance. */
+[data-workspace] .ws-brand-card--skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+[data-workspace] .ws-brand-card--skeleton:hover {
+  transform: none;
+  box-shadow: var(--ds-shadow-sm);
+  border-color: var(--ds-border);
+}
+[data-workspace] .ws-brand-card--skeleton .ws-brand-card-color {
+  display: block;
+}
 [data-workspace] .ws-brand-card:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ds-focus-ring);

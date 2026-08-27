@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-Ship a comprehensive, modern typescale tool as the third entry in the BrandOS tools platform. It must be a first-class brand-identity tool: the typescale a user creates is persisted into brand data (`brand.typescale`) and instantly consumed by Brand Board, Identity, presentation templates, social designs, and website exports.
+Ship a comprehensive, modern typescale tool as the third entry in the BrandingOS tools platform. It must be a first-class brand-identity tool: the typescale a user creates is persisted into brand data (`brand.typescale`) and instantly consumed by Brand Board, Identity, presentation templates, social designs, and website exports.
 
 The tool has two surface forms:
 
@@ -26,7 +26,7 @@ The tool has two surface forms:
 | 5 | **Preview modes: Editorial / UI / Raw ladder** as tabs | Each answers a different question |
 | 6 | **Exports: CSS, Tailwind v3, Tailwind v4 `@theme`, JSON, SCSS, JS/TS, W3C design tokens, Figma Tokens Studio, `@font-face`+Google `<link>`** | One panel with format tabs |
 | 7 | **Brand integration: dual-write** — structured `brand.typescale` object AND sync to existing `brand.typography` (primary/secondary/scale from `TypographySystem` in `brandAssets.ts`) | Instant reflection in Brand Board / Identity without requiring them to read the new object |
-| 8 | **Multiple scale surfaces per brand** — one font pair, separate ladders for `web` (fluid clamp), `ui`, `presentation`, `social` | BrandOS ships presentation/social/web; each medium has its own typographic rhythm |
+| 8 | **Multiple scale surfaces per brand** — one font pair, separate ladders for `web` (fluid clamp), `ui`, `presentation`, `social` | BrandingOS ships presentation/social/web; each medium has its own typographic rhythm |
 
 ## 3. Architecture
 
@@ -319,7 +319,7 @@ typescale: {
   tagline: 'Build a typography system your whole brand can use.',
   description: 'Pick fonts, tune your scale for web, UI, presentation, and social — get CSS, Tailwind, and design tokens. Free.',
   seo: {
-    title: 'Typescale Generator — Build a typography system — BrandOS',
+    title: 'Typescale Generator — Build a typography system — BrandingOS',
     description: 'Free modern typescale tool. Pick Google Fonts, generate a fluid scale, export CSS, Tailwind, and W3C design tokens.',
     keywords: [
       'typescale generator', 'type scale', 'modular scale', 'fluid typography',

@@ -1,4 +1,4 @@
-# BrandOS — Architecture Decision Log
+# BrandingOS — Architecture Decision Log
 
 Append-only record of tech-stack, pattern, and approach decisions. Newest at
 the top. Each entry: **decision → reasoning → alternatives considered**.
@@ -232,7 +232,7 @@ component. No slide reads the `Brand` type directly — they render against
 
 ## 2026-04-23 — Typescale tool architecture (tool-platform pattern)
 
-**Decision.** The Typescale tool set the pattern for "tool features in BrandOS": pure-TS `engine/` + `export/` folders (no React, no DOM, no async); a composable root component with `variant: 'full' | 'compact'` so the same editor mounts in both a full page and an embedded dialog; a `materializer` registered via side-effect import to hook into the platform's claim-on-signup flow.
+**Decision.** The Typescale tool set the pattern for "tool features in BrandingOS": pure-TS `engine/` + `export/` folders (no React, no DOM, no async); a composable root component with `variant: 'full' | 'compact'` so the same editor mounts in both a full page and an embedded dialog; a `materializer` registered via side-effect import to hook into the platform's claim-on-signup flow.
 
 **Reasoning.** Codified the pattern by building against it. Pure-TS cores are unit-testable without a DOM harness and keep ratio / fluid-clamp / semantic-mapping math away from React re-render concerns. The `variant` prop collapses what would otherwise be two parallel component trees into one, avoiding drift. The side-effect-on-import materializer (copied from `variant-studio/materializer.ts`) makes adding a tool purely additive — `src/features/tools/core/claim.ts` knows nothing about specific slugs.
 

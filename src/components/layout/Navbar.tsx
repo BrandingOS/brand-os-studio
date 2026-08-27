@@ -23,12 +23,12 @@ export default function Navbar() {
       <div className="container-tight pointer-events-auto">
         <div className="mx-auto max-w-5xl">
           <div className="nav-glass flex items-center justify-between rounded-full px-4 sm:px-5 py-2">
-            <a href="/" className="flex items-center gap-2" aria-label="BrandOS">
+            <a href="/" className="flex items-center gap-2" aria-label="BrandingOS">
               <span className="navbar-logo-icon">
                 <Sparkles className="h-4 w-4" />
               </span>
               <span className="font-display text-base sm:text-lg font-bold tracking-tight">
-                BrandOS
+                BrandingOS
               </span>
             </a>
 

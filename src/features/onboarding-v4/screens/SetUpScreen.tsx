@@ -103,6 +103,7 @@ export function SetUpScreen() {
   const assets = useV4Store((s) => s.assets);
   const setupPanel = useV4Store((s) => s.setupPanel);
   const setSetupPanel = useV4Store((s) => s.setSetupPanel);
+  const updateDefine = useV4Store((s) => s.updateDefine);
   const updateAsset = useV4Store((s) => s.updateAsset);
 
   const createBrand = useBrandStore((s) => s.create);
@@ -141,6 +142,15 @@ export function SetUpScreen() {
     // A details URL with nothing typed is a cold load or a stale share. Correct
     // the address rather than leaving it lying about where the user is.
     if (askedStep === 'details' && !define.name.trim()) {
+      // Landing-page handoff: ?step=details&name=<brand> arrives with the
+      // name already typed in the landing hero. Adopt it instead of
+      // bouncing back — the effect re-runs with the name set and the
+      // details panel stands.
+      const handoff = sp.get('name')?.trim();
+      if (handoff) {
+        updateDefine({ name: handoff });
+        return;
+      }
       navigate('/onboard-brand' + (then ? `?then=${encodeURIComponent(then)}` : ''), { replace: true });
       return;
     }
@@ -156,7 +166,7 @@ export function SetUpScreen() {
         navigate(`/onboard-brand/${slug}${qs}`, { replace: true });
       }
     }
-  }, [askedStep, slug, define.name, setupPanel, setSetupPanel, navigate, then, brands]);
+  }, [askedStep, slug, define.name, setupPanel, setSetupPanel, navigate, then, brands, sp, updateDefine]);
 
   /** Moves to a panel BY navigating, so history and the URL cannot disagree. */
   const goToPanel = useCallback(
@@ -303,7 +313,6 @@ export function SetUpScreen() {
    * cannot be restored is the transient upload list, so the logo board comes
    * back empty; the Library still holds the files.
    */
-  const updateDefine = useV4Store((s) => s.updateDefine);
   useEffect(() => {
     if (!slug || brand?.slug === slug) return;
     const found = brands.find((b) => b.slug === slug);

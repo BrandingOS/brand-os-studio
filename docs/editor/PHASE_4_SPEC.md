@@ -8,7 +8,7 @@
 
 The "Templates" entry in the editor's App Rail is not just a templates library. It is the **Content Universe** — every design, template, AI-generated artifact, and AI prompt preset accessible by the user, organized by category, in one place.
 
-This phase makes BrandOS feel like Canva, but better — because every template is brand-aware (uses SlotRefs from `useBrandKit`), every design saves to the user's brand, and every AI-generated artifact is immediately editable inside the unified editor.
+This phase makes BrandingOS feel like Canva, but better — because every template is brand-aware (uses SlotRefs from `useBrandKit`), every design saves to the user's brand, and every AI-generated artifact is immediately editable inside the unified editor.
 
 ---
 
@@ -16,7 +16,7 @@ This phase makes BrandOS feel like Canva, but better — because every template 
 
 Five content types live in the Templates panel:
 
-1. **Pre-made templates** — designed by the BrandOS team, curated, high-quality. Brand-agnostic via SlotRefs.
+1. **Pre-made templates** — designed by the BrandingOS team, curated, high-quality. Brand-agnostic via SlotRefs.
 2. **AI-generated editable templates** — AI returns a `BrandOSDocument` with full layers; user can edit layer-by-layer.
 3. **AI-generated rasterized images** — AI returns a single image (PNG/SVG); not editable as a design but can be remixed via prompt or used as a layer.
 4. **AI prompt presets** — pre-written prompts the user can pick and customize before generating.
@@ -341,7 +341,7 @@ New admin route `/admin/templates/queue`:
 ### Community filter in Templates panel
 
 Add to the existing source filter (from 4.1):
-- Curated (BrandOS team)
+- Curated (BrandingOS team)
 - AI Generated
 - Community (users)
 - My Designs (current user only)
@@ -413,7 +413,7 @@ No mid-sub-phase check-ins unless stop discipline triggers.
 
 ## When everything lands
 
-Phase 4 ships the BrandOS content universe. Users can:
+Phase 4 ships the BrandingOS content universe. Users can:
 - Browse 100+ pre-made templates organized by category
 - Generate new content with AI (editable or rasterized)
 - Save their own designs and reuse them as personal templates

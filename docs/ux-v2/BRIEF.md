@@ -7,7 +7,7 @@ Paste the block below into the "Any other notes?" field in Claude Design. Attach
 ## Company blurb (for the "Company name and blurb" field)
 
 ```
-BrandOS — an all-in-one brand operating system. Users set up a brand (logo, colors, typography, voice), get an auto-generated brand kit, editable brand guidelines, a design canvas for social/print/screen, and AI-assisted tools. Desktop-first SPA built in React + TypeScript + Tailwind + shadcn. Target users: solo founders and small teams who need a consistent brand without hiring an agency.
+BrandingOS — an all-in-one brand operating system. Users set up a brand (logo, colors, typography, voice), get an auto-generated brand kit, editable brand guidelines, a design canvas for social/print/screen, and AI-assisted tools. Desktop-first SPA built in React + TypeScript + Tailwind + shadcn. Target users: solo founders and small teams who need a consistent brand without hiring an agency.
 ```
 
 ---
@@ -52,7 +52,7 @@ DELIVERABLES WE WANT (in order):
 NON-GOALS:
 - No landing-page design (separate project under /landingpage).
 - No mobile layouts for now — desktop-first.
-- No new brand/style name for the UI. It's just "the new BrandOS UI."
+- No new brand/style name for the UI. It's just "the new BrandingOS UI."
 - Do not redesign the Fabric.js canvas internals — that's tagged stable. Redesign the chrome around it.
 
 WHAT WORKS / WHAT DOESN'T:
@@ -70,7 +70,7 @@ WHAT WORKS / WHAT DOESN'T:
 | **Link code from your computer** (fallback if OAuth fails) | Point at `src/features/setup/`, `src/features/onboarding-brand/`, `src/shared/layouts/CosmosWorkspaceShell.tsx`, `src/shared/styles/cosmos-workspace.css`. That's the direction to extend. |
 | **Upload a .fig file** | Skip — none exists. |
 | **Fonts** | Inter (Google Fonts) + Instrument Serif (Google Fonts) — upload `.woff2` files or provide Google Fonts links. |
-| **Logo** | The BrandOS "B" mark (top-left of `/setup`). Export PNG + SVG. |
+| **Logo** | The BrandingOS "B" mark (top-left of `/setup`). Export PNG + SVG. |
 | **Screenshots (Drag files here)** | (1) `/setup` from x.brandingos.ai, (2) `/onboard-brand` from x.brandingos.ai, (3) the old UI labeled "DO NOT follow — replace this", (4) any competitor references you want to send as *idea* inspiration (the notes block above tells Claude Design to interpret these loosely). |
 
 ---

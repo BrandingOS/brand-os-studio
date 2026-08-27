@@ -1,5 +1,5 @@
 /**
- * Service Container — lightweight dependency injection for BrandOS.
+ * Service Container — lightweight dependency injection for BrandingOS.
  *
  * Usage:
  *   container.register('brands', () => new LocalBrandsService());
