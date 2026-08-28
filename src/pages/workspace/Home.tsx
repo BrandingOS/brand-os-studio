@@ -215,13 +215,29 @@ function NewBrandCard() {
 }
 
 
+/** Eats exactly one click — the one a finished band gesture would otherwise fire. */
+function swallow(ev: MouseEvent) {
+  ev.preventDefault();
+  ev.stopPropagation();
+}
+
 /**
  * Dragging a rubber band across the grid.
  *
- * The gesture has to start on EMPTY space — a drag that began on a card would
- * fight the card's own click, and the browser's text selection, and the link
- * underneath. So the band listens on the surface behind the grid and bows out
- * the moment the press lands on anything interactive.
+ * The band starts anywhere on the surface, CARDS INCLUDED. Requiring empty
+ * space made the gesture almost unusable on the page it exists for: a full grid
+ * is mostly cards, so the only places a drag could begin were the gutters
+ * between them and the strip below the last row.
+ *
+ * A press on a card is ambiguous until it moves, so nothing is decided at
+ * pointerdown. Past a few pixels of travel it is a band; released without them
+ * it is a click and the card opens as it always did. Three things have to be
+ * held off for that to be true — the link's native drag, the text selection the
+ * drag would paint, and the click the release fires — and each is suppressed
+ * only once the gesture has actually become a drag.
+ *
+ * Real controls still bow out. A press on the checkbox, the ⋯ button or the
+ * name field is unambiguous, so it never starts a band.
  *
  * Coordinates are the surface's own, not the viewport's, so the rectangle stays
  * put while the page scrolls under it — and the hit test compares the same
@@ -256,8 +272,10 @@ function ProjectBand({
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    // Anything the user could have meant to press instead.
-    if ((e.target as HTMLElement).closest('a, button, input, [data-project-id]')) return;
+    const target = e.target as HTMLElement;
+    // A press on a real control means that control, not a band. The card's own
+    // link is deliberately NOT in this list — that is the whole grid.
+    if (target.closest('button, input, textarea, select, label, [data-no-band]')) return;
     const surface = surfaceRef.current;
     if (!surface) return;
 
@@ -265,7 +283,14 @@ function ProjectBand({
     const startX = e.clientX - origin.left;
     const startY = e.clientY - origin.top;
     const additive = e.metaKey || e.ctrlKey || e.shiftKey;
-    if (!additive) selection.clear();
+    const onCard = Boolean(target.closest('[data-project-id]'));
+    // On a touch screen a drag across a card is a SCROLL. There is no hover to
+    // disambiguate and no modifier to hold, so the gesture keeps its old rule
+    // there and starts only on empty space.
+    if (onCard && e.pointerType === 'touch') return;
+    // Pressing empty space is already a decision — it means "nothing". On a
+    // card it is not, so the selection survives until the drag proves itself.
+    if (!additive && !onCard) selection.clear();
 
     let moved = false;
 
@@ -281,6 +306,10 @@ function ProjectBand({
       // A few pixels of travel is a click with a shaky hand, not a drag.
       if (!moved && box.w + box.h < 6) return;
       moved = true;
+      // Now that it IS a drag, take the selection the browser has been
+      // painting since the press. `user-select` alone cannot undo what was
+      // selected before the rule applied.
+      window.getSelection?.()?.removeAllRanges();
       setRect(box);
       selection.setBand(hitTest(box), additive);
     };
@@ -288,10 +317,19 @@ function ProjectBand({
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('dragstart', suppressDrag, true);
+      // A drag that ended on a card would otherwise open it, throwing away the
+      // selection it just made. One click, swallowed in the capture phase
+      // before the link ever hears it.
+      if (moved) window.addEventListener('click', swallow, { capture: true, once: true });
       selection.endBand();
       setRect(null);
     };
 
+    // Links and images are draggable by default, and a native drag cancels the
+    // pointer stream mid-gesture — the band would freeze where it started.
+    const suppressDrag = (ev: Event) => ev.preventDefault();
+    window.addEventListener('dragstart', suppressDrag, true);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };

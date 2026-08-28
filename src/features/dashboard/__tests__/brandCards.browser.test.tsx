@@ -465,6 +465,57 @@ describe('selecting projects', () => {
     expect(await screen.findByRole('tab', { name: 'Client work' })).toBeTruthy();
   });
 
+  /** Press, travel, release — the gesture as a mouse actually performs it. */
+  const drag = (from: Element, to: Element) => {
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const start = { clientX: a.left + a.width / 2, clientY: a.top + a.height / 2 };
+    const end = { clientX: b.left + b.width / 2, clientY: b.top + b.height / 2 };
+    fireEvent.pointerDown(from, { button: 0, pointerType: 'mouse', ...start });
+    fireEvent.pointerMove(window, { ...end });
+    fireEvent.pointerUp(window, { ...end });
+  };
+
+  it('a band dragged FROM a card selects everything it crosses', async () => {
+    installMany(three());
+    mountMany(three());
+
+    const slots = document.querySelectorAll('[data-project-id]');
+    // Requiring empty space made this gesture nearly unreachable: a full grid
+    // is mostly cards, so there was almost nowhere left to start.
+    drag(slots[0], slots[2]);
+
+    expect(await screen.findByText('3 selected')).toBeTruthy();
+  });
+
+  it('and the card it started on does not open', async () => {
+    installMany(three());
+    mountMany(three());
+
+    const slots = document.querySelectorAll('[data-project-id]');
+    drag(slots[0], slots[2]);
+    // The click the release fires would otherwise open the brand and throw
+    // away the selection the drag had just made.
+    fireEvent.click(slots[0].querySelector('.ws-brand-card')!);
+
+    expect(lastPath).toBe('/dashboard');
+  });
+
+  it('but a press that never travels is still a click', async () => {
+    installMany(three());
+    mountMany(three());
+
+    const card = document.querySelector('[data-project-id="b1"] .ws-brand-card') as HTMLElement;
+    const r = card.getBoundingClientRect();
+    const at = { clientX: r.left + 10, clientY: r.top + 10 };
+    fireEvent.pointerDown(card, { button: 0, pointerType: 'mouse', ...at });
+    fireEvent.pointerUp(window, { ...at });
+    fireEvent.click(card);
+
+    expect(lastPath).not.toBe('/dashboard');
+    expect(screen.queryByText(/selected/)).toBeNull();
+  });
+
   it('Escape clears the selection', async () => {
     installMany(three());
     mountMany(three());
