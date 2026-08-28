@@ -222,8 +222,11 @@
 .bcm-grid-surface {
   position: relative;
 }
-/* A band gesture must not paint the page blue behind it. */
-.bcm-grid-surface[data-banding='true'] {
+/* A band gesture must not paint the page blue behind it. The band can now be
+   dragged from anywhere on the page, so the rule belongs to the whole shell
+   rather than to the grid it used to be confined to. */
+.bcm-grid-surface[data-banding='true'],
+[data-workspace][data-banding='true'] {
   user-select: none;
 }
 

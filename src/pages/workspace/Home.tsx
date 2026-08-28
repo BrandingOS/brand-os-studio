@@ -224,10 +224,14 @@ function swallow(ev: MouseEvent) {
 /**
  * Dragging a rubber band across the grid.
  *
- * The band starts anywhere on the surface, CARDS INCLUDED. Requiring empty
- * space made the gesture almost unusable on the page it exists for: a full grid
- * is mostly cards, so the only places a drag could begin were the gutters
- * between them and the strip below the last row.
+ * The band starts ANYWHERE ON THE PAGE — cards included, and the margins, the
+ * heading and the empty space under the last row with them. Two rules used to
+ * stand in the way and both are gone: the press had to miss every card, and it
+ * had to land on the grid element itself, which is a narrow strip of a wide
+ * page. Between them they left the gutters between cards and little else, on
+ * the one page this gesture exists for. So the listener is on the WINDOW, and
+ * what it declines is named explicitly: the top bar, an open dialog, popover or
+ * context menu, the selection bar, and any real control.
  *
  * A press on a card is ambiguous until it moves, so nothing is decided at
  * pointerdown. Past a few pixels of travel it is a band; released without them
@@ -270,76 +274,96 @@ function ProjectBand({
     return ids;
   }, []);
 
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement;
-    // A press on a real control means that control, not a band. The card's own
-    // link is deliberately NOT in this list — that is the whole grid.
-    if (target.closest('button, input, textarea, select, label, [data-no-band]')) return;
-    const surface = surfaceRef.current;
-    if (!surface) return;
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      const surface = surfaceRef.current;
+      if (!surface) return;
+      // The listener is on the WINDOW, not on the grid, so a drag can start in
+      // the page's margins, beside the heading, or in the empty space under the
+      // last row — the grid itself is a narrow strip of a wide page, and
+      // requiring the press to land on it put most of the page out of reach.
+      const root = surface.closest('[data-workspace]') ?? document.body;
+      if (!root.contains(target)) return;
+      // Chrome, overlays and real controls all mean themselves.
+      if (
+        target.closest(
+          'header, [role="dialog"], [data-radix-popper-content-wrapper], .ctx-menu, .bcm-selbar, button, input, textarea, select, label, [data-no-band]',
+        )
+      )
+        return;
 
-    const origin = surface.getBoundingClientRect();
-    const startX = e.clientX - origin.left;
-    const startY = e.clientY - origin.top;
-    const additive = e.metaKey || e.ctrlKey || e.shiftKey;
-    const onCard = Boolean(target.closest('[data-project-id]'));
-    // On a touch screen a drag across a card is a SCROLL. There is no hover to
-    // disambiguate and no modifier to hold, so the gesture keeps its old rule
-    // there and starts only on empty space.
-    if (onCard && e.pointerType === 'touch') return;
-    // Pressing empty space is already a decision — it means "nothing". On a
-    // card it is not, so the selection survives until the drag proves itself.
-    if (!additive && !onCard) selection.clear();
+      const origin = surface.getBoundingClientRect();
+      const startX = e.clientX - origin.left;
+      const startY = e.clientY - origin.top;
+      const additive = e.metaKey || e.ctrlKey || e.shiftKey;
+      const onCard = Boolean(target.closest('[data-project-id]'));
+      // On a touch screen a drag across a card is a SCROLL. There is no hover
+      // to disambiguate and no modifier to hold, so the gesture keeps its old
+      // rule there and starts only on empty space.
+      if (onCard && e.pointerType === 'touch') return;
+      // Pressing empty space is already a decision — it means "nothing". On a
+      // card it is not, so the selection survives until the drag proves itself.
+      if (!additive && !onCard) selection.clear();
 
-    let moved = false;
+      let moved = false;
 
-    const move = (ev: PointerEvent) => {
-      const x = ev.clientX - origin.left;
-      const y = ev.clientY - origin.top;
-      const box = {
-        x: Math.min(startX, x),
-        y: Math.min(startY, y),
-        w: Math.abs(x - startX),
-        h: Math.abs(y - startY),
+      const move = (ev: PointerEvent) => {
+        const x = ev.clientX - origin.left;
+        const y = ev.clientY - origin.top;
+        const box = {
+          x: Math.min(startX, x),
+          y: Math.min(startY, y),
+          w: Math.abs(x - startX),
+          h: Math.abs(y - startY),
+        };
+        // A few pixels of travel is a click with a shaky hand, not a drag.
+        if (!moved && box.w + box.h < 6) return;
+        if (!moved) {
+          moved = true;
+          // Now that it IS a drag, take the selection the browser has been
+          // painting since the press. `user-select` alone cannot undo what was
+          // selected before the rule applied — and the rule goes on the whole
+          // page, because the drag can now cross the heading.
+          window.getSelection?.()?.removeAllRanges();
+          (root as HTMLElement).dataset.banding = 'true';
+        }
+        setRect(box);
+        selection.setBand(hitTest(box), additive);
       };
-      // A few pixels of travel is a click with a shaky hand, not a drag.
-      if (!moved && box.w + box.h < 6) return;
-      moved = true;
-      // Now that it IS a drag, take the selection the browser has been
-      // painting since the press. `user-select` alone cannot undo what was
-      // selected before the rule applied.
-      window.getSelection?.()?.removeAllRanges();
-      setRect(box);
-      selection.setBand(hitTest(box), additive);
+
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('dragstart', suppressDrag, true);
+        delete (root as HTMLElement).dataset.banding;
+        // A drag that ended on a card would otherwise open it, throwing away
+        // the selection it just made. One click, swallowed in the capture
+        // phase before the link ever hears it.
+        if (moved) window.addEventListener('click', swallow, { capture: true, once: true });
+        selection.endBand();
+        setRect(null);
+      };
+
+      // Links and images are draggable by default, and a native drag cancels
+      // the pointer stream mid-gesture — the band would freeze where it
+      // started.
+      const suppressDrag = (ev: Event) => ev.preventDefault();
+      window.addEventListener('dragstart', suppressDrag, true);
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
     };
 
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('dragstart', suppressDrag, true);
-      // A drag that ended on a card would otherwise open it, throwing away the
-      // selection it just made. One click, swallowed in the capture phase
-      // before the link ever hears it.
-      if (moved) window.addEventListener('click', swallow, { capture: true, once: true });
-      selection.endBand();
-      setRect(null);
-    };
-
-    // Links and images are draggable by default, and a native drag cancels the
-    // pointer stream mid-gesture — the band would freeze where it started.
-    const suppressDrag = (ev: Event) => ev.preventDefault();
-    window.addEventListener('dragstart', suppressDrag, true);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, [selection, hitTest]);
 
   return (
     <div
       ref={surfaceRef}
       className="bcm-grid-surface"
       data-banding={rect ? 'true' : undefined}
-      onPointerDown={onPointerDown}
     >
       {children}
       {rect && (

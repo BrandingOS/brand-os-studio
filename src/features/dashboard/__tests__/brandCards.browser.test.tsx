@@ -488,6 +488,19 @@ describe('selecting projects', () => {
     expect(await screen.findByText('3 selected')).toBeTruthy();
   });
 
+  it('and a band started off the grid entirely still works', async () => {
+    installMany(three());
+    mountMany(three());
+
+    // The grid is a narrow strip of a wide page. Requiring the press to land on
+    // it put the margins, the heading and the space under the last row — most
+    // of what the eye reads as empty — out of reach.
+    const heading = document.querySelector('.ws-hero-title')!;
+    drag(heading, document.querySelectorAll('[data-project-id]')[1]);
+
+    expect(await screen.findByText('2 selected')).toBeTruthy();
+  });
+
   it('and the card it started on does not open', async () => {
     installMany(three());
     mountMany(three());
