@@ -4,6 +4,7 @@ import { useSessionStore } from '@/shared/store/sessionStore';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import { initialsFromName } from '@/shared/utils/initials';
+import { BrandMark } from '@/shared/ds';
 import '@/shared/styles/workspace.css';
 import '@/shared/styles/workspace-home.css';
 
@@ -70,8 +71,11 @@ export function WorkspaceShell({
       <header className="workspace-top-nav" role="banner">
         <div className="workspace-top-nav-left">
           <NavLink to="/" className="top-nav-brand" aria-label={brandName}>
+            {/* The product's own mark, not its initial. It turns slowly so the
+                logo is never quite still — the idle animation, which is
+                deliberately nothing like the loader. */}
             <span className="top-nav-brand-mark" aria-hidden="true">
-              B
+              <BrandMark size={17} idle color="var(--ds-accent-fg)" />
             </span>
             <span>{brandName}</span>
           </NavLink>

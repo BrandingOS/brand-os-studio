@@ -277,4 +277,22 @@ describe('BrandMark', () => {
     expect(container.querySelectorAll('path')).toHaveLength(9);
     expect(screen.getByRole('status')).toBeTruthy();
   });
+
+  it('turns slowly when idle, and says it is a logo rather than a status', () => {
+    const { container } = render(<BrandMark idle />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.classList.contains('ds-mark-idle')).toBe(true);
+    // The dots are untouched — the idle turn moves the whole mark and nothing
+    // in it fades, which is what keeps it from reading as the loader.
+    expect(container.querySelectorAll('.ds-mark-dot')).toHaveLength(0);
+    expect(screen.getByRole('img', { name: 'BrandingOS' })).toBeTruthy();
+  });
+
+  it('and loading wins when both are asked for', () => {
+    // A mark that is genuinely busy must say so; a logo that permanently wears
+    // the loader would say the app is permanently busy.
+    const { container } = render(<BrandMark idle loading />);
+    expect(container.querySelector('svg')!.classList.contains('ds-mark-idle')).toBe(false);
+    expect(container.querySelectorAll('.ds-mark-dot')).toHaveLength(8);
+  });
 });

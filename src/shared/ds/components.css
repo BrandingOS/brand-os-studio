@@ -889,6 +889,25 @@
   transform-origin: center;
   animation: ds-mark-dot 1.2s var(--ds-ease) infinite;
 }
+/* The mark used AS the logo, so it is never quite still. Deliberately unlike
+   the loader above: no opacity at all, and slow enough that the eye reads a
+   drift rather than a spin — a logo permanently wearing the loader would say
+   the app is permanently busy. The mark is eight-fold symmetric, so a quarter
+   turn is a full cycle and the loop is seamless. */
+.ds-mark-idle {
+  transform-origin: center;
+  animation: ds-mark-idle 20s linear infinite;
+  will-change: transform;
+}
+@keyframes ds-mark-idle {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(90deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-mark-idle {
+    animation: none;
+  }
+}
 .ds-loading-pill {
   display: inline-flex;
   align-items: center;

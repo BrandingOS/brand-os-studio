@@ -85,13 +85,12 @@
   margin-bottom: 6px;
   box-shadow: var(--ds-shadow-xs);
 }
-[data-onboarding="cosmos"] .brand-mark span {
+/* The mark inside the tile inherits this, so the colour lives on the tile —
+   it used to sit on the letter's own span, which no longer exists. */
+[data-onboarding="cosmos"] .brand-mark {
   color: #fff;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: -0.02em;
 }
-[data-onboarding="cosmos"][data-theme="dark"] .brand-mark span {
+[data-onboarding="cosmos"][data-theme="dark"] .brand-mark {
   color: #0d0d0d;
 }
 

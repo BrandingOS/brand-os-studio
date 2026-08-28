@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { BrandSwitcher } from '@/features/brand/components/BrandSwitcher';
 import { SegmentedNav } from '@/shared/ui/SegmentedNav';
 import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
+import { BrandMark } from '@/shared/ds';
 import '@/shared/styles/workspace.css';
 
 /**
@@ -102,8 +103,11 @@ export function WorkspaceShell({
             <BrandSwitcher currentSlug={slug} />
           ) : (
             <NavLink to={resolvedBrandHome} className="top-nav-brand" aria-label={brandName}>
+              {/* The product's own mark, not its initial. It turns slowly so
+                  the logo is never quite still — the idle animation, which is
+                  deliberately nothing like the loader. */}
               <span className="top-nav-brand-mark" aria-hidden="true">
-                B
+                <BrandMark size={17} idle color="var(--ds-accent-fg)" />
               </span>
               <span>{brandName}</span>
             </NavLink>

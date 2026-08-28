@@ -5,6 +5,14 @@ import React from 'react';
  * `loading` fades the ring dots in sequence (1.2s, system easing) — this is
  * the product's loader at every size. Never use a generic ring spinner.
  *
+ * `idle` is the OTHER animation: a slow orbit for a mark that is simply sitting
+ * there being the product's logo. It must never be confused with `loading` — a
+ * logo that permanently wears the loader tells the user the app is permanently
+ * busy — so the two are deliberately unalike. The loader is fast and dips the
+ * dots to near-nothing in sequence; the idle turn is twenty seconds for a
+ * quarter of a revolution and touches no opacity at all. The mark has eight-fold
+ * rotational symmetry, so the turn reads as a drift rather than a spin.
+ *
  * `activeNodes` lights a SUBSET of the ring instead, with optional spokes to
  * the centre. It exists because the mark is the only place this geometry
  * lives, and a caller that needs per-node control would otherwise copy the
@@ -51,6 +59,11 @@ export interface BrandMarkProps {
   size?: number;
   /** Animate the ring dots. */
   loading?: boolean;
+  /**
+   * A slow, continuous turn — for the mark used AS the logo, so it is never
+   * quite still. Ignored while `loading`, which owns the whole animation.
+   */
+  idle?: boolean;
   /** Defaults to the accent token (charcoal light / warm-white dark). */
   color?: string;
   className?: string;
@@ -67,6 +80,7 @@ export interface BrandMarkProps {
 export function BrandMark({
   size = 20,
   loading = false,
+  idle = false,
   color,
   className,
   activeNodes,
@@ -86,7 +100,7 @@ export function BrandMark({
       height={size}
       viewBox="0 0 113.01 113.01"
       fill={color ?? 'var(--ds-accent)'}
-      className={className}
+      className={[idle && !loading ? 'ds-mark-idle' : '', className ?? ''].join(' ').trim() || undefined}
       style={{ flexShrink: 0 }}
       role={loading ? 'status' : 'img'}
       aria-label={loading ? 'Loading' : 'BrandingOS'}
