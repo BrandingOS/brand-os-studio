@@ -134,7 +134,7 @@ export function CardCoverPopover({
               No logo in this brand yet
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Brand Logos">
+            <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="Brand Logos">
               {variants.map((variant) => {
                 const selected = card?.logoRole === variant.role;
                 const ground = tileGround(variant.role, variant.resolved.url);
@@ -165,7 +165,7 @@ export function CardCoverPopover({
                     <img
                       src={variant.resolved.url}
                       alt=""
-                      className="w-full h-full object-contain p-2.5"
+                      className="w-full h-full object-contain p-2"
                       loading="lazy"
                     />
                     {selected && <ChosenBadge />}
