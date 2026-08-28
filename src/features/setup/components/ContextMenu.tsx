@@ -14,6 +14,20 @@ export type ContextMenuItem = {
   /** Submenu: clicking this item MORPHS the menu box into these items
    *  (with a Back row) instead of closing. `onSelect` is ignored. */
   children?: ContextMenuItem[];
+  /**
+   * A second action on the SAME row, icon-only, at its end — for a shortcut
+   * that belongs to this item rather than beside it in the list. A row with one
+   * stops being a single button (a button inside a button is not a button), so
+   * it becomes two buttons sharing a hover.
+   */
+  action?: {
+    /** Its accessible name; there is no visible label. */
+    label: string;
+    icon: React.ReactNode;
+    onSelect: () => void;
+    /** Leave the menu up, for an action worth pressing more than once. */
+    keepOpen?: boolean;
+  };
 };
 
 type Props = {
@@ -155,38 +169,58 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             <span className="ctx-menu-label">Back</span>
           </button>
         )}
-        {shown.map((it, i) => (
-          <button
-            key={i}
-            type="button"
-            role="menuitem"
-            className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}`}
-            disabled={it.disabled}
-            onClick={() => {
-              if (it.disabled) return;
-              if (it.children && it.children.length > 0) {
-                swapTo(it.children);
-                return;
-              }
-              it.onSelect();
-              onClose();
-            }}
-          >
-            {it.icon && (
-              <span className="ctx-menu-icon" aria-hidden>
-                {it.icon}
-              </span>
-            )}
-            <span className="ctx-menu-label">{it.label}</span>
-            {it.children && it.children.length > 0 && (
-              <span className="ctx-menu-chevron" aria-hidden>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </span>
-            )}
-          </button>
-        ))}
+        {shown.map((it, i) => {
+          const row = (
+            <button
+              type="button"
+              role="menuitem"
+              className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}`}
+              disabled={it.disabled}
+              onClick={() => {
+                if (it.disabled) return;
+                if (it.children && it.children.length > 0) {
+                  swapTo(it.children);
+                  return;
+                }
+                it.onSelect();
+                onClose();
+              }}
+            >
+              {it.icon && (
+                <span className="ctx-menu-icon" aria-hidden>
+                  {it.icon}
+                </span>
+              )}
+              <span className="ctx-menu-label">{it.label}</span>
+              {it.children && it.children.length > 0 && (
+                <span className="ctx-menu-chevron" aria-hidden>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </span>
+              )}
+            </button>
+          );
+          if (!it.action) return <div key={i} className="ctx-menu-row">{row}</div>;
+          return (
+            <div key={i} className="ctx-menu-row has-action">
+              {row}
+              <button
+                type="button"
+                role="menuitem"
+                className="ctx-menu-action"
+                aria-label={it.action.label}
+                title={it.action.label}
+                onClick={() => {
+                  it.action!.onSelect();
+                  if (!it.action!.keepOpen) onClose();
+                }}
+              >
+                {it.action.icon}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>,
     document.body,

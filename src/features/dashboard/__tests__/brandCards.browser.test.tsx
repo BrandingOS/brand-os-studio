@@ -652,9 +652,12 @@ describe('choosing the logo and the colour', () => {
     const before = faceNow();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Actions for Acme' }));
-    fireEvent.click(await screen.findByText('Shuffle cover'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Shuffle cover' }));
 
     await waitFor(() => expect(installed.patches.length).toBe(1));
+    // It stays up: one press is rarely the answer, and reopening the menu
+    // between tries would make stepping through the covers a chore.
+    expect(screen.getByText('Change cover')).toBeTruthy();
     // It steps from what the card is SHOWING, not from what it has stored — a
     // card that has never been touched stores nothing, and starting at the head
     // of the list would apply the answer already on screen: one press that
@@ -670,7 +673,7 @@ describe('choosing the logo and the colour', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Actions for Acme' }));
     await screen.findByText('Change cover');
-    expect(screen.queryByText('Shuffle cover')).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Shuffle cover' })).toBeNull();
   });
 
   it('shows the logos on nothing — a tile is not a preview of the pairing', async () => {

@@ -308,19 +308,21 @@ export function BrandCardMenu({
       label: 'Change cover',
       icon: <CoverIcon />,
       onSelect: () => setCoverOpen(true),
+      // ON the same row, not under it: shuffling IS changing the cover — the
+      // same decision, taken for you — so it belongs to that item rather than
+      // beside it in the list of everything else a project can do. It keeps
+      // the menu up, because one press is rarely the answer. One offer is not
+      // a choice, so with nothing to step to there is no button at all.
+      action:
+        pairings.length > 1
+          ? {
+              label: 'Shuffle cover',
+              icon: <ShuffleIcon />,
+              keepOpen: true,
+              onSelect: () => void shuffleCover(),
+            }
+          : undefined,
     },
-    // Beside it, for when the answer matters less than not having to make it:
-    // step to the next pairing that reads. One offer is not a choice, so with
-    // nothing else to move to the item is not there at all.
-    ...(pairings.length > 1
-      ? [
-          {
-            label: 'Shuffle cover',
-            icon: <ShuffleIcon />,
-            onSelect: () => void shuffleCover(),
-          } as ContextMenuItem,
-        ]
-      : []),
     { label: 'Edit brand', icon: <EditIcon />, onSelect: () => navigate(editUrl) },
     {
       label: 'Share',
