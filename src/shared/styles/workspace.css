@@ -3377,6 +3377,28 @@
 [data-workspace].logo-role-pop .logo-variant-swatch { width: 100%; height: 36px; }
 [data-workspace].logo-role-pop .logo-variant-label { font-size: 8px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ds-text-secondary, #55534b); }
 [data-workspace].logo-role-pop .logo-variant-hint { display: none; }
+/* Rename, above the roles: the chip is what you click to change what this is
+ * called, so the name lives beside the kind. */
+.logo-role-pop .logo-role-rename { display: flex; align-items: center; gap: 6px; padding: 0 0 8px; }
+.logo-role-pop .logo-role-rename-input {
+  flex: 1; min-width: 0; height: 28px; padding: 0 9px;
+  font: inherit; font-size: 12.5px; color: var(--ds-text, #16161a);
+  background: var(--ds-surface, #fff); border: 1px solid var(--ds-border-strong, #d8d5cc); border-radius: 8px;
+}
+.logo-role-pop .logo-role-rename-input:focus { outline: none; border-color: var(--ds-accent, #111113); box-shadow: 0 0 0 3px var(--ds-focus-ring, rgba(17,17,19,0.16)); }
+.logo-role-pop .logo-role-rename-btn {
+  height: 28px; padding: 0 10px; border-radius: 999px;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  background: var(--ds-surface-subtle, #faf9f5); border: 1px solid var(--ds-border, #e6e4dd); color: var(--ds-text-secondary, #55534b);
+}
+.logo-role-pop .logo-role-rename-btn.is-primary { background: var(--ds-accent, #111113); border-color: var(--ds-accent, #111113); color: var(--ds-accent-fg, #f5f4ef); }
+.logo-role-pop .logo-role-rename-btn.is-link {
+  display: inline-flex; align-items: center; gap: 6px; width: 100%; height: auto; padding: 6px 8px;
+  background: none; border: 1px dashed var(--ds-border, #e6e4dd); border-radius: 8px; color: var(--ds-text-secondary, #55534b); font-weight: 500;
+}
+.logo-role-pop .logo-role-rename-btn.is-link:hover { border-style: solid; color: var(--ds-text, #16161a); }
+.logo-role-pop .logo-role-rename-btn svg { width: 12px; height: 12px; }
+
 [data-workspace].logo-role-pop .logo-variant-option.is-current {
   border-color: var(--ds-text, #16161a);
   cursor: default;

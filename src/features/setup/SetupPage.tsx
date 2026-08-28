@@ -1540,6 +1540,12 @@ export function SetupPage({
     setBrand((prev) => ({ ...prev, logos: changeRole(prev.logos, id, target) }));
   }, []);
 
+  const handleRenameLogo = useCallback((id: string, label: string) => {
+    const next = label.trim();
+    if (!next) return;
+    setBrand((prev) => ({ ...prev, logos: prev.logos.map((l) => (l.id === id ? { ...l, label: next } : l)) }));
+  }, []);
+
   const handleDownloadLogo = useCallback(
     (logo: MockBrand['logos'][number]) => {
       const slug = slugify(logo.label || 'logo');
@@ -1700,6 +1706,7 @@ export function SetupPage({
           onReplaceLogo={handleReplaceLogo}
           onDownloadLogo={handleDownloadLogo}
           onChangeLogoRole={handleChangeLogoRole}
+          onRenameLogo={handleRenameLogo}
           onPreviewLogo={handlePreviewLogo}
           onDeletePhoto={handleDeletePhoto}
           onReplacePhoto={handleReplacePhoto}

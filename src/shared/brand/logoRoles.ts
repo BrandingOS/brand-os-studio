@@ -22,7 +22,7 @@
  *   ground. The canonical role names the ink; the label names the use. They
  *   read as opposites and both are correct.
  */
-import type { LogoRole } from '@/shared/types/brandAssets';
+import type { LogoRef, LogoRole, LogoSystemRefs } from '@/shared/types/brandAssets';
 
 export interface LogoRoleDef {
   /** The canonical role. What persists, in `logoSystem`. */
@@ -142,4 +142,24 @@ export function roleForSlot(slot: string | undefined): LogoRole | undefined {
 /** The canonical role → onboarding's slot key. */
 export function slotForRole(role: LogoRole | undefined): string | undefined {
   return logoRoleDef(role)?.slot;
+}
+
+/** The ref a brand holds for a role, wherever the system files it. */
+export function logoRefByRole(
+  brand: { logoSystem?: LogoSystemRefs } | undefined,
+  role: LogoRole,
+): LogoRef | undefined {
+  const ls = brand?.logoSystem;
+  if (!ls) return undefined;
+  switch (role) {
+    case 'primary': return ls.primary;
+    case 'secondary': return ls.secondary;
+    case 'wordmark': return ls.wordmark;
+    case 'iconmark': return ls.iconmark;
+    case 'mono.black': return ls.mono?.black;
+    case 'mono.white': return ls.mono?.white;
+    case 'horizontal': return ls.orientations?.horizontal;
+    case 'stacked': return ls.orientations?.stacked;
+    default: return undefined;
+  }
 }

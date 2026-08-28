@@ -2,6 +2,7 @@ import type { Brand, BrandLogoAssets, BrandStrategy } from '@/shared/types/brand
 import { fromLegacyBrand } from '@/domain/brand';
 import type { TypographySystem, LogoRole } from '@/shared/types/brandAssets';
 import { stageLogoAssignment } from '@/shared/assets/assetOperations';
+import { logoRoleLabel } from '@/shared/brand/logoRoles';
 import type { BrandLogo, MockBrand } from './mockBrand';
 import { isRampStep } from './neutralRamp';
 
@@ -415,14 +416,22 @@ function logosToAssetsDict(logos: BrandLogo[]): BrandLogoAssets {
  * has no slot for the two orientation lockups at all, so a horizontal or
  * stacked logo could round-trip through it only by being forgotten.
  */
-function rolesFromLogos(logos: BrandLogo[]): Array<{ role: LogoRole; url: string }> {
+type RoleOnBoard = { role: LogoRole; url: string; label?: string };
+
+/** Setup's own default tile labels, where they differ from the role's name. */
+const TILE_LABEL: Partial<Record<LogoRole, string>> = { iconmark: 'Icon', secondary: 'Alternate', 'mono.black': 'On light' };
+
+function rolesFromLogos(logos: BrandLogo[]): RoleOnBoard[] {
   const seen = new Set<LogoRole>();
-  const out: Array<{ role: LogoRole; url: string }> = [];
+  const out: RoleOnBoard[] = [];
   logos.forEach((logo, i) => {
     const role = logo.role ?? (i === 0 ? 'primary' : undefined);
     if (!role || seen.has(role)) return;
     seen.add(role);
-    out.push({ role, url: extractLogoUrl(logo) });
+    // A label that is not the role's own name is a name the user gave it.
+    const own = logo.label?.trim();
+    const isDefault = !own || own.toLowerCase() === logoRoleLabel(role).toLowerCase() || own === TILE_LABEL[role];
+    out.push({ role, url: extractLogoUrl(logo), label: isDefault ? undefined : own });
   });
   return out;
 }
@@ -518,7 +527,7 @@ function buildLogoPatch(
  */
 function stageLogoRoles(
   brand: Brand,
-  roles: Array<{ role: LogoRole; url: string }>,
+  roles: RoleOnBoard[],
   dict: BrandLogoAssets,
 ): { logoSystem?: Brand['logoSystem']; brandAssets?: Brand['brandAssets'] } {
   const fromDict: Array<[keyof BrandLogoAssets, LogoRole]> = [
@@ -530,7 +539,7 @@ function stageLogoRoles(
     ['light', 'mono.white'],
   ];
   const claimed = new Set(roles.map((r) => r.role));
-  const all = [...roles];
+  const all: RoleOnBoard[] = [...roles];
   for (const [slot, role] of fromDict) {
     if (claimed.has(role)) continue;
     const url = dict[slot];
@@ -539,12 +548,15 @@ function stageLogoRoles(
 
   let working = brand;
   let staged = false;
-  for (const { role, url } of all) {
+  for (const { role, url, label } of all) {
     const { patch } = stageLogoAssignment(working, {
       role,
       url,
       kind: 'logo',
       name: `${brand.name} ${role}`,
+      // The user's name for the variant rides on the ref, so it survives a
+      // reload; an unnamed tile leaves it unset and reads as the role's name.
+      description: label,
     });
     working = { ...working, ...patch };
     staged = true;

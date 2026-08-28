@@ -15,6 +15,7 @@ import { hexToName } from './colorNames';
 import { NEUTRAL_RAMP } from './neutralRamp';
 import { suggestIconsForBrand } from '@/features/brand-kit/data/suggestIcons';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
+import { logoRefByRole } from '@/shared/brand/logoRoles';
 import type { LogoRole } from '@/shared/types/brandAssets';
 
 /**
@@ -121,6 +122,10 @@ function mapLogos(brand: Brand): BrandLogo[] {
    * scalars stay as the fallback for brands that predate the refs.
    */
   const bySlot = (role: LogoRole) => resolveBrandLogo(brand, role)?.url;
+  // A name the user gave the variant. `LogoRef.description` is the one field
+  // the model has for it; absent, the role's own name is the label.
+  const nameOf = (role: LogoRole, fallback: string) =>
+    logoRefByRole(brand, role)?.description?.trim() || fallback;
 
   const primaryUrl = bySlot('primary') ?? brand.logoAssets?.full ?? brand.logo;
   const wordmarkUrl = bySlot('wordmark') ?? brand.logoAssets?.wordmark;
@@ -156,7 +161,7 @@ function mapLogos(brand: Brand): BrandLogo[] {
   if (primaryUrl) {
     pushOnce(primaryUrl, {
       id: 'primary',
-      label: 'Primary',
+      label: nameOf('primary', 'Primary'),
       variant: 'light',
       role: 'primary',
       svg: buildLogoSvg(primaryUrl, brand.name, LIGHT_BG, '#111113'),
@@ -165,7 +170,7 @@ function mapLogos(brand: Brand): BrandLogo[] {
   // Light-colored logo (designed to sit on a dark surface) — always dark bg.
   pushOnce(lightLogoUrl, {
     id: 'on-dark',
-    label: 'On dark',
+    label: nameOf('mono.white', 'On dark'),
     variant: 'dark',
     role: 'mono.white',
     svg: buildLogoSvg(lightLogoUrl!, brand.name, DARK_BG, '#F5F4EF'),
@@ -173,42 +178,42 @@ function mapLogos(brand: Brand): BrandLogo[] {
   // Dark-colored logo (designed to sit on a light surface) — always light bg.
   pushOnce(darkLogoUrl, {
     id: 'on-light',
-    label: 'On light',
+    label: nameOf('mono.black', 'On light'),
     variant: 'light',
     role: 'mono.black',
     svg: buildLogoSvg(darkLogoUrl!, brand.name, LIGHT_BG, '#111113'),
   });
   pushOnce(iconUrl, {
     id: 'mark',
-    label: 'Icon',
+    label: nameOf('iconmark', 'Icon'),
     variant: 'light',
     role: 'iconmark',
     svg: buildLogoSvg(iconUrl!, brand.name.slice(0, 1), LIGHT_BG, '#111113'),
   });
   pushOnce(wordmarkUrl, {
     id: 'wordmark',
-    label: 'Wordmark',
+    label: nameOf('wordmark', 'Wordmark'),
     variant: 'light',
     role: 'wordmark',
     svg: buildLogoSvg(wordmarkUrl!, brand.name, LIGHT_BG, '#111113'),
   });
   pushOnce(horizontalUrl, {
     id: 'horizontal',
-    label: 'Horizontal',
+    label: nameOf('horizontal', 'Horizontal'),
     variant: 'light',
     role: 'horizontal',
     svg: buildLogoSvg(horizontalUrl!, brand.name, LIGHT_BG, '#111113'),
   });
   pushOnce(stackedUrl, {
     id: 'vertical',
-    label: 'Vertical',
+    label: nameOf('stacked', 'Vertical'),
     variant: 'light',
     role: 'stacked',
     svg: buildLogoSvg(stackedUrl!, brand.name, LIGHT_BG, '#111113'),
   });
   pushOnce(alternateUrl, {
     id: 'alternate',
-    label: 'Alternate',
+    label: nameOf('secondary', 'Alternate'),
     variant: 'light',
     role: 'secondary',
     svg: buildLogoSvg(alternateUrl!, brand.name, LIGHT_BG, '#111113'),

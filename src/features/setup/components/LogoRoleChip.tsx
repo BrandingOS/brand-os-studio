@@ -22,12 +22,22 @@ interface Props {
   /** The tile's current role id (`primary`, `dark`, `mark`, …). */
   currentId: string;
   onPick(roleId: string): void;
+  /** Absent when the surface cannot persist a name. */
+  onRename?(label: string): void;
 }
 
-export function LogoRoleChip({ label, currentId, onPick }: Props) {
+export function LogoRoleChip({ label, currentId, onPick, onRename }: Props) {
   const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState(label);
+  const commitRename = () => {
+    const next = draft.trim();
+    setRenaming(false);
+    if (next && next !== label) onRename?.(next);
+    setOpen(false);
+  };
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setRenaming(false); }}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -55,6 +65,43 @@ export function LogoRoleChip({ label, currentId, onPick }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="logo-role-pop-title">Which variant is this?</div>
+        {onRename && (
+          <div className="logo-role-rename" data-logo-role-rename>
+            {renaming ? (
+              <>
+                <input
+                  className="logo-role-rename-input"
+                  autoFocus
+                  value={draft}
+                  maxLength={24}
+                  placeholder="Variant name"
+                  data-logo-role-rename-input
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') commitRename();
+                    if (e.key === 'Escape') setRenaming(false);
+                  }}
+                />
+                <button type="button" className="logo-role-rename-btn is-primary" onClick={commitRename}>Save</button>
+                <button type="button" className="logo-role-rename-btn" onClick={() => setRenaming(false)}>Cancel</button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="logo-role-rename-btn is-link"
+                data-logo-role-rename-open
+                onClick={() => {
+                  setDraft(label);
+                  setRenaming(true);
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                Rename “{label}”
+              </button>
+            )}
+          </div>
+        )}
         <div className="logo-variant-picker-grid is-compact">
           {ROLES.map((r) => {
             const current = r.id === currentId;

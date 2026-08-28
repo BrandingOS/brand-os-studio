@@ -552,6 +552,8 @@ type Props = {
   onDownloadLogo?: (logo: MockBrand['logos'][number]) => void;
   /** Reassign a logo to another role (primary / wordmark / mark / …). */
   onChangeLogoRole?: (id: string, roleId: string) => void;
+  /** Give a variant a name of the user's own (persisted on the logo ref). */
+  onRenameLogo?: (id: string, label: string) => void;
   /** Promote a variant to Primary. The two tiles trade roles. */
   onSetPrimaryLogo?: (id: string) => void;
   /** Open the "which variant is this?" flow. */
@@ -617,6 +619,7 @@ export function SetupBoard({
   onReplaceLogo,
   onDownloadLogo,
   onChangeLogoRole,
+  onRenameLogo,
   onSetPrimaryLogo,
   onAddLogoVariant,
   onPreviewLogo,
@@ -1297,7 +1300,12 @@ export function SetupBoard({
                 style={{ display: 'block', width: '100%', height: '100%' }}
               />
               {onChangeLogoRole ? (
-                <LogoRoleChip label={logo.label} currentId={logo.id} onPick={(roleId) => onChangeLogoRole(logo.id, roleId)} />
+                <LogoRoleChip
+                  label={logo.label}
+                  currentId={logo.id}
+                  onPick={(roleId) => onChangeLogoRole(logo.id, roleId)}
+                  onRename={onRenameLogo ? (label) => onRenameLogo(logo.id, label) : undefined}
+                />
               ) : (
                 <span className="logo-tile-name">{logo.label}</span>
               )}
