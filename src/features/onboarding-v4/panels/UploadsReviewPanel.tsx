@@ -26,7 +26,7 @@ import {
 } from '@/features/onboarding/bridge/v4Bridge';
 import { VOCABULARIES } from '@/features/onboarding/vocabulary/vocabularies';
 import { PATH_LABEL } from '@/features/onboarding/understanding/proposals';
-import { type SuggestedFontPairing, suggestFontsFor } from '../data/suggestedFonts';
+import { type SuggestedFontPairing, pairingsToOffer } from '../data/suggestedFonts';
 import { POPULAR_PALETTES } from '../data/popularPalettes';
 import { COLOR_HUNT_PALETTES } from '../data/colorHuntPalettes';
 
@@ -847,7 +847,7 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
     [define.name, define.description, aboutSections],
   );
   const paletteSuggestions = useMemo(() => suggestPalettesFor(brandText), [brandText]);
-  const fontSuggestions = useMemo(() => suggestFontsFor(brandText), [brandText]);
+  const fontSuggestions = useMemo(() => pairingsToOffer(define.description, brandText), [define.description, brandText]);
 
   /**
    * The canonical brand, pushed into the store this panel renders from.
@@ -900,30 +900,11 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
       known.add(family);
     }
 
-    // Nothing to show is worse than a starting point. When the brand brought no
-    // typeface, put the best-matching PAIRING up — and label it plainly as ours
-    // rather than theirs, because it is not confirmed and must not look it. The
-    // user either confirms it below or picks another.
-    if (known.size === 0) {
-      const suggestion = suggestFontsFor(brandText)[0];
-      if (suggestion) {
-        for (const family of [suggestion.heading, suggestion.body]) {
-          if (known.has(family)) continue;
-          known.add(family);
-          store.addAsset({
-            id: genId(),
-            name: family,
-            sub: SUGGESTED_FONT_SUB,
-            kind: 'font',
-            fontSource: 'google',
-            previewUrl: null,
-            uploadStatus: 'done',
-            uploadProgress: 1,
-          });
-          injectGoogleFont(family);
-        }
-      }
-    }
+    // When the brand brought no typeface the Fonts group stays EMPTY and offers
+    // pairings. It used to insert the best keyword match, which was then
+    // written to the brand as `suggested` — so nearly every brand came out
+    // Space Grotesk + Inter without anyone choosing it. An empty group is the
+    // honest state; Setup's nudge says Typography is missing.
 
     // Logo placements the classifier could evidence, and the exact duplicates
     // it dropped. A role with no evidence stays empty rather than guessed into.

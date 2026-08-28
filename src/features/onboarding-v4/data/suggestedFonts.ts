@@ -6,6 +6,8 @@
  * assets and injects the stylesheet.
  */
 
+import { looksLikeBrief, parseBrief } from '@/features/onboarding/brief/parseBrief';
+
 export interface SuggestedFontPairing {
   id: string;
   name: string;
@@ -25,7 +27,10 @@ const PAIRINGS: PairingDef[] = [
     name: 'Tech & Digital',
     heading: 'Space Grotesk',
     body: 'Inter',
-    match: /\b(tech|software|saas|app|ai|digital|startup|platform|data|cloud|developer|code)\b/g,
+    // Deliberately NOT "ai", "app", "digital", "platform" or "data": an AI-written
+    // brief for a bakery says "digital presence" and "app", and every brand was
+    // coming out Space Grotesk + Inter.
+    match: /\b(tech|software|saas|startup|cloud|developer|code|devtools?|engineering)\b/g,
   },
   {
     id: 'food',
@@ -135,6 +140,26 @@ const PAIRINGS: PairingDef[] = [
 ];
 
 const FALLBACK_IDS = ['minimal', 'tech', 'fashion'];
+
+/**
+ * The pairings to OFFER for a brand: what its own brief proposed, first, then
+ * the keyword-ranked house list. Nothing here is ever written to the brand —
+ * a pairing exists only once the user picks it.
+ */
+export function pairingsToOffer(description: string, brandText: string, count = 4): SuggestedFontPairing[] {
+  const own: SuggestedFontPairing[] = looksLikeBrief(description)
+    ? (parseBrief(description).fontDirections ?? []).map((d, i) => ({
+        id: `brief-${i}`,
+        name: 'From your brand profile',
+        heading: d.heading,
+        body: d.body,
+      }))
+    : [];
+  const rest = suggestFontsFor(brandText, count).filter(
+    (p) => !own.some((o) => o.heading === p.heading && o.body === p.body),
+  );
+  return [...own, ...rest].slice(0, Math.max(count, own.length));
+}
 
 /** Rank pairings by keyword hits against the brand's text; always returns
  *  `count` pairings — matched first, generic fallbacks after. */

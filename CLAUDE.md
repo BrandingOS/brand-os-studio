@@ -1382,9 +1382,22 @@ out far wider than its band and merely clipped by it.
 **Selecting projects** (`useProjectSelection` + `ProjectSelectionBar` +
 `MoveToFolderModal`): a checkbox on the card, ⌘-click and Shift-click, and a
 rubber band dragged across the grid, all sharing one piece of state so they
-compose. The band starts only on empty space — it bows out when the press lands
-on `a, button, input, [data-project-id]` — and measures in the SURFACE's
-coordinates, so it stays put while the page scrolls. Escape clears.
+compose. **The band starts anywhere on the PAGE, cards included** — two rules
+used to stand in the way and both are gone: the press had to miss every card,
+and it had to land on the grid element, which is a narrow strip of a wide page.
+Between them they left the gutters between cards and little else. So the
+pointerdown listener is on the WINDOW and names what it declines: the top bar,
+an open dialog / popover / context menu, the selection bar, and any real
+control. A
+press on a card is ambiguous until it MOVES: past a few pixels it is a band, and
+released without them it is a click that opens the card as before. Three things
+are then suppressed, and only once it has become a drag — the link's native drag
+(which would cancel the pointer stream mid-gesture), the text selection painted
+since the press, and the click the release fires, swallowed once in the capture
+phase. Real controls (`button, input, textarea, select, label, [data-no-band]`)
+still bow out, and a touch press on a card is a SCROLL, so it keeps the old rule.
+The band measures in the SURFACE's coordinates, so it stays put while the page
+scrolls. Escape clears.
 
 **A folder is a NAME, not a record.** `workspaceCard.folder` is a string on the
 card; the set of folders is whatever names the projects currently carry, so the
@@ -1676,6 +1689,14 @@ controls render Core values; every edit writes straight back through the bridge.
   free prose goes to the assisted parse. `brief/prompt.ts` and `parseBrief.ts`
   are a two-way contract — a test pins their labels together. `data/typedPrompts.ts`
   re-exports the canonical builder, so the old badge hands over the new prompt.
+- **A typeface is never imposed.** The review used to insert the best
+  keyword-matched pairing when the brand brought no font, and the write-through
+  saved it as `suggested` — so almost every brand came out Space Grotesk + Inter
+  (the "tech" regex matched `ai`, `app`, `digital`, `platform`, `data`, which
+  every AI-written brief contains). Now the Fonts group stays EMPTY and offers
+  pairings (`pairingsToOffer`: the brief's own `Fonts: Directions:` first, then
+  the house list); a pairing exists only once the user picks it. Pinned by
+  `onboarding-v4/__tests__/suggestedFonts.test.ts`.
 - **Colours/fonts are two-mode.** Concrete values rank `brief`; offered
   `Directions:` rank `ai` and stay suggestions. An AI palette is never written
   as the brand's own.

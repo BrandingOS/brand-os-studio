@@ -25,7 +25,10 @@ const PAIRINGS: PairingDef[] = [
     name: 'Tech & Digital',
     heading: 'Space Grotesk',
     body: 'Inter',
-    match: /\b(tech|software|saas|app|ai|digital|startup|platform|data|cloud|developer|code)\b/g,
+    // Deliberately NOT "ai", "app", "digital", "platform" or "data": an AI-written
+    // brief for a bakery says "digital presence" and "app", and every brand was
+    // coming out Space Grotesk + Inter.
+    match: /\b(tech|software|saas|startup|cloud|developer|code|devtools?|engineering)\b/g,
   },
   {
     id: 'food',
