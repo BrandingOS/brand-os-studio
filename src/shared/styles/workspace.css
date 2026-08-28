@@ -4213,7 +4213,27 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* The menu opens just under the top bar, so what is left of the viewport is
+     what it may occupy. Without a ceiling a workspace of forty brands drew a
+     list taller than the screen with no way to reach its end. */
+  max-height: calc(100vh - 96px);
   animation: brand-switcher-in 180ms var(--ds-ease);
+}
+/* The brands, and only the brands. `min-height: 0` is what actually lets it
+   scroll: a flex child refuses to shrink below its content without it, so the
+   menu would grow past its own max-height instead. */
+[data-workspace] .brand-switcher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  /* Reaching the end of the list must not start scrolling the page behind it. */
+  overscroll-behavior: contain;
+  /* The scrollbar sits in the padding rather than on top of a row's rounded
+     highlight. */
+  margin-right: -4px;
+  padding-right: 4px;
 }
 @keyframes brand-switcher-in {
   from {

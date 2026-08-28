@@ -106,6 +106,10 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
           <div className="brand-switcher-divider" aria-hidden="true" />
           <div className="brand-switcher-section-label">Brands</div>
 
+          {/* Only the BRANDS scroll. Dashboard and “Create new brand” are the
+              two fixed points of this menu, and a list of forty-four projects
+              must not push them off the screen. */}
+          <div className="brand-switcher-list">
           {list.map((brand) => {
             const active = brand.slug === currentSlug;
             return (
@@ -139,6 +143,7 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
               </button>
             );
           })}
+          </div>
 
           <div className="brand-switcher-divider" aria-hidden="true" />
 
