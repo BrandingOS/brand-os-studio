@@ -1,8 +1,7 @@
 import { DsInput } from '@/shared/ds';
 import { useV4Store } from '../store/onboardingV4Store';
 import { BrandDropzone } from '../components/BrandDropzone';
-import { AITextarea } from '../components/AITextarea';
-import { CopyPromptHint } from '../components/CopyPromptHint';
+import { BriefHandoff } from '../components/BriefHandoff';
 
 interface Props {
   /**
@@ -58,11 +57,12 @@ export function SetupPanel({ part, onSubmit }: Props) {
     <section className="panel is-active setup-panel-form">
       <form className="cosmos-form" autoComplete="off" noValidate onSubmit={(e) => e.preventDefault()}>
         <div className="field">
-          <div className="ai-field-head">
-            <label htmlFor="description">Describe your brand</label>
-            <CopyPromptHint variant="badge" brandName={define.name} />
-          </div>
-          <AITextarea autoFocus value={define.description} onChange={(v) => update({ description: v })} />
+          <BriefHandoff
+            brandName={define.name}
+            value={define.description}
+            onChange={(v) => update({ description: v })}
+            autoFocus
+          />
         </div>
 
         <div className="field">

@@ -43,6 +43,23 @@ export const BRIEF_LABELS = [
 
 export type BriefLabel = (typeof BRIEF_LABELS)[number];
 
+/**
+ * Phrases that occur in the PROMPT and never in an answer to it.
+ *
+ * The paste box sits three inches from the button that copies the prompt, and
+ * every line of the prompt is shaped like an answer — so pasting the prompt
+ * back parses. `looksLikeBriefPrompt` counts these; two is proof. A test
+ * asserts each one is really in the built prompt, because a guard that stops
+ * firing after a rewording is worse than none.
+ */
+export const BRIEF_PROMPT_SENTINELS = [
+  'You are helping me define the brand and business profile',
+  'Reply in PLAIN TEXT ONLY',
+  'Use exactly these labels, one per line',
+  'choose only from that list',
+  'Do not invent facts about the business',
+] as const;
+
 /** The keyword that marks a colours/fonts answer as a suggestion, not a fact. */
 export const DIRECTIONS_KEYWORD = 'Directions:';
 

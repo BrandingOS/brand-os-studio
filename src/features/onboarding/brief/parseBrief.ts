@@ -24,7 +24,7 @@
  *
  * Pure — no service, no store, no React.
  */
-import { BRIEF_LABELS, DIRECTIONS_KEYWORD, type BriefLabel } from './prompt';
+import { BRIEF_LABELS, BRIEF_PROMPT_SENTINELS, DIRECTIONS_KEYWORD, type BriefLabel } from './prompt';
 
 export interface PaletteDirection {
   name: string;
@@ -92,6 +92,23 @@ function labelAt(line: string): BriefLabel | null {
  */
 export function looksLikeBrief(text: string): boolean {
   return looksLabelled(text, BRIEF_LABELS);
+}
+
+/** True when the text IS our prompt (or most of it) rather than a reply to it. */
+export function looksLikeBriefPrompt(text: string): boolean {
+  const t = text.toLowerCase();
+  let hits = 0;
+  for (const s of BRIEF_PROMPT_SENTINELS) if (t.includes(s.toLowerCase())) hits++;
+  return hits >= 2;
+}
+
+/** How many of the brief's labels a text answers — the number the paste box reports. */
+export function countBriefSections(text: string): number {
+  const seen = new Set<BriefLabel>();
+  for (const b of labelledBlocks(text, BRIEF_LABELS)) {
+    if (b.label && b.lines.some((l) => l.trim())) seen.add(b.label);
+  }
+  return seen.size;
 }
 
 /**

@@ -910,91 +910,133 @@ brand-kit-next only):**
 7. Kit state is local-only until a backend `KitStateRepository`
    implementation lands (interface ready in `kit/repository.ts`).
 
-## AI image generation — inside the design editor (2026-08-17, single-surface 2026-08-18)
+## AI image generation — inside the design editor (2026-08-17, art direction rebuilt 2026-08-24)
 
-**There is ONE generation surface: the design editor's Generate panel.** Every
-entry point creates a DESIGN and opens `/b/:slug/design/:designSlug` — the hub's
-Image mode, its Editable mode, template cards, all of them. Do not build a
-second generator page; a standalone "Image Studio" was built and retired on
-2026-08-18 because it split the experience in two (owner decision). Its
-capabilities live in the panel now: the credits pill, the pre-flight cost on the
-Generate button, the multi-reference strip, and Save to Brand Assets.
+**There is ONE generation surface: the design editor's Generate panel.** Every entry
+point creates a DESIGN and opens `/b/:slug/design/:designSlug`. Do not build a second
+generator page; a standalone "Image Studio" was built and retired on 2026-08-18.
 
-`image_projects` still exists in the database, unread by the UI. An id that
-names one of those rows redirects to `/b/:slug/design` — checked only AFTER the
-document load fails, so the ordinary path costs no extra round trip.
+`image_projects` still exists in the database, unread by the UI. An id naming one of
+those rows redirects to `/b/:slug/design` — checked only AFTER the document load
+fails, so the ordinary path costs no extra round trip.
 
-The Design page (`features/design-alt/DesignHero.tsx`) is an ENTRANCE, not a
-generator: Image mode seeds an empty doc via `panels/generate/aiCanvasSeed.ts`
-(`metadata.ai.origin = 'ai-image'`, prompt staged in `pendingPrompt`) and
-navigates to `/b/:slug/design/:id?prompt=…&mode=image`. The seed page must stay
-EMPTY — generated images arrive as pages AFTER the active one, so anything
-seeded there sits in front of every result. The editor opens on the Generate
-rail (any `metadata.ai` doc does) and `panels/generate/GeneratePanel.tsx` runs
-the flow ON the canvas:
+### The brief is assembled in code — `ai/imagePrompt/`
 
-```
-prompt ─▶ compileImagePrompt (Claude haiku via anthropic-proxy; deterministic
-          fallback — SILENT: the user sees one ProcessingCard, never a review step)
-       ─▶ buildBrandReferences (logo PNG via rasterizeLogo · palette swatch ·
-          previous image) ─▶ generateImage({model, count 1–4, references})
-       ─▶ N pages inserted after the active page in ONE undo step
-       ─▶ metadata.ai.generations[] record per page (Variations / Refine /
-          Regenerate read it back — survives reload)
-```
+The 2026-08-19 pass fixed the FRAMING ("a finished post", not "a background") and left
+the BRIEFING untouched. Measured on real requests, an Instagram post and a printed
+poster came out **92.5% character-identical**: format contributed one noun and one
+ratio, colour arrived as a flat hex list wearing three fixed labels, typography was one
+sentence naming only the heading family, and ~40% of the text was prohibition — sent
+TWICE, once in-prompt and once re-appended by the vendor. It was a compliance document,
+not an art direction.
+
+The division of labour is now three-way, and the split is the design:
+
+| owner | owns |
+|---|---|
+| **CODE** | the deliverable line and the format's CONVENTIONS (`formatBriefs.ts`), the exact-copy contract, the logo fidelity paragraph, the safe margin, which colour ROLE SLOTS exist, the batch plan (`variants.ts`), the exclusions |
+| **THE MODEL** | concept, subject, the layout archetype chosen from the format's allowed set, light and finish, which brand colour fills which slot, type treatment — returned as FIELDS, never as a prompt |
+| **THE USER** | their words, their copy, and `BrandInclusions` — which parts of the brand may enter the frame at all |
 
 Rules that bind:
-- **The model registry is `supabase/functions/_shared/imageModels.ts`** (ids
-  like `google:nano-banana`, `openai:gpt-image`, `pollinations:flux`, vendor,
-  caps, unlocking secret). `src/features/editor/ai/imageModels.ts` is the
-  display mirror; `imageModels.test.ts` fails when they drift. Adding a model
-  = one entry in each (+ a `dispatchX` in `ai-generate-image` for a new vendor).
-  The browser sends registry ids (or `auto`); the server NEVER silently swaps
-  vendors — a missing key is a 409 `model-unavailable` the panel shows inline
-  with the exact secret name. `{action:'models'}` returns availability for the
-  picker. Legacy `model:'flux'` aliases still resolve.
-- **Secrets are Supabase Edge Function secrets, never `VITE_`:**
-  `OPENAI_API_KEY` (GPT Image, uses `/v1/images/edits` when references are
-  attached), `GEMINI_API_KEY` (Nano Banana via `generateContent` +
-  `responseModalities:['IMAGE']`), `FAL_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` +
-  `CLOUDFLARE_API_TOKEN`, `HUGGINGFACE_API_KEY`. `AI_IMAGE_VENDOR=mock` forces
-  the deterministic mock. Vendor model ids are env-overridable
-  (`OPENAI_IMAGE_MODEL`, `GEMINI_IMAGE_MODEL`, …). Deploy with
-  `supabase functions deploy ai-generate-image`.
-- **The compiler enriches, never replaces** (`ai/imagePrompt/compileImagePrompt.ts`
-  — the owner's rules are in its system prompt and tests): keep the user's
-  intent; only relevant brand info; NO logo unless the user asks or the subject
-  is clearly branded (packaging, signage, ads, merch…); don't force every color;
-  a user color direction ("black and white") empties the brand palette. The
-  compile is invisible (owner decision 2026-08-17: "do it in the back end, just
-  show processing") — the compiled prompt is only recorded in `metadata.ai`.
-  Raw mode (`brandos:ai-image:prefs`) sends the exact words.
-- **Brand context reaches the model as IMAGES, not just words**
-  (`ai/imagePrompt/brandReferences.ts`): logo → `@/shared/brand/rasterizeLogo`
-  (1024² PNG, transparent), palette → canvas swatch card, previous → the page's
-  image. Built only for models whose caps allow refs; the server warns
-  `refs-unsupported` for prompt-only vendors and the panel says so.
-- Pages are the history (`EditorGenerationsStrip`); never add a second history
-  store. All vendor bytes come back as data URIs so Fabric export stays untainted.
-- **Money is shown before it is spent.** `estimateGeneration` prices the exact
-  request server-side and the number sits on the Generate button; the button
-  disables when the balance cannot cover it. The balance comes from
-  `useCreditsForBrand`, which resolves the billing workspace the same way
-  migration 027's trigger does (brand's workspace, else the user's oldest).
-  Never compute a price in the browser.
-- **A short delivery is never silent.** When fewer images come back than were
-  asked for, the panel says how many arrived and what was charged.
-- **References are a LIST, in send order** (`ReferenceStrip`). The server
-  truncates to the model's `maxReferenceImages` and warns; the strip greys the
-  ones that will be dropped BEFORE the credits are spent.
-- Tests: `ai/imagePrompt/*.test.ts`, `ai/imageModels.test.ts`,
-  `shared/brand/rasterizeLogo.test.ts`, `panels/generate/aiMetadata.test.ts`,
-  `panels/generate/aiCanvasSeed.test.ts`,
-  `__tests__/e2e/aiImageStudio.flows.browser.test.tsx`,
-  `features/design-alt/__tests__/generationEntryPoints.browser.test.tsx`.
-  Any suite that mounts the panel MUST spread `src/test/imageGenerationStubs.ts`
-  over `@/features/image-generation` and `…/credits` — otherwise it calls the
-  REAL deployed Edge Function and the REAL ledger.
+
+- **`formatBriefs.ts` is the highest-leverage input.** A billboard is read at 30–150 m
+  in 4–6 seconds and carries at most seven words; an Instagram post is read at 150 px
+  in under two. Adding a deliverable = one entry. **`archetypes[0]` is the DEFAULT
+  reading and it must be image-led** — a type-led default on a social post returned a
+  flat green field with the headline on it, measured on a real generation.
+- **A design brief with no enriched SUBJECT must still insist there IS one.** The line
+  "a plain colour field with type on it is NOT a finished design" exists because
+  dropping the SUBJECT block when it merely echoed REQUEST left the deterministic path
+  with no subject signal at all.
+- **`BrandInclusions` replaced the On-brand / Raw switch**, which asked the wrong
+  question: Raw meant "forget the brand entirely", so wanting your own colours on one
+  poster also cost you the logo and the typography. Four independent decisions —
+  logo · text · colours · identity — enforced in THREE places, because one is not
+  enough: the brief drops the section, the compiler is told, and the hook refuses to
+  BUILD the matching reference image. An attached picture is the one instruction a
+  model cannot politely ignore.
+- **Style and Subject references are opposite instructions**, and they used to share
+  one sentence ("for style and subject guidance"). A SUBJECT reference is reproduced
+  faithfully; a STYLE reference contributes light and colour and its subject is never
+  copied. `brandReferences.ts` also sends the USER'S references FIRST — the old order
+  put them last, so a model's reference cap dropped the picture the user personally
+  chose while keeping our generated palette swatch.
+- **The logo is not attached to a picture that forbids one.** `decideLogo` — the old
+  rule attached it whenever a branded noun appeared, so "product shot of our bottle"
+  sent the logo PNG to a brief that said "LOGO — none."
+- **Four candidates are four IDEAS, not four samples.** Every production model Auto can
+  route to declares `supportsSeed: false`, so a batch of four was four draws from one
+  conditioning. `planVariants` perturbs archetype, crop, lighting, type treatment,
+  colour dominance and medium; candidate 0 is always the straight reading. What never
+  varies: the copy, the logo rule, the margin, the exclusions, the subject's identity.
+- **One job per candidate.** Four prompts cannot travel as one job, so a batch is N
+  jobs of `count: 1`. Credits round up PER JOB, so four Nano Banana Pro images cost 56
+  as four jobs and 54 as one — the pre-flight estimate prices a single image and
+  multiplies, so the number on the button is the number charged. A server accepting
+  `prompts: string[]` would remove the difference; that change is NOT written, because
+  this Supabase project also serves production.
+- **The exclusions are four objective failures in-prompt; the long tail rides the
+  negative prompt.** Every production model supports one and the providers already
+  forward it.
+
+### The quality gate — `ai/imagePrompt/critique.ts`
+
+"The provider returned an image" was the only definition of success. A misspelled
+headline, a redrawn logo and an empty backdrop all counted as delivered. The critic
+scores a whole batch in ONE multimodal call through the **already-deployed
+`anthropic-proxy`** (verified: it forwards image content blocks untouched), so none of
+it needs an Edge Function deploy. Four rules keep it from becoming its own problem:
+
+1. **It never delays delivery.** Pages are inserted the moment the images arrive; the
+   critique annotates them afterwards.
+2. **A broken judge must not cost money.** Throw, timeout or nonsense ⇒ everything
+   accepted (`unavailable: true`). The failure mode of a critic is silence.
+3. **It ranks before it rejects.** `critiqueDecision` is pure and exhaustively tested;
+   `repairEnabled` is OFF until the critic is calibrated on real traffic.
+4. **One call per batch, at 512 px** — ~$0.004 against a 56-credit batch.
+
+### Models and money
+
+- The model registry is `supabase/functions/_shared/imageModels.ts`;
+  `src/features/editor/ai/imageModels.ts` is the display mirror and a test fails when
+  they drift. Secrets are Supabase Edge Function secrets, never `VITE_`.
+- **Live as of 2026-08-24** (verified against the deployed function, not the docs):
+  `google:nano-banana-pro`, `google:nano-banana`, `openai:gpt-image`,
+  `openai:gpt-image-mini` available; `fal` / `cloudflare` / `huggingface` have no key.
+  Auto resolves to `google:nano-banana-pro` at 14 credits/image — it routes for
+  quality, not cost.
+- **A deprecation table is not an outage.** An audit reported that Auto's vendor id
+  `gemini-3-pro-image-preview` was shut down in June and every Auto generation was
+  failing. A live generation returned a real 1024² image and charged 14 credits. If it
+  ever does lapse, `vendorModelEnv` (`GEMINI_IMAGE_PRO_MODEL`) re-points it with no
+  deploy.
+- Money is shown before it is spent, and the browser NEVER prices a request.
+
+### The evaluation harness — `evals/image/`
+
+`npm run eval:image` runs in mock mode with zero credits and zero network, and is the
+CI-shaped gate. `--mode=live` prices the whole run server-side and **refuses before the
+first paid call** if it exceeds the budget. Every cell records model, compiled prompt,
+references and roles, brand includes, cost, latency and failure reason, so two runs are
+comparable. `--baseline-dir` compares against an OLD compiler materialised from any git
+ref, so a "before" column is real code rather than memory. See `evals/image/README.md`.
+
+Scoring is deterministic and free (`score/heuristic.ts`) — the multimodal critic is an
+opt-in signal and is never allowed to fail a run on its own.
+
+### Tests
+
+`ai/imagePrompt/{artDirection,compileImagePrompt,brandReferences,critique}.test.ts`,
+`ai/imageModels.test.ts`, `shared/brand/rasterizeLogo.test.ts`,
+`panels/generate/{aiMetadata,aiCanvasSeed,genTiming}.test.ts`,
+`__tests__/e2e/aiImageStudio.flows.browser.test.tsx`,
+`features/design-alt/__tests__/generationEntryPoints.browser.test.tsx`.
+Any suite that mounts the panel MUST spread `src/test/imageGenerationStubs.ts` over
+`@/features/image-generation` and `…/credits`, **and must mock `generateImage` and
+`uploadReference` itself** — the shared stubs do NOT cover those two, and they are the
+two that spend money.
+
 
 ## Folders — one brand filesystem (`/b/:slug/folders`, 2026-08-20)
 
@@ -1302,9 +1344,19 @@ Rules that bind here:
   choice and the card it changes, which is the one thing that has to be seen. It
   opens to the card's `side="right"` for the same reason — dropping it downwards
   covers the band being changed.
-- **Every logo tile is drawn on the ground currently in force**, so a variant
-  that cannot be seen on it looks exactly as invisible in the picker as it does
-  on the card. That is the whole surface, not a flourish.
+- **Nothing in the picker is a preview.** A tile shows the LOGO on nothing, a
+  swatch shows the COLOUR, and the pairing is the card itself — which is right
+  there. Painting the tiles with the ground currently in force was tried and
+  rejected: it made the panel look like it had already applied something, and
+  put a second, smaller answer beside the real one. A tile takes a plain black
+  or plain white chip ONLY when `logoInk` says the artwork reads on exactly one
+  of them, i.e. only when it would otherwise be invisible — never a colour the
+  brand owns.
+- **Each pick is one write, and the writes are QUEUED.** The logo and the ground
+  arrive as two writes a moment apart, so `saveCard` reads the brand live from
+  the store *after* the previous write lands. Merging into the `brand` a render
+  closed over builds the second patch from the state before the first, and
+  choosing the colour silently undid the logo chosen a second earlier.
 - **Selection is a check badge, not only a ring.** Radix moves focus into the
   panel on open, so the first tile wears a focus ring before anything has been
   chosen and two rings meaning different things is one too many.
@@ -1559,13 +1611,25 @@ rearrange it. Change it only when a requirement genuinely adds or removes a
 field, section or action — and then change these files, never rebuild them from
 a description.
 
+**Step 2's description field is a guided AI handoff, not a textarea**
+(`components/BriefHandoff.tsx`, owner request 2026-08-29). Size is the
+instruction: a 140px empty box with a typing placeholder was the call to
+action, and the animated pill beside it read as decoration, so people typed two
+sentences by hand. The three steps are now on screen and stateful (get the
+prompt → run it → paste the reply), the paste box is the LAST thing, and it
+judges live: labelled reply → "N of 12 sections", prose → accepted quietly, the
+prompt itself → refused (`looksLikeBriefPrompt`, `BRIEF_PROMPT_SENTINELS`, each
+pinned to the built prompt by a test). Writing it yourself is a disclosure that
+swaps in the old `AITextarea` on the same store field. `CopyPromptHint` still
+serves `DefineStep`.
+
 **The step is in the URL.** One URL for a whole flow costs refresh-safety,
 sharing and analytics, so each panel has an address:
 
 | URL | Panel |
 |---|---|
 | `/onboard-brand` | 1 · Brand name only. Enter submits. |
-| `/onboard-brand?step=details` | 2 · Describe + `BrandDropzone` (files, and the website/social pill) |
+| `/onboard-brand?step=details` | 2 · `BriefHandoff` (guided Copy prompt → run it → paste the reply; "write it yourself" is a demoted disclosure) + `BrandDropzone` (files, and the website/social pill) |
 | *(transition)* | the 9-dot processing moment |
 | `/onboard-brand/:slug?step=review` | 3 · "Review your uploads" → "Open my brand" |
 | `/onboard-brand/create` | the from-scratch path (`screens/CreateScreen.tsx`) |

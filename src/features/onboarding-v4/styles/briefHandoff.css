@@ -1,0 +1,96 @@
+/* Step 2's guided AI handoff. Every value is a --ds-* token. Scoped to the
+   onboarding shell like the rest of cosmos.css. */
+
+[data-onboarding="cosmos"] .bh { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+[data-onboarding="cosmos"] .bh-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  padding: 16px 18px 14px;
+  box-shadow: var(--ds-shadow-sm);
+}
+
+[data-onboarding="cosmos"] .bh-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
+[data-onboarding="cosmos"] .bh-spark {
+  flex: none; width: 26px; height: 26px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--ds-accent); color: var(--ds-accent-fg);
+}
+[data-onboarding="cosmos"] .bh-spark svg { width: 13px; height: 13px; }
+[data-onboarding="cosmos"] .bh-title { font-size: 14.5px; font-weight: 600; color: var(--ds-text); letter-spacing: -0.01em; }
+[data-onboarding="cosmos"] .bh-sub { font-size: 12px; color: var(--ds-text-muted); margin-top: 1px; }
+
+[data-onboarding="cosmos"] .bh-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+[data-onboarding="cosmos"] .bh-step { display: flex; gap: 12px; position: relative; padding-bottom: 14px; }
+[data-onboarding="cosmos"] .bh-step:last-child { padding-bottom: 0; }
+/* the connector between numbers */
+[data-onboarding="cosmos"] .bh-step:not(:last-child)::before {
+  content: ''; position: absolute; left: 11px; top: 24px; bottom: 2px; width: 1px;
+  background: var(--ds-border);
+}
+[data-onboarding="cosmos"] .bh-num {
+  flex: none; width: 23px; height: 23px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11.5px; font-weight: 600;
+  border: 1px solid var(--ds-border-strong);
+  color: var(--ds-text-secondary); background: var(--ds-surface);
+  transition: background var(--ds-duration-state) var(--ds-ease), color var(--ds-duration-state) var(--ds-ease);
+}
+[data-onboarding="cosmos"] .bh-num svg { width: 12px; height: 12px; }
+[data-onboarding="cosmos"] .bh-step[data-state="active"] .bh-num { background: var(--ds-accent); border-color: var(--ds-accent); color: var(--ds-accent-fg); }
+[data-onboarding="cosmos"] .bh-step[data-state="done"] .bh-num { background: var(--ds-success-bg); border-color: var(--ds-success); color: var(--ds-success-fg); }
+[data-onboarding="cosmos"] .bh-step[data-state="idle"] { opacity: 0.55; }
+[data-onboarding="cosmos"] .bh-step[data-state="idle"] .bh-paste { pointer-events: auto; }
+
+[data-onboarding="cosmos"] .bh-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+[data-onboarding="cosmos"] .bh-label,
+[data-onboarding="cosmos"] .field label.bh-label { font-size: 13.5px; font-weight: 500; color: var(--ds-text); padding: 0; }
+
+[data-onboarding="cosmos"] .bh-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+[data-onboarding="cosmos"] .bh-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px;
+  border-radius: var(--ds-radius-pill);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease), border-color var(--ds-duration-state) var(--ds-ease);
+}
+[data-onboarding="cosmos"] .bh-btn:hover { background: var(--ds-surface-hover); border-color: var(--ds-border-strong); color: var(--ds-text); }
+[data-onboarding="cosmos"] .bh-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ds-focus-ring); }
+[data-onboarding="cosmos"] .bh-btn--primary { background: var(--ds-accent); border-color: var(--ds-accent); color: var(--ds-accent-fg); }
+[data-onboarding="cosmos"] .bh-btn--primary:hover { background: var(--ds-accent); border-color: var(--ds-accent); color: var(--ds-accent-fg); opacity: 0.92; }
+[data-onboarding="cosmos"] .bh-btn--primary.is-copied { background: var(--ds-success-fg); border-color: var(--ds-success-fg); }
+[data-onboarding="cosmos"] .bh-btn svg { width: 12px; height: 12px; }
+[data-onboarding="cosmos"] .bh-ext { opacity: 0.6; }
+
+[data-onboarding="cosmos"] .bh-paste {
+  width: 100%; min-height: 108px; max-height: 220px; resize: vertical;
+  padding: 11px 13px;
+  font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--ds-text);
+  background: var(--ds-surface-subtle);
+  border: 1px dashed var(--ds-border-strong);
+  border-radius: 10px;
+  transition: border-color var(--ds-duration-state) var(--ds-ease), box-shadow var(--ds-duration-state) var(--ds-ease), background var(--ds-duration-state) var(--ds-ease);
+}
+[data-onboarding="cosmos"] .bh-paste::placeholder { color: var(--ds-text-muted); }
+[data-onboarding="cosmos"] .bh-paste:focus { outline: none; border-style: solid; border-color: var(--ds-accent); background: var(--ds-surface); box-shadow: 0 0 0 3px var(--ds-focus-ring); }
+[data-onboarding="cosmos"] .bh-paste[data-verdict="brief"],
+[data-onboarding="cosmos"] .bh-paste[data-verdict="prose"] { border-style: solid; background: var(--ds-surface); }
+[data-onboarding="cosmos"] .bh-paste[data-verdict="prompt"] { border-style: solid; border-color: var(--ds-danger); }
+
+[data-onboarding="cosmos"] .bh-status { display: flex; align-items: center; gap: 6px; min-height: 16px; font-size: 12px; color: var(--ds-text-muted); }
+[data-onboarding="cosmos"] .bh-status svg { width: 12px; height: 12px; }
+[data-onboarding="cosmos"] .bh-status[data-brief-status="brief"] { color: var(--ds-success-fg); }
+[data-onboarding="cosmos"] .bh-status[data-brief-status="prompt"] { color: var(--ds-danger-fg); }
+[data-onboarding="cosmos"] .bh-status[data-brief-status="empty"] { display: none; }
+
+[data-onboarding="cosmos"] .bh-link {
+  align-self: flex-start; background: none; border: 0; padding: 0 2px;
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--ds-text-muted); cursor: pointer;
+}
+[data-onboarding="cosmos"] .bh-link:hover { color: var(--ds-text); text-decoration: underline; text-underline-offset: 3px; }
+[data-onboarding="cosmos"] .bh-manual-link { margin-left: 2px; }
+[data-onboarding="cosmos"] .bh-manual-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
