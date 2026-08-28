@@ -14,6 +14,7 @@ import { TILE_ID_BY_ROLE } from '../data/logoBoard';
 import { LinkCard } from '@/shared/brand/LinkCard';
 import type { SitePreview } from '@/shared/brand/sitePreview';
 import type { LogoRole } from '@/shared/types/brandAssets';
+import { LogoRoleChip } from './LogoRoleChip';
 
 type ColorGroupKey = 'core' | 'accent' | 'grey';
 
@@ -1295,7 +1296,11 @@ export function SetupBoard({
                 dangerouslySetInnerHTML={{ __html: logo.svg }}
                 style={{ display: 'block', width: '100%', height: '100%' }}
               />
-              <span className="logo-tile-name">{logo.label}</span>
+              {onChangeLogoRole ? (
+                <LogoRoleChip label={logo.label} currentId={logo.id} onPick={(roleId) => onChangeLogoRole(logo.id, roleId)} />
+              ) : (
+                <span className="logo-tile-name">{logo.label}</span>
+              )}
               {(onDeleteLogo || onReplaceLogo) && (
                 <div className="logo-tile-actions">
                   {onReplaceLogo && (

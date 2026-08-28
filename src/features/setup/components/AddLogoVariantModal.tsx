@@ -80,7 +80,7 @@ export function AddLogoVariantModal({ open, taken, onClose, onPick }: Props) {
  * horizontal lockup is a shape, and a shape is faster to recognise than a
  * sentence about one.
  */
-function VariantMark({ role }: { role: LogoRole }) {
+export function VariantMark({ role }: { role: LogoRole }) {
   const ink = 'currentColor';
   switch (role) {
     case 'iconmark':

@@ -3318,6 +3318,70 @@
 }
 [data-workspace] .logo-tile.is-empty .logo-tile-name { display: none; }
 
+/* The chip as a CONTROL: it opens the role picker, so it must take the click
+ * the tile would otherwise turn into a zoom. */
+[data-workspace] .logo-tile-name.is-picker {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: inherit;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 150ms var(--ds-ease), border-color 150ms var(--ds-ease), color 150ms var(--ds-ease);
+}
+[data-workspace] .logo-tile-name.is-picker svg { width: 9px; height: 9px; opacity: 0.7; transition: transform 150ms var(--ds-ease); }
+[data-workspace] .logo-tile-name.is-picker:hover,
+[data-workspace] .logo-tile-name.is-picker.is-open { border-color: var(--ds-border-strong); color: var(--ds-text); background: #fff; }
+[data-workspace] .logo-tile.is-dark .logo-tile-name.is-picker:hover,
+[data-workspace] .logo-tile.is-dark .logo-tile-name.is-picker.is-open { background: rgba(20, 20, 22, 0.95); color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+[data-workspace] .logo-tile-name.is-picker.is-open svg { transform: rotate(180deg); }
+[data-workspace] .logo-tile-name.is-picker:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ds-focus-ring); }
+
+/* The picker itself is portaled under <body>; concrete colours where a token
+ * might not resolve there. */
+.logo-role-pop {
+  width: 264px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-border, #e6e4dd);
+  box-shadow: 0 16px 40px rgba(16, 16, 20, 0.14);
+}
+.logo-role-pop .logo-role-pop-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-text-muted, #8a877e);
+  padding: 0 2px 6px;
+}
+/* Same shape as the onboarding review's role picker: a grid of glyph cards,
+ * the variant drawn above its name, read at a glance. */
+[data-workspace].logo-role-pop .logo-variant-picker-grid.is-compact {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 0;
+}
+[data-workspace].logo-role-pop .logo-variant-option {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  background: var(--ds-surface-subtle, #faf9f5);
+  border-color: transparent;
+}
+[data-workspace].logo-role-pop .logo-variant-option:hover { border-color: var(--ds-border, #e6e4dd); background: var(--ds-surface-hover, #efeee8); }
+[data-workspace].logo-role-pop .logo-variant-swatch { width: 100%; height: 36px; }
+[data-workspace].logo-role-pop .logo-variant-label { font-size: 8px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ds-text-secondary, #55534b); }
+[data-workspace].logo-role-pop .logo-variant-hint { display: none; }
+[data-workspace].logo-role-pop .logo-variant-option.is-current {
+  border-color: var(--ds-text, #16161a);
+  cursor: default;
+}
+
 [data-workspace] .logo-tile-actions {
   position: absolute;
   top: 8px;
