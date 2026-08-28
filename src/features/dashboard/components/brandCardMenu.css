@@ -161,9 +161,11 @@
 
 /* ── Selecting projects ─────────────────────────────────────────────── */
 
-/* The checkbox is the third way to select, and the discoverable one. It follows
-   the menu button's rule: always THERE, its visibility waiting for the pointer
-   — except once a selection exists, when every card must show where it stands. */
+/* The checkbox belongs to a MODE, not to a hover. It appears on every card at
+   once — the moment a selection exists — and on none before that. Revealing it
+   under the pointer put a control on every card the eye passed over, on a page
+   people mostly come to in order to open ONE brand; selecting is entered
+   deliberately, from the card's menu. */
 .bcm-check {
   position: absolute;
   top: 10px;
@@ -180,16 +182,23 @@
   color: transparent;
   cursor: pointer;
   opacity: 0;
+  /* Invisible AND out of the way: an unseen button in the card's top-left
+     corner would swallow the click meant for the card. */
+  pointer-events: none;
   transition:
     opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
     background-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.bcm-slot:hover .bcm-check,
-.bcm-slot:focus-within .bcm-check,
 .bcm-slot[data-selecting='true'] .bcm-check {
   opacity: 1;
+  pointer-events: auto;
   transform: translateY(var(--bcm-lift));
+}
+/* Nothing else reveals it — but a keyboard user who has tabbed onto it must be
+   able to see where they are. */
+.bcm-slot:focus-within .bcm-check:focus-visible {
+  opacity: 1;
 }
 .bcm-check[aria-checked='true'] {
   opacity: 1;

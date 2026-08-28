@@ -49,6 +49,11 @@ const CoverIcon = () => (
     <path d="m21 15-5-5L5 21" />
   </svg>
 );
+const CheckIcon = () => (
+  <svg {...iconProps}>
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
 const ShareIcon = () => (
   <svg {...iconProps}>
     <circle cx="18" cy="5" r="3" />
@@ -235,6 +240,19 @@ export function BrandCardMenu({
   };
 
   const items = (): ContextMenuItem[] => [
+    // The way IN to selecting. The checkbox no longer appears on hover — a
+    // control that shows up under the pointer on every card is noise on a page
+    // people mostly come to to open one brand — so the menu is where the mode
+    // is entered, and every other card's checkbox appears once it is.
+    ...(selectable
+      ? [
+          {
+            label: selected ? 'Deselect' : 'Select',
+            icon: <CheckIcon />,
+            onSelect: () => onToggleSelect?.({ shift: false, meta: false }),
+          } as ContextMenuItem,
+        ]
+      : []),
     {
       label: 'Rename project',
       icon: <RenameIcon />,

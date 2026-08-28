@@ -411,22 +411,45 @@ describe('selecting projects', () => {
     return { patches, deleted };
   }
 
-  it('a checkbox selects one, and the bar says how many', async () => {
+  /** Entering the mode the way a user has to: from the card's own menu. */
+  const selectFromMenu = async (name: string) => {
+    fireEvent.click(await screen.findByRole('button', { name: `Actions for ${name}` }));
+    fireEvent.click(await screen.findByText('Select'));
+  };
+
+  it('the menu is the way in, and then every card has a checkbox', async () => {
     installMany(three());
     mountMany(three());
 
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    await selectFromMenu('One');
     expect(await screen.findByText('1 selected')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Three' }));
     expect(await screen.findByText('2 selected')).toBeTruthy();
   });
 
+  it('and nothing reveals that checkbox on hover', async () => {
+    installMany(three());
+    mountMany(three());
+
+    const slot = document.querySelector('[data-project-id="b1"]') as HTMLElement;
+    const check = screen.getByRole('checkbox', { name: 'Select One' });
+    fireEvent.pointerOver(slot);
+    fireEvent.mouseOver(slot);
+
+    // A control under the pointer on every card the eye passes over is noise on
+    // a page people mostly come to in order to open ONE brand. Invisible is not
+    // enough either — it sits in the card's corner, so it must also be out of
+    // the way of the click meant for the card.
+    expect(getComputedStyle(check).opacity).toBe('0');
+    expect(getComputedStyle(check).pointerEvents).toBe('none');
+  });
+
   it('Shift takes the run between the two', async () => {
     installMany(three());
     mountMany(three());
 
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    await selectFromMenu('One');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Three' }), { shiftKey: true });
 
     expect(await screen.findByText('3 selected')).toBeTruthy();
@@ -436,7 +459,7 @@ describe('selecting projects', () => {
     installMany(three());
     mountMany(three());
 
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    await selectFromMenu('One');
     const card = document.querySelector('[data-project-id="b2"] .ws-brand-card') as HTMLElement;
     fireEvent.click(card);
 
@@ -449,7 +472,7 @@ describe('selecting projects', () => {
     const installed = installMany(three());
     mountMany(three());
 
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    await selectFromMenu('One');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Two' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move to folder' }));
 
@@ -533,7 +556,7 @@ describe('selecting projects', () => {
     installMany(three());
     mountMany(three());
 
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select One' }));
+    await selectFromMenu('One');
     expect(await screen.findByText('1 selected')).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByText('1 selected')).toBeNull());
