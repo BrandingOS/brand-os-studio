@@ -210,7 +210,9 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
             </div>
           </li>
 
-          <li className="bh-step" data-step="3" data-state={step3Done ? 'done' : step1Done ? 'active' : 'idle'}>
+          {/* Step 3 lights up when there is a reply IN it, not when the prompt was copied —
+              copying is step 1's business; nothing has happened here yet. */}
+          <li className="bh-step" data-step="3" data-state={step3Done ? 'done' : 'idle'}>
             <span className="bh-num">{step3Done ? <Check /> : '3'}</span>
             <div className="bh-body">
               <label className="bh-label" htmlFor="description">Paste the reply here</label>

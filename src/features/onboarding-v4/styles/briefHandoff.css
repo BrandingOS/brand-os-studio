@@ -40,8 +40,10 @@
 [data-onboarding="cosmos"] .bh-num svg { width: 12px; height: 12px; }
 [data-onboarding="cosmos"] .bh-step[data-state="active"] .bh-num { background: var(--ds-accent); border-color: var(--ds-accent); color: var(--ds-accent-fg); }
 [data-onboarding="cosmos"] .bh-step[data-state="done"] .bh-num { background: var(--ds-success-bg); border-color: var(--ds-success); color: var(--ds-success-fg); }
-[data-onboarding="cosmos"] .bh-step[data-state="idle"] { opacity: 0.55; }
-[data-onboarding="cosmos"] .bh-step[data-state="idle"] .bh-paste { pointer-events: auto; }
+/* Idle dims the number and the label, never the control — the paste box has
+   to look pasteable while step 3 is still waiting. */
+[data-onboarding="cosmos"] .bh-step[data-state="idle"] .bh-num,
+[data-onboarding="cosmos"] .bh-step[data-state="idle"] .bh-label { opacity: 0.55; }
 
 [data-onboarding="cosmos"] .bh-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
 [data-onboarding="cosmos"] .bh-label,

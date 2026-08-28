@@ -32,6 +32,7 @@ describe('BriefHandoff', () => {
     await screen.findByText('Copied');
     expect(step(1)).toBe('done');
     expect(step(2)).toBe('active');
+    expect(step(3)).toBe('idle');
     fireEvent.change(document.querySelector('[data-brief-paste]')!, { target: { value: 'Brand summary: x\nIndustry: y\nTone: z' } });
     expect(step(3)).toBe('done');
     expect(screen.getByText(/3 of 12 sections/)).toBeTruthy();
