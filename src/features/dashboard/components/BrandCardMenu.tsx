@@ -14,7 +14,11 @@ import '@/shared/styles/workspace.css';
 import './brandCardMenu.css';
 import { DsButton, DsConfirmDialog, DsInput, DsModal } from '@/shared/ds';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { mergeWorkspaceCard } from '@/shared/brand/workspaceCard';
+import {
+  mergeWorkspaceCard,
+  useBrandCardFace,
+  useBrandCardPairings,
+} from '@/shared/brand/workspaceCard';
 import { CardCoverPopover, type CoverChange } from './CardCoverPopover';
 import { useProjectRename } from './useProjectRename';
 import type { Brand } from '@/shared/types/brand';
@@ -52,6 +56,16 @@ const CoverIcon = () => (
 const CheckIcon = () => (
   <svg {...iconProps}>
     <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+/* Two arrows crossing — the universal shuffle. */
+const ShuffleIcon = () => (
+  <svg {...iconProps}>
+    <path d="M16 3h5v5" />
+    <path d="M4 20 21 3" />
+    <path d="M21 16v5h-5" />
+    <path d="M15 15l6 6" />
+    <path d="M4 4l5 5" />
   </svg>
 );
 const ShareIcon = () => (
@@ -150,6 +164,12 @@ export function BrandCardMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { label, rename } = useProjectRename(brand);
+  /** Every logo-on-colour this brand can wear and be seen in, best first. */
+  const pairings = useBrandCardPairings(brand);
+  // The MEASURED face, so "where am I in that list" is asked of the same
+  // numbers the list was built from. The unmeasured guess can name a different
+  // logo, and the search would then miss and always restart from the head.
+  const face = useBrandCardFace(brand);
 
   /**
    * One half of the cover, applied at once and leaving the other half alone.
@@ -202,6 +222,26 @@ export function BrandCardMenu({
       });
     cardWrites.current = next;
     return next;
+  };
+
+  /**
+   * The next pairing that reads, wrapping at the end.
+   *
+   * It starts from what the card is SHOWING rather than from what it has
+   * stored: a card that has never been touched stores nothing, and beginning at
+   * the head of the list would then apply the answer already on screen — one
+   * press that visibly does nothing, on the one control whose whole promise is
+   * that pressing it changes something.
+   */
+  const shuffleCover = async () => {
+    if (pairings.length === 0) return;
+    const at = pairings.findIndex(
+      (p) =>
+        p.logoUrl === face.logoUrl &&
+        p.coverBackground.toLowerCase() === face.background.toLowerCase(),
+    );
+    const next = pairings[(at + 1) % pairings.length];
+    await applyCoverChange({ logoRole: next.logoRole, coverBackground: next.coverBackground });
   };
 
   // Same write the card's own name field performs — one behaviour, two ways in.
@@ -269,6 +309,18 @@ export function BrandCardMenu({
       icon: <CoverIcon />,
       onSelect: () => setCoverOpen(true),
     },
+    // Beside it, for when the answer matters less than not having to make it:
+    // step to the next pairing that reads. One offer is not a choice, so with
+    // nothing else to move to the item is not there at all.
+    ...(pairings.length > 1
+      ? [
+          {
+            label: 'Shuffle cover',
+            icon: <ShuffleIcon />,
+            onSelect: () => void shuffleCover(),
+          } as ContextMenuItem,
+        ]
+      : []),
     { label: 'Edit brand', icon: <EditIcon />, onSelect: () => navigate(editUrl) },
     {
       label: 'Share',

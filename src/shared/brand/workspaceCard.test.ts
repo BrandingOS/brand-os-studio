@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   brandCardFace,
   brandCardGrounds,
+  brandCardPairings,
   brandCardLabel,
   hasProjectLabel,
   mergeWorkspaceCard,
@@ -423,5 +424,78 @@ describe('the grounds the picker offers', () => {
     );
     const seen = grounds.map((g) => g.hex.toLowerCase());
     expect(new Set(seen).size).toBe(seen.length);
+  });
+});
+
+describe('the pairings shuffle steps through', () => {
+  it('leads with what the card would have chosen on its own', () => {
+    const subject = brand({
+      primaryColor: '#0B1F5B',
+      brandAssets: [
+        {
+          id: 'a-white',
+          kind: 'logo',
+          name: 'mono.white',
+          formats: { svg: { url: 'https://cdn/white.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: { mono: { white: { assetId: 'a-white' } } },
+    } as Partial<Brand>);
+
+    const pairings = brandCardPairings(subject);
+    const face = brandCardFace(subject);
+    // The head of the list IS the automatic answer, so everything after it is a
+    // real alternative rather than a random draw.
+    expect(pairings[0].coverBackground.toLowerCase()).toBe(face.background.toLowerCase());
+    expect(pairings[0].logoUrl).toBe(face.logoUrl);
+  });
+
+  it('offers only pairings that can be seen', () => {
+    const subject = brand({
+      primaryColor: '#EF4444',
+      brandAssets: [
+        {
+          id: 'a-white',
+          kind: 'logo',
+          name: 'mono.white',
+          formats: { svg: { url: 'https://cdn/white.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: { mono: { white: { assetId: 'a-white' } } },
+    } as Partial<Brand>);
+
+    // White artwork is one flat colour, so it either reads on a ground or
+    // loses all of it — there is no partial tier to fall into, and every
+    // ground offered here has to be one white can actually be seen on.
+    for (const p of brandCardPairings(subject)) {
+      expect(contrastRatio('#ffffff', p.coverBackground)).toBeGreaterThanOrEqual(2.2);
+    }
+  });
+
+  it('still offers something when nothing reads anywhere', () => {
+    // A single mark inked in the brand's own colour, on a palette built from
+    // that colour. A control that does nothing on exactly the brands that need
+    // it most would be worse than no control.
+    const subject = brand({
+      primaryColor: '#EF4444',
+      brandAssets: [
+        {
+          id: 'a-primary',
+          kind: 'logo',
+          name: 'primary',
+          formats: { svg: { url: 'https://cdn/primary.svg', size: 1 } },
+          tags: [],
+        },
+      ],
+      logoSystem: { primary: { assetId: 'a-primary' } },
+    } as Partial<Brand>);
+
+    expect(brandCardPairings(subject).length).toBeGreaterThan(0);
+  });
+
+  it('and nothing at all for a brand with no logo', () => {
+    expect(brandCardPairings(brand({ primaryColor: '#EF4444' }))).toEqual([]);
   });
 });

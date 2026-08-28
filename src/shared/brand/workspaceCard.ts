@@ -302,6 +302,92 @@ export function brandCardFace(
   return { background: brandGround.bg, color: brandGround.text, letter };
 }
 
+/** A cover the card could wear: which logo, on which colour. */
+export interface CardPairing {
+  logoRole: string;
+  coverBackground: string;
+  /** The artwork that role resolves to, for recognising the current face. */
+  logoUrl: string;
+}
+
+/**
+ * Every pairing of this brand's logos with this brand's colours that can
+ * actually be SEEN, best first.
+ *
+ * The card decides one of these for itself, and the picker lets a person decide
+ * another. This is the third way: step through the good answers without having
+ * to know which they are. It is the same measurement the card's own rule uses,
+ * simply not stopped at the first success — so the head of this list IS what
+ * the card would have chosen, and everything after it is a real alternative
+ * rather than a random draw.
+ *
+ * Ground-major, because that is the order the automatic rule prefers: the
+ * brand's own colours before the palette's tinted extremes, and within a
+ * colour, the Primary logo before the rest.
+ *
+ * A brand whose artwork reads nowhere still gets a list — the pairings that
+ * lose least, the same tie-break the card falls back to — because a control
+ * that does nothing on exactly the brands that need it most is worse than none.
+ */
+export function brandCardPairings(
+  brand: Brand | null | undefined,
+  inks?: Record<string, LogoInk | undefined>,
+): CardPairing[] {
+  const variants = variantsInPriorityOrder(brand, FACE_PRIORITY);
+  const grounds = brandCardGrounds(brand);
+  if (variants.length === 0 || grounds.length === 0) return [];
+
+  const inkOf = (v: (typeof variants)[number]): LogoInk | undefined => {
+    const known = knownInkOfRole(v.role);
+    if (known) return solidInk(known);
+    return inks?.[v.resolved.url] ?? (brand?.primaryColor ? solidInk(brand.primaryColor) : undefined);
+  };
+
+  const reads: CardPairing[] = [];
+  const nearly: Array<CardPairing & { coverage: number }> = [];
+  for (const ground of grounds) {
+    for (const variant of variants) {
+      const pairing = {
+        logoRole: variant.role,
+        coverBackground: ground.hex,
+        logoUrl: variant.resolved.url,
+      };
+      const ink = inkOf(variant);
+      if (inkReadsOn(ink, ground.hex, FACE_FLOOR)) reads.push(pairing);
+      else nearly.push({ ...pairing, coverage: inkCoverage(ink, ground.hex, FACE_FLOOR) });
+    }
+  }
+  const ranked = nearly.sort((a, b) => b.coverage - a.coverage);
+  const strip = (p: (typeof ranked)[number]): CardPairing => ({
+    logoRole: p.logoRole,
+    coverBackground: p.coverBackground,
+    logoUrl: p.logoUrl,
+  });
+
+  // Then the ones that MOSTLY read. Requiring every cluster to clear the floor
+  // is the right test for the card's own choice, but as the whole list it is
+  // far too strict: a two-tone lockup — a coloured mark beside a dark wordmark —
+  // often has exactly one flat ground where both halves survive, and the
+  // control would then have nothing to step to on precisely the brands whose
+  // cover is worth stepping through. Losing up to a quarter of the ink is still
+  // a legible logo; below that it is a different, worse cover.
+  const mostly = ranked.filter((p) => p.coverage >= 0.75).map(strip);
+  const offered = [...reads, ...mostly];
+  if (offered.length > 1) return offered;
+
+  // Nothing reads and nothing nearly reads. Take what loses least, so a brand
+  // whose artwork fits nowhere still gets a control that does something.
+  return offered.length === 1 ? offered : ranked.slice(0, 4).map(strip);
+}
+
+/** `brandCardPairings`, with the artwork's ink actually measured. */
+export function useBrandCardPairings(brand: Brand | null | undefined): CardPairing[] {
+  const variants = variantsInPriorityOrder(brand, FACE_PRIORITY);
+  const unknown = variants.filter((v) => !knownInkOfRole(v.role)).map((v) => v.resolved.url);
+  const inks = useLogoInks(unknown);
+  return brandCardPairings(brand, inks);
+}
+
 /**
  * `brandCardFace`, with the artwork's ink actually measured.
  *

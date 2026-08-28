@@ -640,6 +640,39 @@ describe('choosing the logo and the colour', () => {
     expect(names.some((n) => n.startsWith('Light'))).toBe(true);
   });
 
+  it('shuffles to a pairing the card is not already wearing', async () => {
+    const installed = installBrand(withWhiteTwin());
+    mount(withWhiteTwin());
+
+    const faceNow = () => {
+      const band = document.querySelector('.ws-brand-card-color') as HTMLElement;
+      const logo = document.querySelector('.ws-brand-card-logo') as HTMLImageElement | null;
+      return `${band.style.background}|${logo?.getAttribute('src') ?? ''}`;
+    };
+    const before = faceNow();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for Acme' }));
+    fireEvent.click(await screen.findByText('Shuffle cover'));
+
+    await waitFor(() => expect(installed.patches.length).toBe(1));
+    // It steps from what the card is SHOWING, not from what it has stored — a
+    // card that has never been touched stores nothing, and starting at the head
+    // of the list would apply the answer already on screen: one press that
+    // visibly does nothing, on the control whose whole promise is that it does.
+    await waitFor(() => expect(faceNow()).not.toBe(before));
+  });
+
+  it('and offers no shuffle to a brand with nothing to shuffle', async () => {
+    // No artwork, so every ground shows the same letter. One offer is not a
+    // choice, and a control that cannot change anything should not be there.
+    installBrand(seedBrand());
+    mount(seedBrand());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for Acme' }));
+    await screen.findByText('Change cover');
+    expect(screen.queryByText('Shuffle cover')).toBeNull();
+  });
+
   it('shows the logos on nothing — a tile is not a preview of the pairing', async () => {
     const brand = withWhiteTwin();
     brand.workspaceCard = { coverBackground: '#EF4444' };
