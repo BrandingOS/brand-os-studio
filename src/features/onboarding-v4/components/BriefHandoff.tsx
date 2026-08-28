@@ -152,7 +152,7 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 13.5 8.5 20 10 13.5 11.5 12 18 10.5 11.5 4 10 10.5 8.5z" /></svg>
           </span>
           <div>
-            <div className="bh-title">Let your AI describe {brandName.trim() ? <b>{brandName.trim()}</b> : 'your brand'}</div>
+            <div className="bh-title">Let your AI describe your brand</div>
             <div className="bh-sub">We wrote the prompt. Copy it, send it, paste the answer back — about a minute.</div>
           </div>
         </div>
