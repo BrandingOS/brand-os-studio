@@ -129,3 +129,4 @@
   font-size: 12.5px; font-weight: 500;
 }
 [data-onboarding="cosmos"] .bh-copied-note svg { width: 12px; height: 12px; flex: none; }
+[data-onboarding="cosmos"] .bh-prompt-text b { font-weight: 600; color: var(--ds-text); }

@@ -95,6 +95,13 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
   // The prompt opens with blank lines; a preview of "the first four lines" was
   // one sentence. Show the first few lines that SAY something.
   const previewText = promptText.split('\n').filter((l) => l.trim()).slice(0, 3).join('\n');
+  const name = brandName.trim();
+  /** The prompt text with the brand's name in bold — it is the one word in it that is the user's. */
+  const emphasised = (text: string) => {
+    if (!name) return text;
+    const parts = text.split(name);
+    return parts.flatMap((part, i) => (i === 0 ? [part] : [<b key={i}>{name}</b>, part]));
+  };
 
   // The user comes BACK to this tab holding the reply: put the caret in the box.
   useEffect(() => {
@@ -163,7 +170,7 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
                   </button>
                 </div>
                 <pre className="bh-prompt-text">
-                  {expanded ? promptText : previewText}
+                  {emphasised(expanded ? promptText : previewText)}
                 </pre>
                 {!expanded && <div className="bh-prompt-fade" aria-hidden="true" />}
               </div>
