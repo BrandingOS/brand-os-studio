@@ -796,6 +796,24 @@ falling back to `label:<label>` for direct card edits).
   generates every logo-on-background combination; `visuallyClose(a, b)`
   collapses tiles with RGB distance ≤ 60² (the helper that shrunk the
   93-tile logo wall to a curated set on 2026-05-09 in commit 021e1b1).
+  **A combo tile is a MASK, so the source artwork's colour is discarded —
+  two logos that share a SILHOUETTE draw the same tile.** A brand's mono
+  cuts share the silhouette of the logo they were cut from by definition,
+  so `recolorSourceIndexes` keeps one source per shape (`mono.white` /
+  `mono.black` are never separate sources; a brand holding ONLY mono cuts
+  still gets its first one). Measured on Raqm — Primary + On dark + On
+  light, one drawing in three colours — the drilldown was generating 51
+  recoloured tiles of which 17 were distinct: **34 of 54 tiles were exact
+  duplicates, under duplicate names.** Marks are deduped by
+  `visuallyClose` too, not only by exact hex. This does NOT catch every
+  shape collision (the same file uploaded as both Primary and Wordmark);
+  proving that needs the pixel comparison in
+  `onboarding/understanding/artwork.ts`, which is async and cannot run in
+  this synchronous list. The ORIGINAL tiles keep every variant — they show
+  the real files, and a white cut and a black cut are different artwork.
+  A combo tile is named `<logo> · <mark> on <bg>` whenever more than one
+  source survives, so the wordmark and the icon on the same ground can
+  never both read "Primary on Beige".
 - Neutrals are excluded from drilldown grids for Logos + Colors (commit
   90d8eb6, 2026-05-10). Don't reintroduce them without explicit ask.
 - `shared/brand/logoOnBackground.ts:contrastRatio()` is used at line

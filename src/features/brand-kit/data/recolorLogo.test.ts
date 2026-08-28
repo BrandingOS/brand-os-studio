@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { logoCombosFor, visuallyClose } from './recolorLogo';
+import { logoCombosFor, recolorSourceIndexes, visuallyClose } from './recolorLogo';
 
 describe('visuallyClose', () => {
   it('treats near-identical near-black shades as the same color', () => {
@@ -88,5 +88,100 @@ describe('logoCombosFor', () => {
       colors: { core: [{ hex: '#000', name: 'Primary' }], accent: [], grey: [] },
     });
     expect(combos).toEqual([]);
+  });
+});
+
+describe('recolorSourceIndexes — one source per silhouette', () => {
+  it('drops the mono cuts, which are the same drawing in one flat colour', () => {
+    // Raqm, exactly: Primary plus its white and black cuts. The gallery
+    // paints every combo as a MASK filled with the mark colour, so the
+    // source's own colour is discarded and all three drew the same tile.
+    expect(
+      recolorSourceIndexes([
+        { role: 'primary' },
+        { role: 'mono.white' },
+        { role: 'mono.black' },
+      ]),
+    ).toEqual([0]);
+  });
+
+  it('keeps roles that are genuinely different drawings', () => {
+    expect(
+      recolorSourceIndexes([
+        { role: 'primary' },
+        { role: 'iconmark' },
+        { role: 'wordmark' },
+        { role: 'mono.white' },
+      ]),
+    ).toEqual([0, 1, 2]);
+  });
+
+  it('still yields a source when a brand has ONLY mono cuts', () => {
+    // Dropping every source would leave the drilldown empty, which is a
+    // worse answer than one un-duplicated silhouette.
+    expect(recolorSourceIndexes([{ role: 'mono.white' }, { role: 'mono.black' }])).toEqual([0]);
+  });
+
+  it('keeps a logo carrying no role at all', () => {
+    // Legacy tiles predate `role`; nothing about them says "duplicate".
+    expect(recolorSourceIndexes([{}, {}])).toEqual([0, 1]);
+  });
+
+  it('returns the INDEX into the original list, which the renderer looks up by', () => {
+    expect(recolorSourceIndexes([{ role: 'mono.white' }, { role: 'iconmark' }])).toEqual([1]);
+  });
+});
+
+describe('logoCombosFor — no duplicate tiles', () => {
+  const colors = {
+    core: [
+      { hex: '#7231FF', name: 'Iris' },
+      { hex: '#00D4AA', name: 'Turquoise' },
+      { hex: '#0A0A0F', name: 'Black' },
+    ],
+    accent: [],
+    grey: [],
+  };
+
+  it('never draws the same (mark, background) twice for one silhouette', () => {
+    const combos = logoCombosFor({
+      logos: [
+        { id: 'p', label: 'Primary', svg: '<svg/>', role: 'primary' },
+        { id: 'd', label: 'On dark', svg: '<svg/>', role: 'mono.white' },
+        { id: 'l', label: 'On light', svg: '<svg/>', role: 'mono.black' },
+      ],
+      colors,
+    });
+    // What the eye sees is (mark, bg) — the mask discards everything else.
+    const seen = combos.map((c) => `${c.mark.hex}|${c.bg.hex}`);
+    expect(new Set(seen).size).toBe(seen.length);
+  });
+
+  it('still varies the silhouette when the logos really are different', () => {
+    const combos = logoCombosFor({
+      logos: [
+        { id: 'p', label: 'Primary', svg: '<svg/>', role: 'primary' },
+        { id: 'i', label: 'Icon', svg: '<svg/>', role: 'iconmark' },
+      ],
+      colors,
+    });
+    expect(new Set(combos.map((c) => c.logoIndex))).toEqual(new Set([0, 1]));
+    const seen = combos.map((c) => `${c.logoIndex}|${c.mark.hex}|${c.bg.hex}`);
+    expect(new Set(seen).size).toBe(seen.length);
+  });
+
+  it('collapses a secondary that is visually white into the White mark', () => {
+    const combos = logoCombosFor({
+      logos: [{ id: 'p', label: 'Primary', svg: '<svg/>', role: 'primary' }],
+      colors: {
+        core: [{ hex: '#7231FF', name: 'Iris' }, { hex: '#FEFEFE', name: 'Paper' }],
+        accent: [],
+        grey: [],
+      },
+    });
+    const markHexes = new Set(combos.map((c) => c.mark.hex.toLowerCase()));
+    expect(markHexes.has('#ffffff')).toBe(false);
+    expect(markHexes.has('#fefefe')).toBe(true);
+    expect(markHexes.size).toBe(2);
   });
 });
