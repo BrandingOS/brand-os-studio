@@ -553,6 +553,28 @@ describe('choosing the logo and the colour', () => {
     expect(names.some((n) => n.startsWith('Light'))).toBe(true);
   });
 
+  it('shows the logos on nothing — a tile is not a preview of the pairing', async () => {
+    const brand = withWhiteTwin();
+    brand.workspaceCard = { coverBackground: '#EF4444' };
+    installBrand(brand);
+    mount(brand);
+    const logos = await openPicker();
+
+    const grounds = within(logos)
+      .getAllByRole('radio')
+      .map((el) => (el as HTMLElement).style.background);
+
+    // Painting the tiles with the card's ground made the picker look like it
+    // had already applied something, and put a second, smaller answer to the
+    // pairing question next to the card that is the real one.
+    expect(grounds.some((g) => g.includes('239, 68, 68') || g.includes('#EF4444'))).toBe(false);
+
+    // A chip appears only so a mark can be SEEN: white artwork on plain black,
+    // and nothing at all behind artwork that reads either way.
+    const white = within(logos).getByRole('radio', { name: /on dark|white/i });
+    expect(white.style.background).toBe('rgb(20, 20, 20)');
+  });
+
   it('applies a colour on click — no Save, and the popover stays open', async () => {
     const installed = installBrand(withWhiteTwin());
     mount(withWhiteTwin());
@@ -568,6 +590,27 @@ describe('choosing the logo and the colour', () => {
     expect(installed.patches[0].workspaceCard).toEqual({ coverBackground: '#EF4444' });
     // Still open, so the other half can be chosen against the card itself.
     expect(screen.getByRole('radiogroup', { name: 'Brand Logos' })).toBeTruthy();
+  });
+
+  it('keeps both halves when they are picked one after the other', async () => {
+    const installed = installBrand(withWhiteTwin());
+    mount(withWhiteTwin());
+    const logos = await openPicker();
+
+    fireEvent.click(within(logos).getByRole('radio', { name: /on dark|white/i }));
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Brand Colors' })).getByRole('radio', {
+        name: /^Dark/,
+      }),
+    );
+
+    // The second write must be built from the FIRST one's result, not from the
+    // brand this render closed over — otherwise choosing the colour silently
+    // undoes the logo that was chosen a moment earlier.
+    await waitFor(() => expect(installed.patches.length).toBe(2));
+    const card = installed.current().workspaceCard;
+    expect(card?.logoRole).toBe('mono.white');
+    expect(card?.coverBackground).toBeTruthy();
   });
 
   it('changes one half without disturbing the other', async () => {

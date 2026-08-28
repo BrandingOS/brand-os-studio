@@ -131,6 +131,8 @@ export function BrandCardMenu({
 }: Props) {
   const navigate = useNavigate();
   const updateBrand = useBrandStore((s) => s.update);
+  /** The tail of the card's own writes, so each one reads what the last left. */
+  const cardWrites = useRef<Promise<unknown>>(Promise.resolve());
   const deleteBrand = useBrandStore((s) => s.delete);
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
@@ -174,10 +176,27 @@ export function BrandCardMenu({
   }, []);
 
   /** One write path for every card change, so they all merge and clear alike. */
-  const saveCard = async (change: Parameters<typeof mergeWorkspaceCard>[1]) => {
-    await updateBrand(brand.id, {
-      workspaceCard: mergeWorkspaceCard(brand.workspaceCard, change),
-    });
+  /**
+   * Read-modify-WRITE — and both halves of that are load-bearing here.
+   *
+   * The cover picker applies each pick as it is made, so the logo and the
+   * ground arrive as two writes a moment apart. Merging into the `brand` this
+   * render closed over builds the second patch from the state before the
+   * first, which silently undoes it; so the read is taken live from the store.
+   * And a live read is only worth taking after the previous write has landed,
+   * so the writes are queued rather than fired together.
+   */
+  const saveCard = (change: Parameters<typeof mergeWorkspaceCard>[1]) => {
+    const next = cardWrites.current
+      .catch(() => {})
+      .then(() => {
+        const live = useBrandStore.getState().list.find((b) => b.id === brand.id) ?? brand;
+        return updateBrand(brand.id, {
+          workspaceCard: mergeWorkspaceCard(live.workspaceCard, change),
+        });
+      });
+    cardWrites.current = next;
+    return next;
   };
 
   // Same write the card's own name field performs — one behaviour, two ways in.

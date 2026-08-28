@@ -15,6 +15,13 @@
  * need to see. The popover stays open so the pair can be tuned against the card
  * itself.
  *
+ * Nothing in here is a preview. A tile shows the LOGO — on nothing, the way the
+ * file itself is drawn — and a swatch shows the COLOUR. The pairing is what the
+ * card is for, and the card is right there; drawing it twice, small, inside the
+ * control that changes it only invites the reader to compare two answers to the
+ * same question. Painting the tiles with the current ground did exactly that,
+ * and made the picker look like it had already applied something.
+ *
  * Its shape deliberately echoes `AssetSourcePopover`, the canonical "pick an
  * image" surface — same width, same section headers, same grid — because this
  * is the same gesture on the same kind of card.
@@ -22,14 +29,24 @@
 import { useMemo } from 'react';
 import { Check, Palette, Shapes } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { brandCardGrounds, type CardGroundOption } from '@/shared/brand/workspaceCard';
 import {
-  brandCardGrounds,
-  useBrandCardFace,
-  type CardGroundOption,
-} from '@/shared/brand/workspaceCard';
-import { FACE_PRIORITY, variantsInPriorityOrder } from '@/shared/brand/logoOnBackground';
+  FACE_PRIORITY,
+  knownInkOfRole,
+  variantsInPriorityOrder,
+} from '@/shared/brand/logoOnBackground';
+import { inkReadsOn, solidInk, useLogoInks } from '@/shared/brand/logoInk';
 import { logoRoleLabel } from '@/shared/brand/logoRoles';
 import type { Brand } from '@/shared/types/brand';
+
+/**
+ * The two neutrals a tile may fall back to, and the contrast a mark must clear
+ * to count as visible on one. They are plain black and white on purpose: a chip
+ * in a colour the brand owns would read as a suggestion about the cover.
+ */
+const TILE_LIGHT = '#ffffff';
+const TILE_DARK = '#141414';
+const TILE_FLOOR = 2.2;
 
 /** One half of the cover. The other half is left exactly as it was. */
 export interface CoverChange {
@@ -53,10 +70,28 @@ export function CardCoverPopover({
   const grounds = useMemo(() => brandCardGrounds(brand), [brand]);
 
   const card = brand.workspaceCard;
-  // The ground the card is ON right now — which is what every logo below is
-  // drawn against, so a variant that cannot be seen on it looks exactly as
-  // invisible here as it does on the card. That is the point of the surface.
-  const face = useBrandCardFace(brand);
+
+  // Measured only so a tile can be SEEN, never to suggest a pairing: artwork
+  // drawn for dark grounds gets a dark chip, artwork drawn for light ones a
+  // light chip, and anything that reads either way gets no chip at all.
+  const urls = useMemo(() => variants.map((v) => v.resolved.url), [variants]);
+  const inks = useLogoInks(urls);
+  const tileGround = (
+    role: Parameters<typeof knownInkOfRole>[0],
+    url: string,
+  ): string | undefined => {
+    const known = knownInkOfRole(role);
+    const ink = known ? solidInk(known) : inks[url];
+    if (!ink) return undefined;
+    const onLight = inkReadsOn(ink, TILE_LIGHT, TILE_FLOOR);
+    const onDark = inkReadsOn(ink, TILE_DARK, TILE_FLOOR);
+    // A chip appears only when the artwork reads on exactly one of the two —
+    // i.e. only when it would otherwise be invisible. A two-tone lockup that
+    // half-disappears on either is left alone: it is the logo the picker is
+    // showing, and no flat colour makes all of it read.
+    if (onLight === onDark) return undefined;
+    return onLight ? TILE_LIGHT : TILE_DARK;
+  };
 
   return (
     <Popover
@@ -102,6 +137,7 @@ export function CardCoverPopover({
             <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Brand Logos">
               {variants.map((variant) => {
                 const selected = card?.logoRole === variant.role;
+                const ground = tileGround(variant.role, variant.resolved.url);
                 return (
                   <button
                     key={variant.role}
@@ -111,7 +147,7 @@ export function CardCoverPopover({
                     aria-label={logoRoleLabel(variant.role)}
                     title={logoRoleLabel(variant.role)}
                     onClick={() => void onChange({ logoRole: variant.role })}
-                    // The ring sits OUTSIDE the tile so it reads on a stage of
+                    // The ring sits OUTSIDE the tile so it reads on a chip of
                     // any colour, including one the same shade as the ring.
                     className={[
                       'relative aspect-square rounded-md overflow-hidden transition-all',
@@ -119,16 +155,17 @@ export function CardCoverPopover({
                       // into the panel on open, so this ring is the FIRST thing
                       // shown and a blue one would be the loudest thing here.
                       'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-popover focus-visible:ring-foreground',
+                      ground ? '' : 'border border-border',
                       selected
                         ? 'ring-2 ring-offset-2 ring-offset-popover ring-foreground'
                         : 'hover:ring-2 hover:ring-offset-2 hover:ring-offset-popover hover:ring-foreground/30',
                     ].join(' ')}
-                    style={{ background: face.background }}
+                    style={ground ? { background: ground } : undefined}
                   >
                     <img
                       src={variant.resolved.url}
                       alt=""
-                      className="w-full h-full object-contain p-2"
+                      className="w-full h-full object-contain p-2.5"
                       loading="lazy"
                     />
                     {selected && <ChosenBadge />}
@@ -207,7 +244,7 @@ function GroundSwatch({
  */
 function ChosenBadge() {
   return (
-    <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-foreground text-background shadow-sm">
+    <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-foreground text-background shadow-sm ring-1 ring-background">
       <Check className="h-2.5 w-2.5" strokeWidth={3} />
     </span>
   );
