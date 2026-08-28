@@ -85,11 +85,16 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
   /** Set once the prompt has left the app — step ① done, step ② waiting. */
   const [sent, setSent] = useState<null | 'copied' | 'chatgpt' | 'claude'>(null);
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const pasteRef = useRef<HTMLTextAreaElement>(null);
   const copiedTimer = useRef<number | null>(null);
 
   const verdict = judgePaste(value);
-  const prompt = () => buildAIPrompt(brandName, knownAssets());
+  const promptText = buildAIPrompt(brandName, knownAssets());
+  const prompt = () => promptText;
+  // The prompt opens with blank lines; a preview of "the first four lines" was
+  // one sentence. Show the first few lines that SAY something.
+  const previewText = promptText.split('\n').filter((l) => l.trim()).slice(0, 3).join('\n');
 
   // The user comes BACK to this tab holding the reply: put the caret in the box.
   useEffect(() => {
@@ -106,7 +111,7 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
     setSent('copied');
     setCopied(true);
     if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
-    copiedTimer.current = window.setTimeout(() => setCopied(false), 2400);
+    copiedTimer.current = window.setTimeout(() => setCopied(false), 6000);
   };
 
   const openIn = (tool: (typeof AI_TOOLS)[number]) => {
@@ -140,8 +145,8 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 13.5 8.5 20 10 13.5 11.5 12 18 10.5 11.5 4 10 10.5 8.5z" /></svg>
           </span>
           <div>
-            <div className="bh-title">Let AI describe your brand</div>
-            <div className="bh-sub">Takes about a minute. Works with {AI_TOOL_NAMES.slice(0, 2).join(', ')} or any AI.</div>
+            <div className="bh-title">Have ChatGPT or Claude describe {brandName.trim() || 'your brand'} for you</div>
+            <div className="bh-sub">We wrote the prompt. Copy it, send it, paste the answer back — about a minute.</div>
           </div>
         </div>
 
@@ -149,11 +154,27 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
           <li className="bh-step" data-step="1" data-state={step1Done ? 'done' : 'active'}>
             <span className="bh-num">{step1Done ? <Check /> : '1'}</span>
             <div className="bh-body">
-              <div className="bh-label">Get the prompt</div>
+              <div className="bh-label">Copy this prompt</div>
+              <div className={`bh-prompt${expanded ? ' is-expanded' : ''}${copied ? ' is-copied' : ''}`} data-brief-prompt>
+                <div className="bh-prompt-bar">
+                  <span className="bh-prompt-tag">Prompt · ready to send</span>
+                  <button type="button" className="bh-link" data-brief-expand onClick={() => setExpanded((v) => !v)}>
+                    {expanded ? 'Show less' : 'Show full prompt'}
+                  </button>
+                </div>
+                <pre className="bh-prompt-text">
+                  {expanded ? promptText : previewText}
+                </pre>
+                {!expanded && <div className="bh-prompt-fade" aria-hidden="true" />}
+              </div>
               <div className="bh-actions">
                 <button type="button" className={`bh-btn bh-btn--primary${copied ? ' is-copied' : ''}`} data-brief-copy onClick={() => void handleCopy()}>
-                  {copied ? <><Check /> Copied</> : 'Copy prompt'}
+                  {copied ? <><Check /> Copied</> : <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                    Copy prompt
+                  </>}
                 </button>
+                <span className="bh-or">or</span>
                 {AI_TOOLS.map((tool) => (
                   <button key={tool.id} type="button" className="bh-btn" data-brief-open={tool.id} onClick={() => openIn(tool)}>
                     {tool.label}
@@ -161,6 +182,11 @@ export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
                   </button>
                 ))}
               </div>
+              {copied && (
+                <div className="bh-copied-note" data-brief-copied-note role="status">
+                  <Check /> Prompt copied — now paste it into {AI_TOOL_NAMES[0]}, {AI_TOOL_NAMES[1]} or any AI and hit send.
+                </div>
+              )}
             </div>
           </li>
 

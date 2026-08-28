@@ -94,3 +94,38 @@
 [data-onboarding="cosmos"] .bh-link:hover { color: var(--ds-text); text-decoration: underline; text-underline-offset: 3px; }
 [data-onboarding="cosmos"] .bh-manual-link { margin-left: 2px; }
 [data-onboarding="cosmos"] .bh-manual-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+/* the prompt itself, visible so "copy" has a referent */
+[data-onboarding="cosmos"] .bh-prompt {
+  position: relative;
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color var(--ds-duration-state) var(--ds-ease), box-shadow var(--ds-duration-state) var(--ds-ease);
+}
+[data-onboarding="cosmos"] .bh-prompt.is-copied { border-color: var(--ds-success); box-shadow: 0 0 0 3px var(--ds-success-bg); }
+[data-onboarding="cosmos"] .bh-prompt-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 11px; border-bottom: 1px solid var(--ds-border);
+}
+[data-onboarding="cosmos"] .bh-prompt-tag { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ds-text-muted); }
+[data-onboarding="cosmos"] .bh-prompt-text {
+  margin: 0; padding: 10px 12px 12px;
+  font: inherit; font-size: 12.5px; line-height: 1.55; color: var(--ds-text-secondary);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 84px; overflow: hidden;
+}
+[data-onboarding="cosmos"] .bh-prompt.is-expanded .bh-prompt-text { max-height: 320px; overflow: auto; }
+[data-onboarding="cosmos"] .bh-prompt-fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 36px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--ds-surface-subtle));
+}
+[data-onboarding="cosmos"] .bh-or { font-size: 12px; color: var(--ds-text-muted); align-self: center; padding: 0 2px; }
+[data-onboarding="cosmos"] .bh-copied-note {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 11px; border-radius: 8px;
+  background: var(--ds-success-bg); color: var(--ds-success-fg);
+  font-size: 12.5px; font-weight: 500;
+}
+[data-onboarding="cosmos"] .bh-copied-note svg { width: 12px; height: 12px; flex: none; }
