@@ -3,6 +3,7 @@ import { fromLegacyBrand } from '@/domain/brand';
 import type { TypographySystem, LogoRole } from '@/shared/types/brandAssets';
 import { stageLogoAssignment } from '@/shared/assets/assetOperations';
 import { logoRoleLabel } from '@/shared/brand/logoRoles';
+import { TILE_LABEL } from './logoBoard';
 import type { BrandLogo, MockBrand } from './mockBrand';
 import { isRampStep } from './neutralRamp';
 
@@ -417,9 +418,6 @@ function logosToAssetsDict(logos: BrandLogo[]): BrandLogoAssets {
  * stacked logo could round-trip through it only by being forgotten.
  */
 type RoleOnBoard = { role: LogoRole; url: string; label?: string };
-
-/** Setup's own default tile labels, where they differ from the role's name. */
-const TILE_LABEL: Partial<Record<LogoRole, string>> = { iconmark: 'Icon', secondary: 'Alternate', 'mono.black': 'On light' };
 
 function rolesFromLogos(logos: BrandLogo[]): RoleOnBoard[] {
   const seen = new Set<LogoRole>();

@@ -12,10 +12,10 @@ import { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ADDABLE_LOGO_ROLES } from '@/shared/brand/logoRoles';
 import { VariantMark } from './AddLogoVariantModal';
-import { TILE_ID_BY_ROLE } from '../data/logoBoard';
+import { TILE_ID_BY_ROLE, TILE_LABEL } from '../data/logoBoard';
 
 /** Tile-id ↔ role, the same map SetupBoard's LOGO_ROLES is built from (kept here to avoid a circular import). */
-const ROLES = ADDABLE_LOGO_ROLES.map((d) => ({ id: TILE_ID_BY_ROLE[d.role] ?? d.slot, label: d.label, variant: d.tone, role: d.role, hint: d.hint }));
+const ROLES = ADDABLE_LOGO_ROLES.map((d) => ({ id: TILE_ID_BY_ROLE[d.role] ?? d.slot, label: TILE_LABEL[d.role] ?? d.label, variant: d.tone, role: d.role, hint: d.hint }));
 
 interface Props {
   label: string;

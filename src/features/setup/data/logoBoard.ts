@@ -26,6 +26,9 @@ export const TILE_ID_BY_ROLE: Partial<Record<LogoRole, string>> = {
   stacked: 'vertical',
 };
 
+/** Setup's own tile names where they differ from the shared vocabulary ("Icon", not "Brand Icon"). */
+export const TILE_LABEL: Partial<Record<LogoRole, string>> = { iconmark: 'Icon', secondary: 'Alternate', 'mono.black': 'On light' };
+
 /** The tile's own ground. Only the white-ink variant gets a dark one. */
 export function groundFor(tone: 'light' | 'dark'): string {
   return tone === 'dark' ? '#111113' : '#F5F4EF';
