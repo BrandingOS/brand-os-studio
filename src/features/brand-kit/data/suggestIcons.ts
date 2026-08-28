@@ -12,6 +12,19 @@ import { FLATICON_RR_NAMES } from './flaticonNames';
  *
  * Deterministic and fully client-side — no API calls, no per-page
  * cost beyond the catalog walk (~3.5k items).
+ *
+ * Two things decide whether the result is any good, and both of them are
+ * about REFUSING:
+ *
+ *   1. Most of the catalogue is not brand material. It carries the braille
+ *      alphabet, `circle-a` … `circle-z`, `square-0` … `square-9`,
+ *      `percent-10` … `percent-100`, age-restriction badges, emoji faces, and
+ *      several hundred arrows, carets, angles and sort handles. Those are
+ *      glyphs and interface chrome. A brand icon set is made of SYMBOLS.
+ *   2. A loose match must be loose in one direction only. `t.includes(part)`
+ *      with no floor on `part` let the single letter "a" match any brand token
+ *      containing an "a" — which is how a brand called Kaafex ended up being
+ *      offered Braille A, Braille B, Braille C and the rest of the alphabet.
  */
 
 const STOPWORDS = new Set([
@@ -83,6 +96,42 @@ const SYNONYMS: Record<string, string[]> = {
   art: ['palette', 'brush', 'paint', 'frame'],
 };
 
+/**
+ * Families that are never a brand's icon, matched on the name's first part.
+ *
+ * Directional and layout chrome (an arrow is a control, not an identity), the
+ * emoji faces, and the encoding alphabets. Blocking by family rather than by
+ * name is what keeps this honest: `braille` is 27 entries and `arrow` is 94,
+ * and a list of individual exclusions would fall behind the catalogue.
+ */
+/** How many icons one family may contribute before the list has to vary. */
+const FAMILY_LIMIT = 3;
+
+const EXCLUDED_FAMILIES = new Set([
+  'angle', 'arrow', 'arrows', 'caret', 'chevron', 'sort', 'border', 'align',
+  'braille', 'face', 'grin', 'tachometer', 'age', 'percent', 'symbol',
+  'resize', 'expand', 'compress', 'undo', 'redo',
+]);
+
+/**
+ * A single letter or a bare number at the end of a name is a GLYPH — the
+ * catalogue's way of drawing a character, not a symbol anyone would pick to
+ * stand for their brand. `circle-a`, `square-7`, `braille-k`, `dice-d20`.
+ */
+function isGlyph(parts: string[]): boolean {
+  const last = parts[parts.length - 1] ?? '';
+  return /^[a-z]$/.test(last) || /^\d+$/.test(last) || /^d\d+$/.test(last);
+}
+
+/** Whether this catalogue entry could ever belong in a brand's icon set. */
+export function isBrandIconCandidate(name: string): boolean {
+  const bare = name.startsWith('fi-rr-') ? name.slice('fi-rr-'.length) : name;
+  if (!bare) return false;
+  const parts = bare.split('-');
+  if (EXCLUDED_FAMILIES.has(parts[0]!)) return false;
+  return !isGlyph(parts);
+}
+
 function tokenize(text: string): string[] {
   if (!text) return [];
   return text
@@ -118,31 +167,64 @@ export function suggestIconsForBrand(text: string, max = 50): string[] {
   for (const name of FLATICON_RR_NAMES) {
     const bare = name.slice('fi-rr-'.length);
     if (!bare) continue;
+    if (!isBrandIconCandidate(name)) continue;
     const parts = bare.split('-');
-    let score = 0;
+    let exact = 0;
+    let loose = 0;
     for (const part of parts) {
       if (tokenSet.has(part)) {
-        score += 3;
+        exact += 1;
         continue;
       }
-      // Loose substring match — "design" hits "designer", "designs".
+      // Loose match, and loose in ONE direction only: both sides need four
+      // characters and one has to START the other, so "design" still reaches
+      // "designer" and "designs" while "a" reaches nothing at all. The old
+      // rule put no floor on the icon's side, so any short word in a name
+      // matched every brand token that merely contained it.
+      if (part.length < 4) continue;
       for (const t of tokenSet) {
-        if (t.length >= 4 && (part.includes(t) || t.includes(part))) {
-          score += 1;
+        if (t.length >= 4 && (part.startsWith(t) || t.startsWith(part))) {
+          loose += 1;
           break;
         }
       }
     }
-    if (score > 0) {
-      // Prefer shorter names (less specific compound nouns), all else
-      // equal — they tend to be more universally usable in a brand kit.
-      const lengthPenalty = parts.length * 0.05;
-      scored.push({ name, score: score - lengthPenalty });
-    }
+    // A loose hit alone is not evidence. Without this the tail of the list is
+    // whatever the catalogue happens to spell like the brand's name, which is
+    // worse than the starter pack it would otherwise be filled from.
+    if (exact === 0) continue;
+    // Prefer shorter names (less specific compound nouns), all else
+    // equal — they tend to be more universally usable in a brand kit.
+    const lengthPenalty = parts.length * 0.05;
+    scored.push({ name, score: exact * 3 + loose - lengthPenalty });
   }
 
   scored.sort((a, b) => b.score - a.score);
-  const matched = scored.slice(0, max).map((s) => s.name);
+
+  // An icon SET is a set of different things. Ranking alone gives a run of one
+  // family — "cloud" is a synonym for tech and the catalogue answers with
+  // cloud-drizzle, cloud-hail, cloud-meatball and twenty more weather states —
+  // so each family gets a few places and the rest of the list has to be earned
+  // by something else. Anything left over is added afterwards, in rank order,
+  // rather than lost.
+  const perFamily = new Map<string, number>();
+  const matched: string[] = [];
+  const overflow: string[] = [];
+  for (const s of scored) {
+    if (matched.length >= max) break;
+    const family = s.name.slice('fi-rr-'.length).split('-')[0]!;
+    const taken = perFamily.get(family) ?? 0;
+    if (taken >= FAMILY_LIMIT) {
+      overflow.push(s.name);
+      continue;
+    }
+    perFamily.set(family, taken + 1);
+    matched.push(s.name);
+  }
+  for (const name of overflow) {
+    if (matched.length >= max) break;
+    matched.push(name);
+  }
 
   if (matched.length >= max) return matched;
 
