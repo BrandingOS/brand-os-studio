@@ -33,7 +33,9 @@ const RULES: GroupRule[] = [
   // Development first — these paths are ours and must never be reclassified.
   { group: 'Development', test: (p) => p.startsWith('/_dev') || p.startsWith('/__') },
 
-  { group: 'Authentication', test: (p) => exact('/login', '/signup')(p) || under('/auth')(p) },
+  // /invite/:token is an auth-shaped surface: a public page whose whole job is turning a
+  // stranger with a link into a member of a workspace.
+  { group: 'Authentication', test: (p) => exact('/login', '/signup')(p) || under('/auth')(p) || under('/invite')(p) },
 
   // Onboarding includes the Logo Maker flow: it is the 6-screen brand-creation
   // wizard, not a tool (see CLAUDE.md carve-out #1).
