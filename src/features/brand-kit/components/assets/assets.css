@@ -788,3 +788,150 @@
   font-size: 12.5px;
   line-height: 1.6;
 }
+
+/* Logos */
+
+.bka-logos {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The system as it will be, above the controls that change it. Each chip is
+   one approved placement: the ground it is painted, the ink it carries. A
+   ground that loses its variant loses its chip, which is the fastest way to
+   see what a policy actually costs. */
+.bka-logos-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bka-logos-placed {
+  width: 38px;
+  height: 30px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.bka-logos-placed-ink {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.bka-logos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bka-logos-heading {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+.bka-logos-list,
+.bka-logos-grounds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bka-logos-row,
+.bka-logos-ground {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* A row that is switched off is still a row: it reads as set aside, not
+   missing, so turning it back on is obviously available. */
+.bka-logos-ground[data-off='true'] .bka-logos-meta {
+  opacity: 0.55;
+}
+
+/* The artwork itself, on the panel's own surface — the row is chrome, so the
+   only brand colour in it is the drawing. */
+.bka-logos-thumb {
+  width: 44px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.bka-logos-thumb img,
+.bka-logos-thumb svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.bka-logos-swatch {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+}
+
+.bka-logos-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bka-logos-ground-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.bka-logos-sub {
+  font-size: 11px;
+  color: var(--ds-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-logos-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+  margin: 0;
+}
+
+.bka-logos-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}

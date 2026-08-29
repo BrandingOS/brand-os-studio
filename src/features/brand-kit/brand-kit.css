@@ -3084,3 +3084,194 @@
 .bk-card-cover {
   position: relative;
 }
+
+/* ─── Card covers ─────────────────────────────────────────────────
+   `CardCover` paints the customer's OWN artwork into `.bk-card-cover`.
+   It shipped with no stylesheet at all, and every one of its failures
+   followed from that:
+
+     • the art was a STATIC block in flow, so it sized to its content —
+       a palette of `flexGrow` spans with no flex parent collapsed to
+       0px (an empty Colors card), a 260×368 letterhead stage overflowed
+       a 209px box, and the type/icon rows were 24px slivers;
+     • being in flow it also sat in the same stacking context as the
+       hover actions with nothing above it, so `elementFromPoint` at the
+       ⬇ button answered `DIV.bk-cover-art` and Playwright refused the
+       click with "subtree intercepts pointer events".
+
+   Two rules fix the class of bug rather than the instances: the art is
+   an ABSOLUTE FILL (it can never change the card's size, and can never
+   overflow it), and the art is a PICTURE — `pointer-events: none`, so
+   every control on a card is above it and nothing it contains can eat a
+   click. The controls opt back in explicitly.
+   ────────────────────────────────────────────────────────────────── */
+
+[data-workspace] .bk-card-cover-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Above the art, and above the DownloadMenu's own stacking. */
+[data-workspace] .bk-card-actions {
+  z-index: 3;
+}
+[data-workspace] .bk-card-cover .bk-dl-menu {
+  z-index: 4;
+}
+
+/* A renderer laid out at its canonical 260px and scaled to fit. The
+   host is the measured box, so it must BE the cover box — measuring a
+   content-sized host is what produced a scale of 1 on a 368px-tall
+   letterhead. */
+[data-workspace] .bk-cover-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--ds-surface-subtle);
+}
+[data-workspace] .bk-cover-stage-inner {
+  transform-origin: center center;
+  flex: none;
+}
+
+/* Every composed brand-asset cover fills the card. */
+[data-workspace] .bk-cover-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Logo / identity — the mark, whole, never cropped or stretched.
+   A percentage cap on both axes because an SVG with no intrinsic size
+   resolves `width: auto` to the CSS default, not to the drawing
+   (CLAUDE.md, the dashboard band). */
+[data-workspace] .bk-cover-logo {
+  max-width: 62%;
+  max-height: 58%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+[data-workspace] .bk-cover-logo-svg {
+  display: block;
+  width: 62%;
+  max-height: 58%;
+}
+[data-workspace] .bk-cover-logo-svg svg {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+[data-workspace] .bk-cover-initial {
+  font-size: 64px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Palette — the swatches ARE the cover, in proportion. */
+[data-workspace] .bk-cover-art--palette {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+[data-workspace] .bk-cover-swatch {
+  display: block;
+  flex-basis: 0;
+  min-width: 0;
+  align-self: stretch;
+}
+
+/* Typography — the specimen, then the pairing under it. They used to
+   run together ("AaInterDM Sans") because neither the column nor the
+   gap existed. */
+[data-workspace] .bk-cover-art--type {
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--ds-space-4);
+  text-align: center;
+}
+[data-workspace] .bk-cover-aa {
+  font-size: 58px;
+  line-height: 0.9;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+[data-workspace] .bk-cover-type-names {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  font-size: 11.5px;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+/* A middle dot between the two families, so "Inter" and "DM Sans" read
+   as a PAIRING rather than one impossible typeface name. */
+[data-workspace] .bk-cover-type-name + .bk-cover-type-name::before {
+  content: '·';
+  margin-right: 8px;
+  opacity: 0.6;
+}
+[data-workspace] .bk-cover-type-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Icons — six glyphs at a size a person can recognise. */
+[data-workspace] .bk-cover-art--icons {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 18px 26px;
+  place-content: center;
+}
+[data-workspace] .bk-cover-icon {
+  font-size: 26px;
+  line-height: 1;
+  display: block;
+}
+
+[data-workspace] .bk-cover-art--photo {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Strategy — one line of what the brand says it is. It CANNOT run past
+   the band: a cover is a glance, and an unclamped paragraph painted
+   over the card's own edge. */
+[data-workspace] .bk-cover-art--strategy {
+  padding: 18px 20px;
+}
+[data-workspace] .bk-cover-quote {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* An honest empty — the brand's own quiet surface, and what is missing. */
+[data-workspace] .bk-cover-art--empty {
+  border: 1px dashed currentColor;
+  border-radius: 13px;
+}
+[data-workspace] .bk-cover-empty-note {
+  font-size: 12px;
+  letter-spacing: -0.005em;
+}
