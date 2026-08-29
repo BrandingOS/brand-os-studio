@@ -163,6 +163,9 @@ export function AILogoSuggestions({ currentConfig, onApply }: AILogoSuggestionsP
         setSuggestions(generateFallbackSuggestions(description, currentConfig.brandName));
       }
     } catch {
+      // Logo Maker is a PUBLIC route and the AI proxy is signed-in only (it spends
+      // workspace credits), so a signed-out visitor lands here and gets the deterministic
+      // keyword suggestions instead. Same path as a provider outage: never a dead button.
       setSuggestions(generateFallbackSuggestions(description, currentConfig.brandName));
     } finally {
       setLoading(false);

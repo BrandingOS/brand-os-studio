@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { DsBadge, DsButton, DsSegmented, DsSwitch } from '@/shared/ds';
+import { DsBadge, DsButton, DsCheckbox, DsSegmented, DsSwitch } from '@/shared/ds';
 import { useUiPreference, useSetUiPreference, type UiPreference } from '@/shared/hooks/useUiPreference';
 import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import { useGeneratePrefs } from '@/features/editor/shell/v2/panels/generate/generatePrefs';
@@ -11,6 +11,13 @@ import {
   SettingsSection,
 } from '@/features/settings/components/SettingsSection';
 import { SettingsSections } from '@/features/settings/components/SettingsSections';
+
+const BRAND_INCLUSIONS = [
+  { key: 'logo', label: 'Logo' },
+  { key: 'text', label: 'Text' },
+  { key: 'colours', label: 'Colours' },
+  { key: 'identity', label: 'Brand identity' },
+] as const;
 
 /**
  * Preferences — how the product behaves.
@@ -118,13 +125,19 @@ export default function PreferencesSettingsPage() {
         description="The defaults the editor's Generate panel opens with."
       >
         <SettingsRow
-          label="Use my brand"
-          hint="Enriches your prompt with the brand's colours, fonts and logo before generating. Turn this off to send your words exactly as typed."
+          label="Brand includes"
+          hint="Which parts of the brand may appear in a generated image. Everything is included by default; each can be left out on its own."
         >
-          <DsSwitch
-            checked={generate.brandAware}
-            onChange={generate.setBrandAware}
-          />
+          <div className="flex flex-wrap gap-3">
+            {BRAND_INCLUSIONS.map(({ key, label }) => (
+              <DsCheckbox
+                key={key}
+                label={label}
+                checked={generate.include[key]}
+                onChange={(checked) => generate.setInclude({ [key]: checked })}
+              />
+            ))}
+          </div>
         </SettingsRow>
         <SettingsRow label="Images per generation" hint="Between one and four.">
           <DsSegmented

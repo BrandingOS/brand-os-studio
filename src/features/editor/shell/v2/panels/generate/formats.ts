@@ -6,7 +6,7 @@
 // supplies the use case.
 
 import {
-  Image as ImageIcon,
+  Proportions,
   Square as SquareIcon, RectangleHorizontal, RectangleVertical, Smartphone, MonitorPlay,
 } from 'lucide-react';
 import type { AspectRatio } from '@/features/image-generation';
@@ -20,15 +20,16 @@ export interface FormatPreset {
 }
 
 export const FORMAT_PRESETS: FormatPreset[] = [
-  { id: 'auto',       ratio: 'auto',  name: 'Auto',       Icon: ImageIcon,           promptSuffix: '' },
+  // A photo glyph said "picture"; this control is about SHAPE.
+  { id: 'auto',       ratio: 'auto',  name: 'Auto',       Icon: Proportions,         promptSuffix: '' },
   { id: 'square',     ratio: '1:1',   name: 'Square',     Icon: SquareIcon,          promptSuffix: '' },
   { id: 'portrait',   ratio: '4:5',   name: 'Portrait',   Icon: RectangleVertical,   promptSuffix: '' },
   { id: 'tall',       ratio: '2:3',   name: 'Tall',       Icon: RectangleVertical,   promptSuffix: '' },
-  { id: 'vertical',   ratio: '9:16',  name: 'Vertical',   Icon: Smartphone,          promptSuffix: ', vertical mobile composition' },
+  { id: 'vertical',   ratio: '9:16',  name: 'Vertical',   Icon: Smartphone,          promptSuffix: '' },
   { id: 'classic',    ratio: '4:3',   name: 'Classic',    Icon: RectangleHorizontal, promptSuffix: '' },
   { id: 'landscape',  ratio: '3:2',   name: 'Landscape',  Icon: RectangleHorizontal, promptSuffix: '' },
   { id: 'widescreen', ratio: '16:9',  name: 'Widescreen', Icon: RectangleHorizontal, promptSuffix: '' },
-  { id: 'cinematic',  ratio: '21:9',  name: 'Cinematic',  Icon: MonitorPlay,         promptSuffix: ', cinematic ultrawide composition' },
+  { id: 'cinematic',  ratio: '21:9',  name: 'Cinematic',  Icon: MonitorPlay,         promptSuffix: '' },
 ];
 
 export function findFormat(id: string | undefined | null): FormatPreset {

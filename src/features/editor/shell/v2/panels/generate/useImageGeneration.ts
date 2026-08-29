@@ -1,17 +1,32 @@
 // useImageGeneration — the editor Generate panel's image state machine.
 //
-//   idle ──start(text)──▶ compiling ──▶ generating ──▶ idle
+//   idle ──start(text)──▶ compiling ──▶ generating ──▶ [critiquing] ──▶ idle
 //   any  ──error──▶ error        any ──cancel()──▶ idle
 //
 // The compile step is invisible: the panel shows one processing state and the
 // compiled prompt is recorded on the job, not put in front of the user.
 //
-// What this owns: the brand-aware compile, reference building, one server call
-// per submit, insertion of results as pages in a single undo step, and the
-// doc's `metadata.ai` record. What it deliberately does NOT own: cost, credit
-// checks, durable storage, provider retries — those are the server's. Asking
-// twice can never charge twice because every submit carries a stable
-// idempotency key that is reused on retry.
+// What this owns: the brand-aware compile, reference building, the batch plan,
+// insertion of results as pages in a single undo step, the doc's `metadata.ai`
+// record, and the post-delivery critique. What it deliberately does NOT own:
+// cost, credit checks, durable storage, provider retries — those are the
+// server's. Asking twice can never charge twice because every submit carries a
+// stable idempotency key that is reused on retry.
+//
+// ONE JOB PER CANDIDATE, and why
+// ──────────────────────────────
+// A batch used to be one job with `count: N`, which meant one prompt — and
+// every production model Auto can route to declares `supportsSeed: false`, so
+// the seed never varied either. Four candidates were four samples of one
+// conditioning. They are now four PLANNED explorations (see variants.ts), which
+// means four prompts, which the deployed server can only accept as four jobs.
+//
+// That costs a little more, because credits round up per job: four Nano Banana
+// Pro images are 54 credits as one job and 56 as four. The pre-flight estimate
+// prices the real jobs, so the number on the button stays the number charged.
+// A server that accepted `prompts: string[]` would remove the difference; that
+// change is written but not deployed, because this Supabase project also serves
+// production.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
@@ -26,22 +41,30 @@ import {
 import { cancelGeneration, type AspectRatio, type ImageModelCaps } from '@/features/image-generation';
 import { AUTO_MODEL_ID, modelLabel } from '@/features/editor/ai/imageModels';
 import { compileImagePrompt, type CompiledPrompt } from '@/features/editor/ai/imagePrompt/compileImagePrompt';
-import { hasCopy, textSection, type CopyDeck, type DeliverableKind } from '@/features/editor/ai/imagePrompt/artDirection';
-import { buildBrandReferences } from '@/features/editor/ai/imagePrompt/brandReferences';
+import {
+  ALL_BRAND_INCLUDED,
+  type BrandInclusions,
+  type CopyDeck,
+  type DeliverableKind,
+} from '@/features/editor/ai/imagePrompt/artDirection';
+import { buildBrandReferences, type UserReference } from '@/features/editor/ai/imagePrompt/brandReferences';
+import { critiqueBatch, noCritique, type CritiqueResult } from '@/features/editor/ai/imagePrompt/critique';
 import { findFormat, formatLabel, ratioForSize } from './formats';
 import { appendGenerations, generationForPage, type GenerationRecord } from './aiMetadata';
+import { recordDuration } from './genTiming';
 
-export type GenStatus = 'idle' | 'compiling' | 'generating' | 'error';
+export type GenStatus = 'idle' | 'compiling' | 'generating' | 'critiquing' | 'error';
 
 export interface GenerationSettings {
   model: string;
   count: number;
   formatId: string;
   negativePrompt: string;
-  brandAware: boolean;
+  /** Which parts of the brand may enter the frame. */
+  include: BrandInclusions;
   caps: ImageModelCaps;
-  /** Storage paths of user-attached references. */
-  referencePaths?: string[];
+  /** User-attached references, in send order, each with its purpose. */
+  references?: UserReference[];
   /** Exact words the user wants set. Never invented on their behalf. */
   copy?: CopyDeck;
   /** Finished design vs plain image. Undefined → inferred from the request. */
@@ -69,6 +92,7 @@ export interface UseImageGenerationArgs {
     compile?: typeof compileImagePrompt;
     buildRefs?: typeof buildBrandReferences;
     generate?: typeof generateImage;
+    critique?: typeof critiqueBatch;
     now?: () => string;
     uuid?: () => string;
   };
@@ -84,12 +108,18 @@ export interface UseImageGeneration {
   canRetry: boolean;
   compiled: CompiledPrompt | null;
   pendingKind: GenerationRecord['kind'] | null;
+  /** How many images this run is waiting on — drives the pending slots. */
+  pendingCount: number;
+  /** epoch ms the current run began, or null. Counts the compile too. */
+  startedAt: number | null;
   lastResult: {
     pageIds: string[]; model?: string; warnings?: string[];
     charged: number; balance: number;
     /** How many images were ASKED for — `pageIds` is what arrived. */
     requested: number;
   } | null;
+  /** Scores for the last batch, keyed by page id. Empty when unavailable. */
+  critique: Record<string, { overall: number; note: string; hardFailures: string[] }>;
   start: (text: string) => Promise<void>;
   retry: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -114,6 +144,8 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     (...a) => (depsRef.current?.buildRefs ?? buildBrandReferences)(...a), []);
   const generateFn: typeof generateImage = useCallback(
     (...a) => (depsRef.current?.generate ?? generateImage)(...a), []);
+  const critiqueFn: typeof critiqueBatch = useCallback(
+    (...a) => (depsRef.current?.critique ?? critiqueBatch)(...a), []);
   const now = useCallback(() => (depsRef.current?.now ?? (() => new Date().toISOString()))(), []);
   const uuid = useCallback(() => (depsRef.current?.uuid ?? (() => crypto.randomUUID()))(), []);
 
@@ -124,6 +156,9 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
   const [canRetry, setCanRetry] = useState(false);
   const [compiled, setCompiled] = useState<CompiledPrompt | null>(null);
   const [lastResult, setLastResult] = useState<UseImageGeneration['lastResult']>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [critique, setCritique] = useState<UseImageGeneration['critique']>({});
 
   const pendingRef = useRef<Pending | null>(null);
   const settingsRef = useRef(settings);
@@ -132,7 +167,7 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
   // manual submit could otherwise race into two concurrent paid runs.
   const inFlightRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const jobIdRef = useRef<string | null>(null);
+  const jobIdsRef = useRef<string[]>([]);
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; abortRef.current?.abort(); }, []);
 
@@ -153,6 +188,10 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
         hint = 'Adjust the settings and try again.';
       } else if (err.code === 'safety_rejection') {
         hint = 'Rewording the subject usually resolves it.';
+      } else if (err.code === 'rate_limited') {
+        hint = 'Too many requests at once — wait a moment and try again.';
+      } else if (err.code === 'timeout' || err.code === 'provider_unavailable') {
+        hint = 'The image service did not answer. Nothing was charged.';
       }
     }
     if (!mountedRef.current) return;
@@ -161,6 +200,8 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     setErrorCode(code);
     setCanRetry(retryable);
     setStatus('error');
+    setPendingCount(0);
+    setStartedAt(null);
   }, []);
 
   /** Resolve the target shape from the active page + the chosen format. */
@@ -175,24 +216,28 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     return { aspectRatio, label: formatLabel(format, aspectRatio) };
   }, [adapter, activePageId]);
 
-  /** Build refs → call the server → insert pages in ONE undo step → record. */
+  /** Build refs → one job per candidate → insert in ONE undo step → record. */
   const run = useCallback(async (
-    prompt: string,
+    prompts: string[],
     negativePrompt: string | undefined,
     plan: Pending,
     logo: boolean,
     palette: boolean,
     paletteHexes: string[],
+    compiledMeta: CompiledPrompt | null,
   ) => {
     if (!brand?.id) { fail(new Error('Open a brand to generate images.')); return; }
     const s = settingsRef.current;
     const format = findFormat(s.formatId);
     const { aspectRatio } = resolveTarget();
-    const count = Math.min(s.caps.maxOutputs, Math.max(1, plan.count ?? s.count));
+    const count = Math.max(1, Math.min(s.caps.maxOutputs, prompts.length));
+    const briefs = prompts.slice(0, count);
+    const began = Date.now();
 
-    if (mountedRef.current) setStatus('generating');
+    if (mountedRef.current) { setStatus('generating'); setPendingCount(count); }
     const controller = new AbortController();
     abortRef.current = controller;
+    jobIdsRef.current = [];
 
     try {
       const refs = await buildRefsFn({
@@ -200,25 +245,39 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
         caps: s.caps,
         plan: { logo, palette, previousPath: plan.previousPath, previousDataUrl: plan.previousDataUrl },
         paletteHexes,
-        userReferencePaths: s.referencePaths,
+        userReferences: s.references,
       });
 
-      const result: GenerateImageResult = await generateFn({
+      // One job per candidate, concurrently. A candidate that fails loses only
+      // itself — the old single-job batch lost all four.
+      const settled = await Promise.allSettled(briefs.map((brief, i) => generateFn({
         brandId: brand.id,
         designId: adapter.getDocument().id,
         operation: plan.kind,
         userPrompt: plan.original,
-        compiledPrompt: `${prompt}${format.promptSuffix}`,
+        compiledPrompt: `${brief}${format.promptSuffix}`,
         negativePrompt,
         model: s.model === AUTO_MODEL_ID ? undefined : s.model,
         aspectRatio,
-        count,
+        count: 1,
         references: refs.references,
-        idempotencyKey: plan.idempotencyKey,
-      }, { signal: controller.signal });
+        // Per candidate, so a retry of the batch re-uses each one exactly.
+        idempotencyKey: `${plan.idempotencyKey}#${i}`,
+      }, { signal: controller.signal })));
 
-      jobIdRef.current = result.jobId;
+      const ok = settled
+        .map((r, i) => ({ r, i }))
+        .filter((x): x is { r: PromiseFulfilledResult<GenerateImageResult>; i: number } =>
+          x.r.status === 'fulfilled');
+
+      if (!ok.length) {
+        // Every candidate failed — surface the first real reason, not a summary.
+        const first = settled.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+        throw first?.reason ?? new Error('No images were returned.');
+      }
       if (!mountedRef.current) return;
+
+      jobIdsRef.current = ok.map((x) => x.r.value.jobId).filter(Boolean) as string[];
 
       // One page per output, inserted right after the active page.
       const docNow = adapter.getDocument();
@@ -227,28 +286,40 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
       const batchId = uuid();
       const pages: Page[] = [];
       const records: GenerationRecord[] = [];
+      let charged = 0;
+      let balance = 0;
+      const warnings: string[] = [];
+      let model: string | undefined;
 
-      result.images.forEach((img, i) => {
-        const w = img.width ?? 1024;
-        const h = img.height ?? 1024;
-        const pageId = uuid();
-        pages.push({
-          id: pageId,
-          name: `${plan.original.slice(0, 28) || 'AI image'}${count > 1 ? ` ${i + 1}` : ''}`,
-          width: w, height: h, background: '#ffffff', masterPageId: null,
-          layers: [{
-            id: uuid(), kind: 'image', name: 'AI image', src: img.url, fit: 'cover',
-            transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-            opacity: 1, visible: true, locked: false, brandLocked: false,
-          } as ImageLayer],
-        });
-        records.push({
-          id: uuid(), pageId, batchId,
-          original: plan.original, compiled: prompt, negativePrompt,
-          model: result.model, count, seed: img.seed,
-          refs: refs.roles, kind: plan.kind, parentPageId: plan.parentPageId,
-          createdAt: now(), width: w, height: h, formatId: format.id,
-          jobId: result.jobId, storagePath: img.storagePath,
+      ok.forEach(({ r, i }) => {
+        const result = r.value;
+        charged += result.chargedCredits ?? 0;
+        balance = result.balance ?? balance;
+        model = model ?? result.model;
+        for (const w of result.warnings ?? []) if (!warnings.includes(w)) warnings.push(w);
+
+        result.images.forEach((img) => {
+          const w = img.width ?? 1024;
+          const h = img.height ?? 1024;
+          const pageId = uuid();
+          pages.push({
+            id: pageId,
+            name: `${plan.original.slice(0, 28) || 'AI image'}${count > 1 ? ` ${i + 1}` : ''}`,
+            width: w, height: h, background: '#ffffff', masterPageId: null,
+            layers: [{
+              id: uuid(), kind: 'image', name: 'AI image', src: img.url, fit: 'cover',
+              transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
+              opacity: 1, visible: true, locked: false, brandLocked: false,
+            } as ImageLayer],
+          });
+          records.push({
+            id: uuid(), pageId, batchId,
+            original: plan.original, compiled: briefs[i], negativePrompt,
+            model: result.model, count, seed: img.seed,
+            refs: refs.roles, kind: plan.kind, parentPageId: plan.parentPageId,
+            createdAt: now(), width: w, height: h, formatId: format.id,
+            jobId: result.jobId, storagePath: img.storagePath,
+          });
         });
       });
 
@@ -266,25 +337,68 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
       if (replaceFailed) throw replaceFailed;
 
       onActivePageChange?.(pages[0].id);
+
+      // Only a delivered run is a timing sample. A failure or a cancel would
+      // teach the estimate to lie.
+      recordDuration(model ?? s.model, count, Date.now() - began);
+
       if (mountedRef.current) {
         setLastResult({
           pageIds: pages.map((p) => p.id),
           requested: count,
-          model: result.model,
-          warnings: result.warnings,
-          charged: result.chargedCredits,
-          balance: result.balance,
+          model,
+          warnings,
+          charged,
+          balance,
         });
+        setPendingCount(0);
         setStatus('idle');
+        setStartedAt(null);
       }
       pendingRef.current = null;
+
+      // The critique runs AFTER the pages are on the canvas, never before.
+      // Nothing about it may delay delivery, and it cannot fail the run.
+      void (async () => {
+        if (!pages.length) return;
+        if (mountedRef.current) setStatus('critiquing');
+        const images = pages.map((p) => {
+          const layer = firstImageLayer(p);
+          return typeof layer?.src === 'string' ? layer.src : '';
+        }).filter(Boolean);
+        let result: CritiqueResult;
+        try {
+          result = images.length
+            ? await critiqueFn({
+              images,
+              userPrompt: plan.original,
+              copy: s.copy,
+              kind: compiledMeta?.kind ?? 'design',
+              deliverable: compiledMeta?.deliverable ?? 'design',
+              logoExpected: logo,
+              paletteHexes,
+            })
+            : noCritique(0);
+        } catch {
+          result = noCritique(images.length);
+        }
+        if (!mountedRef.current) return;
+        setStatus((cur) => (cur === 'critiquing' ? 'idle' : cur));
+        if (result.unavailable) return;
+        const byPage: UseImageGeneration['critique'] = {};
+        result.candidates.forEach((c) => {
+          const page = pages[c.index];
+          if (page) byPage[page.id] = { overall: c.overall, note: c.note, hardFailures: c.hardFailures };
+        });
+        setCritique((prev) => ({ ...prev, ...byPage }));
+      })();
     } catch (err) {
       fail(err);
     } finally {
       inFlightRef.current = false;
       abortRef.current = null;
     }
-  }, [adapter, activePageId, brand, buildRefsFn, fail, generateFn, now, onActivePageChange, resolveTarget, uuid]);
+  }, [adapter, activePageId, brand, buildRefsFn, critiqueFn, fail, generateFn, now, onActivePageChange, resolveTarget, uuid]);
 
   const compileAndRun = useCallback(async (
     plan: Pending,
@@ -293,38 +407,47 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     if (inFlightRef.current) return;      // hook-level double-submit guard
     inFlightRef.current = true;
     pendingRef.current = plan;
+    const s = settingsRef.current;
+    const wanted = Math.max(1, Math.min(s.caps.maxOutputs, plan.count ?? s.count));
     if (mountedRef.current) {
       setError(null); setErrorHint(null); setErrorCode(null);
       setStatus('compiling');
+      setPendingCount(wanted);
+      setStartedAt(Date.now());
     }
 
-    const s = settingsRef.current;
+    const include = s.include ?? ALL_BRAND_INCLUDED;
     try {
       const { label } = resolveTarget();
-      const out = await compileFn(
-        {
-          userPrompt: plan.original, brand, formatLabel: label, modelCaps: s.caps, refineOf,
-          copy: s.copy, kind: s.kind,
-          userReferenceCount: s.referencePaths?.length,
+      const out = await compileFn({
+        userPrompt: plan.original,
+        brand,
+        formatLabel: label,
+        modelCaps: s.caps,
+        refineOf,
+        // A piece with no text cannot carry a copy deck.
+        copy: include.text ? s.copy : undefined,
+        kind: s.kind,
+        include,
+        count: wanted,
+        userReferences: {
+          style: (s.references ?? []).filter((r) => r.use === 'style').length,
+          subject: (s.references ?? []).filter((r) => r.use === 'subject').length,
         },
-        { deterministicOnly: !s.brandAware },
-      );
-      if (!s.brandAware) {
-        // Raw means "send my words, not the brand's" — it does not mean
-        // "throw away the copy I typed". Keep the exact-copy contract; drop
-        // only the brand enrichment.
-        out.prompt = hasCopy(s.copy)
-          ? `${plan.original}\n\n${textSection(out.kind, s.copy, null)}`
-          : plan.original;
-        out.useLogo = false;
-        out.paletteHexes = [];
-        out.notes = 'Raw prompt — brand context off.';
-      }
+      });
       if (mountedRef.current) setCompiled(out);
+
+      // Defence in depth. The compiler was told about the exclusions and the
+      // brief drops the sections — but a reference IMAGE is the one instruction
+      // a model cannot politely ignore, so the hook refuses to build one too.
       await run(
-        out.prompt,
+        out.prompts.length ? out.prompts : [out.prompt],
         out.negativePrompt ?? (s.negativePrompt || undefined),
-        plan, out.useLogo, out.paletteHexes.length > 0, out.paletteHexes,
+        plan,
+        include.logo && out.useLogo,
+        include.colours && out.paletteHexes.length > 0,
+        include.colours ? out.paletteHexes : [],
+        out,
       );
     } catch (err) {
       inFlightRef.current = false;
@@ -349,14 +472,16 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
 
   const cancel = useCallback(async () => {
     abortRef.current?.abort();
-    const jobId = jobIdRef.current;
+    const ids = jobIdsRef.current;
     inFlightRef.current = false;
-    if (mountedRef.current) setStatus('idle');
-    if (jobId) {
-      // Best effort: releases the reservation so a cancel costs nothing.
-      try { await cancelGeneration(jobId); } catch { /* already settled */ }
-      jobIdRef.current = null;
+    if (mountedRef.current) {
+      setStatus('idle');
+      setPendingCount(0);
+      setStartedAt(null);
     }
+    // Best effort: releases each reservation so a cancel costs nothing.
+    await Promise.allSettled(ids.map((id) => cancelGeneration(id)));
+    jobIdsRef.current = [];
   }, []);
 
   const previousOf = useCallback((pageId: string) => {
@@ -373,35 +498,33 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     };
   }, [adapter]);
 
+  /**
+   * Variations re-COMPILE rather than resending the recorded brief.
+   *
+   * Resending it verbatim reproduced the batch's diversity problem exactly: the
+   * recorded prompt already carries one variant's reading, so four "variations"
+   * were four samples of that one reading. A compile costs a fraction of a cent
+   * against four paid images.
+   */
   const variations = useCallback(async (pageId: string) => {
-    if (inFlightRef.current) return;
     const { rec, previousPath, previousDataUrl, name } = previousOf(pageId);
-    const prompt = rec?.compiled ?? rec?.original ?? name ?? '';
-    if (!prompt) return;
-    inFlightRef.current = true;
-    pendingRef.current = {
-      kind: 'variation', original: rec?.original ?? prompt, parentPageId: pageId,
+    const original = rec?.original ?? name ?? '';
+    if (!original) return;
+    await compileAndRun({
+      kind: 'variation', original, parentPageId: pageId,
       previousPath, previousDataUrl, count: 4, idempotencyKey: newIdempotencyKey(),
-    };
-    await run(prompt, rec?.negativePrompt, pendingRef.current,
-      (rec?.refs ?? []).includes('logo'), (rec?.refs ?? []).includes('palette'),
-      compiled?.paletteHexes ?? []);
-  }, [compiled?.paletteHexes, previousOf, run]);
+    });
+  }, [compileAndRun, previousOf]);
 
   const regenerate = useCallback(async (pageId: string) => {
-    if (inFlightRef.current) return;
     const { rec, name } = previousOf(pageId);
-    const prompt = rec?.compiled ?? rec?.original ?? name;
-    if (!prompt) return;
-    inFlightRef.current = true;
-    pendingRef.current = {
-      kind: 'regenerate', original: rec?.original ?? prompt, parentPageId: pageId,
+    const original = rec?.original ?? name ?? '';
+    if (!original) return;
+    await compileAndRun({
+      kind: 'regenerate', original, parentPageId: pageId,
       count: 1, idempotencyKey: newIdempotencyKey(),
-    };
-    await run(prompt, rec?.negativePrompt, pendingRef.current,
-      (rec?.refs ?? []).includes('logo'), (rec?.refs ?? []).includes('palette'),
-      compiled?.paletteHexes ?? []);
-  }, [compiled?.paletteHexes, previousOf, run]);
+    });
+  }, [compileAndRun, previousOf]);
 
   const refine = useCallback(async (pageId: string, instruction: string) => {
     const text = instruction.trim();
@@ -427,10 +550,11 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     status,
     busy: status === 'compiling' || status === 'generating',
     error, errorHint, errorCode, canRetry, compiled,
-    pendingKind,
+    pendingKind, pendingCount, startedAt, critique,
     lastResult,
     start, retry, cancel, variations, refine, regenerate, clearError,
-  }), [status, error, errorHint, errorCode, canRetry, compiled, pendingKind, lastResult,
+  }), [status, error, errorHint, errorCode, canRetry, compiled, pendingKind, pendingCount,
+       startedAt, critique, lastResult,
        start, retry, cancel, variations, refine, regenerate, clearError]);
 }
 

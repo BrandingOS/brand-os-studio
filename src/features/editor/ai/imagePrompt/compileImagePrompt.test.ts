@@ -77,9 +77,13 @@ describe('deterministicCompile — the brief is assembled, not described', () =>
     const out = deterministicCompile({ userPrompt: 'Instagram post for our launch', brand: fixtureBrand() });
     expect(out.kind).toBe('design');
     expect(out.deliverable).toBe('instagram post');
-    expect(out.prompt).toMatch(/FINISHED INSTAGRAM POST/);
+    expect(out.prompt).toMatch(/^INSTAGRAM POST, /);
     expect(out.prompt).toMatch(/publication-ready/i);
-    expect(out.prompt).toMatch(/must NOT be an empty background/i);
+    expect(out.prompt).toMatch(/NOT an empty background/i);
+    // The format's own conventions must reach the brief — this is the whole
+    // reason a post and a billboard stopped being the same instruction.
+    expect(out.prompt).toMatch(/150 px in a scrolling feed/i);
+    expect(out.prompt).toMatch(/At most 12 words/i);
   });
 
   it('quotes the user\'s copy verbatim and bans every other word', () => {
@@ -90,7 +94,7 @@ describe('deterministicCompile — the brief is assembled, not described', () =>
     });
     expect(out.prompt).toContain('“Same day. Every day.”');
     expect(out.prompt).toContain('“Book a pickup”');
-    expect(out.prompt).toMatch(/do not add any other word anywhere in the frame/i);
+    expect(out.prompt).toMatch(/set no other word anywhere in the frame/i);
   });
 
   it('invents nothing when no copy is supplied — only words the brand owns', () => {
@@ -103,10 +107,13 @@ describe('deterministicCompile — the brief is assembled, not described', () =>
 
   it('always carries the exclusions, including the invented-discount trap', () => {
     const out = deterministicCompile({ userPrompt: 'An ad for our product', brand: fixtureBrand() });
-    expect(out.prompt).toMatch(/DO NOT INCLUDE/);
-    expect(out.prompt).toMatch(/discount badges, sale stickers, percentage offers/i);
-    expect(out.prompt).toMatch(/invented slogans/i);
-    expect(out.negativePrompt).toMatch(/discount badges/i);
+    // The four objective failures stay IN the brief; the long tail moved to the
+    // negative prompt, because it used to be sent twice and 84 words of
+    // prohibition is the loudest thing a diffusion model reads.
+    expect(out.prompt).toMatch(/AVOID —/);
+    expect(out.prompt).toMatch(/invented prices, percentages, dates or claims/i);
+    expect(out.prompt).not.toMatch(/discount badges/i);
+    expect(out.negativePrompt).toMatch(/discount badges, sale stickers, percentage offers/i);
   });
 
   it('a plain photograph stays a wordless image — no text, no logo', () => {
@@ -145,9 +152,10 @@ describe('deterministicCompile — the brief is assembled, not described', () =>
 describe('compileImagePrompt (assisted engine)', () => {
   it('uses the model FIELDS and keeps only known brand hexes', async () => {
     const call = vi.fn().mockResolvedValue(claudeJson({
+      concept: 'A quiet ritual, sold without shouting.',
       subject: 'A matte black cup on oak',
-      composition: 'Cup low-left, headline upper right',
-      style: 'Editorial daylight photography',
+      layout: 'Cup low-left, headline upper right',
+      lightFinish: 'Editorial daylight photography',
       paletteHexes: ['#6B46FF', '#FF0000'],
       useLogo: true,
       logoPlacement: 'bottom-right',
@@ -170,18 +178,18 @@ describe('compileImagePrompt (assisted engine)', () => {
 
   it('the model cannot delete an invariant — exclusions and margin survive', async () => {
     const call = vi.fn().mockResolvedValue(claudeJson({
-      subject: 'x', composition: 'y', style: 'z',
+      concept: 'c', subject: 'x', layout: 'y', lightFinish: 'z',
       paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '',
     }));
     const out = await compileImagePrompt({ userPrompt: 'An ad for our product', brand: fixtureBrand() }, { call });
-    expect(out.prompt).toMatch(/DO NOT INCLUDE/);
+    expect(out.prompt).toMatch(/AVOID —/);
     expect(out.prompt).toMatch(/7% safe margin/);
-    expect(out.prompt).toMatch(/discount badges/i);
+    expect(out.negativePrompt).toMatch(/discount badges/i);
   });
 
   it('a user colour direction empties the palette even if the model returned one', async () => {
     const call = vi.fn().mockResolvedValue(claudeJson({
-      subject: 'x', composition: 'y', style: 'z',
+      concept: 'c', subject: 'x', layout: 'y', lightFinish: 'z',
       paletteHexes: ['#6B46FF'], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '',
     }));
     const out = await compileImagePrompt({ userPrompt: 'a poster in black and white', brand: fixtureBrand() }, { call });
@@ -192,13 +200,13 @@ describe('compileImagePrompt (assisted engine)', () => {
     const call = vi.fn().mockResolvedValue({ content: [] });
     const out = await compileImagePrompt({ userPrompt: 'a poster', brand: fixtureBrand() }, { call });
     expect(out.source).toBe('deterministic');
-    expect(out.prompt).toMatch(/DO NOT INCLUDE/);
+    expect(out.prompt).toMatch(/AVOID —/);
   });
 
   it('accepts fenced JSON', async () => {
     const call = vi.fn().mockResolvedValue({
       content: [{ type: 'text', text: '```json\n' + JSON.stringify({
-        subject: 'fenced subject', composition: 'c', style: 's',
+        concept: 'a fenced idea', subject: 'fenced subject', layout: 'c', lightFinish: 's',
         paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: 'ok',
       }) + '\n```' }],
     });
@@ -211,7 +219,7 @@ describe('compileImagePrompt (assisted engine)', () => {
     // 12 s used to be the budget and sonnet lands at 10–14 s, so most real
     // requests fell back to the thin brief while the user paid full price.
     const call = vi.fn().mockImplementation(() => new Promise((r) => setTimeout(
-      () => r(claudeJson({ subject: 'late', composition: 'c', style: 's', paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '' })), 50)));
+      () => r(claudeJson({ concept: 'late idea', subject: 'late', layout: 'c', lightFinish: 's', paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '' })), 50)));
     const out = await compileImagePrompt({ userPrompt: 'a poster', brand: fixtureBrand() }, { call, timeoutMs: 5000 });
     expect(out.source).toBe('claude');
   });

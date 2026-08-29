@@ -1,22 +1,25 @@
-// GeneratePanel — the editor's AI surface (Freepik / Lovart-style).
+// GeneratePanel — the one surface where images are generated.
 //
-// Layout (top → bottom):
-//   • Mode pills (Image | Editable)
-//   • Prompt textarea — paperclip attaches a user reference inline
-//   • Image toolbar: Format ▾ · Model ▾ · Count 1–4 · Brand-aware / Raw
-//   • Advanced (collapsed): negative prompt
-//   • Generate → (Image) silent brand-aware compile → vendor → pages,
-//                one ProcessingCard the whole way (owner: no review step)
-//                (Editable) agent.applyCommand → onApply
-//   • GenerationActions when the active page is an AI generation
-//   • Presets gallery
+// Four zones, in this order, and the order is the design:
 //
-// Image-mode state lives in `useImageGeneration`; this file is
-// composition + the Editable path (unchanged behaviour). Test hooks
-// (`data-generate-*`) are preserved for the existing browser e2e suites.
+//   COMPOSER   prompt · references · the run button        always visible
+//   SETTINGS   size · model · count · brand includes       one row at rest
+//   RESULTS    pending slots that BECOME the results       grows
+//   START FROM presets                                     empty state only
+//
+// The rule that fixes the worst moment: the composer and the settings stay
+// MOUNTED while a batch runs. The panel used to replace itself with a spinner
+// card, so at the exact moment the wait was longest the user could not see what
+// they had asked for, could not see the settings they had chosen, and could not
+// queue an edit. The waiting state now lives in the results grid, in the slots
+// the images will actually land in.
+//
+// The Image / Editable switch is deliberately not rendered (MODE_SWITCH_VISIBLE).
+// The Editable path is intact and still reachable through the hero hand-off
+// (`?mode=editable` → `initialMode`), which is how every caller reaches it.
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { Sparkles, Image as ImageIcon, Layers, X as XIcon, Paperclip, Settings2, Wand2, Type } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { Sparkles, Paperclip, Settings2, Layers, Image as ImageIcon, Wand2, Palette, X as XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
@@ -24,27 +27,41 @@ import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import { AUTO_MODEL_ID, modelLabel } from '@/features/editor/ai/imageModels';
 import {
-  estimateGeneration, uploadReference, useCreditsForBrand, saveGeneratedImageToBrand,
-  formatCredits, type AttachedReference,
+  estimateGeneration,
+  uploadReference,
+  formatCredits,
+  useCreditsForBrand,
+  saveGeneratedImageToBrand,
 } from '@/features/image-generation';
 import { container, SERVICE_KEYS } from '@/core';
 import type { IAssetsService } from '@/core/types/services';
-import { FORMAT_PRESETS, findFormat, formatLabel, type PromptPreset } from './formats';
+import { FORMAT_PRESETS, findFormat, type PromptPreset } from './formats';
 import { TallSelect } from './TallSelect';
 import { ModelPicker } from './ModelPicker';
 import { capsForSelection, useImageCapabilities } from './useImageModelAvailability';
-import { CountChip } from './CountChip';
-import { ProcessingCard } from './ProcessingCard';
+import { CountStepper } from './CountStepper';
+import { BrandIncludes } from './BrandIncludes';
+import { ResultsStrip, type PendingBatch } from './ResultsStrip';
 import { GenerationActions } from './GenerationActions';
 import { PresetsGallery } from './PresetsGallery';
 import { useGeneratePrefs } from './generatePrefs';
 import { useImageGeneration } from './useImageGeneration';
 import { inferDeliverable, type CopyDeck, type DeliverableKind } from '@/features/editor/ai/imagePrompt/artDirection';
-import { ReferenceStrip } from './ReferenceStrip';
+import { ReferenceStrip, type PanelReference, type ReferenceUse } from './ReferenceStrip';
 import { CreditsPill } from './CreditsPill';
 import { generationForPage, readAiMetadata } from './aiMetadata';
+import { estimateDuration } from './genTiming';
 
 type Mode = 'image' | 'editable';
+
+/**
+ * The Image / Editable switch is hidden, not deleted.
+ *
+ * Flip this to true to bring it back. Everything behind it — `runEditable`,
+ * the suggestion chips, `agent.applyCommand` — is untouched, and the hero
+ * hand-off still opens the panel in Editable mode via `initialMode`.
+ */
+const MODE_SWITCH_VISIBLE = false as boolean;
 
 export interface GeneratePanelProps {
   adapter: EditorAdapter;
@@ -78,7 +95,7 @@ export function GeneratePanel({
   const [editableError, setEditableError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [formatId, setFormatId] = useState<string>(initialFormatId && FORMAT_PRESETS.some((f) => f.id === initialFormatId) ? initialFormatId : 'auto');
-  const [references, setReferences] = useState<AttachedReference[]>([]);
+  const [references, setReferences] = useState<PanelReference[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState('');
   // The words to SET in the design. Never invented on the user's behalf — an
@@ -86,6 +103,8 @@ export function GeneratePanel({
   const [copy, setCopy] = useState<CopyDeck>({});
   const [kindChoice, setKindChoice] = useState<DeliverableKind | 'auto'>('auto');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Which button opened the picker — a file has no idea what it is FOR.
+  const pendingUseRef = useRef<ReferenceUse>('subject');
 
   // Model / count come from persisted prefs; a hero hand-off overrides once.
   useEffect(() => {
@@ -116,9 +135,11 @@ export function GeneratePanel({
       count: prefs.count,
       formatId,
       negativePrompt,
-      brandAware: prefs.brandAware,
+      include: prefs.include,
       caps,
-      referencePaths: references.length ? references.map((r) => r.path) : undefined,
+      references: references.length
+        ? references.map((r) => ({ path: r.path, use: r.use }))
+        : undefined,
       copy,
       kind: kindChoice === 'auto' ? undefined : kindChoice,
     },
@@ -130,28 +151,52 @@ export function GeneratePanel({
   );
   const copyCount = [copy.headline, copy.subhead, copy.cta].filter((v) => v?.trim()).length;
 
-  // Pre-flight cost. The server prices the request; the panel only displays
-  // it. Re-asked whenever anything that moves the price changes, so the number
-  // beside the button is the number that will be charged.
+  // ─── Pre-flight cost ─────────────────────────────────────────────
+  // The server prices the request; the panel only displays it. A batch is one
+  // job PER CANDIDATE (see useImageGeneration), and credits round up per job,
+  // so the estimate has to price a single image and multiply — quoting the old
+  // batch price would under-report what is actually charged.
   const [estimate, setEstimate] = useState<number | null>(null);
+  const [costState, setCostState] = useState<'loading' | 'ready' | 'unknown'>('loading');
   const refCount = Math.min(references.length, maxRefs);
   useEffect(() => {
-    if (mode !== 'image') { setEstimate(null); return; }
+    if (mode !== 'image') { setEstimate(null); setCostState('unknown'); return; }
     let cancelled = false;
-    setEstimate(null);
+    setCostState('loading');
     estimateGeneration({
       model: prefs.model || AUTO_MODEL_ID,
       aspectRatio: findFormat(formatId).ratio === 'auto' ? undefined : findFormat(formatId).ratio as never,
-      count: prefs.count,
+      count: 1,
       referenceCount: refCount,
     })
-      .then((r) => { if (!cancelled) setEstimate(r.credits ?? null); })
-      .catch(() => { if (!cancelled) setEstimate(null); });
+      .then((r) => {
+        if (cancelled) return;
+        const per = r.credits ?? null;
+        setEstimate(per == null ? null : per * prefs.count);
+        setCostState(per == null ? 'unknown' : 'ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // A failed estimate is not a free generation. Say so rather than
+        // quietly removing the affordability guard.
+        setEstimate(null);
+        setCostState('unknown');
+      });
     return () => { cancelled = true; };
   }, [mode, prefs.model, prefs.count, formatId, refCount]);
 
   const balance = credits.account?.balance ?? null;
   const cannotAfford = estimate != null && balance != null && balance < estimate;
+
+  const costTitle = mode !== 'image'
+    ? undefined
+    : costState === 'loading'
+      ? 'Working out the cost…'
+      : costState === 'unknown'
+        ? 'The cost could not be checked — sign in to see it before generating.'
+        : cannotAfford
+          ? `This needs ${estimate} credits; you have ${formatCredits(balance ?? 0)}.`
+          : `${prefs.count} image${prefs.count > 1 ? 's' : ''} · ${modelLabel(prefs.model || AUTO_MODEL_ID, capabilities.auto)} · ${estimate} credits${balance != null ? ` · you have ${formatCredits(balance)}` : ''}`;
 
   // Hero hand-off: the prompt arrives via URL, we start immediately.
   // The panel can mount before the adapter has loaded the document, so
@@ -207,22 +252,23 @@ export function GeneratePanel({
         + (r.charged > 0 ? ` · ${r.charged} credits` : ''),
       );
     }
-    setPrompt('');
-    setCopy({});
+    // The prompt is DELIBERATELY kept. Generating is iterative — the second
+    // attempt is nearly always the first with a word changed — and clearing the
+    // box made every iteration a retype. Clear is a button now.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen.lastResult]);
 
   // ─── Reference images ────────────────────────────────────────────
-  // The strip keeps every image the user attached, in send order. The server
-  // truncates to what the model accepts and says so; the strip shows which
-  // ones that leaves out BEFORE the credits are spent.
-  const handleFilesChosen = useCallback(async (files: File[]) => {
+  // The strip keeps every image the user attached, in send order, each carrying
+  // what it is FOR. The server truncates to what the model accepts and says so;
+  // the strip shows which ones that leaves out BEFORE the credits are spent.
+  const handleFilesChosen = useCallback(async (files: File[], use: ReferenceUse) => {
     setUploading(true);
     try {
       for (const file of files) {
         try {
           const ref = await uploadReference(file);
-          setReferences((prev) => [...prev, ref]);
+          setReferences((prev) => [...prev, { ...ref, use }]);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           toast.error(msg.slice(0, 120));
@@ -232,14 +278,22 @@ export function GeneratePanel({
       setUploading(false);
     }
   }, []);
-  const onPickFile = useCallback(() => fileInputRef.current?.click(), []);
+  const onPickFile = useCallback((use: ReferenceUse) => {
+    pendingUseRef.current = use;
+    fileInputRef.current?.click();
+  }, []);
   const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (files.length) void handleFilesChosen(files);
+    if (files.length) void handleFilesChosen(files, pendingUseRef.current);
   }, [handleFilesChosen]);
   const removeReference = useCallback((id: string) => {
     setReferences((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+  const toggleReferenceUse = useCallback((id: string) => {
+    setReferences((prev) => prev.map((r) => (
+      r.id === id ? { ...r, use: r.use === 'subject' ? 'style' : 'subject' } : r
+    )));
   }, []);
   const moveReference = useCallback((id: string, direction: -1 | 1) => {
     setReferences((prev) => {
@@ -312,9 +366,29 @@ export function GeneratePanel({
     const l = activePage?.layers.find((x) => x.kind === 'image') as ImageLayer | undefined;
     return typeof l?.src === 'string' ? l.src : undefined;
   })();
-  const inReview = mode === 'image' && (gen.status === 'compiling' || gen.status === 'generating');
   const activeModelLabel = modelLabel(prefs.model || AUTO_MODEL_ID, capabilities.auto);
   const aiDoc = readAiMetadata(doc).origin === 'ai-image';
+
+  // The pending batch, described for the results grid. `etaMs` is a MEASURED
+  // median for this model at this batch size, or null — never a guess.
+  const pending = useMemo<PendingBatch | null>(() => {
+    if (mode !== 'image') return null;
+    if (gen.status !== 'compiling' && gen.status !== 'generating') return null;
+    return {
+      status: gen.status,
+      count: Math.max(1, gen.pendingCount || prefs.count),
+      kind: gen.pendingKind ?? 'generate',
+      modelLabel: activeModelLabel,
+      brandName: brand?.name,
+      startedAt: gen.startedAt ?? Date.now(),
+      etaMs: estimateDuration(prefs.model || AUTO_MODEL_ID, Math.max(1, gen.pendingCount || prefs.count)),
+      onCancel: () => void gen.cancel(),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, gen.status, gen.pendingCount, gen.pendingKind, gen.startedAt, prefs.count, prefs.model, activeModelLabel, brand?.name]);
+
+  const hasResults = readAiMetadata(doc).generations.length > 0;
+  const showPresets = mode === 'image' && !hasResults && !prompt.trim() && !pending;
 
   const placeholder = mode === 'image'
     ? references.length ? 'Describe what to generate using these references as guidance…'
@@ -325,54 +399,79 @@ export function GeneratePanel({
     <div className="flex flex-col gap-2.5 px-2.5 py-2.5 text-[12px]" style={{ color: 'var(--text-primary)' }} data-generate-panel data-ai-doc={aiDoc || undefined}>
       <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={onFileInputChange} className="hidden" />
 
-      <div className="flex items-center justify-between gap-2">
-        <ModeToggle mode={mode} busy={busy} agentAvailable={!!agent} onChange={setMode} />
-        {mode === 'image' && balance != null ? (
-          <CreditsPill balance={balance} reserved={credits.account?.reserved} loading={credits.loading} />
-        ) : null}
-      </div>
+      {(MODE_SWITCH_VISIBLE || (mode === 'image' && balance != null)) ? (
+        <div className="flex items-center justify-between gap-2">
+          {MODE_SWITCH_VISIBLE
+            ? <ModeToggle mode={mode} busy={busy} agentAvailable={!!agent} onChange={setMode} />
+            : <span />}
+          {mode === 'image' && balance != null ? (
+            <CreditsPill balance={balance} reserved={credits.account?.reserved} loading={credits.loading} />
+          ) : null}
+        </div>
+      ) : null}
 
-      {/* Prompt block */}
-      {!inReview ? (
-        <section className="flex flex-col gap-1.5">
-          <div className="rounded-lg border transition-colors" style={{ borderColor: error ? 'var(--accent-red, #ef4444)' : 'var(--border)', background: 'var(--surface)' }}>
-            <ReferenceStrip
-              references={references}
-              maxReferences={maxRefs}
-              onRemove={removeReference}
-              onMove={moveReference}
-              disabled={busy}
-            />
-            <textarea
-              data-generate-prompt
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={placeholder}
-              disabled={busy}
-              rows={4}
-              className="w-full resize-none bg-transparent px-2.5 pt-2 pb-1 text-[12px] leading-snug focus:outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
-            />
-            <div className="flex items-center justify-between px-1.5 pb-1 pt-0.5">
-              {mode === 'image' ? (
+      {/* ─── Composer. Stays mounted while a batch runs. ─── */}
+      <section className="flex flex-col gap-1.5">
+        <div className="rounded-lg border transition-colors" style={{ borderColor: error ? 'var(--ds-danger, #b4453a)' : 'var(--border)', background: 'var(--surface)' }}>
+          <ReferenceStrip
+            references={references}
+            maxReferences={maxRefs}
+            onRemove={removeReference}
+            onMove={moveReference}
+            onToggleUse={toggleReferenceUse}
+            disabled={busy}
+          />
+          <textarea
+            data-generate-prompt
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={placeholder}
+            disabled={busy}
+            rows={3}
+            className="w-full resize-none bg-transparent px-2.5 pt-2 pb-1 text-[12px] leading-snug focus:outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
+          />
+          <div className="flex items-center justify-between gap-1 px-1.5 pb-1 pt-0.5">
+            {mode === 'image' ? (
+              <div className="flex items-center gap-0.5">
+                {/* Two buttons, because they are two different instructions. */}
+                <AttachButton
+                  onClick={() => onPickFile('subject')}
+                  disabled={busy || uploading}
+                  icon={<Paperclip className="h-3 w-3" aria-hidden />}
+                  label="Reference"
+                  testId="data-generate-attach-subject"
+                  title={maxRefs === 0 ? 'This model is prompt-only' : 'A real subject or asset to reproduce faithfully'}
+                />
+                <AttachButton
+                  onClick={() => onPickFile('style')}
+                  disabled={busy || uploading}
+                  icon={<Palette className="h-3 w-3" aria-hidden />}
+                  label="Style"
+                  testId="data-generate-attach-style"
+                  title={maxRefs === 0 ? 'This model is prompt-only' : 'Visual inspiration only — its subject is never copied'}
+                />
+              </div>
+            ) : <span />}
+            <div className="flex items-center gap-1">
+              {uploading ? <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Uploading…</span> : null}
+              {prompt.trim() && !busy ? (
                 <button
                   type="button"
-                  onClick={onPickFile}
-                  disabled={busy || uploading}
-                  title={maxRefs === 0 ? 'This model is prompt-only' : 'Attach reference images'}
-                  aria-label="Attach reference"
-                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors hover:bg-muted disabled:opacity-40"
+                  data-generate-clear
+                  onClick={() => { setPrompt(''); setCopy({}); }}
+                  aria-label="Clear the prompt"
+                  title="Clear the prompt"
+                  className="inline-flex items-center rounded p-0.5 transition-colors hover:bg-muted"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  <Paperclip className="h-3 w-3" aria-hidden />
-                  {uploading ? 'Uploading…' : references.length ? `${references.length} attached` : 'Reference'}
+                  <XIcon className="h-3 w-3" aria-hidden />
                 </button>
-              ) : <span />}
-              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>⌘/Ctrl + Enter</span>
+              ) : null}
             </div>
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
 
       {/* Inline error (+ owner hint for missing keys) */}
       {error ? (
@@ -380,7 +479,7 @@ export function GeneratePanel({
           data-generate-error
           role="alert"
           className="rounded-md px-2 py-1 text-[11px]"
-          style={{ background: 'color-mix(in oklab, var(--accent-red, #ef4444) 8%, transparent)', color: 'var(--accent-red, #ef4444)' }}
+          style={{ background: 'var(--ds-danger-bg, color-mix(in oklab, #b4453a 8%, transparent))', color: 'var(--ds-danger, #b4453a)' }}
         >
           {error}
           {mode === 'image' && gen.errorHint ? (
@@ -411,19 +510,19 @@ export function GeneratePanel({
         </div>
       ) : null}
 
-      {/* Image toolbar */}
-      {mode === 'image' && !inReview ? (
+      {/* ─── Settings ─── */}
+      {mode === 'image' ? (
         <>
           <div className="grid grid-cols-2 gap-1.5">
             <TallSelect
-              caption="Format"
+              caption="Size"
               icon={<activeFormat.Icon className="h-3.5 w-3.5" aria-hidden />}
               value={formatId}
               valueLabel={activeFormat.id === 'auto' ? 'Auto' : `${activeFormat.ratio} ${activeFormat.name}`}
               valueHint={activeFormat.name}
               onChange={setFormatId}
               disabled={busy}
-              title="Format"
+              title="Size"
               items={FORMAT_PRESETS.map((f) => ({
                 value: f.id, label: f.name, trailing: f.id === 'auto' ? undefined : f.ratio,
                 renderIcon: (cn) => <f.Icon className={cn} aria-hidden />,
@@ -431,20 +530,24 @@ export function GeneratePanel({
             />
             <ModelPicker state={capabilities} value={prefs.model || AUTO_MODEL_ID} onChange={prefs.setModel} disabled={busy} />
           </div>
+
           <div className="flex items-center justify-between gap-1.5">
-            <CountChip value={prefs.count} onChange={prefs.setCount} disabled={busy} />
-            <div
-              role="radiogroup"
-              aria-label="Prompt mode"
-              data-generate-brand-aware
-              className="inline-flex items-center gap-0.5 rounded-full p-0.5"
-              style={{ background: 'var(--surface-sunken, color-mix(in oklab, currentColor 6%, transparent))' }}
-              title="Brand-aware compiles your prompt with the brand's palette and style; Raw sends your exact words"
-            >
-              <ModeButton active={prefs.brandAware} disabled={busy} onClick={() => prefs.setBrandAware(true)} icon={<Wand2 className="h-3 w-3" aria-hidden />} label="On-brand" value="brand" />
-              <ModeButton active={!prefs.brandAware} disabled={busy} onClick={() => prefs.setBrandAware(false)} icon={<Type className="h-3 w-3" aria-hidden />} label="Raw" value="raw" />
-            </div>
+            <CountStepper value={prefs.count} onChange={prefs.setCount} disabled={busy} />
+            {prompt.trim() ? (
+              <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }} data-generate-deliverable title={deliverable.reason}>
+                {deliverable.kind === 'design'
+                  ? `Finished ${deliverable.noun}${copyCount ? ` · ${copyCount} line${copyCount > 1 ? 's' : ''} of copy` : ' · no copy'}`
+                  : 'Image only'}
+              </span>
+            ) : null}
           </div>
+
+          <BrandIncludes
+            value={prefs.include}
+            onChange={(next) => prefs.setInclude(next)}
+            disabled={busy}
+            brandName={brand?.name}
+          />
 
           <div className="flex items-center justify-between">
             <button
@@ -457,13 +560,6 @@ export function GeneratePanel({
               <Settings2 className="h-3 w-3" aria-hidden />
               {advancedOpen ? 'Hide options' : 'Options'}
             </button>
-            {prompt.trim() ? (
-              <span className="text-[10px] truncate max-w-[170px]" style={{ color: 'var(--text-muted)' }} data-generate-deliverable title={deliverable.reason}>
-                {deliverable.kind === 'design'
-                  ? `Finished ${deliverable.noun}${copyCount ? ` · ${copyCount} line${copyCount > 1 ? 's' : ''} of copy` : ' · no copy'}`
-                  : 'Image only'}
-              </span>
-            ) : null}
           </div>
           {advancedOpen ? (
             <div className="flex flex-col gap-1.5" data-generate-options>
@@ -486,11 +582,8 @@ export function GeneratePanel({
 
               {/* The exact words. Anything typed here is set verbatim; anything
                   left empty is NOT invented — that is the whole contract. */}
-              {deliverable.kind === 'design' ? (
+              {deliverable.kind === 'design' && prefs.include.text ? (
                 <div className="flex flex-col gap-1 rounded-md border p-1.5" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} data-generate-copy>
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Text on the design — set exactly as you type it. Leave empty and no words are invented.
-                  </span>
                   <CopyField label="Headline" value={copy.headline ?? ''} disabled={busy} onChange={(v) => setCopy((c) => ({ ...c, headline: v }))} name="headline" />
                   <CopyField label="Subhead" value={copy.subhead ?? ''} disabled={busy} onChange={(v) => setCopy((c) => ({ ...c, subhead: v }))} name="subhead" />
                   <CopyField label="Button" value={copy.cta ?? ''} disabled={busy} onChange={(v) => setCopy((c) => ({ ...c, cta: v }))} name="cta" />
@@ -512,52 +605,51 @@ export function GeneratePanel({
         </>
       ) : null}
 
-      {/* Processing state — compile + generate shown as one step */}
-      {inReview ? (
-        <ProcessingCard
-          status={gen.status}
-          brandName={brand?.name}
-          modelLabel={activeModelLabel}
-          count={gen.pendingKind === 'variation' ? 4 : prefs.count}
-          kind={gen.pendingKind}
-          onCancel={mode === 'image' ? () => void gen.cancel() : undefined}
+      {/* Generate */}
+      <button
+        type="button"
+        data-generate-submit
+        onClick={() => void submit()}
+        disabled={busy || !prompt.trim() || (mode === 'editable' && !agent) || cannotAfford}
+        title={costTitle}
+        data-generate-estimate={mode === 'image' && estimate != null ? estimate : undefined}
+        data-generate-cost-state={mode === 'image' ? costState : undefined}
+        className="mt-0.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium transition-all disabled:opacity-50"
+        style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', boxShadow: busy ? 'none' : '0 1px 0 color-mix(in oklab, var(--accent) 20%, transparent)' }}
+      >
+        {busy ? (
+          <span className="flex gap-0.5">
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor' }} />
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '150ms' }} />
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '300ms' }} />
+          </span>
+        ) : (
+          <>
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            {mode === 'image' ? `Generate${prefs.count > 1 ? ` ×${prefs.count}` : ''}` : 'Apply'}
+            {mode === 'image' ? (
+              <span className="text-[11px] font-normal" style={{ opacity: 0.75 }} data-generate-cost>
+                · {costState === 'ready' && estimate != null ? `${estimate} credits` : costState === 'loading' ? '…' : '—'}
+              </span>
+            ) : null}
+          </>
+        )}
+      </button>
+
+      {/* ─── Results — and the slots they are about to land in ─── */}
+      {mode === 'image' ? (
+        <ResultsStrip
+          doc={doc}
+          activePageId={activePageId}
+          pending={pending}
+          critique={gen.critique}
+          onSelect={(pageId) => onActivePageChange?.(pageId)}
+          onReusePrompt={(text) => setPrompt(text)}
         />
       ) : null}
 
-      {/* Generate */}
-      {!inReview ? (
-        <button
-          type="button"
-          data-generate-submit
-          onClick={() => void submit()}
-          disabled={busy || !prompt.trim() || (mode === 'editable' && !agent) || cannotAfford}
-          title={cannotAfford ? `This needs ${estimate} credits; you have ${formatCredits(balance ?? 0)}.` : undefined}
-          data-generate-estimate={mode === 'image' && estimate != null ? estimate : undefined}
-          className="mt-0.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium transition-all disabled:opacity-50"
-          style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', boxShadow: busy ? 'none' : '0 1px 0 color-mix(in oklab, var(--accent) 20%, transparent)' }}
-        >
-          {busy ? (
-            <span className="flex gap-0.5">
-              <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor' }} />
-              <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '150ms' }} />
-              <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '300ms' }} />
-            </span>
-          ) : (
-            <>
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              {mode === 'image' ? `Generate${prefs.count > 1 ? ` ×${prefs.count}` : ''}` : 'Apply'}
-              {mode === 'image' && estimate != null ? (
-                <span className="text-[11px] font-normal" style={{ opacity: 0.75 }}>
-                  · {estimate} credits
-                </span>
-              ) : null}
-            </>
-          )}
-        </button>
-      ) : null}
-
       {/* Actions for the active AI page */}
-      {mode === 'image' && !inReview && activeRecord ? (
+      {mode === 'image' && !pending && activeRecord ? (
         <GenerationActions
           record={activeRecord}
           imageSrc={activeImageSrc}
@@ -578,8 +670,30 @@ export function GeneratePanel({
         />
       ) : null}
 
-      {mode === 'image' && !inReview ? <PresetsGallery brand={brand} onApply={applyPreset} /> : null}
+      {/* Start from — the way IN, so it belongs to the empty state only. */}
+      {showPresets ? <PresetsGallery brand={brand} onApply={applyPreset} /> : null}
     </div>
+  );
+}
+
+function AttachButton({ onClick, disabled, icon, label, title, testId }: {
+  onClick: () => void; disabled?: boolean; icon: React.ReactNode;
+  label: string; title: string; testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={`Attach ${label.toLowerCase()} reference`}
+      {...{ [testId]: '' }}
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors hover:bg-muted disabled:opacity-40"
+      style={{ color: 'var(--text-secondary)' }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
@@ -593,7 +707,7 @@ function CopyField({ label, value, onChange, disabled, name }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        placeholder="—"
+        placeholder="Set exactly as typed"
         data-generate-copy-field={name}
         aria-label={`${label} text`}
         className="h-6 w-full rounded border bg-transparent px-1.5 text-[11px] focus:outline-none disabled:opacity-60 placeholder:text-muted-foreground/50"
@@ -626,4 +740,3 @@ function ModeButton({ active, disabled, onClick, icon, label, value }: { active:
     </button>
   );
 }
-

@@ -10,9 +10,14 @@ import { Minus, Plus } from 'lucide-react';
 
 export function CountStepper({
   value, onChange, disabled, min = 1, max = 4,
-}: { value: number; onChange: (n: number) => void; disabled?: boolean; min?: number; max?: number }) {
+}: {
+  value: number;
+  /** Given an updater, so two fast clicks are two steps rather than one. */
+  onChange: (n: number | ((cur: number) => number)) => void;
+  disabled?: boolean; min?: number; max?: number;
+}) {
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
-  const set = (n: number) => { if (!disabled) onChange(clamp(n)); };
+  const step = (delta: number) => { if (!disabled) onChange((cur) => clamp(cur + delta)); };
 
   return (
     <div
@@ -24,7 +29,7 @@ export function CountStepper({
     >
       <Step
         label="One fewer image"
-        onClick={() => set(value - 1)}
+        onClick={() => step(-1)}
         disabled={disabled || value <= min}
         data-generate-count-dec
       >
@@ -39,7 +44,7 @@ export function CountStepper({
       </output>
       <Step
         label="One more image"
-        onClick={() => set(value + 1)}
+        onClick={() => step(1)}
         disabled={disabled || value >= max}
         data-generate-count-inc
       >

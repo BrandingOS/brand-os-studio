@@ -446,8 +446,19 @@ export interface IActivityService {
 // initialisers and `useState` initialisers cannot await.
 
 export interface AiGeneratePreferences {
-  /** Brand-aware prompt compiler on/off. */
-  brandAware?: boolean;
+  /**
+   * Which parts of the brand may enter a generated frame.
+   *
+   * Spelled out rather than imported from `features/editor` — Core may not
+   * depend on a feature. It mirrors `BrandInclusions` there, and every field is
+   * optional so a partial bag from an older client still merges cleanly.
+   */
+  include?: {
+    logo?: boolean;
+    text?: boolean;
+    colours?: boolean;
+    identity?: boolean;
+  };
   model?: string;
   count?: number;
 }

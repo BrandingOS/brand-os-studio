@@ -33,10 +33,10 @@ describe('mergePreferences', () => {
 
   it('merges aiGenerate key-by-key rather than replacing the bag', () => {
     const out = mergePreferences(
-      { aiGenerate: { brandAware: true, model: 'a', count: 4 } },
+      { aiGenerate: { include: { logo: true, text: true, colours: true, identity: true }, model: 'a', count: 4 } },
       { aiGenerate: { count: 2 } },
     );
-    expect(out.aiGenerate).toEqual({ brandAware: true, model: 'a', count: 2 });
+    expect(out.aiGenerate).toEqual({ include: { logo: true, text: true, colours: true, identity: true }, model: 'a', count: 2 });
   });
 
   it('merges dismissed maps key-by-key', () => {
@@ -118,10 +118,10 @@ describe('seedFromLegacyKeys', () => {
   it('reads the AI generate defaults', () => {
     window.localStorage.setItem(
       LEGACY_KEYS.aiGenerate,
-      JSON.stringify({ state: { brandAware: false, model: 'flux', count: 3 } }),
+      JSON.stringify({ state: { include: { logo: false, text: true, colours: true, identity: true }, model: 'flux', count: 3 } }),
     );
     expect(seedFromLegacyKeys().aiGenerate).toEqual({
-      brandAware: false,
+      include: { logo: false, text: true, colours: true, identity: true },
       model: 'flux',
       count: 3,
     });

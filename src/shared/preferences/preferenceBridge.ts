@@ -40,6 +40,16 @@ export function writePreference(patch: UserPreferences): void {
   }
 }
 
+const INCLUSION_KEYS = ['logo', 'text', 'colours', 'identity'] as const;
+
+/** True when two inclusion bags say the same thing, treating absent as on. */
+function sameInclusions(
+  a: Partial<Record<typeof INCLUSION_KEYS[number], boolean>> | undefined,
+  b: Partial<Record<typeof INCLUSION_KEYS[number], boolean>> | undefined,
+): boolean {
+  return INCLUSION_KEYS.every((k) => (a?.[k] ?? true) === (b?.[k] ?? true));
+}
+
 /** Server (or another tab) → the stores. */
 function applyToStores(prefs: UserPreferences): void {
   applying = true;
@@ -50,8 +60,17 @@ function applyToStores(prefs: UserPreferences): void {
 
     if (prefs.aiGenerate) {
       const gen = useGeneratePrefs.getState();
-      const { brandAware, model, count } = prefs.aiGenerate;
-      if (brandAware !== undefined && brandAware !== gen.brandAware) gen.setBrandAware(brandAware);
+      const { include, model, count } = prefs.aiGenerate;
+      // A partial bag from an older client is merged over "everything
+      // included", so a missing key can never silently drop part of the brand.
+      if (include && !sameInclusions(include, gen.include)) {
+        gen.setInclude({
+          logo: include.logo ?? true,
+          text: include.text ?? true,
+          colours: include.colours ?? true,
+          identity: include.identity ?? true,
+        });
+      }
       if (model !== undefined && model !== gen.model) gen.setModel(model);
       if (count !== undefined && count !== gen.count) gen.setCount(count);
     }
@@ -83,14 +102,14 @@ export function startPreferenceBridge(): () => void {
   const offGenerate = useGeneratePrefs.subscribe((state, prev) => {
     if (applying) return;
     if (
-      state.brandAware === prev.brandAware &&
+      sameInclusions(state.include, prev.include) &&
       state.model === prev.model &&
       state.count === prev.count
     ) {
       return;
     }
     writePreference({
-      aiGenerate: { brandAware: state.brandAware, model: state.model, count: state.count },
+      aiGenerate: { include: { ...state.include }, model: state.model, count: state.count },
     });
   });
 

@@ -85,6 +85,11 @@ async function mount(args: {
         save={async () => {}}
         brand={mockBrand()}
         aiAgent={agent}
+        // The Image / Editable switch is no longer rendered, so these flows
+        // reach Editable the way the Design hero hand-off does: through
+        // `?mode=editable`. That also proves the path survives the switch
+        // being hidden.
+        initialAi={{ mode: 'editable' }}
         onAdapterReady={(a) => resolveAdapter(a)}
       />
       <Toaster />
@@ -123,12 +128,10 @@ async function submitPrompt(container: HTMLElement, text: string): Promise<void>
     });
   }
 
-  // The panel defaults to IMAGE generation; these flows exercise the AI agent
-  // that returns document ops, which is the "Editable" mode. Without this the
-  // prompt goes to the image service instead of the agent.
+  // The panel is mounted in Editable mode via `initialAi`. When the switch is
+  // rendered again, honour it; while it is hidden, there is nothing to click.
   const editable = container.querySelector<HTMLButtonElement>('[data-generate-mode="editable"]');
-  if (!editable) throw new Error('Editable generation mode not in DOM');
-  if (editable.getAttribute('aria-checked') !== 'true') fireEvent.click(editable);
+  if (editable && editable.getAttribute('aria-checked') !== 'true') fireEvent.click(editable);
 
   const input = container.querySelector<HTMLTextAreaElement>('[data-generate-prompt]');
   if (!input) throw new Error('Generate prompt input not in DOM');

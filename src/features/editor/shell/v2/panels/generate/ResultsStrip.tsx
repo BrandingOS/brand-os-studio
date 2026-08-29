@@ -19,14 +19,14 @@
 //     counting down into negative numbers or freezing at 1s
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, CornerUpLeft, ImageOff } from 'lucide-react';
+import { AlertTriangle, Check, Copy, CornerUpLeft, ImageOff } from 'lucide-react';
 import { LoadingPill } from '@/shared/ds';
 import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
 import { readAiMetadata, type GenerationRecord } from './aiMetadata';
 import type { GenStatus } from './useImageGeneration';
 
 export interface PendingBatch {
-  status: Exclude<GenStatus, 'idle' | 'error'>;
+  status: Extract<GenStatus, 'compiling' | 'generating'>;
   /** How many tiles to hold open. */
   count: number;
   kind: GenerationRecord['kind'];
@@ -47,12 +47,20 @@ interface ResultTile {
 
 const MAX_SHOWN = 12;
 
+/** What the critic said about a delivered page. Absent when it could not look. */
+export interface PageCritique {
+  overall: number;
+  note: string;
+  hardFailures: string[];
+}
+
 export function ResultsStrip({
-  doc, activePageId, pending, onSelect, onReusePrompt,
+  doc, activePageId, pending, critique, onSelect, onReusePrompt,
 }: {
   doc: BrandOSDocument;
   activePageId: string;
   pending: PendingBatch | null;
+  critique?: Record<string, PageCritique>;
   onSelect: (pageId: string) => void;
   onReusePrompt: (text: string) => void;
 }) {
@@ -107,6 +115,7 @@ export function ResultsStrip({
             key={t.pageId}
             tile={t}
             active={t.pageId === activePageId}
+            critique={critique?.[t.pageId]}
             onSelect={() => onSelect(t.pageId)}
             onReusePrompt={onReusePrompt}
           />
@@ -196,9 +205,10 @@ function PendingSlot({ pending, index }: { pending: PendingBatch; index: number 
 
 // ─── A finished result ───────────────────────────────────────────────────────
 
-function ResultCard({ tile, active, onSelect, onReusePrompt }: {
+function ResultCard({ tile, active, critique, onSelect, onReusePrompt }: {
   tile: ResultTile;
   active: boolean;
+  critique?: PageCritique;
   onSelect: () => void;
   onReusePrompt: (text: string) => void;
 }) {
@@ -233,6 +243,20 @@ function ResultCard({ tile, active, onSelect, onReusePrompt }: {
           ? <img src={tile.src} alt="" className="h-full w-full object-cover" />
           : <ImageOff className="h-4 w-4" style={{ color: 'var(--text-muted)' }} aria-hidden />}
       </button>
+
+      {/* Only ever shown when something is actually wrong. A score badge on
+          every result would be noise; a flag on a broken one is information. */}
+      {critique && critique.hardFailures.length ? (
+        <span
+          data-generate-result-flag
+          title={critique.note || critique.hardFailures.join(', ')}
+          className="inline-flex items-center gap-0.5 self-start rounded px-1 text-[9px] font-medium"
+          style={{ background: 'var(--ds-danger-bg, color-mix(in oklab, #b4453a 10%, transparent))', color: 'var(--ds-danger, #b4453a)' }}
+        >
+          <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
+          {critique.hardFailures[0].replace(/-/g, ' ')}
+        </span>
+      ) : null}
 
       <figcaption className="flex items-start gap-0.5">
         <span

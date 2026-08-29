@@ -28,6 +28,11 @@ export interface BrandImageContext {
   audience?: string;
   positioning?: string;
   headingFont?: string;
+  /** The text face. It reached `brandToBrandKit` and stopped there, so every
+   *  brief could name a display family and nothing to set the body in. */
+  bodyFont?: string;
+  /** What the brand actually does — the subject of most of its designs. */
+  offering?: string;
   hasLogo: boolean;
   logoRoles: string[];
 }
@@ -92,6 +97,8 @@ export function buildBrandImageContext(brand: Brand | null | undefined): BrandIm
     audience: clean(brand.audience ?? strategy?.targetAudience, 80),
     positioning: clean(strategy?.positioning, 120),
     headingFont: kit.typography.heading.family,
+    bodyFont: kit.typography.body?.family,
+    offering: clean(brand.businessInfo?.description ?? strategy?.summary, 140),
     hasLogo: logoRoles.length > 0,
     logoRoles,
   };
@@ -110,6 +117,8 @@ export function describeBrandForPrompt(ctx: BrandImageContext): string {
   if (ctx.tone) parts.push(`tone: ${ctx.tone}`);
   if (ctx.audience) parts.push(`audience: ${ctx.audience}`);
   if (ctx.positioning) parts.push(`positioning: ${ctx.positioning}`);
+  if (ctx.offering) parts.push(`offering: ${ctx.offering}`);
+  if (ctx.bodyFont) parts.push(`typefaces: ${ctx.headingFont} (display) / ${ctx.bodyFont} (text)`);
   parts.push(ctx.hasLogo ? `logo available (${ctx.logoRoles.join(', ')})` : 'no logo file');
   return parts.join('; ') + '.';
 }

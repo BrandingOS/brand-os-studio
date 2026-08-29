@@ -112,26 +112,36 @@ beforeEach(() => {
   buildRefsMock.mockReset();
   stubs.balance = 500;
   stubs.uploadedRefs.length = 0;
-  useGeneratePrefs.setState({ brandAware: true, model: 'auto', count: 1 });
-  compileMock.mockImplementation(async (input: { userPrompt: string }) => ({
-    prompt: `COMPILED: ${input.userPrompt}`,
-    negativePrompt: 'text',
-    useLogo: false,
-    paletteHexes: ['#1A1A2E'],
-    notes: 'Used the primary as an accent; no logo.',
-    source: 'claude',
-    original: input.userPrompt,
-  }));
+  useGeneratePrefs.setState({ include: { logo: true, text: true, colours: true, identity: true }, model: 'auto', count: 1 });
+  compileMock.mockImplementation(async (input: { userPrompt: string; count?: number }) => {
+    const n = Math.max(1, input.count ?? 1);
+    const prompts = Array.from({ length: n }, (_, i) =>
+      `COMPILED: ${input.userPrompt}${n > 1 ? ` [exploration ${i + 1}]` : ''}`);
+    return {
+      prompt: prompts[0],
+      prompts,
+      negativePrompt: 'text',
+      useLogo: false,
+      paletteHexes: ['#1A1A2E'],
+      notes: 'Used the primary as an accent; no logo.',
+      source: 'claude',
+      original: input.userPrompt,
+      kind: 'design',
+      deliverable: 'design',
+      kindReason: 'test',
+    };
+  });
   buildRefsMock.mockImplementation(async (input: {
     plan: { logo: boolean; palette: boolean; previousPath?: string };
-    userReferencePaths?: string[];
+    userReferences?: Array<{ path: string; use: 'style' | 'subject' }>;
   }) => {
     const references: Array<{ role: string; dataUrl?: string; path?: string }> = [];
     // Order mirrors the real builder: previous → logo → palette → the user's.
     if (input.plan.previousPath) references.push({ role: 'previous', path: input.plan.previousPath });
     if (input.plan.logo) references.push({ role: 'logo', dataUrl: PNG_1x1 });
     if (input.plan.palette) references.push({ role: 'palette', dataUrl: PNG_1x1 });
-    for (const path of input.userReferencePaths ?? []) references.push({ role: 'image', path });
+    for (const r of (input.userReferences ?? []).filter((x) => x.use === 'subject')) references.push({ role: 'product', path: r.path });
+    for (const r of (input.userReferences ?? []).filter((x) => x.use === 'style')) references.push({ role: 'style', path: r.path });
     return { references, roles: references.map((r) => r.role) };
   });
   generateMock.mockImplementation(async (req: GenerateImageArgs) => ({
@@ -180,8 +190,19 @@ async function openGenerate(container: HTMLElement) {
     fireEvent.click(container.querySelector<HTMLButtonElement>('button[data-rail-item="generate"]')!);
     await waitFor(() => { if (!container.querySelector('[data-generate-prompt]')) throw new Error('no panel'); });
   }
-  const image = container.querySelector<HTMLButtonElement>('[data-generate-mode="image"]')!;
-  if (image.getAttribute('aria-checked') !== 'true') fireEvent.click(image);
+  // The Image / Editable switch is deliberately not rendered any more; the
+  // panel opens in Image mode. When it is brought back, honour it.
+  const image = container.querySelector<HTMLButtonElement>('[data-generate-mode="image"]');
+  if (image && image.getAttribute('aria-checked') !== 'true') fireEvent.click(image);
+}
+
+/** Drive the stepper up to `n`. */
+function setCount(container: HTMLElement, n: number) {
+  for (let i = 0; i < 4; i++) {
+    const el = container.querySelector('[data-generate-count]')!;
+    if (Number(el.getAttribute('data-generate-count-value')) >= n) break;
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-count-inc]')!);
+  }
 }
 
 describe('AI Studio — image generation flow', () => {
@@ -202,7 +223,7 @@ describe('AI Studio — image generation flow', () => {
     await openGenerate(container);
     const before = adapter.getDocument().pages.length;
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-count-value="2"]')!);
+    setCount(container, 2);
     fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'a cat on a sofa' } });
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
 
@@ -210,7 +231,9 @@ describe('AI Studio — image generation flow', () => {
     await waitFor(() => { if (!container.querySelector('[data-generate-processing]')) throw new Error('no processing card'); });
     expect(container.querySelector('[data-generate-compiled]')).toBeNull();
     expect(container.querySelector('[data-generate-confirm]')).toBeNull();
-    await waitFor(() => { if (generateMock.mock.calls.length !== 1) throw new Error('vendor not called yet'); });
+    // Two candidates ⇒ two jobs, because two candidates need two PROMPTS and
+    // the server takes one per job.
+    await waitFor(() => { if (generateMock.mock.calls.length !== 2) throw new Error('vendor not called yet'); });
     expect(container.querySelector('[data-generate-processing]')?.getAttribute('data-generate-status')).toBe('generating');
     releaseGenerate();
 
@@ -222,11 +245,14 @@ describe('AI Studio — image generation flow', () => {
     const req = generateMock.mock.calls[0][0] as GenerateImageArgs;
     expect(req.compiledPrompt).toMatch(/^COMPILED: a cat on a sofa/);
     expect(req.userPrompt).toBe('a cat on a sofa');
-    expect(req.count).toBe(2);
+    expect(req.count).toBe(1);
     expect(req.negativePrompt).toBe('text');
+    // Each candidate carries a different brief.
+    const sent = generateMock.mock.calls.map((c) => (c[0] as GenerateImageArgs).compiledPrompt);
+    expect(new Set(sent).size).toBe(2);
     expect(req.references?.map((r) => r.role)).toEqual(['palette']);
     // A stable key means a retry of this exact request cannot be charged twice.
-    expect(req.idempotencyKey).toMatch(/^gen_/);
+    expect(req.idempotencyKey).toMatch(/^gen_.*#0$/);
     const meta = readAiMetadata(adapter.getDocument());
     expect(meta.origin).toBe('ai-image');
     expect(meta.generations).toHaveLength(2);
@@ -251,8 +277,12 @@ describe('AI Studio — image generation flow', () => {
 
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-variations]')!);
     await waitFor(() => { if (adapter.getDocument().pages.length !== after1 + 4) throw new Error('variations not inserted'); });
+    // Four variations ⇒ four jobs of one, each with its own exploration.
     const req = generateMock.mock.calls[1][0] as GenerateImageArgs;
-    expect(req.count).toBe(4);
+    expect(req.count).toBe(1);
+    expect(generateMock.mock.calls.length).toBe(5); // 1 original + 4 variations
+    const variationBriefs = generateMock.mock.calls.slice(1).map((c) => (c[0] as GenerateImageArgs).compiledPrompt);
+    expect(new Set(variationBriefs).size).toBe(4);
     expect(req.references?.[0].role).toBe('previous');
     // The previous image travels as a STORAGE PATH, never a URL the server
     // would have to fetch on our behalf.
@@ -263,17 +293,103 @@ describe('AI Studio — image generation flow', () => {
     expect(meta.generations.at(-1)?.parentPageId).toBe(meta.generations[0].pageId);
   });
 
-  it('Raw mode skips the compiler and sends the exact words', async () => {
-    useGeneratePrefs.setState({ brandAware: false });
+  it('an excluded part of the brand reaches neither the compiler nor the references', async () => {
+    // Defence in depth: the brief drops the section, the compiler is told, AND
+    // the hook refuses to build the reference — an attached image is the one
+    // instruction a model cannot politely ignore.
+    compileMock.mockImplementation(async (input: { userPrompt: string }) => ({
+      prompt: `COMPILED: ${input.userPrompt}`,
+      prompts: [`COMPILED: ${input.userPrompt}`],
+      // The compiler ASKS for a logo and a palette; the exclusions must win.
+      useLogo: true,
+      paletteHexes: ['#1A1A2E'],
+      notes: '', source: 'claude', original: input.userPrompt,
+      kind: 'design', deliverable: 'design', kindReason: 'test',
+    }));
+    useGeneratePrefs.setState({ include: { logo: false, text: true, colours: false, identity: true } });
     const { adapter, container } = await mount();
     await openGenerate(container);
     const before = adapter.getDocument().pages.length;
-    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'exact words' } });
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'poster' } });
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
     await waitFor(() => { if (adapter.getDocument().pages.length !== before + 1) throw new Error('not inserted'); });
+
+    const compileArgs = compileMock.mock.calls[0][0] as { include?: Record<string, boolean> };
+    expect(compileArgs.include).toMatchObject({ logo: false, colours: false });
+
+    const refArgs = buildRefsMock.mock.calls[0][0] as {
+      plan: { logo: boolean; palette: boolean }; paletteHexes: string[];
+    };
+    expect(refArgs.plan.logo).toBe(false);
+    expect(refArgs.plan.palette).toBe(false);
+    expect(refArgs.paletteHexes).toEqual([]);
+  });
+
+  it('keeps the typed prompt after a generation, and Clear empties it', async () => {
+    const { adapter, container } = await mount();
+    await openGenerate(container);
+    const before = adapter.getDocument().pages.length;
+    const box = container.querySelector<HTMLTextAreaElement>('[data-generate-prompt]')!;
+    fireEvent.change(box, { target: { value: 'sunlit harbour' } });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
+    await waitFor(() => { if (adapter.getDocument().pages.length !== before + 1) throw new Error('not inserted'); });
+    // Generating is iterative — the next attempt is this one with a word
+    // changed. Clearing the box made every iteration a retype.
+    await waitFor(() => {
+      const el = container.querySelector<HTMLTextAreaElement>('[data-generate-prompt]')!;
+      if (el.value !== 'sunlit harbour') throw new Error(`prompt was cleared: "${el.value}"`);
+    });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-clear]')!);
+    expect(container.querySelector<HTMLTextAreaElement>('[data-generate-prompt]')!.value).toBe('');
+  });
+
+  it('a batch of four sends four DIFFERENT briefs, one job each', async () => {
+    useGeneratePrefs.setState({ count: 4 });
+    const { adapter, container } = await mount();
+    await openGenerate(container);
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'poster' } });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
+    await waitFor(() => { if (generateMock.mock.calls.length !== 4) throw new Error(`calls: ${generateMock.mock.calls.length}`); });
+    const sent = generateMock.mock.calls.map((c) => (c[0] as GenerateImageArgs).compiledPrompt);
+    expect(new Set(sent).size).toBe(4);
+    // Every candidate carries its own idempotency key, so a retry of the batch
+    // re-uses each one exactly rather than buying a second copy.
+    const keys = generateMock.mock.calls.map((c) => (c[0] as GenerateImageArgs).idempotencyKey);
+    expect(new Set(keys).size).toBe(4);
+  });
+
+  it('a subject reference and a style reference reach the provider as different roles', async () => {
+    buildRefsMock.mockImplementation(async (input: {
+      userReferences?: Array<{ path: string; use: 'style' | 'subject' }>;
+    }) => {
+      const references = (input.userReferences ?? []).map((r) => ({
+        role: r.use === 'subject' ? 'product' : 'style', path: r.path,
+      }));
+      return { references, roles: references.map((r) => r.role) };
+    });
+    const { adapter, container } = await mount();
+    await openGenerate(container);
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = (name: string) => new File(['x'], name, { type: 'image/png' });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-attach-subject]')!);
+    fireEvent.change(input, { target: { files: [file('bottle.png')] } });
+    await waitFor(() => { if (!container.querySelector('[data-reference-use="subject"]')) throw new Error('no subject chip'); });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-attach-style]')!);
+    fireEvent.change(input, { target: { files: [file('mood.png')] } });
+    await waitFor(() => { if (!container.querySelector('[data-reference-use="style"]')) throw new Error('no style chip'); });
+
+    const before = adapter.getDocument().pages.length;
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'product shot' } });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
+    await waitFor(() => { if (adapter.getDocument().pages.length !== before + 1) throw new Error('not inserted'); });
+
     const req = generateMock.mock.calls[0][0] as GenerateImageArgs;
-    expect(req.compiledPrompt).toBe('exact words');
-    expect(req.references ?? []).toEqual([]);
+    expect(req.references?.map((r) => r.role)).toEqual(['product', 'style']);
+    // And the compiler is told how many of each, so the brief can say what
+    // each attached image is FOR.
+    const compileArgs = compileMock.mock.calls[0][0] as { userReferences?: { style: number; subject: number } };
+    expect(compileArgs.userReferences).toEqual({ style: 1, subject: 1 });
   });
 
   it('a rejected generation → inline error, no spinner left, no page added', async () => {
@@ -303,7 +419,9 @@ describe('AI Studio — image generation flow', () => {
     await waitFor(() => { if (adapter.getDocument().pages.length !== 4) throw new Error('not generated'); });
     expect(compileMock).toHaveBeenCalledTimes(1);
     expect((compileMock.mock.calls[0][0] as { userPrompt: string }).userPrompt).toBe('hero prompt');
-    expect((generateMock.mock.calls[0][0] as GenerateImageArgs).count).toBe(3);
+    // Three candidates ⇒ three jobs of one.
+    expect(generateMock.mock.calls).toHaveLength(3);
+    expect((generateMock.mock.calls[0][0] as GenerateImageArgs).count).toBe(1);
     // the pending prompt is consumed so a reload can't fire again
     expect(readAiMetadata(adapter.getDocument()).pendingPrompt).toBeUndefined();
     expect(container.querySelector('[data-generate-actions]')).toBeTruthy();
@@ -382,12 +500,16 @@ describe('AI Studio — image generation flow', () => {
   });
 
   it('a short delivery is reported, never silently absorbed', async () => {
-    generateMock.mockImplementation(async () => ({
-      // Asked for 3, one came back.
-      images: [{ storagePath: 'b/generated/job-y/1.png', url: PNG_1x1, width: 64, height: 64, mime: 'image/png', bytes: 100 }],
-      jobId: 'job-y', model: 'pollinations:flux', chargedCredits: 1, balance: 499,
-      warnings: ['provider returned fewer images than requested'],
-    }));
+    // Asked for 3; one candidate came back and two failed. One failing
+    // candidate must lose only itself — the old single-job batch lost all three.
+    let call = 0;
+    generateMock.mockImplementation(async () => {
+      if (call++ > 0) throw new ImageGenerationError({ code: 'provider_unavailable', message: 'vendor blinked', status: 503, retryable: true });
+      return {
+        images: [{ storagePath: 'b/generated/job-y/1.png', url: PNG_1x1, width: 64, height: 64, mime: 'image/png', bytes: 100 }],
+        jobId: 'job-y', model: 'pollinations:flux', chargedCredits: 1, balance: 499,
+      };
+    });
     useGeneratePrefs.setState({ count: 3 });
 
     const { adapter, container } = await mount();

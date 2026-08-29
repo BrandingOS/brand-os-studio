@@ -27,18 +27,48 @@ describe('brandReferences', () => {
     expect(out.references).toEqual([]);
   });
 
-  it('attaches previous → logo → palette → user image, in that order, capped by maxRefs', async () => {
+  it("sends the user's own references BEFORE ours, so the cap drops our helpers first", async () => {
     const rasterize = vi.fn(async () => 'data:image/png;base64,LOGO');
     const swatch = vi.fn(() => 'data:image/png;base64,PAL');
     const out = await buildBrandReferences(
-      { brand, caps, plan: { logo: true, palette: true, previousDataUrl: 'data:image/png;base64,PREV' }, paletteHexes: ['#123456'], userReferencePaths: ['ai-refs/u/ref.png'] },
+      {
+        brand, caps,
+        plan: { logo: true, palette: true, previousDataUrl: 'data:image/png;base64,PREV' },
+        paletteHexes: ['#123456'],
+        userReferences: [
+          { path: 'ai-refs/u/style.png', use: 'style' },
+          { path: 'ai-refs/u/bottle.png', use: 'subject' },
+        ],
+      },
       { rasterize, swatch },
     );
-    expect(out.roles).toEqual(['previous', 'logo', 'palette', 'image']);
-    expect(out.references[1].dataUrl).toBe('data:image/png;base64,LOGO');
-    expect(out.references[3].path).toBe('ai-refs/u/ref.png');
+    // previous first (it IS the subject of a refine), then the user's material
+    // subject-before-style, then ours.
+    expect(out.roles).toEqual(['previous', 'product', 'style', 'logo', 'palette']);
+    expect(out.references[1].path).toBe('ai-refs/u/bottle.png');
+    expect(out.references[2].path).toBe('ai-refs/u/style.png');
     expect(rasterize).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/svg/), expect.objectContaining({ size: 1024 }));
+  });
 
+  it("drops OUR helpers to the cap, never the picture the user chose", async () => {
+    const rasterize = vi.fn(async () => 'data:image/png;base64,LOGO');
+    const swatch = vi.fn(() => 'data:image/png;base64,PAL');
+    const out = await buildBrandReferences(
+      {
+        brand, caps: { ...caps, maxReferenceImages: 1 },
+        plan: { logo: true, palette: true },
+        paletteHexes: ['#123456'],
+        userReferences: [{ path: 'ai-refs/u/bottle.png', use: 'subject' }],
+      },
+      { rasterize, swatch },
+    );
+    expect(out.roles).toEqual(['product']);
+    expect(out.references[0].path).toBe('ai-refs/u/bottle.png');
+  });
+
+  it('keeps our own references when the user attached none', async () => {
+    const rasterize = vi.fn(async () => 'data:image/png;base64,LOGO');
+    const swatch = vi.fn(() => 'data:image/png;base64,PAL');
     const capped = await buildBrandReferences(
       { brand, caps: { ...caps, maxReferenceImages: 1 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] },
       { rasterize, swatch },

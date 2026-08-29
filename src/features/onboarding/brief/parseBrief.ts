@@ -42,6 +42,7 @@ export interface ParsedBrief {
   products?: string[];
   audience?: string;
   positioning?: string;
+  mission?: string;
   slogan?: string;
   personality?: string[];
   tone?: string;
@@ -215,6 +216,9 @@ export function parseBrief(text: string): ParsedBrief {
         break;
       case 'Positioning':
         result.positioning = body;
+        break;
+      case 'Mission':
+        result.mission = body;
         break;
       case 'Slogan':
         result.slogan = body.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '');

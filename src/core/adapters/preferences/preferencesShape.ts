@@ -126,13 +126,20 @@ export function seedFromLegacyKeys(): UserPreferences {
     /* noop */
   }
 
-  const ai = readJson<{ state?: { brandAware?: boolean; model?: string; count?: number } }>(
-    LEGACY_KEYS.aiGenerate,
-  );
+  const ai = readJson<{
+    state?: {
+      include?: { logo?: boolean; text?: boolean; colours?: boolean; identity?: boolean };
+      model?: string; count?: number;
+    };
+  }>(LEGACY_KEYS.aiGenerate);
   if (ai?.state) {
-    const { brandAware, model, count } = ai.state;
+    const { include, model, count } = ai.state;
     const bag: UserPreferences['aiGenerate'] = {};
-    if (brandAware !== undefined) bag.brandAware = brandAware;
+    // `brandAware` is deliberately NOT read across. It was one boolean standing
+    // for four independent decisions, and we cannot tell which of them a user
+    // who had turned it off actually meant — so they start from everything
+    // included, which is the reading that loses no brand information.
+    if (include !== undefined) bag.include = include;
     if (model !== undefined) bag.model = model;
     if (count !== undefined) bag.count = count;
     if (Object.keys(bag).length > 0) out.aiGenerate = bag;

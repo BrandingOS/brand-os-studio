@@ -43,6 +43,9 @@ export function TallSelect({
       >
         <div className="flex items-center gap-1 min-w-0 flex-1">
           <div className="shrink-0 flex items-center">{icon}</div>
+          {/* The caption is rendered, not just announced. Two triggers both
+              reading "Auto" and told apart by a 14px icon is not a label. */}
+          <span className="shrink-0" style={{ color: 'var(--text-muted)' }}>{caption}:</span>
           <span className="font-medium truncate text-left" style={{ color: 'var(--text-primary)' }}>
             {valueLabel}
           </span>

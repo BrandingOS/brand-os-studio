@@ -1,8 +1,18 @@
-// ReferenceStrip — the images the user attached, in the order they will be sent.
+// ReferenceStrip — the images the user attached, what each one is FOR, and the
+// order they will be sent in.
 //
-// Order matters: a model with room for two references keeps the first two, so
-// the strip is reorderable and says plainly when the active model will ignore
-// or truncate the list. Silence there costs a paid generation.
+// Two things this has to communicate, both of which cost real money when they
+// are left implicit:
+//
+//   PURPOSE. A style reference and a subject reference are opposite
+//   instructions — "take the light and the mood, ignore the object" versus
+//   "this IS the object, reproduce it exactly". They used to be one
+//   undifferentiated list, so both received the same sentence and the model was
+//   invited to redesign the product and to copy the mood board's subject.
+//
+//   ORDER. A model with room for two references keeps the first two, so the
+//   strip is reorderable and says plainly when the active model will ignore or
+//   truncate the list. Silence there costs a paid generation.
 
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -10,13 +20,26 @@ import type { AttachedReference } from '@/features/image-generation';
 
 export type { AttachedReference };
 
+export type ReferenceUse = 'style' | 'subject';
+
+export interface PanelReference extends AttachedReference {
+  use: ReferenceUse;
+}
+
+const USE_LABEL: Record<ReferenceUse, string> = { subject: 'Subject', style: 'Style' };
+const USE_HINT: Record<ReferenceUse, string> = {
+  subject: 'Treated as the real subject — reproduced faithfully. Click to make it a style reference.',
+  style: 'Used for look and feel only; its subject is never copied. Click to make it a subject reference.',
+};
+
 export function ReferenceStrip({
-  references, maxReferences, onRemove, onMove, disabled,
+  references, maxReferences, onRemove, onMove, onToggleUse, disabled,
 }: {
-  references: AttachedReference[];
+  references: PanelReference[];
   maxReferences: number;
   onRemove: (id: string) => void;
   onMove: (id: string, direction: -1 | 1) => void;
+  onToggleUse: (id: string) => void;
   disabled?: boolean;
 }) {
   if (references.length === 0) return null;
@@ -32,18 +55,32 @@ export function ReferenceStrip({
             <figure
               key={ref.id}
               data-reference-chip={ref.id}
+              data-reference-use={ref.use}
               data-dropped={dropped || undefined}
               title={dropped ? `${ref.fileName} — not used by this model` : ref.fileName}
               className="relative m-0 h-11 w-11 overflow-hidden rounded-md border"
               style={{ borderColor: 'var(--border)', opacity: dropped ? 0.4 : 1 }}
             >
               <img src={ref.previewUrl} alt="" className="h-full w-full object-cover" />
-              <figcaption
-                className="absolute left-0 top-0 px-1 text-[9px] font-medium leading-[13px]"
-                style={{ background: 'color-mix(in oklab, #000 55%, transparent)', color: '#fff' }}
+              {/* The badge is the control: purpose is the thing most likely to be
+                  wrong, and correcting it should cost a click, not a re-upload. */}
+              <button
+                type="button"
+                data-reference-use-toggle
+                disabled={disabled}
+                onClick={() => onToggleUse(ref.id)}
+                aria-label={`${ref.fileName}: ${USE_LABEL[ref.use]} reference. ${USE_HINT[ref.use]}`}
+                title={USE_HINT[ref.use]}
+                className="absolute left-0 top-0 px-1 text-[9px] font-medium leading-[13px] transition-opacity hover:opacity-80"
+                style={{
+                  background: ref.use === 'subject'
+                    ? 'color-mix(in oklab, var(--accent) 85%, #000)'
+                    : 'color-mix(in oklab, #000 62%, transparent)',
+                  color: '#fff',
+                }}
               >
-                {i + 1}
-              </figcaption>
+                {USE_LABEL[ref.use]}
+              </button>
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-px py-px" style={{ background: 'color-mix(in oklab, #000 55%, transparent)' }}>
                 <RefAction disabled={disabled || i === 0} onClick={() => onMove(ref.id, -1)} label={`Move ${ref.fileName} earlier`}>
                   <ChevronLeft size={10} strokeWidth={2} aria-hidden />

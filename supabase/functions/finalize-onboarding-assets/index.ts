@@ -37,25 +37,43 @@ Deno.serve(async (req) => {
     return new Response('sessionId, brandId, assetIds required', { status: 400, headers: cors });
   }
 
-  // ─── AuthZ: the caller must OWN the destination brand ─────────────────────
-  // Prevents moving scratch assets into another tenant's brand-assets/<brandId>.
+  // ─── AuthZ, both ends of the move ─────────────────────────────────────────
+  // DESTINATION: the caller must be able to upload into this brand — capability, not
+  // bare membership (a viewer of the workspace was previously enough).
   const { data: brand, error: brandErr } = await supabase
     .from('brands')
-    .select('user_id, workspace_id')
+    .select('id, workspace_id')
     .eq('id', brandId)
     .maybeSingle();
   if (brandErr || !brand) return new Response('Brand not found', { status: 404, headers: cors });
-  let owns = brand.user_id === user.id;
-  if (!owns && brand.workspace_id) {
-    const { data: member } = await supabase
-      .from('workspace_members')
-      .select('user_id')
-      .eq('workspace_id', brand.workspace_id)
-      .eq('user_id', user.id)
-      .maybeSingle();
-    owns = Boolean(member);
+
+  const { data: caps } = await supabase.rpc('effective_capabilities', {
+    _user_id: user.id, _workspace_id: brand.workspace_id, _brand_id: brand.id,
+  });
+  if (!Array.isArray(caps) || !caps.includes('library.upload')) {
+    return new Response('Forbidden', { status: 403, headers: cors });
   }
-  if (!owns) return new Response('Forbidden', { status: 403, headers: cors });
+
+  // SOURCE: the scratch session must be the CALLER'S. This was the missing half — the
+  // session id came from the body and was used verbatim with the service role, so an
+  // authenticated user who obtained someone else's onboarding session id could move that
+  // person's logos and brand imagery into their own brand and read them (threat A27,
+  // finding S3-B in docs/phase-2/stage-1/03-SECURITY-VERIFICATION.md).
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(sessionId)) {
+    return new Response('Bad sessionId', { status: 400, headers: cors });
+  }
+  const { data: scratchOwners, error: ownerErr } = await supabase
+    .schema('storage')
+    .from('objects')
+    .select('owner')
+    .eq('bucket_id', 'onboarding-scratch')
+    .like('name', `${sessionId}/%`)
+    .limit(50);
+  if (ownerErr) return new Response('Could not verify the upload session', { status: 500, headers: cors });
+  // An empty session is nothing to move; a session containing anyone else's object is refused.
+  if ((scratchOwners ?? []).some((o: { owner: string | null }) => o.owner !== user.id)) {
+    return new Response('Forbidden', { status: 403, headers: cors });
+  }
 
   const moved: string[] = [];
   const failed: { assetId: string; error: string }[] = [];

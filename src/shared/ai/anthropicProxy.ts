@@ -54,15 +54,64 @@ export async function resolveAiSessionId(): Promise<string> {
   }
 }
 
-/** Call Anthropic via the server proxy. Throws on transport/function error. */
-export async function callAnthropic(req: AnthropicRequest): Promise<AnthropicResponse> {
-  const sessionId = await resolveAiSessionId();
+/**
+ * Call Anthropic via the server proxy. Throws on transport/function error.
+ *
+ * The proxy now requires a real user JWT and meters the call against the workspace
+ * wallet, so `sessionId` is no longer an identity — supabase-js attaches the session
+ * automatically. Pass `brandId` when the call is about a brand: it decides which wallet
+ * pays and requires `ai.generate` on that brand.
+ *
+ * A refusal for money rather than transport (`insufficient_credits`,
+ * `member_credit_cap_reached`) arrives as a 402 with a semantic reason; it is surfaced
+ * as an AiCreditError so callers can tell "you cannot afford this" from "it broke".
+ */
+export async function callAnthropic(
+  req: AnthropicRequest & { brandId?: string; operation?: string },
+): Promise<AnthropicResponse> {
+  // Fail before the round trip when there is no session: the proxy requires a JWT, and
+  // public surfaces (Logo Maker) fall back to their deterministic suggestions on throw.
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session) throw new AiAuthRequiredError();
+
   const { data, error } = await supabase.functions.invoke('anthropic-proxy', {
-    body: { sessionId, model: 'sonnet', ...req },
+    body: { model: 'sonnet', ...req },
   });
-  if (error) throw new Error(`anthropic-proxy failed: ${error.message}`);
+  if (error) {
+    const reason = await readFunctionError(error);
+    if (reason) throw new AiCreditError(reason.error, reason);
+    throw new Error(`anthropic-proxy failed: ${error.message}`);
+  }
   if (!data) throw new Error('anthropic-proxy: empty response');
   return data as AnthropicResponse;
+}
+
+/** No session: AI is a signed-in feature since the proxy stopped accepting a body id. */
+export class AiAuthRequiredError extends Error {
+  readonly reason = 'not_authenticated';
+  constructor() {
+    super('not_authenticated');
+    this.name = 'AiAuthRequiredError';
+  }
+}
+
+export class AiCreditError extends Error {
+  constructor(readonly reason: string, readonly detail: Record<string, unknown>) {
+    super(reason);
+    this.name = 'AiCreditError';
+  }
+}
+
+/** supabase-js hides the body of a non-2xx function response inside `context`. */
+async function readFunctionError(error: unknown): Promise<Record<string, unknown> | null> {
+  const ctx = (error as { context?: unknown })?.context;
+  if (!ctx || typeof (ctx as Response).json !== 'function') return null;
+  try {
+    const body = await (ctx as Response).json();
+    return body && typeof body.error === 'string' ? body : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Convenience: first text block of the response (the common case). */
