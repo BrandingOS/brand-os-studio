@@ -125,8 +125,27 @@ export type Ground = {
   soft: string;
   /** A hairline / divider. Not text, so not contrast-bound. */
   line: string;
-  /** The colour to emphasise with, chosen for this ground. */
+  /**
+   * The colour to emphasise with IN TEXT, chosen for this ground.
+   *
+   * Held to 4.5:1, so on a brand whose colour is light against paper it
+   * is the plain ink instead. That is right for a word and wrong for a
+   * rule — see `mark`.
+   */
   accent: string;
+  /**
+   * The brand colour that can be SEEN on this ground, for marks that
+   * carry no words: a rule, a border, a block, the fill of a button
+   * whose own label is then derived from it.
+   *
+   * `accent` and `mark` differ exactly where it matters. SKAM's red
+   * measures 3.4:1 on its own cream — readable as a shape, not as 6px
+   * type — so `accent` correctly falls back to near-black and, before
+   * this existed, every rule and every quote mark on every paper design
+   * came out grey. A brand kit that drops the brand's colour the moment
+   * a design puts it on paper is not a brand kit.
+   */
+  mark: string;
 };
 
 function groundFrom(bg: string, brand: Brand, picks?: TemplateDesignPicks): Ground {
@@ -137,6 +156,10 @@ function groundFrom(bg: string, brand: Brand, picks?: TemplateDesignPicks): Grou
     soft: softInk(bg),
     line: mixHex(ink, bg, 0.72),
     accent: accentOn(brand, bg, { picks }),
+    // `large: true` is WCAG's 3:1, which is the threshold for something
+    // you can SEE rather than read — and nothing wearing this colour
+    // carries a word of its own.
+    mark: accentOn(brand, bg, { large: true, picks }),
   };
 }
 

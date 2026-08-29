@@ -1,149 +1,60 @@
 import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import type { DeliverableContent } from '@/features/brandkit/content/kinds';
+import {
+  SOCIAL_PROFILE_TAIL,
+  SocialProfileExtendedRenderer,
+} from './SocialProfileExtended';
 
 /**
- * Profile icons — Wave 2: 100 new square avatar designs (idx 0-99).
- * Curated across 8 movements with brand color + initial.
+ * Profile icons — Wave 2. Retired, except for its first six ids.
+ *
+ * This file held 100 generated designs (`profile-icons-ext-19` …
+ * `-ext-118`), organised by MOVEMENT rather than by anything a brand
+ * needs: fifteen "Apple-restrained", fifteen "Brutalist" on `#FFEB3B`,
+ * `#FF3B30` and `#39FF14`, fifteen "Swiss", and a tail of editorial ones
+ * printing `est. 2026`, `— a brand —` and `vol. 14` as though they were
+ * facts about the customer. One was welded to `Caveat, cursive`; 26 used
+ * Tailwind's `font-serif`/`font-mono`, which is a typeface from the
+ * config and not the brand's. None declared a `content` prop, so the
+ * Quick Edit panel — keyed by template TYPE, not by design — offered a
+ * customer four fields that changed nothing on screen.
+ *
+ * What survives is the ID RANGE, not the artwork. The curated family is
+ * 24 designs and the shared dispatch (`renderers/index.tsx`) splits
+ * `profile-icons` at 18, so `ext-19` … `ext-24` have to arrive through
+ * this module. They are the last six of `SocialProfileExtended`'s own
+ * SPECS, forwarded by rank — the split is arithmetic, not a design
+ * boundary, and putting six designs in a second file to satisfy it would
+ * only hide four of them from the study they belong to.
+ *
+ * `ext-25` … `ext-118` are archived in `renderers/curation/social.ts`,
+ * which removes them from the drilldown, the picker and every export
+ * while keeping the ids valid for anything already saved against them.
  */
-interface Props { brand: Brand; templateIndex: number }
 
-function P({ children, bg = '#0F1216' }: { children: React.ReactNode; bg?: string }) {
+/** The six ids this module still publishes: `ext-19` … `ext-24`. */
+export const SOCIAL_PROFILE_EXTENDED_2 = SOCIAL_PROFILE_TAIL;
+
+/** The 94 ids this file used to emit and no longer does. */
+export const SOCIAL_PROFILE_WAVE_2_IDS: ReadonlyArray<string> = Array.from(
+  { length: 94 },
+  (_, i) => `profile-icons-ext-${25 + i}`,
+);
+
+interface Props {
+  brand: Brand;
+  templateIndex: number;
+  /** The shared dispatch spreads the whole union; narrowing is ours. */
+  content?: DeliverableContent;
+}
+
+export function SocialProfileExtended2Renderer({ brand, templateIndex, content }: Props) {
+  // The dispatch hands us `idx - 18`; the designs live at 18…23.
   return (
-    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: bg }}>
-      <div className="aspect-square h-[88%] relative overflow-hidden rounded-full">{children}</div>
-    </div>
+    <SocialProfileExtendedRenderer
+      brand={brand}
+      templateIndex={18 + (templateIndex % SOCIAL_PROFILE_TAIL.length)}
+      content={content}
+    />
   );
 }
-
-export function SocialProfileExtended2Renderer({ brand, templateIndex }: Props) {
-  const p = brand.primaryColor;
-  const s = brand.secondaryColor || '#0F1216';
-  const init = brand.name.charAt(0).toUpperCase();
-  const N = brand.name.toUpperCase();
-
-  const designs: React.ReactNode[] = [
-    // Apple-restrained (15)
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white text-[44px] font-light">{init}</span></div></P>),
-    (<P bg="#F5F5F7"><div className="absolute inset-[10%] rounded-full bg-white flex items-center justify-center"><BrandLogo brand={brand} size="md" color={p} /></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex flex-col items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[6px] uppercase tracking-[0.5em] opacity-90 mb-1">{brand.name.slice(0,3)}</div><div className="text-white text-[36px] font-light leading-none">{init}</div></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><BrandLogo brand={brand} size="lg" color="#fff" /></div></P>),
-    (<P bg="#FAFAFA"><div className="absolute inset-0" style={{ background: `radial-gradient(circle at 30% 30%, ${p}, ${p}77)` }} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[40px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-[8%] rounded-full border-[3px] flex items-center justify-center" style={{borderColor:p}}><span className="text-[36px] font-light" style={{color:p}}>{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[36px] font-light leading-none">{init}</div><div className="text-[5px] uppercase tracking-[0.5em] mt-2 opacity-80">{brand.name}</div></div></div></P>),
-    (<P bg="#F2F2F7"><div className="absolute inset-[12%] rounded-full" style={{backgroundColor:p}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[40px] font-light">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${p}, ${p}AA)` }} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[40px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${p}, ${p}88)` }} /><div className="absolute inset-x-0 bottom-[24%] flex justify-center"><span className="text-white text-[5px] uppercase tracking-[0.5em] opacity-90">{brand.name}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{backgroundColor:p}} /><div className="absolute inset-[20%] rounded-full bg-white flex items-center justify-center"><span style={{color:p}} className="text-[28px] font-light">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0 grid grid-cols-2 grid-rows-2"><div className="bg-white" /><div /><div /><div className="bg-white" /></div><div className="absolute inset-0 flex items-center justify-center"><span className="text-[28px] font-light" style={{color:p}}>{init}</span></div></P>),
-    (<P bg="#FAFAFA"><div className="absolute inset-[8%] rounded-full" style={{ backgroundColor: p, opacity:0.1 }} /><div className="absolute inset-[16%] rounded-full" style={{backgroundColor:p}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[36px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{backgroundColor:p}} /><div className="absolute inset-x-[10%] bottom-[12%] text-center text-white text-[5px] uppercase tracking-[0.4em]">{brand.name}</div><div className="absolute inset-0 flex items-center justify-center pb-[18%]"><span className="text-white text-[36px] font-light">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[8px] uppercase tracking-[0.6em] font-light">{N}</span></div></P>),
-
-    // Brutalist (15)
-    (<P bg="#FFEB3B"><div className="absolute inset-0 flex items-center justify-center font-mono"><span className="text-black text-[44px] font-extrabold">{init}.</span></div></P>),
-    (<P bg="#000"><div className="absolute inset-0 flex items-center justify-center font-mono"><span className="text-yellow-300 text-[36px] font-extrabold">{`{${init}}`}</span></div></P>),
-    (<P bg="#FF3B30"><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[44px] font-extrabold uppercase font-mono">!{init}!</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(0deg, #000 0 4px, #fff 4px 8px)' }}><div className="absolute inset-[24%] bg-white rounded-full flex items-center justify-center"><span className="text-[26px] font-extrabold font-mono">{init}</span></div></div></P>),
-    (<P bg="#39FF14"><div className="absolute inset-0 flex items-center justify-center font-mono"><span className="text-black text-[14px] font-extrabold uppercase tracking-tight">RAW {init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-2 grid-rows-2 font-mono">{[init,'X',init,'X'].map((c,i)=><div key={i} className="border-2 border-black flex items-center justify-center text-[20px] font-extrabold" style={{backgroundColor:i%3===0?p:'#fff',color:i%3===0?'#fff':'#000'}}>{c}</div>)}</div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-0 flex items-center justify-center font-mono"><div className="text-center"><div className="text-[3.5px] uppercase tracking-[0.4em]" style={{color:p}}>USER</div><div className="text-yellow-300 text-[28px] font-extrabold mt-1">@{init.toLowerCase()}</div></div></div></P>),
-    (<P bg="#FFEB3B"><div className="absolute inset-0 flex items-center justify-center"><div className="-rotate-12 border-4 border-black px-2 py-1"><span className="text-[18px] font-extrabold font-mono">{init}</span></div></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center font-mono"><span className="text-white text-[40px] font-extrabold leading-none">[{init}]</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 font-mono p-[10%]"><div className="text-[4px] uppercase tracking-[0.32em] font-bold">RAW.{N}</div><div className="text-[24px] font-extrabold mt-2 leading-none">{init}</div></div></P>),
-    (<P bg="#000"><div className="absolute inset-0 flex items-center justify-center font-mono"><span className="text-[44px] font-extrabold" style={{color:p,textShadow:`2px 2px 0 #fff`}}>{init}</span></div></P>),
-    (<P bg="#FFEB3B"><div className="absolute inset-0 flex items-center justify-center font-mono"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] font-bold">!! HOT</div><div className="text-[28px] font-extrabold leading-none mt-1">{init}</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[40%] bg-black flex items-center justify-center"><span className="text-yellow-300 text-[28px] font-extrabold font-mono">{init}</span></div></P>),
-    (<P bg="#39FF14"><div className="absolute inset-0 flex items-center justify-center"><div className="text-center font-mono"><div className="text-[3.5px] uppercase tracking-[0.32em]">[ALIVE]</div><div className="text-[36px] font-extrabold leading-none mt-1">{init}</div></div></div></P>),
-    (<P bg="#FF3B30"><div className="absolute inset-0 grid grid-cols-2 font-mono"><div className="bg-white flex items-center justify-center text-[18px] font-extrabold">{init}</div><div className="flex items-center justify-center text-white text-[18px] font-extrabold">·</div></div></P>),
-
-    // Swiss (15)
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-12 grid-rows-12">{Array.from({length:144}).map((_,i)=>{ const r=Math.floor(i/12); const c=i%12; const inMark=r>=4&&r<=7&&c>=4&&c<=7; return <div key={i} style={{backgroundColor:inMark?p:'transparent'}} />; })}</div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center" style={{backgroundColor:'#FAFAFA'}}><div className="text-center"><div className="text-[5px] uppercase tracking-[0.5em] font-bold">— {brand.name} —</div><div className="text-[32px] font-bold mt-1" style={{color:p}}>{init}</div></div></div></P>),
-    (<P bg={p}><div className="absolute inset-x-0 top-[25%] h-[2px] bg-white" /><div className="absolute inset-x-0 bottom-[25%] h-[2px] bg-white" /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[28px] font-bold">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center"><div className="text-[40px] font-bold leading-none" style={{color:p}}>{init}</div></div><div className="absolute inset-x-0 bottom-[22%] text-center text-[3.5px] uppercase tracking-[0.5em] font-bold">{brand.name}</div></P>),
-    (<P bg="#FAFAFA"><div className="absolute inset-x-[15%] top-[25%] bottom-[25%] flex items-center justify-center border-2 border-black"><span className="text-[20px] font-bold" style={{color:p}}>{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-3 grid-rows-3"><div /><div className="bg-black" /><div /><div className="bg-black" /><div style={{backgroundColor:p}} /><div className="bg-black" /><div /><div className="bg-black" /><div /></div><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[18px] font-bold">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[8px] uppercase tracking-[0.5em] opacity-80">N°</div><div className="text-[24px] font-bold leading-none mt-1">14</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-x-[10%] top-[10%] right-[10%] flex items-baseline gap-1"><span className="text-[3.5px] uppercase tracking-[0.32em] font-bold">{brand.name}</span><div className="flex-1 h-[1px] bg-black mx-1" /><span className="text-[3.5px] uppercase tracking-[0.32em] font-bold">14</span></div><div className="absolute inset-0 flex items-center justify-center"><span className="text-[36px] font-bold" style={{color:p}}>{init}</span></div></P>),
-    (<P bg="#FAFAFA"><div className="absolute inset-0 flex items-center justify-center"><div className="grid grid-cols-2"><div className="text-[36px] font-bold" style={{color:p}}>{init}</div><div className="text-[36px] font-bold text-black">·</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute left-0 top-0 bottom-0 w-1/4" style={{backgroundColor:p}} /><div className="absolute right-0 top-0 bottom-0 w-1/4 bg-black" /><div className="absolute inset-0 flex items-center justify-center"><span className="text-[36px] font-bold">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-x-0 top-[22%] flex justify-center text-[3.5px] uppercase tracking-[0.5em] font-bold border-y-2 border-black py-0.5 mx-[15%]">{brand.name}</div><div className="absolute inset-0 flex items-center justify-center"><span className="text-[36px] font-bold" style={{color:p}}>{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-x-[15%] top-[20%] right-[15%] h-[1px] bg-white" /><div className="absolute inset-x-[15%] bottom-[20%] right-[15%] h-[1px] bg-white" /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[28px] font-bold">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-3"><div className="bg-black" /><div className="flex items-center justify-center"><span className="text-[36px] font-bold" style={{color:p}}>{init}</span></div><div style={{backgroundColor:p}} /></div></P>),
-    (<P bg="#fff"><div className="absolute inset-x-[15%] top-1/2 -translate-y-1/2 right-[15%] flex items-baseline gap-1"><span className="text-[20px] font-bold tabular-nums" style={{color:p}}>14</span><span className="text-[5px] uppercase tracking-[0.32em] text-gray-500">/ {N}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-12 gap-0">{Array.from({length:12}).map((_,i)=>(<div key={i} style={{backgroundColor:i<7?p:'transparent'}} />))}</div><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[28px] font-bold">{init}</span></div></P>),
-
-    // Bento (10)
-    (<P bg="#F5F5F7"><div className="absolute inset-[12%] grid grid-cols-2 grid-rows-2 gap-1"><div className="rounded-md" style={{backgroundColor:p}} /><div className="rounded-md bg-white flex items-center justify-center text-[14px] font-bold">{init}</div><div className="rounded-md bg-[#0F1216]" /><div className="rounded-md bg-white flex items-center justify-center"><BrandLogo brand={brand} size="xs" color={p} /></div></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-[10%] grid grid-cols-3 grid-rows-3 gap-[2px]">{Array.from({length:9}).map((_,i)=><div key={i} className="rounded-sm flex items-center justify-center" style={{backgroundColor:i===4?p:i%2===0?'#0F1216':'#fff'}}>{i===4 && <span className="text-white text-[18px] font-bold">{init}</span>}</div>)}</div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-[12%] grid grid-cols-2 grid-rows-2 gap-1"><div className="rounded-md row-span-2 flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white text-[20px] font-bold">{init}</span></div><div className="rounded-md bg-[#1F2429]" /><div className="rounded-md bg-white" /></div></P>),
-    (<P bg="#F5F5F7"><div className="absolute inset-[10%] grid grid-cols-2 grid-rows-3 gap-1"><div className="row-span-2 rounded-md flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white text-[20px] font-bold">{init}</span></div><div className="rounded-md bg-white border" /><div className="rounded-md bg-[#0F1216]" /><div className="col-span-2 rounded-md bg-white border flex items-center justify-center"><span className="text-[3.5px] uppercase tracking-[0.32em]">{brand.name}</span></div></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-[10%] grid grid-cols-3 grid-rows-2 gap-1"><div className="col-span-2 row-span-2 rounded-md bg-white border flex items-center justify-center"><span className="text-[28px] font-bold" style={{color:p}}>{init}</span></div><div className="rounded-md" style={{backgroundColor:p}} /><div className="rounded-md bg-[#0F1216]" /></div></P>),
-    (<P bg="#fff"><div className="absolute inset-[12%] rounded-2xl bg-white shadow-md flex items-center justify-center"><span className="text-[36px] font-bold" style={{color:p}}>{init}</span></div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-[10%] rounded-2xl backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center"><span className="text-white text-[32px] font-light">{init}</span></div></P>),
-    (<P bg="#F5F5F7"><div className="absolute inset-[10%] grid grid-cols-2 gap-1"><div className="rounded-md flex flex-col justify-end p-1" style={{backgroundColor:p}}><span className="text-white text-[5px] uppercase tracking-[0.32em]">{brand.name}</span></div><div className="rounded-md bg-white border flex items-center justify-center"><span className="text-[24px] font-bold">{init}</span></div></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-[12%] grid grid-cols-3 gap-[3px]"><div className="rounded" style={{backgroundColor:p}} /><div className="rounded bg-white border flex items-center justify-center"><span className="text-[18px] font-bold">{init}</span></div><div className="rounded bg-[#0F1216]" /></div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-[12%] grid grid-cols-2 grid-rows-2 gap-1"><div className="rounded-md flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white text-[20px] font-bold">{init}</span></div><div className="rounded-md bg-[#1F2429]" /><div className="rounded-md bg-[#1F2429]" /><div className="rounded-md flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white text-[3.5px] uppercase tracking-[0.32em]">{brand.name}</span></div></div></P>),
-
-    // Glassmorphism (10)
-    (<P bg="#fff"><div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${p}, ${s})` }} /><div className="absolute inset-[12%] rounded-full backdrop-blur-md bg-white/30 border border-white/50 flex items-center justify-center"><span className="text-white text-[36px] font-light">{init}</span></div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-0" style={{background:`radial-gradient(circle at 30% 30%, ${p}, transparent 70%)`}} /><div className="absolute inset-[12%] rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center"><span className="text-white text-[32px] font-light">{init}</span></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute -inset-[20%]" style={{background:`radial-gradient(circle at 30% 50%, ${p}, transparent 50%), radial-gradient(circle at 70% 50%, ${s}, transparent 50%)`,opacity:0.7}} /><div className="absolute inset-[14%] rounded-full backdrop-blur-2xl bg-white/40 border border-white/60 flex items-center justify-center"><span className="text-[28px] font-light text-gray-900">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0" style={{ background: `conic-gradient(from 0deg, ${p}, ${s}, ${p})` }} /><div className="absolute inset-[14%] rounded-full backdrop-blur-3xl bg-white/40 border border-white/60 flex items-center justify-center"><span className="text-[28px] font-light text-gray-900">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-2"><div style={{backgroundColor:p}} /><div style={{backgroundColor:s}} /></div><div className="absolute inset-[14%] rounded-full backdrop-blur-2xl bg-white/30 border border-white/50 flex items-center justify-center"><span className="text-white text-[28px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${p}, ${p}88)` }} /><div className="absolute inset-[14%] rounded-full backdrop-blur-md bg-white/40 border border-white/60 flex items-center justify-center"><span className="text-[28px] font-light text-gray-900">{init}</span></div></P>),
-    (<P bg="#1F1F1F"><div className="absolute inset-0" style={{background:`radial-gradient(40% 80% at 30% 50%, ${p}AA, transparent 100%)`}} /><div className="absolute inset-[14%] rounded-full backdrop-blur-md bg-white/5 border border-white/15 flex items-center justify-center"><span className="text-white text-[28px] font-light">{init}</span></div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-0" style={{background:`linear-gradient(45deg, transparent 0%, ${p}55 50%, transparent 100%)`}} /><div className="absolute inset-[14%] rounded-full backdrop-blur-xl bg-white/10 border border-white/20 flex items-center justify-center"><span className="text-white text-[28px] font-light">{init}</span></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-0" style={{background:`linear-gradient(225deg, ${p}, ${s})`}} /><div className="absolute inset-[14%] rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center"><span className="text-white text-[28px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute -left-[20%] top-0 bottom-0 w-[80%] rounded-full" style={{ background: `radial-gradient(circle, ${p}55, transparent 70%)` }} /><div className="absolute inset-[14%] rounded-full backdrop-blur-md bg-white/50 border border-white/70 flex items-center justify-center"><span className="text-[28px] font-light" style={{color:p}}>{init}</span></div></P>),
-
-    // Gradient mesh (10)
-    (<P bg="#fff"><div className="absolute inset-0" style={{background:`radial-gradient(120% 80% at 20% 30%, ${p} 0%, transparent 60%), radial-gradient(120% 80% at 80% 70%, ${s} 0%, transparent 60%), #FBF8EE`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-[36px] font-light">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0" style={{background:`linear-gradient(135deg, ${p}, ${s})`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[40px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{background:`conic-gradient(from 0deg at 30% 70%, ${p}, ${s}, ${p})`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[32px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{background:`linear-gradient(180deg, ${s}, ${p})`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[40px] font-light">{init}</span></div></P>),
-    (<P bg="#0F1216"><div className="absolute -inset-[10%]" style={{background:`radial-gradient(circle at 30% 30%, ${p}, transparent 50%), radial-gradient(circle at 70% 70%, ${s}, transparent 50%)`,opacity:0.7}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[32px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{background:`linear-gradient(105deg, ${p} 0%, ${p} 50%, white 50%, white 100%)`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-[32px] font-light">{init}</span></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-0" style={{background:`linear-gradient(45deg, ${p}, transparent), linear-gradient(135deg, ${s}, transparent), #FBF8EE`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-[36px] font-light text-gray-900">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{background:`linear-gradient(225deg, ${p}, ${s}, ${p})`}} /><div className="absolute inset-[20%] rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"><span className="text-white text-[28px] font-light">{init}</span></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-0" style={{background:`radial-gradient(ellipse at 50% 0%, ${p}, transparent 70%), #FBF8EE`}} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-[36px] font-light">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-2 grid-rows-2"><div style={{backgroundColor:p}} /><div style={{backgroundColor:s}} /><div style={{backgroundColor:s}} /><div style={{backgroundColor:p}} /></div><div className="absolute inset-[20%] rounded-full bg-white flex items-center justify-center"><span style={{color:p}} className="text-[28px] font-bold">{init}</span></div></P>),
-
-    // Pentagram (10)
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-12 grid-rows-12">{Array.from({length:144}).map((_,i)=>{ const r=Math.floor(i/12); const c=i%12; return <div key={i} style={{backgroundColor: ((r+c)%5===0)?p:'transparent'}} />; })}</div><div className="absolute inset-0 flex items-center justify-center"><span className="text-[28px] font-bold">{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute left-0 top-0 bottom-0 w-[15%]" style={{backgroundColor:p}} /><div className="absolute left-[15%] top-0 bottom-0 w-[10%] bg-black" /><div className="absolute inset-0 flex items-center justify-center pl-[10%]"><span className="text-[28px] font-bold">{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="grid grid-cols-3 gap-1">{Array.from({length:3}).map((_,i)=><div key={i} className="w-[8px] h-[40px] bg-white" />)}</div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1 p-[10%]">{Array.from({length:9}).map((_,i)=><div key={i} className={i===4?'flex items-center justify-center':''} style={{backgroundColor:i===4?p:i%2===0?'#0F1216':'transparent'}}>{i===4 && <span className="text-white text-[14px] font-bold">{init}</span>}</div>)}</div></P>),
-    (<P bg="#fff"><div className="absolute inset-x-[20%] top-[20%] bottom-[20%] flex flex-col gap-1">{Array.from({length:5}).map((_,i)=><div key={i} className="flex-1" style={{backgroundColor:i===2?p:i%2===0?'#0F1216':'#FBF8EE'}} />)}</div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[14px] font-bold">[{init}]</div><div className="text-[3.5px] uppercase tracking-[0.5em] mt-1 opacity-80">{brand.name}</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center gap-[2px]">{Array.from({length:5}).map((_,i)=>(<div key={i} className="w-[6px] h-[40px]" style={{backgroundColor:i===2?p:'#0F1216',opacity:i===2?1:0.4+(i*0.15)}} />))}</div></P>),
-    (<P bg="#fff"><div className="absolute inset-[15%] grid grid-cols-2 grid-rows-2"><div className="bg-black flex items-center justify-center text-white text-[18px] font-bold">{init}</div><div style={{backgroundColor:p}} /><div style={{backgroundColor:p}} /><div className="bg-black" /></div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-0 flex items-center justify-center"><div className="text-white text-[44px] font-bold leading-none" style={{fontStretch:'condensed'}}>{init}</div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center"><div className="grid grid-cols-3 gap-2"><div className="w-[12px] h-[12px] rounded-full" style={{backgroundColor:p}} /><div className="w-[12px] h-[12px] rounded-full" style={{backgroundColor:p,opacity:0.6}} /><div className="w-[12px] h-[12px] rounded-full" style={{backgroundColor:p,opacity:0.3}} /></div></div></P>),
-
-    // Editorial mixed (15)
-    (<P bg="#FBF8EE"><div className="absolute inset-0 flex items-center justify-center"><div className="text-[44px] font-serif italic font-black leading-none" style={{color:p}}>{init}.</div></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[5px] uppercase tracking-[0.5em] opacity-80">vol.</div><div className="text-[28px] font-serif font-black mt-1">14</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[36px] italic font-light leading-none" style={{color:p,fontFamily:'Caveat, cursive'}}>{init.toLowerCase()}</div></div></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-white text-[24px] font-serif italic font-bold">{init}</div></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.5em] text-gray-500">— a brand —</div><div className="text-[28px] font-serif font-black mt-1" style={{color:p}}>{brand.name.slice(0,4)}</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 60%, transparent 30%, ${p}33 70%)` }} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-[36px] font-serif font-bold" style={{color:p}}>{init}</span></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[5px] italic opacity-80">est.</div><div className="text-[20px] font-serif font-bold mt-1">2026</div></div></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[36px] font-serif italic font-bold">"{init}"</div></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-0 flex items-center justify-center"><div className="grid grid-cols-1 gap-0">{Array.from({length:3}).map((_,i)=><div key={i} className="text-[18px] font-serif italic font-bold leading-none" style={{color:i===1?p:`${p}33`}}>{init}</div>)}</div></div></P>),
-    (<P bg={p}><div className="absolute inset-0" style={{background:`radial-gradient(circle at 30% 30%, ${p}EE, ${p}99)`}} /><div className="absolute inset-0 flex items-center justify-center"><BrandLogo brand={brand} size="lg" color="#fff" /></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.5em]" style={{color:p}}>read</div><div className="text-[24px] font-serif font-black mt-1">{init}</div><div className="text-[5px] uppercase tracking-[0.5em]" style={{color:p}}>now</div></div></div></P>),
-    (<P bg="#0F1216"><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[3.5px] uppercase tracking-[0.5em] opacity-80" style={{color:p}}>● ● ●</div><div className="text-[28px] font-light mt-1">{init}</div></div></div></P>),
-    (<P bg={p}><div className="absolute inset-0 flex items-center justify-center"><div className="text-white text-[3.5px] uppercase tracking-[0.5em] -rotate-90 leading-tight">— {brand.name} · {init} —</div></div></P>),
-    (<P bg="#FBF8EE"><div className="absolute inset-x-[15%] top-[15%] right-[15%] bottom-[15%] border-2 rounded-full border-dashed flex items-center justify-center" style={{borderColor:p}}><span className="text-[24px] font-serif font-bold" style={{color:p}}>{init}</span></div></P>),
-    (<P bg="#fff"><div className="absolute inset-0 flex items-center justify-center" style={{backgroundColor:p}}><div className="text-center text-white"><div className="text-[3.5px] uppercase tracking-[0.5em] opacity-80">— vol. —</div><div className="text-[28px] font-serif font-black leading-none mt-1">{init}.014</div></div></div></P>),
-  ];
-
-  return designs[templateIndex] ?? designs[0];
-}
-
-export const SOCIAL_PROFILE_EXTENDED_2 = Array.from({ length: 100 }, (_, i) => ({
-  idSuffix: `ext-${i + 19}`,
-  name: `Wave 2 · ${String(i + 1).padStart(2, '0')}`,
-  category: 'Modern',
-}));

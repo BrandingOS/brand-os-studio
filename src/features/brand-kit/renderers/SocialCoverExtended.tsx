@@ -177,7 +177,7 @@ export function SocialCoverExtendedRenderer({ brand, templateIndex, content }: P
       <Frame ground={g.paper} pad={0}>
         <SafeBand>
           <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 0, alignItems: 'stretch' }}>
-            <div style={{ width: 3, background: g.paper.accent, flex: '0 0 auto' }} />
+            <div style={{ width: 3, background: g.paper.mark, flex: '0 0 auto' }} />
             <div style={lead(g.paper)}>
               <div style={head(g.paper, 17)}>{f.Headline}</div>
               <div style={bodyStyle(brand, g.paper, 8, { weight: 600 })}>{f.Subline}</div>
@@ -271,7 +271,7 @@ export function SocialCoverExtendedRenderer({ brand, templateIndex, content }: P
         <SafeBand align="center">
           <div style={{ ...lead(g.paper), alignItems: 'center', textAlign: 'center', flex: 'unset' }}>
             <Mark brand={brand} ground={g.paper} size={16} picks={picks} />
-            <div style={{ height: 2, width: 30, background: g.paper.accent, margin: '3px 0' }} />
+            <div style={{ height: 2, width: 30, background: g.paper.mark, margin: '3px 0' }} />
             <div style={head(g.paper, 16)}>{f.Headline}</div>
             <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
             <div
@@ -351,7 +351,7 @@ export function SocialCoverExtendedRenderer({ brand, templateIndex, content }: P
         <SafeBand>
           <div style={lead(g.paper)}>
             <div style={head(g.paper, 19)}>{f.Headline}</div>
-            <div style={{ height: 5, width: '58%', background: g.paper.accent, marginTop: 1 }} />
+            <div style={{ height: 5, width: '58%', background: g.paper.mark, marginTop: 1 }} />
             <div style={{ ...bodyStyle(brand, g.paper, 8, { weight: 600 }), marginTop: 2 }}>
               {f.Subline}
             </div>

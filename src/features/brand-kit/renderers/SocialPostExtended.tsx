@@ -162,7 +162,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
             width: 9,
             height: 22,
             borderRadius: '0 0 5px 5px',
-            background: mixHex(g.paper.accent, g.paper.bg, 0.5),
+            background: mixHex(g.paper.mark, g.paper.bg, 0.25),
           }}
         />
         <Deco
@@ -172,7 +172,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
             width: 9,
             height: 22,
             borderRadius: '0 0 5px 5px',
-            background: mixHex(g.paper.accent, g.paper.bg, 0.5),
+            background: mixHex(g.paper.mark, g.paper.bg, 0.25),
           }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -180,7 +180,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
           <TagChip brand={brand} ground={g.paper} fields={f} />
         </div>
         <div style={{ marginTop: 'auto' }}>
-          <div style={{ height: 2, width: 34, background: g.paper.accent, marginBottom: 10 }} />
+          <div style={{ height: 2, width: 34, background: g.paper.mark, marginBottom: 10 }} />
           <div style={head(g.paper, 19, g.paper.ink)}>{f.Headline}</div>
           <div style={{ ...bodyStyle(brand, g.paper, 9, { weight: 600 }), marginTop: 6 }}>
             {f.Subline}
@@ -241,7 +241,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
             <Body brand={brand} ground={g.paper} fields={f} lines={2} color={g.paper.soft} />
           </div>
           <div style={{ marginTop: 'auto' }}>
-            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.accent} />
+            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.mark} />
           </div>
         </div>
       </Frame>
@@ -285,7 +285,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
         <div
           style={{
             flex: 1,
-            border: `1px solid ${g.paper.accent}`,
+            border: `1px solid ${g.paper.mark}`,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -331,7 +331,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
           </div>
         </div>
         <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <CtaPill brand={brand} ground={g.ink} fields={f} color={g.ink.accent} size={8} />
+          <CtaPill brand={brand} ground={g.ink} fields={f} color={g.ink.mark} size={8} />
           <Mark brand={brand} ground={g.ink} size={14} picks={picks} />
         </div>
       </Frame>
@@ -341,7 +341,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
     (
       <Frame ground={g.paper}>
         <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
-          <div style={{ width: 3, background: g.paper.accent, flex: '0 0 auto' }} />
+          <div style={{ width: 3, background: g.paper.mark, flex: '0 0 auto' }} />
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
             <MetaLine brand={brand} ground={g.paper} fields={f} />
             <div style={{ ...head(g.paper, 21), marginTop: 10 }}>{f.Headline}</div>
@@ -479,7 +479,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
         </div>
         <div style={{ marginTop: 'auto' }}>
           <div style={head(g.paper, 24)}>{f.Headline}</div>
-          <div style={{ height: 6, background: g.paper.accent, marginTop: 6, width: '68%' }} />
+          <div style={{ height: 6, background: g.paper.mark, marginTop: 6, width: '68%' }} />
           <div style={{ ...bodyStyle(brand, g.paper, 9, { weight: 600 }), marginTop: 8 }}>
             {f.Subline}
           </div>
@@ -496,7 +496,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
             gap: 8,
           }}
         >
-          <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.accent} />
+          <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.mark} />
           <MetaLine brand={brand} ground={g.paper} fields={f} align="right" size={6} />
         </div>
       </Frame>
@@ -611,7 +611,7 @@ export function SocialPostExtendedRenderer({ brand, templateIndex, content }: Pr
               gap: 8,
             }}
           >
-            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.accent} />
+            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.mark} />
             <MetaLine brand={brand} ground={g.paper} fields={f} align="right" size={6} />
           </div>
         </div>

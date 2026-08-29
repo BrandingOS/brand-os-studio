@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import type { DeliverableContent } from '@/features/brandkit/content/kinds';
 import {
@@ -87,6 +88,24 @@ function Body({
   );
 }
 
+/**
+ * What a squeezed frame is allowed to lose.
+ *
+ * A story is authored 9:16 and the Brand Kit's drilldown draws every
+ * variant tile at 1.6:1 (`.bk-variant-tile`), so the same design is asked
+ * to hold together in a box roughly half its intended height. Left alone,
+ * a flex column with `min-height: auto` refuses to shrink and the LAST
+ * child — the call to action and the brand's own mark — is the thing that
+ * falls out of the bottom of the frame.
+ *
+ * So the policy is written down rather than left to the box model: the
+ * MESSAGE gives up lines, and the mark, the button and the attribution
+ * never do. Losing the third line of a caption is a compromise; losing
+ * the logo is a broken deliverable.
+ */
+const MESSAGE: CSSProperties = { minHeight: 0, overflow: 'hidden' };
+const FOOT: CSSProperties = { flexShrink: 0 };
+
 export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: Props) {
   const c = postContentFor(brand, content);
   const picks = picksOf(content);
@@ -103,7 +122,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <Mark brand={brand} ground={g.brand} size={20} picks={picks} />
           <TagChip brand={brand} ground={g.brand} fields={f} filled={false} />
         </div>
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', ...MESSAGE }}>
           <div style={head(g.brand, 34)}>{f.Headline}</div>
           <div style={{ ...bodyStyle(brand, g.brand, 12, { weight: 500 }), marginTop: 10 }}>
             {f.Subline}
@@ -111,12 +130,15 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <div style={{ marginTop: 12 }}>
             <Body brand={brand} ground={g.brand} fields={f} lines={4} color={g.brand.soft} />
           </div>
-          <div style={{ marginTop: 18 }}>
-            <CtaPill brand={brand} ground={g.brand} fields={f} size={9} />
-          </div>
         </div>
-        <div style={{ marginTop: 'auto', paddingTop: 18 }}>
-          <MetaLine brand={brand} ground={g.brand} fields={f} size={7.5} />
+        {/* The button lives in the FOOT, not with the message: the
+            message is the block a squeezed frame takes lines from, and a
+            half-cut call to action is worse than a shorter caption. */}
+        <div style={{ marginTop: 'auto', paddingTop: 18, ...FOOT }}>
+          <CtaPill brand={brand} ground={g.brand} fields={f} size={9} />
+          <div style={{ marginTop: 12 }}>
+            <MetaLine brand={brand} ground={g.brand} fields={f} size={7.5} />
+          </div>
         </div>
       </Frame>
     ),
@@ -135,7 +157,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             width: 11,
             height: 28,
             borderRadius: '0 0 6px 6px',
-            background: mixHex(g.paper.accent, g.paper.bg, 0.5),
+            background: mixHex(g.paper.mark, g.paper.bg, 0.25),
           }}
         />
         <Deco
@@ -145,11 +167,11 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             width: 11,
             height: 28,
             borderRadius: '0 0 6px 6px',
-            background: mixHex(g.paper.accent, g.paper.bg, 0.5),
+            background: mixHex(g.paper.mark, g.paper.bg, 0.25),
           }}
         />
-        <div style={{ marginTop: 'auto' }}>
-          <div style={{ height: 3, width: 44, background: g.paper.accent, marginBottom: 14 }} />
+        <div style={{ marginTop: 'auto', ...MESSAGE }}>
+          <div style={{ height: 3, width: 44, background: g.paper.mark, marginBottom: 14 }} />
           <div style={{ ...head(g.paper, 25), lineHeight: 1.15 }}>{f.Headline}</div>
           <div style={{ ...bodyStyle(brand, g.paper, 11, { weight: 600 }), marginTop: 10 }}>
             {f.Subline}
@@ -158,7 +180,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             <Body brand={brand} ground={g.paper} fields={f} lines={5} color={g.paper.soft} />
           </div>
         </div>
-        <div style={{ marginTop: 'auto', paddingTop: 18 }}>
+        <div style={{ marginTop: 'auto', paddingTop: 18, ...FOOT }}>
           <CtaLink brand={brand} ground={g.paper} fields={f} color={g.paper.accent} size={9} />
           <div style={{ marginTop: 10 }}>
             <TagChip brand={brand} ground={g.paper} fields={f} size={7} />
@@ -195,8 +217,8 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <div style={{ marginTop: 12 }}>
             <Body brand={brand} ground={g.paper} fields={f} lines={5} color={g.paper.soft} />
           </div>
-          <div style={{ marginTop: 'auto' }}>
-            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.accent} size={9} />
+          <div style={{ marginTop: 'auto', ...FOOT }}>
+            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.mark} size={9} />
           </div>
         </div>
       </Frame>
@@ -227,7 +249,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <div style={{ marginTop: 12 }}>
             <Body brand={brand} ground={g.paper} fields={f} lines={6} color={g.paper.soft} />
           </div>
-          <div style={{ marginTop: 'auto' }}>
+          <div style={{ marginTop: 'auto', ...FOOT }}>
             <CtaLink brand={brand} ground={g.paper} fields={f} size={9} />
           </div>
         </div>
@@ -240,7 +262,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
         <div
           style={{
             flex: 1,
-            border: `1px solid ${g.paper.accent}`,
+            border: `1px solid ${g.paper.mark}`,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -270,7 +292,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <TagChip brand={brand} ground={g.ink} fields={f} size={7} />
           <MetaLine brand={brand} ground={g.ink} fields={f} align="right" size={7} />
         </div>
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', ...MESSAGE }}>
           <div style={head(g.ink, 33)}>{f.Headline}</div>
           <div
             style={{
@@ -284,8 +306,8 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             <Body brand={brand} ground={g.ink} fields={f} lines={4} color={g.ink.soft} />
           </div>
         </div>
-        <div style={{ marginTop: 'auto', paddingTop: 20 }}>
-          <CtaPill brand={brand} ground={g.ink} fields={f} color={g.ink.accent} size={9.5} />
+        <div style={{ marginTop: 'auto', paddingTop: 20, ...FOOT }}>
+          <CtaPill brand={brand} ground={g.ink} fields={f} color={g.ink.mark} size={9.5} />
           <div style={{ marginTop: 14 }}>
             <Mark brand={brand} ground={g.ink} size={18} picks={picks} />
           </div>
@@ -297,7 +319,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
     (
       <Frame ground={g.paper} pad={22}>
         <div style={{ display: 'flex', gap: 14, flex: 1, minHeight: 0 }}>
-          <div style={{ width: 3, background: g.paper.accent, flex: '0 0 auto' }} />
+          <div style={{ width: 3, background: g.paper.mark, flex: '0 0 auto' }} />
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
             <MetaLine brand={brand} ground={g.paper} fields={f} size={7} />
             <div style={{ ...head(g.paper, 28), marginTop: 14 }}>{f.Headline}</div>
@@ -307,7 +329,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             <div style={{ marginTop: 12 }}>
               <Body brand={brand} ground={g.paper} fields={f} lines={7} color={g.paper.soft} />
             </div>
-            <div style={{ marginTop: 'auto' }}>
+            <div style={{ marginTop: 'auto', ...FOOT }}>
               <TagChip brand={brand} ground={g.paper} fields={f} filled={false} size={7} />
               <div style={{ marginTop: 10 }}>
                 <CtaLink brand={brand} ground={g.paper} fields={f} size={9} />
@@ -332,7 +354,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
         <div style={{ marginTop: 12 }}>
           <Body brand={brand} ground={g.brand} fields={f} lines={4} color={g.brand.soft} />
         </div>
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', ...FOOT }}>
           <CtaLink brand={brand} ground={g.brand} fields={f} size={9} />
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <Mark brand={brand} ground={g.brand} size={22} picks={picks} />
@@ -413,9 +435,9 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <Mark brand={brand} ground={g.paper} size={17} picks={picks} />
           <TagChip brand={brand} ground={g.paper} fields={f} size={7} />
         </div>
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', ...MESSAGE }}>
           <div style={head(g.paper, 32)}>{f.Headline}</div>
-          <div style={{ height: 9, background: g.paper.accent, marginTop: 10, width: '72%' }} />
+          <div style={{ height: 9, background: g.paper.mark, marginTop: 10, width: '72%' }} />
           <div style={{ ...bodyStyle(brand, g.paper, 11.5, { weight: 600 }), marginTop: 12 }}>
             {f.Subline}
           </div>
@@ -423,8 +445,8 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             <Body brand={brand} ground={g.paper} fields={f} lines={4} color={g.paper.soft} />
           </div>
         </div>
-        <div style={{ marginTop: 'auto', paddingTop: 18 }}>
-          <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.accent} size={9} />
+        <div style={{ marginTop: 'auto', paddingTop: 18, ...FOOT }}>
+          <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.mark} size={9} />
           <div style={{ marginTop: 12 }}>
             <MetaLine brand={brand} ground={g.paper} fields={f} size={7} />
           </div>
@@ -457,7 +479,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <div style={{ marginTop: 10 }}>
             <Body brand={brand} ground={g.paper} fields={f} lines={7} color={g.paper.soft} />
           </div>
-          <div style={{ marginTop: 'auto' }}>
+          <div style={{ marginTop: 'auto', ...FOOT }}>
             <CtaLink brand={brand} ground={g.paper} fields={f} color={g.paper.accent} size={9} />
           </div>
         </div>
@@ -494,7 +516,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <div style={{ marginTop: 10 }}>
             <Body brand={brand} ground={g.paper} fields={f} lines={5} color={g.paper.soft} />
           </div>
-          <div style={{ marginTop: 'auto' }}>
+          <div style={{ marginTop: 'auto', ...FOOT }}>
             <CtaLink brand={brand} ground={g.paper} fields={f} size={9} />
             <div style={{ marginTop: 12 }}>
               <MetaLine brand={brand} ground={g.paper} fields={f} size={7} />
@@ -511,7 +533,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
           <Mark brand={brand} ground={g.paper} size={17} picks={picks} />
           <TagChip brand={brand} ground={g.paper} fields={f} size={7} />
         </div>
-        <div style={{ marginTop: 'auto', background: g.brand.bg, padding: '20px 22px' }}>
+        <div style={{ marginTop: 'auto', background: g.brand.bg, padding: '20px 22px', ...FOOT }}>
           <div style={head(g.brand, 30)}>{f.Headline}</div>
           <div style={{ ...bodyStyle(brand, g.brand, 11, { weight: 600 }), marginTop: 8 }}>
             {f.Subline}
@@ -520,7 +542,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
         <div style={{ padding: '16px 22px 22px' }}>
           <Body brand={brand} ground={g.paper} fields={f} lines={4} color={g.paper.soft} />
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.accent} size={9} />
+            <CtaPill brand={brand} ground={g.paper} fields={f} color={g.paper.mark} size={9} />
             <MetaLine brand={brand} ground={g.paper} fields={f} align="right" size={7} />
           </div>
         </div>
@@ -531,7 +553,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
     (
       <Frame ground={g.tint} pad={26}>
         <MetaLine brand={brand} ground={g.tint} fields={f} size={7} />
-        <div style={{ marginTop: 'auto', maxWidth: '88%' }}>
+        <div style={{ marginTop: 'auto', maxWidth: '88%', ...MESSAGE }}>
           <div style={{ ...head(g.tint, 21), lineHeight: 1.25 }}>{f.Headline}</div>
           <div style={{ ...bodyStyle(brand, g.tint, 10, { weight: 600 }), marginTop: 10 }}>
             {f.Subline}
@@ -540,7 +562,7 @@ export function SocialStoryExtendedRenderer({ brand, templateIndex, content }: P
             <Body brand={brand} ground={g.tint} fields={f} lines={6} size={8.5} color={g.tint.soft} />
           </div>
         </div>
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', ...FOOT }}>
           <div style={metaStyle(brand, g.tint, 7, { color: g.tint.accent })}>{f.Tag}</div>
           <div style={{ marginTop: 10 }}>
             <CtaLink brand={brand} ground={g.tint} fields={f} size={9} />
