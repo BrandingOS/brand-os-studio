@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS trg_workspaces_version ON public.workspaces;
+DROP TRIGGER IF EXISTS trg_designs_version ON public.designs;
+DROP TRIGGER IF EXISTS trg_brands_version ON public.brands;
+DROP FUNCTION IF EXISTS public.save_design_checked(uuid, text, integer, jsonb, text, text);
+DROP FUNCTION IF EXISTS public.update_brand_checked(uuid, integer, jsonb);
+DROP FUNCTION IF EXISTS public.transfer_ownership_on_purge(uuid);
+DROP FUNCTION IF EXISTS public.bump_version();
+ALTER TABLE public.designs DROP COLUMN IF EXISTS version, DROP COLUMN IF EXISTS updated_by;
+ALTER TABLE public.brand_kit_state DROP COLUMN IF EXISTS updated_by;
+ALTER TABLE public.workspaces DROP COLUMN IF EXISTS updated_by;

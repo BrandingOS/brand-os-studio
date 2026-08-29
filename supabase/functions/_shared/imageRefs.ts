@@ -171,8 +171,13 @@ export interface StoredOutput {
   seed?: number;
 }
 
-/** Signed for a year. The path is durable; the URL is re-signable any time. */
-export const OUTPUT_URL_TTL_SECONDS = 60 * 60 * 24 * 365;
+/**
+ * Seven days (A4). The path is durable and the client re-signs on demand, so a long TTL
+ * bought nothing — but a signed URL is a bearer token that ignores RLS for as long as it
+ * lives, so a year of it survives the member being removed, the brand being deleted and
+ * the link being pasted into a chat. A week is long enough for a tab left open overnight.
+ */
+export const OUTPUT_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 const EXT_BY_MIME: Record<string, string> = {
   'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp',

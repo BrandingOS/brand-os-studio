@@ -304,13 +304,41 @@ async function generateAction(req: Request, body: GenerateBody): Promise<Respons
   );
   warnings.push(...refWarnings);
 
+  // A33 — a uuid that LOOKS right is not a project this brand owns. `projectId` used to
+  // be accepted on shape alone, so a member of Brand A could file generated output against
+  // Brand B's project. Same for designId.
+  let projectId: string | null = null;
+  if (body.projectId && UUID_RE.test(body.projectId)) {
+    const { data: proj } = await service
+      .from('image_projects')
+      .select('id')
+      .eq('id', body.projectId)
+      .eq('brand_id', brandId)
+      .maybeSingle();
+    if (!proj) {
+      throw imageError('validation', { message: 'that project does not belong to this brand' });
+    }
+    projectId = proj.id;
+  }
+  let designId: string | null = null;
+  if (typeof body.designId === 'string' && body.designId) {
+    const candidate = body.designId.slice(0, 200);
+    const { data: design } = await service
+      .from('designs')
+      .select('id')
+      .eq('id', candidate)
+      .eq('brand_id', brandId)
+      .maybeSingle();
+    if (design) designId = design.id;   // an unknown design is dropped, not fatal
+  }
+
   // ── Create the job row FIRST so the work is durable before money moves.
   const jobInsert = {
     workspace_id: workspaceId,
     brand_id: brandId,
     user_id: caller.userId,
-    project_id: body.projectId && UUID_RE.test(body.projectId) ? body.projectId : null,
-    design_id: typeof body.designId === 'string' ? body.designId.slice(0, 200) : null,
+    project_id: projectId,
+    design_id: designId,
     status: 'queued',
     operation: ['generate', 'variation', 'refine', 'regenerate'].includes(body.operation ?? '')
       ? body.operation

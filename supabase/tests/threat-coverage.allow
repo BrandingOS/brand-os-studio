@@ -1,6 +1,4 @@
 # Attack ids whose control ships in a later plan. This list must shrink to empty.
-A4   # storage object cross-brand via signed URL — Plan B (signed-URL TTL + function tests)
 A21  # realtime subscription leak — Plan C (integration test with a live client)
-A33  # projectId/designId IDOR — Plan B
-A36  # purge succession — Plan B (extends prepare_account_purge)
-A37  # guest-only workspace on purge — Plan B
+A4   # signed-URL TTL is now 7 days (imageRefs.ts); an end-to-end storage test needs a live client — Plan C
+A33  # projectId/designId are verified against the brand in ai-generate-image; covered by the function test in Plan C
