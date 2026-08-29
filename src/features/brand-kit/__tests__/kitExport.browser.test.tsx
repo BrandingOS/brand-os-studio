@@ -8,7 +8,7 @@
  * right if something reads the zip back and looks at what is inside it.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { BrandKitCosmosPage } from '../BrandKitCosmosPage';
@@ -21,6 +21,7 @@ import { mockBrand, type MockBrand } from '@/features/setup/data/mockBrand';
 import { SEED_BRANDS } from '@/data/brands';
 import { getEntryFor, visibleEntries } from '../catalog/catalog';
 import { buildKitZipBlob, downloadEntry } from '../data/exportEverything';
+import { resizePng } from '../data/exportFormats';
 import { isCancelled } from '../data/exportScheduler';
 
 /** A tiny but genuine SVG, inlined so the export has real bytes to fetch. */
@@ -352,5 +353,76 @@ describe('Export kit, from the Brand Kit itself', () => {
     // It starts on Logos and never reaches a deliverable, because none
     // were asked for.
     await screen.findByText(/Logos — 1 of 6/, undefined, { timeout: 10_000 });
+  }, 60_000);
+});
+
+/**
+ * One Download menu, everywhere.
+ *
+ * The reference kit's vocabulary — For web · For print · Vector · Flattened
+ * · Custom size — and one implementation behind it. Before this the Logos
+ * header gave twenty PNGs and the Logos card three SVGs, both called
+ * "Download".
+ */
+describe('the Download menu', () => {
+  afterEach(() => {
+    cleanup();
+    toast.dismiss();
+  });
+
+  it('offers the same five words on a card, and prints on the right paper', async () => {
+    const created = vi.spyOn(URL, 'createObjectURL');
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {});
+    try {
+      render(
+        <MemoryRouter>
+          <Toaster />
+          <BrandKitCosmosPage brand={brand} sourceBrand={sourceBrand} />
+        </MemoryRouter>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Download Business Card' }));
+      const menu = await screen.findByRole('menu', { name: 'Download' });
+      const labels = within(menu)
+        .getAllByRole('menuitem')
+        .map((el) => el.getAttribute('aria-label'));
+      expect(labels).toEqual([
+        'For web (PNG)',
+        'For print (PDF)',
+        'Vector (SVG)',
+        'Flattened (JPG)',
+        'Custom size… (PNG)',
+      ]);
+      // Vector is offered but honest: no exporter for this family yet.
+      expect(within(menu).getByRole('menuitem', { name: 'Vector (SVG)' })).toBeDisabled();
+
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'For print (PDF)' }));
+      // The rasteriser makes object URLs of its own on the way (the logo's
+      // SVG), so look for the PDF among them rather than at the last one.
+      await waitFor(
+        () =>
+          expect(
+            created.mock.calls.some((c) => (c[0] as Blob)?.type === 'application/pdf'),
+          ).toBe(true),
+        { timeout: 30_000 },
+      );
+    } finally {
+      created.mockRestore();
+      click.mockRestore();
+    }
+  }, 60_000);
+
+  it('resizes to a custom frame without stretching', async () => {
+    const CARD = getEntryFor('stationery', 'Business Card')!;
+    const { blob } = await buildKitZipBlob({ brand, sourceBrand, entries: [CARD] });
+    const zip = await readZip(blob);
+    const png = await zip.file('deliverables/business-card.png')!.async('blob');
+    const out = await resizePng(png, { width: 512, padding: 16, background: '#ffffff' });
+    const bytes = new Uint8Array(await out.arrayBuffer());
+    const view = new DataView(bytes.buffer);
+    expect(view.getUint32(16)).toBe(512);
+    // Height follows the card's own 1.6 ratio inside the padding.
+    expect(Math.abs(view.getUint32(20) - (16 * 2 + Math.round(480 / 1.6)))).toBeLessThanOrEqual(1);
   }, 60_000);
 });

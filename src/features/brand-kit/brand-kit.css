@@ -3058,3 +3058,29 @@
   justify-content: flex-start;
   margin: 0 0 16px;
 }
+
+/* ─── Download menu ───────────────────────────────────────────────
+   Layout only; the menu and its items are DsMenu / DsMenuItem. */
+.bk-dl-menu {
+  z-index: 60;
+}
+.bk-dl-menu .ds-menu-item {
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 200px;
+}
+.bk-dl-chip {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.bk-dl-custom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.bk-dl-custom > :last-child {
+  grid-column: 1 / -1;
+}
+.bk-card-cover {
+  position: relative;
+}

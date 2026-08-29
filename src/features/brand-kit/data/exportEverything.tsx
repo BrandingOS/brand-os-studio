@@ -60,6 +60,14 @@ import {
   type ZipFolder,
 } from './kitExport';
 import { triggerBlobDownload } from './colorPaletteExport';
+import {
+  PRINT_PAGE_MM,
+  pngToJpg,
+  pngToPdf,
+  resizePng,
+  type CustomSize,
+  type DownloadFormat,
+} from './exportFormats';
 import { throwIfAborted, yieldToBrowser } from './exportScheduler';
 
 /* ─── The plan ────────────────────────────────────────────────────── */
@@ -516,6 +524,7 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
 export async function downloadEntry(
   entry: KitEntry,
   input: KitExportInput,
+  choice: { format?: DownloadFormat; size?: CustomSize } = {},
 ): Promise<{ added: boolean; skipped: ExportSkip[] }> {
   const [unit] = planKitExport([entry]);
   if (!unit) return { added: false, skipped: [] };
@@ -528,6 +537,26 @@ export async function downloadEntry(
 
   const base = `${slugifyName(input.brand.name)}-${slugifyName(entry.label)}`;
   const paths = Object.keys(zip.files).filter((path) => !zip.files[path].dir);
+  const format = choice.format ?? 'png';
+  const onlyPng = paths.length === 1 && paths[0].endsWith('.png');
+  if (onlyPng && format !== 'png') {
+    // The format menu, for a single raster deliverable. PDF wraps the
+    // raster on the family's real paper size; JPG flattens it; custom
+    // resizes it. Vector needs the per-kind exporter — the menu shows that
+    // option disabled until one exists, so it never reaches here.
+    const png = await zip.files[paths[0]].async('blob');
+    if (format === 'pdf') {
+      const page = PRINT_PAGE_MM[entry.storageLabel] ?? 'fit';
+      triggerBlobDownload(await pngToPdf(png, page), `${base}.pdf`);
+    } else if (format === 'jpg') {
+      triggerBlobDownload(await pngToJpg(png), `${base}.jpg`);
+    } else if (format === 'custom' && choice.size) {
+      triggerBlobDownload(await resizePng(png, choice.size), `${base}-${choice.size.width}px.png`);
+    } else {
+      triggerBlobDownload(png, `${base}.png`);
+    }
+    return { added: true, skipped };
+  }
   if (paths.length === 1) {
     const only = paths[0];
     const ext = only.includes('.') ? only.slice(only.lastIndexOf('.') + 1) : 'png';

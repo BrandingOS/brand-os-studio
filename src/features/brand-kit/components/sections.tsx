@@ -9,7 +9,9 @@ import type { KitSectionKey } from './BrandKitSidebar';
 import type { EditorTarget } from './BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
-import type { KitEntry } from '../catalog/catalog';
+import { getEntryFor, type KitEntry } from '../catalog/catalog';
+import { downloadOptionsFor } from '../data/exportFormats';
+import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
 import { DeliverableCard } from './DeliverableCard';
 
 /**
@@ -315,11 +317,16 @@ type CardProps = {
   /** Hover pencil — opens the card editor directly (KIT-06). When
    *  absent the pencil falls back to the card-open behaviour. */
   onEditAction?: (item: GridItem) => void;
-  onDownload?: (item: GridItem) => void;
+  onDownload?: (item: GridItem, choice: DownloadChoice) => void;
   onOpenMenu: (e: React.MouseEvent, item: GridItem) => void;
 };
 
 function BrandKitCard({ item, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
+  // The ⬇ button opens the shared Download menu rather than firing a
+  // download: For web · For print · Vector · Flattened · Custom size, the
+  // same five words on every surface of the kit.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const entry = getEntryFor(item.sectionKey, item.storageLabel);
   return (
     <figure
       className="bk-card"
@@ -354,15 +361,25 @@ function BrandKitCard({ item, onEdit, onEditAction, onDownload, onOpenMenu }: Ca
               className="bk-card-action"
               aria-label={`Download ${item.displayLabel}`}
               title={`Download ${item.displayLabel}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
               onClick={(e) => {
                 e.stopPropagation();
-                onDownload(item);
+                setMenuOpen((v) => !v);
               }}
             >
               <DownloadIcon />
             </button>
           )}
         </div>
+        {menuOpen && onDownload && entry && (
+          <DownloadMenu
+            options={downloadOptionsFor(entry)}
+            anchor={{ top: 44, left: 12 }}
+            onClose={() => setMenuOpen(false)}
+            onChoose={(choice) => onDownload(item, choice)}
+          />
+        )}
       </div>
       <figcaption className="bk-card-label">{item.displayLabel}</figcaption>
     </figure>
@@ -395,7 +412,7 @@ type CardGridProps = {
   /** Right-click "Edit" — opens the editor directly, skipping the
    *  variants drilldown. */
   onEditCard?: (target: EditorTarget) => void;
-  onDownloadCard?: (target: EditorTarget) => void;
+  onDownloadCard?: (target: EditorTarget, choice: DownloadChoice) => void;
   /** MockBrand from the page — required for brand-assets cards so
    *  variantsForCard can emit one template per real asset. */
   brand?: MockBrand;
@@ -512,7 +529,9 @@ export function CardGrid({
                     }
                   : undefined
               }
-              onDownload={onDownloadCard ? (it) => onDownloadCard(targetFor(it)) : undefined}
+              onDownload={
+                onDownloadCard ? (it, choice) => onDownloadCard(targetFor(it), choice) : undefined
+              }
               onOpenMenu={openMenu}
             />
           );

@@ -48,6 +48,7 @@ import {
   type EditorTarget,
 } from './components/BrandKitCardEditor';
 import { ExportKitDialog } from './components/ExportKitDialog';
+import type { DownloadChoice } from './components/DownloadMenu';
 import { IconPickerModal } from './components/IconPickerModal';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { getDeliverable, type DeliverableDef } from './kit/registry';
@@ -362,7 +363,7 @@ export function BrandKitCosmosPage({
   }, []);
 
   const handleDownloadCard = useCallback(
-    async (t: EditorTarget) => {
+    async (t: EditorTarget, choice: DownloadChoice = { format: 'png' }) => {
       const b = effectiveBrand;
       const slug = slugifyName(b.name);
       try {
@@ -442,15 +443,22 @@ export function BrandKitCosmosPage({
             // System, Presentation System and Brand Board did: the card
             // path looked for a TEMPLATE, and a composed view has none.
             const entry = getEntryFor(t.sectionKey, t.label);
-            if (entry && entry.view !== 'variants') {
+            // EVERY deliverable goes through the shared writer now — not
+            // only the composed views — so the format menu (web · print ·
+            // flattened · custom) has one implementation.
+            if (entry) {
               const id = toast.loading(`Preparing ${t.displayLabel ?? t.label}…`);
-              const result = await downloadEntry(entry, {
-                brand: b,
-                sourceBrand,
-                entries: [entry],
-                saved: loadBrandCustomizations(customizationBrandId),
-                featuredIdsByLabel,
-              });
+              const result = await downloadEntry(
+                entry,
+                {
+                  brand: b,
+                  sourceBrand,
+                  entries: [entry],
+                  saved: loadBrandCustomizations(customizationBrandId),
+                  featuredIdsByLabel,
+                },
+                choice,
+              );
               if (result.added) toast.success(`${t.displayLabel ?? t.label} downloaded`, { id });
               else {
                 toast.error(`Couldn't download ${t.displayLabel ?? t.label}`, {
