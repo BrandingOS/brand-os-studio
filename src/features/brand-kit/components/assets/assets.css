@@ -209,6 +209,15 @@
   color: var(--ds-text-secondary);
 }
 
+/* Which row is which face. Four lines of the same word cannot say it on
+   their own. */
+.bka-type-specimen-key {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ds-text-secondary);
+}
+
 .bka-type-slot {
   display: flex;
   flex-direction: column;
@@ -778,11 +787,4 @@
   padding-left: 16px;
   font-size: 12.5px;
   line-height: 1.6;
-}
-
-.bka-type-specimen-key {
-  margin-top: 2px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--ds-text-secondary);
 }

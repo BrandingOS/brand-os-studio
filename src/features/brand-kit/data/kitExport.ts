@@ -44,6 +44,7 @@ import { lazyFolder, zipAdd, type ExportSkip, type ZipFolder } from './zipFile';
 // export naming rules, not in a third file that exists only to avoid this.
 import { buildLogoFiles } from './logoExport';
 import { yieldToBrowser, throwIfAborted } from './exportScheduler';
+import { buildKitReadmeFile } from '../exporters/readme';
 
 export function slugifyName(name: string): string {
   const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -375,6 +376,26 @@ export async function downloadKitZip(
   for (const extra of opts?.extraFiles ?? []) {
     zipAdd(root, extra.path, extra.blob);
   }
+
+  // Every bundle explains itself. The list is read back out of the ARCHIVE
+  // rather than assembled from what this function meant to write, so a
+  // caller's `extraFiles` are described too and nothing can be named that
+  // is not actually in the zip.
+  opts?.onProgress?.('readme');
+  zipAdd(
+    root,
+    'README.md',
+    buildKitReadmeFile(brand, {
+      files: [
+        { path: 'README.md', label: 'This file' },
+        ...Object.keys(zip.files)
+          .filter((path) => !zip.files[path].dir)
+          .sort()
+          .map((path) => ({ path })),
+      ],
+      generatedAt: new Date(),
+    }).blob,
+  );
 
   const blob = await zip.generateAsync({ type: 'blob' });
   triggerBlobDownload(blob, `${slugifyName(brand.name)}-brand-kit.zip`);

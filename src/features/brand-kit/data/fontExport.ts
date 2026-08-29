@@ -201,10 +201,25 @@ export type FontExportResult = {
 export type GatheredFontFile = {
   baseName: string;
   ttfBytes: Uint8Array;
-  /** The weight this cut is, when we know it (Google always tells us). */
+  /** The weight this cut is, when we know it (Google always tells us).
+   *  For a VARIABLE file this is the LOWEST weight it covers, so a reader
+   *  that only understands static cuts still gets a sensible answer. */
   weight?: number;
+  /**
+   * Every weight this ONE file answers for.
+   *
+   * A variable family is a single file that covers a range, and Google's
+   * CSS names the same URL under every weight in it. Absent means the
+   * file is a static cut of exactly `weight`.
+   */
+  weights?: number[];
   italic?: boolean;
 };
+
+/** True when one file stands in for more than one requested weight. */
+export function isVariableCut(file: GatheredFontFile): boolean {
+  return (file.weights?.length ?? 1) > 1;
+}
 
 function familyToFolderName(family: string): string {
   return family.trim().replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 80) || 'Font';
@@ -399,14 +414,36 @@ export async function gatherFamilyFiles(
     const css = await res.text();
     const all = parseGoogleFontCss(css);
     const faces = latinOnly ? pickLatinFaces(all) : all;
+    // One file per URL, not one per weight.
+    //
+    // A VARIABLE family is a single file covering a range, and the CSS API
+    // names that same URL under every weight asked for — so requesting
+    // 400·600·700·800 of Bricolage Grotesque answers four blocks pointing
+    // at one woff2. Writing it four times under four names is the same lie
+    // the renamed `.otf` was: four files that are byte-for-byte identical,
+    // three of which the recipient did not need and cannot tell apart.
+    // Grouping by URL means the family ships ONE file, `fonts.css` gives
+    // it the weight RANGE it really covers, and the README says so.
+    const byUrl = new Map<string, GoogleFace[]>();
     for (const face of faces) {
+      const key = `${face.url}|${face.italic ? 'i' : 'n'}`;
+      const list = byUrl.get(key);
+      if (list) list.push(face);
+      else byUrl.set(key, [face]);
+    }
+    for (const group of byUrl.values()) {
       if (options.signal?.aborted) break;
+      const face = group[0]!;
+      const covered = unique(group.map((f) => f.weight)).sort((a, b) => a - b);
       try {
         const fileRes = await fetch(face.url, { signal: options.signal });
         if (!fileRes.ok) continue;
         const decoded = await decompressWoff2ToTtf(new Uint8Array(await fileRes.arrayBuffer()));
         if (!decoded) continue;
-        const label = weightLabel(face.weight) + (face.italic ? 'Italic' : '');
+        const label =
+          covered.length > 1
+            ? `Variable${face.italic ? 'Italic' : ''}`
+            : weightLabel(face.weight) + (face.italic ? 'Italic' : '');
         const subsetSuffix =
           latinOnly || !face.subset
             ? ''
@@ -414,7 +451,8 @@ export async function gatherFamilyFiles(
         files.push({
           baseName: `${prefix}-${label}${subsetSuffix}`,
           ttfBytes: decoded,
-          weight: face.weight,
+          weight: covered[0],
+          weights: covered,
           italic: face.italic,
         });
       } catch {
@@ -429,7 +467,11 @@ export async function gatherFamilyFiles(
     fontsCss: '',
     source,
     requested,
-    delivered: unique(files.map((f) => f.weight ?? 400)).sort((a, b) => a - b),
+    // A variable file DELIVERS every weight it covers, so the manifest
+    // must count the range rather than the one weight it was filed under.
+    delivered: unique(files.flatMap((f) => f.weights ?? [f.weight ?? 400])).sort(
+      (a, b) => a - b,
+    ),
   };
 }
 
@@ -439,12 +481,20 @@ export async function gatherFamilyFiles(
 export function buildFontsCss(family: string, files: GatheredFontFile[]): string {
   const parts = [`/* ${family} — BrandingOS brand kit */`, ''];
   for (const file of files) {
+    const covered = file.weights ?? [file.weight ?? 400];
+    // `font-weight: 400 800` is the two-value form a variable face takes.
+    // A single file declared at one weight would leave the other seven
+    // synthesised by the browser, which is not what the brand licensed.
+    const weight =
+      covered.length > 1
+        ? `${covered[0]} ${covered[covered.length - 1]}`
+        : `${covered[0] ?? 400}`;
     parts.push(
       [
         '@font-face {',
         `  font-family: '${family}';`,
         `  font-style: ${file.italic ? 'italic' : 'normal'};`,
-        `  font-weight: ${file.weight ?? 400};`,
+        `  font-weight: ${weight};`,
         '  font-display: swap;',
         `  src: url('./${file.baseName}.ttf') format('truetype');`,
         '}',
@@ -465,16 +515,18 @@ export function buildEmbedHtml(
     source === 'google'
       ? `    <!-- Hosted: no files needed. -->\n    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n    <link rel="stylesheet" href="${googleEmbedHref(
           family,
-          unique(files.map((f) => f.weight ?? 400)),
+          unique(files.flatMap((f) => f.weights ?? [f.weight ?? 400])).sort((a, b) => a - b),
         )}">\n    <!-- Self-hosted: use the files in this folder instead. -->\n    <!-- <link rel="stylesheet" href="./fonts.css"> -->`
       : `    <link rel="stylesheet" href="./fonts.css">`;
   const samples = files
-    .map(
-      (f) =>
-        `      <p style="font-family: '${family}', sans-serif; font-weight: ${
-          f.weight ?? 400
-        }; font-style: ${f.italic ? 'italic' : 'normal'}; font-size: 28px; margin: 0 0 8px;">` +
-        `${family} ${weightLabel(f.weight ?? 400)}${f.italic ? ' Italic' : ''}</p>`,
+    .flatMap((f) =>
+      (f.weights ?? [f.weight ?? 400]).map(
+        (w) =>
+          `      <p style="font-family: '${family}', sans-serif; font-weight: ${w}; font-style: ${
+            f.italic ? 'italic' : 'normal'
+          }; font-size: 28px; margin: 0 0 8px;">` +
+          `${family} ${weightLabel(w)}${f.italic ? ' Italic' : ''}</p>`,
+      ),
     )
     .join('\n');
   return [
@@ -554,6 +606,8 @@ export function buildFontsReadme(
     source: FontSource;
     requested: number[];
     delivered: number[];
+    /** One file covers the whole range — see `isVariableCut`. */
+    variable?: boolean;
   }>,
 ): string {
   const lines = ['# Typefaces', ''];
@@ -571,6 +625,12 @@ export function buildFontsReadme(
           `- Not available in this family: ${short
             .map((w) => `${weightLabel(w)} (${w})`)
             .join(', ')}`,
+        );
+      }
+      if (entry.variable) {
+        lines.push(
+          `- One VARIABLE file covers that whole range — that is the family's own` +
+            ` shape, not a missing cut. \`fonts.css\` declares it as a weight range.`,
         );
       }
       lines.push(
@@ -637,6 +697,7 @@ export async function addFontFamiliesToZip(
     source: FontSource;
     requested: number[];
     delivered: number[];
+    variable?: boolean;
   }> = [];
 
   for (const fam of families) {
@@ -647,6 +708,7 @@ export async function addFontFamiliesToZip(
       source: gathered.source,
       requested: gathered.requested,
       delivered: gathered.delivered,
+      variable: fileEntries.some(isVariableCut),
     });
 
     // When flattening (single-font download) we don't have an outer folder
