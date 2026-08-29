@@ -59,3 +59,49 @@ afterEach(() => {
   }
   pending.clear();
 });
+
+/**
+ * Web Storage for the test environment.
+ *
+ * Node 26 defines its own `globalThis.localStorage`, undefined unless the
+ * process was started with `--localstorage-file`, and it is installed
+ * BEFORE jsdom — so the global one wins and jsdom's never appears on the
+ * window either. Every `localStorage.…` in a jsdom test then throws
+ * "Cannot read properties of undefined".
+ *
+ * The window's storage is used when there is one; otherwise this is a
+ * faithful in-memory Storage, which is what these tests have always been
+ * asserting against anyway.
+ */
+class MemoryStorage implements Storage {
+  private map = new Map<string, string>();
+  get length() {
+    return this.map.size;
+  }
+  clear() {
+    this.map.clear();
+  }
+  getItem(key: string) {
+    return this.map.has(key) ? (this.map.get(key) as string) : null;
+  }
+  key(index: number) {
+    return Array.from(this.map.keys())[index] ?? null;
+  }
+  removeItem(key: string) {
+    this.map.delete(key);
+  }
+  setItem(key: string, value: string) {
+    this.map.set(key, String(value));
+  }
+  [name: string]: unknown;
+}
+
+for (const key of ['localStorage', 'sessionStorage'] as const) {
+  const win = typeof window !== 'undefined' ? (window as unknown as Record<string, unknown>) : undefined;
+  const existing = win?.[key] as Storage | undefined;
+  const storage = existing ?? new MemoryStorage();
+  for (const target of [globalThis, win].filter(Boolean) as object[]) {
+    if ((target as Record<string, unknown>)[key] === storage) continue;
+    Object.defineProperty(target, key, { configurable: true, get: () => storage });
+  }
+}

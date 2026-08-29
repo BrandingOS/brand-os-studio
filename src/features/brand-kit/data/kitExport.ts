@@ -24,17 +24,25 @@
  */
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import {
+  buildAiBlob,
   buildBaseColorSvg,
   buildShadeRows,
   buildShadesSvg,
   paletteFromMockBrand,
   rasterizeSvg,
   triggerBlobDownload,
+  type BundleDepth,
   type PaletteColor,
 } from './colorPaletteExport';
 import { buildAseBlob, buildColorsReadme, buildTokenFiles } from './tokensExport';
 import { addFontFamiliesToZip } from './fontExport';
 import { lazyFolder, zipAdd, type ExportSkip, type ZipFolder } from './zipFile';
+// `logoExport` imports `slugifyName` / `logoExtension` back out of this
+// module. Both are hoisted function declarations and neither module runs
+// anything at import time, so the cycle resolves — it is here rather than
+// broken apart because a logo's filename rules belong beside the other
+// export naming rules, not in a third file that exists only to avoid this.
+import { buildLogoFiles } from './logoExport';
 import { yieldToBrowser, throwIfAborted } from './exportScheduler';
 
 export function slugifyName(name: string): string {
@@ -116,62 +124,34 @@ export function logoExtension(url: string, mime?: string): string {
 }
 
 /**
- * Add every logo variant into a zip folder as its REAL file.
+ * Add the whole logo payload into a zip folder.
  *
- * One file per variant, under the variant's own name, with the extension
- * the source actually has. A variant whose bytes cannot be fetched is
- * reported rather than shipped as a blank tile.
+ * The bytes are decided in `data/logoExport.ts` and nowhere else, because the
+ * audit measured this exact noun meaning three different things at once: the
+ * header ⬇ gave PNGs with no SVG (D28), the card ⬇ gave SVGs with no PNG, and
+ * the Export Kit's `logos/` held three originals and nothing else (D29). This
+ * function is the only door, so every surface now hands out the same folder:
+ * the source file, PNG at three sizes, a print PDF, every approved ground, and
+ * a README carrying the clear-space, minimum-size and misuse rules.
+ *
+ * `added` counts VARIANTS, not files — it is what a caller reports as "8
+ * logos exported", and a README on its own is not a logo.
  */
 export async function addLogosToZip(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
 ): Promise<{ added: number; skipped: ExportSkip[] }> {
-  let added = 0;
-  const skipped: ExportSkip[] = [];
-  const used = new Set<string>();
-  for (const logo of brand.logos) {
-    throwIfAborted(signal);
-    if (!logo.svg) continue;
-    const label = logo.label || logo.id || `logo-${added + 1}`;
-    let base = slugifyName(label);
-    let n = 2;
-    while (used.has(base)) {
-      base = `${slugifyName(label)}-${n}`;
-      n += 1;
-    }
-    used.add(base);
-
-    const href = extractLogoHref(logo.svg);
-    if (!href) {
-      // A genuine SVG (the generated lettermark) — ship it, and a raster
-      // beside it, because this one really does rasterize.
-      zipAdd(folder, `${base}.svg`, logo.svg);
-      try {
-        const { png } = await rasterizeSvg(logo.svg, 600, 600);
-        if (png) zipAdd(folder, `${base}.png`, png);
-      } catch {
-        // Exotic markup — the .svg still ships.
-      }
-      added += 1;
-      continue;
-    }
-
-    try {
-      const res = await fetch(href);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const blob = await res.blob();
-      if (blob.size === 0) throw new Error('empty');
-      zipAdd(folder, `${base}.${logoExtension(href, blob.type)}`, blob);
-      added += 1;
-    } catch {
-      skipped.push({
-        label: `Logo — ${label}`,
-        reason: "the file couldn't be read from storage",
-      });
-    }
-    await yieldToBrowser(signal);
-  }
+  const { files, skipped, plan } = await buildLogoFiles(brand, { signal });
+  for (const file of files) zipAdd(folder, file.path, file.blob);
+  // A variant whose source could not be read still ships its renders; one
+  // that produced no file at all is not something the caller may count.
+  const shipped = new Set(
+    files
+      .map((f) => f.path.split('/')[0])
+      .filter((first) => first !== 'README.md'),
+  );
+  const added = plan.filter((v) => shipped.has(v.base)).length;
   return { added, skipped };
 }
 
@@ -189,13 +169,23 @@ export async function addLogosToZip(
  *
  * No JPG, no `.ai`, no generated greys — that combination is what made
  * this folder 12–13 MB across 300+ files (D37/D38).
+ *
+ * `depth: 'full'` restores the heavy formats (JPG + the PDF-shaped `.ai`,
+ * for both the swatch and its ladder) for the DEDICATED Colors download,
+ * where someone has asked for print originals by name. It is never what
+ * the whole-kit zip gets: a kit is browsed, and a browsable kit that
+ * takes a minute to build is a kit nobody waits for.
  */
 export async function addColorsToZip(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
+  opts?: { depth?: BundleDepth; includeNeutrals?: boolean },
 ): Promise<number> {
-  const kitColors: PaletteColor[] = paletteFromMockBrand(brand);
+  const depth: BundleDepth = opts?.depth ?? 'lean';
+  const kitColors: PaletteColor[] = paletteFromMockBrand(brand, {
+    includeNeutrals: opts?.includeNeutrals ?? false,
+  });
   if (kitColors.length === 0) return 0;
   const used = new Set<string>();
   let added = 0;
@@ -212,10 +202,20 @@ export async function addColorsToZip(
     if (!dir) continue;
     const safe = slugifyName(folderName);
     const baseSvg = buildBaseColorSvg(color);
+    const shadeRows = buildShadeRows(color.hex, color.name);
+    const shadesSvg = buildShadesSvg(shadeRows);
+    const shadesH = 80 * shadeRows.length;
     zipAdd(dir, `${safe}.svg`, baseSvg);
-    const { png } = await rasterizeSvg(baseSvg, 600, 400);
+    const { png, jpg } = await rasterizeSvg(baseSvg, 600, 400);
     if (png) zipAdd(dir, `${safe}.png`, png);
-    zipAdd(dir, `${safe}-shades.svg`, buildShadesSvg(buildShadeRows(color.hex, color.name)));
+    zipAdd(dir, `${safe}-shades.svg`, shadesSvg);
+    if (depth === 'full') {
+      if (jpg) zipAdd(dir, `${safe}.jpg`, jpg);
+      const ai = await buildAiBlob(baseSvg, 1200, 750);
+      if (ai) zipAdd(dir, `${safe}.ai`, ai);
+      const shadesAi = await buildAiBlob(shadesSvg, 720, shadesH);
+      if (shadesAi) zipAdd(dir, `${safe}-shades.ai`, shadesAi);
+    }
     added += 1;
     await yieldToBrowser(signal);
   }
@@ -224,7 +224,7 @@ export async function addColorsToZip(
   }
   const ase = buildAseBlob(kitColors);
   if (ase) zipAdd(folder, 'palette.ase', ase);
-  zipAdd(folder, 'README.md', buildColorsReadme(kitColors, brand.name));
+  zipAdd(folder, 'README.md', buildColorsReadme(kitColors, brand.name, depth));
   return added;
 }
 
@@ -309,7 +309,13 @@ export function buildBrandJson(brand: MockBrand): string {
 
 /* ─── Whole-bundle helpers ────────────────────────────────────────── */
 
-/** Zip of logo variants only (the Logos card download). */
+/**
+ * The Logos card ⬇ — the same folder the Export Kit writes, zipped on its own.
+ *
+ * It calls `addLogosToZip` rather than reproducing it, which is the entire
+ * point: before this, the card download and the header download were two
+ * different builders behind one word and shipped two different payloads.
+ */
 export async function downloadLogosZip(brand: MockBrand): Promise<number> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();

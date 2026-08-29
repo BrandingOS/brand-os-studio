@@ -19,7 +19,7 @@
  * pinned here rather than left to `createDocument.test.ts` alone.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, screen, within, act } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, within, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { container } from '@/core/container/ServiceContainer';
 import { SERVICE_KEYS } from '@/core/types/services';
@@ -179,12 +179,25 @@ describe('the tile menu gates a design Design cannot actually edit', () => {
     // gate is what a user can actually reach.
     const { storage } = statefulDesignStorage();
     container.register(SERVICE_KEYS.DESIGN_STORAGE, () => storage);
+    // Two tiles, deliberately: rendering the whole twenty-design library at
+    // once is what a drilldown never does (the card shows its featured set)
+    // and it is heavy enough to take the page down.
+    saveFeaturedVariants(sourceBrand.id, 'Invoice', ['invoices-ext-1', 'invoices-ext-2']);
 
     renderKit();
     await openInvoice();
 
-    const tiles = await screen.findAllByRole('button', { name: /^Open / });
-    expect(tiles.length).toBeGreaterThan(0);
+    // Scoped to the tiles: the page keeps the overview layer mounted behind
+    // the drilldown, and its CARDS are "Open …" buttons too.
+    const tiles = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll<HTMLElement>('.bk-variant-tile'));
+      if (found.length === 0) throw new Error('no variant tiles');
+      return found;
+    });
+    // The first three tiles are enough: the claim is about the GATE, and
+    // "every kept invoice binds" is asserted against the whole family, far
+    // more cheaply, in `contentBinding.test.tsx`. Opening a context menu on
+    // all twenty rendered invoices crashes the page.
     let menus = 0;
     for (const tile of tiles) {
       fireEvent.contextMenu(tile);

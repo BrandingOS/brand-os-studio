@@ -565,8 +565,22 @@ export function usageProportions(colors: PaletteColor[]): { color: PaletteColor;
 
 /* ─── Helpers ─────────────────────────────────────────────── */
 
+/**
+ * A filesystem-safe stem.
+ *
+ * The trailing `.replace` matters: a name made only of punctuation
+ * ("···", an em-dash) collapsed to `"-"`, which is truthy, so the
+ * fallback never fired and the zip carried a file called `-.png` — and
+ * two such colours produced the same stem. Strip the separators before
+ * deciding whether anything is left.
+ */
 export function slugify(value: string): string {
-  return value.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase() || 'color';
+  const slug = (value ?? '')
+    .replace(/[^a-z0-9-_]+/gi, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .toLowerCase();
+  return slug || 'color';
 }
 
 export function readableOn(hex: string): '#111113' | '#ffffff' {

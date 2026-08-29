@@ -324,6 +324,27 @@ export function logoInkOf(logo: LogoLike, fallback: string): string {
   return fallback;
 }
 
+/**
+ * The name a PAIRING's caption should read for its artwork.
+ *
+ * `legacy-mapping.ts` composes a tile's name as "`mark.name` on `bg.name`",
+ * and the variant vocabulary names a mono cut by its USE — "On dark", "On
+ * light" (`shared/brand/logoRoles.ts`, and the naming trap is documented
+ * there). Composed, that produced "On dark on Iris" and "On light on White":
+ * two prepositions, one of them describing a ground that is not the ground in
+ * the tile. A guideline names the INK on that line — "White on Iris" — which
+ * is also exactly how the treatment tiles beside it already read, so the two
+ * halves of the wall stop speaking different languages.
+ *
+ * Only the mono roles are renamed. Every other variant is a lockup with a
+ * name of its own, and "Wordmark on Sand" was never ambiguous.
+ */
+export function logoInkName(logo: LogoLike, index: number): string {
+  if (logo.role === 'mono.white') return 'White';
+  if (logo.role === 'mono.black') return 'Black';
+  return logo.label || `Logo ${index + 1}`;
+}
+
 /** Strip the preview ground a Setup logo tile bakes in behind its artwork. */
 export function stripLogoBackground(svg: string): string {
   return svg.replace(/<rect\b[^>]*\bwidth="[^"]+"[^>]*\bheight="[^"]+"[^>]*\/>/, '');
@@ -399,7 +420,7 @@ export function logoCombosFor(brand: ComboBrand): LogoTile[] {
     pairedInk.set(ground.hex, inks[best.index]);
     push({
       logoLabel: logo.label,
-      mark: { hex: inks[best.index], name: logo.label },
+      mark: { hex: inks[best.index], name: logoInkName(logo, best.index) },
       bg: ground,
       kind: 'pairing',
       sourceIndex: best.index,
@@ -475,28 +496,90 @@ export function logoCombosFor(brand: ComboBrand): LogoTile[] {
   push({
     logoLabel: primary.label,
     mark: { hex: ink, name: 'Never place' },
-    bg: { hex: nudgeToward(ink, stage.hex, 0.72), name: 'a low-contrast ground' },
+    bg: { hex: tooCloseTo(ink, stage.hex), name: 'a low-contrast ground' },
     kind: 'misuse',
     misuse: 'contrast',
     sourceIndex: silhouette,
     recolor: null,
-    contrast: contrastRatio(ink, nudgeToward(ink, stage.hex, 0.72)),
+    contrast: contrastRatio(ink, tooCloseTo(ink, stage.hex)),
     note: `Keep at least ${MIN_PAIRING_CONTRAST}:1`,
   });
-  const offRole = brand.colors.accent[0] ?? brand.colors.core[2] ?? brand.colors.core[0];
+  /* The recolour misuse has to be SEEN to say anything. Taking
+     `accent[0]` blindly drew SKAM's near-black accent on SKAM's black stage:
+     a tile that says "never recolour" and shows nothing at all, which is the
+     one thing worse than not shipping the rule. So the wrong colour is chosen
+     to be wrong AND visible — a brand colour that is not the ink and reads on
+     the stage; failing that, the ink itself pulled toward the stage's
+     foreground, which is unmistakably not an approved variant. */
+  const approved = [...inks, '#000000', '#FFFFFF'];
+  const wrongCandidates = [...brand.colors.accent, ...brand.colors.core]
+    // Not the ink of ANY variant, and neither mono cut. Filtering on the
+    // primary's ink alone let SKAM illustrate "never recolour" with a white
+    // mark on black — which is the mono treatment two tiles up, i.e. the tile
+    // told the reader that an approved variant was a mistake.
+    .filter((c) => c?.hex && !approved.some((a) => visuallyClose(a, c.hex)))
+    .map((c) => ({
+      hex: c.hex,
+      ratio: contrastRatio(c.hex, stage.hex),
+      chroma: chromaOf(c.hex),
+    }))
+    // 1.8:1 is a VISIBILITY floor, not a legibility one — a misuse tile is
+    // deliberately not a pairing, so it is not held to MIN_PAIRING_CONTRAST.
+    .filter((c) => c.ratio >= 1.8)
+    // Ranking by contrast alone reaches for the darkest or lightest colour
+    // the brand owns, which is exactly what a mono cut looks like: Raqm's
+    // "never recolour" tile drew a charcoal wordmark on white and read as an
+    // approved variant. A wrong colour has to look wrong, so the most
+    // CHROMATIC candidate wins and contrast is only the tie-break.
+    .sort((a, b) => b.chroma - a.chroma || b.ratio - a.ratio);
+  const wrong =
+    wrongCandidates[0]
+      ? wrongCandidates[0].hex
+      : nudgeToward(
+          ink,
+          contrastRatio('#FFFFFF', stage.hex) >= contrastRatio('#111113', stage.hex)
+            ? '#FFFFFF'
+            : '#111113',
+          0.45,
+        );
   push({
     logoLabel: primary.label,
-    mark: { hex: offRole?.hex ?? ink, name: 'Never recolour' },
+    mark: { hex: wrong, name: 'Never recolour' },
     bg: { hex: stage.hex, name: 'any surface' },
     kind: 'misuse',
     misuse: 'recolor',
     sourceIndex: silhouette,
-    recolor: offRole?.hex ?? ink,
-    contrast: contrastRatio(offRole?.hex ?? ink, stage.hex),
+    recolor: wrong,
+    contrast: contrastRatio(wrong, stage.hex),
     note: 'Use the approved variants only',
   });
 
   return tiles;
+}
+
+/** How far a colour is from grey, in [0, 255]. A hue the brand chose scores
+ *  high; a neutral, a near-black and a near-white all score near zero. */
+export function chromaOf(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+
+/**
+ * A ground the ink genuinely FAILS on.
+ *
+ * The misuse tile blended 72% toward the stage and called it low
+ * contrast — on Raqm's violet over cream that lands at 3.7:1, above the
+ * floor, so the tile illustrating "never place the logo on a
+ * low-contrast ground" was itself a legal pairing. It walks toward the
+ * ink until the ratio is really below the floor.
+ */
+export function tooCloseTo(ink: string, ground: string): string {
+  for (let t = 0.72; t <= 0.96; t += 0.04) {
+    const candidate = nudgeToward(ground, ink, t);
+    if (contrastRatio(ink, candidate) < MIN_PAIRING_CONTRAST) return candidate;
+  }
+  return nudgeToward(ground, ink, 0.96);
 }
 
 /** Blend `a` toward `b` by `t` (0 = a, 1 = b). Used to build the ground a

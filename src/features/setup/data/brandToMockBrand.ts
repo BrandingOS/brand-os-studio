@@ -14,6 +14,7 @@ import type {
 import { hexToName } from './colorNames';
 import { NEUTRAL_RAMP } from './neutralRamp';
 import { suggestIconsForBrand } from '@/features/brand-kit/data/suggestIcons';
+import { detectIconWeight, type IconWeightId } from '@/features/brand-kit/data/iconWeights';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import { logoRefByRole } from '@/shared/brand/logoRoles';
 import type { LogoRole } from '@/shared/types/brandAssets';
@@ -50,6 +51,12 @@ export function brandToMockBrand(brand: Brand): MockBrand {
     colors: mapColors(brand),
     fonts: mapFonts(brand),
     icons: mapIcons(brand),
+    ...(brand.guidelines?.iconography?.pack
+      ? { iconPack: brand.guidelines.iconography.pack }
+      : {}),
+    ...(brand.guidelines?.iconography?.tint
+      ? { iconTint: brand.guidelines.iconography.tint }
+      : {}),
     photos: mapPhotos(brand),
     websites: mapWebsites(brand, canonical),
     voice: mapVoice(brand),
@@ -412,15 +419,44 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   return { core, accent, grey: greys };
 }
 
-/** Brand-appropriate icon suggestions — same heuristic the Brand Kit
- *  uses: score the Flaticon catalog against the brand's own words
- *  (name, audience, tone, strategy, About sections). Brands with no
- *  text yet get the curated starter pack, so the marquee is never
- *  empty. Names come back as `fi-rr-*` — IconsMarquee renders those
- *  via the UICONS font. */
+/**
+ * The brand's icon set — WHAT IT OWNS FIRST, a suggestion only when it owns
+ * nothing.
+ *
+ * Reading order matters here and it used to be missing entirely: `mapIcons`
+ * re-ran the suggester on every read, so an icon the user added, removed,
+ * recoloured or re-weighted was gone by the next paint (audit D11). A stored
+ * set is the brand's own decision and outranks anything a heuristic would
+ * propose.
+ *
+ * The suggestion path is now pack-based (`brand-kit/data/iconPacks`) and takes
+ * the brand's RECORDED INDUSTRY as its strongest input, because the brand
+ * answered that question on purpose.
+ */
 function mapIcons(brand: Brand): string[] {
+  const stored = brand.guidelines?.iconography?.set;
+  if (Array.isArray(stored) && stored.length > 0) return [...stored];
+  return suggestedIconsFor(brand);
+}
+
+/**
+ * What this brand would be OFFERED if it owned nothing.
+ *
+ * Exported because `mockBrandToPatch` needs the same answer: a set that still
+ * equals the suggestion is a suggestion, and writing it on a save about
+ * something else would commit a decision nobody made.
+ */
+export function suggestedIconsFor(brand: Brand): string[] {
+  return suggestIconsForBrand(iconSourceText(brand), 50, {
+    industry: brand.businessInfo?.industry,
+    weight: iconWeightOf(brand),
+  });
+}
+
+/** The brand's own words, in the order a suggester should weigh them. */
+function iconSourceText(brand: Brand): string {
   const g = brand.guidelines;
-  const text = [
+  return [
     brand.name,
     brand.audience,
     brand.tone,
@@ -431,7 +467,12 @@ function mapIcons(brand: Brand): string[] {
   ]
     .filter((s): s is string => Boolean(s && s.trim()))
     .join(' ');
-  return suggestIconsForBrand(text, 50);
+}
+
+/** The weight a stored set is drawn at, read off its own class names. */
+function iconWeightOf(brand: Brand): IconWeightId | undefined {
+  const first = brand.guidelines?.iconography?.set?.[0];
+  return first ? detectIconWeight(first) : undefined;
 }
 
 function mapFonts(brand: Brand): BrandFont[] {

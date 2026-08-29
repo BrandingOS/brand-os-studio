@@ -656,31 +656,38 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
     </Sheet>,
 
     /* 7 · ext-8 — Diagonal Header.
-       One angled cut of brand colour. The masthead reverses out of it. */
+       One angled cut of brand colour. The masthead reverses out of it.
+
+       The band CONTAINS the masthead rather than sitting behind it. The
+       first drawing of this design put the brand colour in an absolutely
+       positioned sibling and the reversed type in a transparent block on
+       top, which is two separate claims about where the band is: the
+       contrast sweep, climbing from the text for an opaque ancestor,
+       found the white sheet and measured white-on-white at 1.00:1 for
+       both lines. It was not only a measurement artefact — the masthead
+       ranged its sender name RIGHT, which is exactly where the diagonal
+       cuts the band shortest, so a long name really could sit off it.
+
+       Now there is one element: it is the band, it carries the colour and
+       the clip, and the type is its child. The content is held inside the
+       left 62% and the bottom padding keeps it clear of the cut, so the
+       band cannot move out from under its own type. */
     <Sheet key="diagonal-header">
       <div
-        className="absolute inset-x-0 top-0"
         style={{
-          height: '26%',
           background: bandBg,
           clipPath: 'polygon(0 0, 100% 0, 100% 62%, 0 100%)',
-        }}
-      />
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          padding: '7% 9% 0',
           color: bandInk,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 3,
+          padding: '7% 9% 12%',
         }}
       >
-        <Masthead color={bandInk} markOn={bandBg} />
-        <Web color={bandQuiet} />
+        <div style={{ maxWidth: '62%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Mark color={markColor(bandBg, bandInk)} />
+          <Sender size={6.5} color={bandInk} />
+          <Web color={bandQuiet} />
+        </div>
       </div>
-      <Body style={{ paddingTop: '13%' }} />
+      <Body style={{ paddingTop: '9%' }} />
       <div style={{ padding: '0 9% 8%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
           <Tel />

@@ -19,6 +19,7 @@ import {
   formatCmyk,
   formatHsl,
   formatRgb,
+  isNearWhite,
   normalizeHex,
   paletteFromMockBrand,
   usageProportions,
@@ -34,7 +35,7 @@ import {
   fontSource,
   isGoogleFontFamily,
   parseWeights,
-  weightLabel,
+  type FontSource,
 } from '../data/fontExport';
 import {
   loadFontFamily,
@@ -110,10 +111,20 @@ function LogoArt({
   logo,
   recolor,
   style,
+  fit = 'box',
 }: {
   logo: { svg: string; label: string };
   recolor: string | null;
   style?: CSSProperties;
+  /**
+   * `box` fills the parent and centres inside it — right for a tile whose
+   * ground is the subject. `natural` takes its HEIGHT from the parent and
+   * lets the width follow the artwork, which is the only way a box drawn
+   * around the logo can hug it: a clear-space diagram whose frame is wider
+   * than the drawing states the wrong margin, and a minimum-size ladder of
+   * fixed-aspect slots leaves a square mark floating in a landscape box.
+   */
+  fit?: 'box' | 'natural';
 }) {
   const wrappedUrl = extractWrappedImageUrl(logo.svg);
   const key = wrappedUrl && recolor ? `${recolor}|${wrappedUrl}` : null;
@@ -140,8 +151,9 @@ function LogoArt({
     // `key` collapses the pair; both parts are read above.
   }, [key, wrappedUrl, recolor]);
 
+  const natural = fit === 'natural';
   const box: CSSProperties = {
-    width: '100%',
+    width: natural ? 'auto' : '100%',
     height: '100%',
     display: 'block',
     objectFit: 'contain',
@@ -153,7 +165,7 @@ function LogoArt({
     return (
       <span
         style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        dangerouslySetInnerHTML={{ __html: sizedSvg(stripLogoBackground(logo.svg)) }}
+        dangerouslySetInnerHTML={{ __html: sizedSvg(stripLogoBackground(logo.svg), fit) }}
       />
     );
   }
@@ -162,7 +174,7 @@ function LogoArt({
       <span
         style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         dangerouslySetInnerHTML={{
-          __html: sizedSvg(recolorLogoSvg(stripLogoBackground(logo.svg), recolor)),
+          __html: sizedSvg(recolorLogoSvg(stripLogoBackground(logo.svg), recolor), fit),
         }}
       />
     );
@@ -187,12 +199,12 @@ function LogoArt({
   );
 }
 
-/** Force an inline SVG to fill its box — most brand SVGs carry no size. */
-function sizedSvg(svg: string): string {
-  return svg.replace(
-    /<svg\b/i,
-    '<svg style="width:100%;height:100%;display:block"',
-  );
+/** Force an inline SVG to take a size — most brand SVGs carry none. In
+ *  `natural` mode the height leads and the viewBox decides the width, which
+ *  is what lets a frame drawn around the artwork hug it. */
+function sizedSvg(svg: string, fit: 'box' | 'natural' = 'box'): string {
+  const size = fit === 'natural' ? 'height:100%;width:auto' : 'width:100%;height:100%';
+  return svg.replace(/<svg\b/i, `<svg style="${size};display:block"`);
 }
 
 function TileFrame({
@@ -274,7 +286,12 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
         fontSize: 7,
         letterSpacing: '0.02em',
         lineHeight: 1.3,
-        color: rgba(fg, 0.72),
+        // Full-strength ink, not 72%. The low-contrast MISUSE tile is drawn
+        // on a ground chosen to defeat the logo, and a held-back caption on
+        // it fell under the floor — so the tile that names the rule was
+        // breaking it. The rule is illustrated by the ARTWORK; the words
+        // explaining it must always be readable.
+        color: fg,
         textAlign: 'center',
       }}
     >
@@ -283,37 +300,40 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
   );
 
   if (tile.kind === 'clear-space') {
-    // The reference kit states the rule as a formula and draws it: the
-    // logo's own box, and a margin of R on every side. Everything here is
-    // a fraction of the tile, so the diagram survives any mount width.
+    // The rule is a FORMULA, so the diagram has to obey it: the inner frame
+    // hugs the artwork (`fit="natural"` — a frame wider than the drawing
+    // states a margin the brand never set), and the dashed margin around it
+    // is exactly a third of the frame's height on every side. The four R's
+    // sit IN that margin, so the letter and the space it names are the same
+    // measurement.
+    const LOGO_H = 44;
+    const R = Math.round(LOGO_H / 3);
     return (
       <TileFrame bg={tile.bg.hex} padding="10% 11%" column>
-        <div
+        <span
           style={{
             position: 'relative',
-            width: '76%',
+            display: 'inline-flex',
             border: `1px dashed ${rgba(fg, 0.45)}`,
-            padding: '11%',
-            boxSizing: 'border-box',
+            padding: R,
+            boxSizing: 'content-box',
           }}
         >
-          <div
+          <span
             style={{
-              outline: `1px solid ${rgba(fg, 0.28)}`,
-              height: 30,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: 'inline-flex',
+              height: LOGO_H,
+              outline: `1px solid ${rgba(fg, 0.3)}`,
             }}
           >
-            <LogoArt logo={logo} recolor={null} />
-          </div>
+            <LogoArt logo={logo} recolor={null} fit="natural" />
+          </span>
           {(
             [
-              { top: '3%', left: '50%', transform: 'translateX(-50%)' },
-              { bottom: '3%', left: '50%', transform: 'translateX(-50%)' },
-              { left: '3%', top: '50%', transform: 'translateY(-50%)' },
-              { right: '3%', top: '50%', transform: 'translateY(-50%)' },
+              { top: 1, left: '50%', transform: 'translateX(-50%)' },
+              { bottom: 1, left: '50%', transform: 'translateX(-50%)' },
+              { left: 1, top: '50%', transform: 'translateY(-50%)' },
+              { right: 1, top: '50%', transform: 'translateY(-50%)' },
             ] as CSSProperties[]
           ).map((pos, i) => (
             <span
@@ -322,28 +342,32 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
                 position: 'absolute',
                 fontFamily: body,
                 fontSize: 7,
+                lineHeight: 1,
                 fontWeight: 600,
-                color: rgba(fg, 0.6),
+                color: rgba(fg, 0.65),
                 ...pos,
               }}
             >
               R
             </span>
           ))}
-        </div>
+        </span>
         {caption(tile.note ?? '')}
       </TileFrame>
     );
   }
 
   if (tile.kind === 'min-size') {
-    // Three steps, drawn in proportion, each labelled with the size it
-    // stands for. The smallest one IS the floor — a tile that only said
-    // "24 px" would leave the reader guessing what that looks like.
+    // Three steps, in proportion, each labelled with the size it stands for.
+    // The smallest one IS the floor — a tile that only said "24 px" would
+    // leave the reader guessing what that looks like. Each step takes its
+    // HEIGHT from the ladder and its width from the artwork, so a square mark
+    // and a wide wordmark both step evenly instead of one of them floating in
+    // a landscape slot.
     const steps: Array<{ h: number; label: string }> = [
-      { h: 10, label: '24 px' },
-      { h: 18, label: '48 px' },
-      { h: 30, label: '96 px' },
+      { h: 13, label: '24 px' },
+      { h: 24, label: '48 px' },
+      { h: 40, label: '96 px' },
     ];
     return (
       <TileFrame bg={tile.bg.hex} padding="11% 9%" column>
@@ -352,7 +376,7 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            gap: '9%',
+            gap: '10%',
             width: '100%',
           }}
         >
@@ -363,13 +387,13 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 3,
+                gap: 4,
                 flex: '0 1 auto',
                 minWidth: 0,
               }}
             >
-              <span style={{ height: step.h, width: step.h * 2.4, display: 'block' }}>
-                <LogoArt logo={logo} recolor={null} />
+              <span style={{ display: 'inline-flex', height: step.h }}>
+                <LogoArt logo={logo} recolor={null} fit="natural" />
               </span>
               <span
                 style={{
@@ -411,23 +435,22 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
           fontFamily: body,
           fontSize: 8,
           lineHeight: 1,
-          color: rgba(fg, 0.8),
+          // Full strength for the same reason the caption is: this mark is
+          // the tile's verdict, on a ground picked to defeat contrast.
+          color: fg,
         }}
       >
         ✕
       </span>
-      <span
-        style={{
-          height: 34,
-          width: '68%',
-          display: 'block',
-          overflow: 'hidden',
-        }}
-      >
+      {/* The stretch tile has to SHOW a stretched logo. Clipping it at the
+          frame edge reads as a broken export rather than as the mistake being
+          named, so the artwork is laid out narrow enough that 1.5× still
+          lands inside the tile, and nothing is hidden. */}
+      <span style={{ height: 46, width: stretched ? '44%' : '64%', display: 'block' }}>
         <LogoArt
           logo={logo}
           recolor={tile.recolor}
-          style={stretched ? { transform: 'scaleX(1.55)', transformOrigin: 'center' } : undefined}
+          style={stretched ? { transform: 'scaleX(1.5)', transformOrigin: 'center' } : undefined}
         />
       </span>
       {caption(tile.note ?? '')}
@@ -438,29 +461,45 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
 /* ─── Color swatch ─────────────────────────────────────────── */
 
 /**
- * The Colors drilldown.
+ * The Colors drilldown — the palette as a SYSTEM, not a wall of squares.
  *
- * Three kinds of tile come out of here, indexed off the same palette:
+ * `variantsForCard` emits exactly one entry per brand colour
+ * (`brandAssetTemplates` in `data/legacy-mapping.ts`, which this wave
+ * does not own), so there is no list slot for a proportion bar or a
+ * contrast matrix. Rather than leave both invisible, the information
+ * they carry rides on the tiles that DO exist:
  *
- *   0 … n-1   one tile per brand colour — role, name, HEX, RGB, CMYK,
- *             HSL and how it behaves on white and on black
- *   n         the proportion bar (the 60 / 30 / 10 usage split)
- *   n + 1     the contrast matrix (every pair, pass or fail)
+ *   • every tile carries its own ROW of the contrast matrix — the other
+ *     brand colours set on this colour's ground, each with its WCAG
+ *     level. n tiles therefore hold the whole n × n matrix, and every
+ *     row is drawn on the ground it actually describes;
+ *   • tile 0 (the Primary) additionally carries the usage split as a
+ *     full-bleed companion strip along its foot, because the 60 % of a
+ *     60 / 30 / 10 layout IS the primary.
+ *
+ * `ColorProportionTile` and `ColorContrastMatrixTile` remain reachable at
+ * `templateIndex >= palette.length`: the moment two entries are added to
+ * `brandAssetTemplates` they become tiles of their own and the companions
+ * can be dropped.
  *
  * The role is what the colour DOES (`paletteFromMockBrand`), never the
  * slot it sits in — the page used to print "CORE 4 … CORE 7", which
- * tells a customer nothing (D40). Neutrals stay out: the grey ladder is
- * generated for every brand and belongs to none of them.
- *
- * The two extra tiles need two extra entries in `brandAssetTemplates`
- * (`data/legacy-mapping.ts`), which this wave does not own; until those
- * land the indices simply never arrive and nothing renders differently.
+ * tells a customer nothing (D40). The generated grey ladder stays out:
+ * it is drawn for every brand and belongs to none of them.
  */
 export function BrandAssetColorRenderer({ brand, templateIndex }: Props) {
   const palette = paletteFromMockBrand(brand);
   if (palette.length === 0) return null;
   if (templateIndex < palette.length) {
-    return <ColorSwatchTile color={palette[templateIndex]} />;
+    const color = palette[templateIndex];
+    const others = palette.filter((_, i) => i !== templateIndex);
+    return (
+      <ColorSwatchTile
+        color={color}
+        others={others}
+        proportions={templateIndex === 0 ? palette : undefined}
+      />
+    );
   }
   if (templateIndex === palette.length) {
     return <ColorProportionTile colors={palette} />;
@@ -471,7 +510,8 @@ export function BrandAssetColorRenderer({ brand, templateIndex }: Props) {
   return null;
 }
 
-/** Short code for a WCAG level — the matrix has ~40px per cell. */
+/** Short code for a WCAG level — a matrix cell has ~40px, a pair chip
+ *  half that, so the level travels as a code rather than a sentence. */
 function levelCode(level: WcagLevel): string {
   if (level === 'AAA') return 'AAA';
   if (level === 'AA') return 'AA';
@@ -479,9 +519,21 @@ function levelCode(level: WcagLevel): string {
   return '×';
 }
 
-/** One brand colour, fully specified. Everything a print shop, a
- *  stylesheet or an accessibility review asks for is on the tile. */
-function ColorSwatchTile({ color }: { color: PaletteColor }) {
+/**
+ * One brand colour, fully specified. Everything a print shop, a
+ * stylesheet or an accessibility review asks for is on the tile:
+ * role, name, HEX, RGB, CMYK, HSL, how it behaves on white and on
+ * black, and which of its siblings can be set on it.
+ */
+function ColorSwatchTile({
+  color,
+  others = [],
+  proportions,
+}: {
+  color: PaletteColor;
+  others?: PaletteColor[];
+  proportions?: PaletteColor[];
+}) {
   const hex = normalizeHex(color.hex);
   const fg = bestTextOn(hex);
   const report = contrastReport(hex);
@@ -500,58 +552,170 @@ function ColorSwatchTile({ color }: { color: PaletteColor }) {
         flexDirection: 'column',
         alignItems: 'stretch',
         justifyContent: 'space-between',
-        padding: '11px 13px',
-        gap: 6,
+        // A near-white swatch has no edge of its own against a light
+        // page, so the tile would read as a hole rather than a colour.
+        boxShadow: isNearWhite(hex) ? `inset 0 0 0 1px ${rgba(fg, 0.16)}` : undefined,
+        padding: 0,
+        gap: 0,
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            opacity: 0.85,
-          }}
-        >
-          {color.role}
-        </span>
-        <span style={{ display: 'flex', gap: 4 }}>
-          <ContrastPill ground="#FFFFFF" ink="#111113" level={report.onWhite.level} />
-          <ContrastPill ground="#111113" ink="#FFFFFF" level={report.onBlack.level} />
-        </span>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' }}>
-        <span style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.05 }}>
-          {color.name}
-        </span>
-        <span
-          style={{
-            fontSize: 10,
-            letterSpacing: '0.06em',
-            fontFamily: fontStack(undefined, 'mono'),
-            opacity: 0.9,
-          }}
-        >
-          {hex}
-        </span>
-      </div>
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          gap: '2px 10px',
-          fontSize: 8,
-          lineHeight: 1.4,
-          letterSpacing: '0.02em',
-          fontFamily: fontStack(undefined, 'mono'),
-          opacity: 0.88,
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          justifyContent: 'space-between',
+          flex: 1,
+          minHeight: 0,
+          padding: '11px 13px',
+          gap: 6,
         }}
       >
-        {spec('RGB', formatRgb(hex))}
-        {spec('CMYK', formatCmyk(hex))}
-        {spec('HSL', formatHsl(hex))}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 6,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              opacity: 0.85,
+            }}
+          >
+            {color.role}
+          </span>
+          <span style={{ display: 'flex', gap: 4 }}>
+            <ContrastPill ground="#FFFFFF" ink="#111113" level={report.onWhite.level} />
+            <ContrastPill ground="#111113" ink="#FFFFFF" level={report.onBlack.level} />
+          </span>
+        </div>
+        {others.length > 0 ? <PairsRow ground={hex} fg={fg} others={others} /> : null}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' }}>
+          <span
+            style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.05 }}
+          >
+            {color.name}
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              letterSpacing: '0.06em',
+              fontFamily: fontStack(undefined, 'mono'),
+              opacity: 0.9,
+            }}
+          >
+            {hex}
+          </span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '2px 10px',
+            fontSize: 8,
+            lineHeight: 1.4,
+            letterSpacing: '0.02em',
+            fontFamily: fontStack(undefined, 'mono'),
+            opacity: 0.88,
+          }}
+        >
+          {spec('RGB', formatRgb(hex))}
+          {spec('CMYK', formatCmyk(hex))}
+          {spec('HSL', formatHsl(hex))}
+        </div>
       </div>
+      {proportions ? <ProportionStrip colors={proportions} /> : null}
+    </div>
+  );
+}
+
+/**
+ * This colour's row of the contrast matrix: each sibling set ON this
+ * ground, with the level it reaches.
+ *
+ * The specimen is a SWATCH, not the word "Aa". A letterform painted in
+ * the sibling's colour demonstrates the pairing beautifully and is, for
+ * every failing pair, a 3:1 text node on our own surface — the exact
+ * thing the contrast sweep exists to forbid. So the pairing is shown as
+ * a chip of the colour itself (ringed, so a sibling that all but matches
+ * the ground still has an edge) and the LEVEL is the only text, drawn in
+ * the tile's own readable ink.
+ */
+function PairsRow({
+  ground,
+  fg,
+  others,
+}: {
+  ground: string;
+  fg: string;
+  others: PaletteColor[];
+}) {
+  // Six siblings is what fits on two lines at a 260px mount; past that
+  // the row becomes texture. The matrix tile carries the rest.
+  const shown = others.slice(0, 6);
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '3px 4px',
+        marginTop: 2,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 7,
+          fontWeight: 600,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          opacity: 0.55,
+          marginRight: 1,
+        }}
+      >
+        On this
+      </span>
+      {shown.map((other) => {
+        const otherHex = normalizeHex(other.hex);
+        const level = wcagLevel(contrast(ground, otherHex));
+        return (
+          <span
+            key={`${other.name}-${otherHex}`}
+            title={`${other.name} on this colour — ${level}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+              border: `1px solid ${rgba(fg, 0.28)}`,
+              borderRadius: 3,
+              padding: '1px 4px',
+              lineHeight: 1.4,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                alignSelf: 'center',
+                backgroundColor: otherHex,
+                boxShadow: `inset 0 0 0 1px ${rgba(fg, 0.35)}`,
+              }}
+            />
+            <span style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em' }}>
+              {levelCode(level)}
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -586,8 +750,50 @@ function ContrastPill({
   );
 }
 
-/** The proportional usage bar — how much of a layout each colour should
- *  hold. 60 / 30 / 10, extended for palettes that are not three deep. */
+/** The usage split as a full-bleed strip along a swatch's foot — the
+ *  companion the Primary tile carries while the palette has no list
+ *  slot of its own. */
+function ProportionStrip({ colors }: { colors: PaletteColor[] }) {
+  const segments = usageProportions(colors).filter((s) => s.pct > 0);
+  if (segments.length < 2) return null;
+  return (
+    <div
+      data-color-proportion
+      style={{ display: 'flex', alignItems: 'stretch', height: 22, flexShrink: 0 }}
+    >
+      {segments.map(({ color, pct }) => {
+        const hex = normalizeHex(color.hex);
+        return (
+          <span
+            key={`${hex}-${color.name}`}
+            title={`${color.name} — ${pct}%`}
+            style={{
+              flexGrow: pct,
+              flexBasis: 0,
+              minWidth: 0,
+              backgroundColor: hex,
+              color: bestTextOn(hex),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 8,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              boxShadow: isNearWhite(hex) ? `inset 0 0 0 1px ${rgba(bestTextOn(hex), 0.16)}` : undefined,
+            }}
+          >
+            {pct >= 10 ? `${pct}%` : ''}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The proportional usage bar as a tile of its own — how much of a
+ *  layout each colour should hold. 60 / 30 / 10, extended for palettes
+ *  that are not three deep. Reachable once `brandAssetTemplates` emits
+ *  an entry for it. */
 function ColorProportionTile({ colors }: { colors: PaletteColor[] }) {
   const segments = usageProportions(colors).filter((s) => s.pct > 0);
   if (segments.length === 0) return null;
@@ -753,23 +959,277 @@ function readableOn(hex: string): '#111113' | '#ffffff' {
   return luminance > 150 ? '#111113' : '#ffffff';
 }
 
-/* ─── Font preview ─────────────────────────────────────────── */
+/* ─── Typeface specimen ────────────────────────────────────── */
+
+/**
+ * One TYPEFACE, drawn in itself.
+ *
+ * The tile this replaces was an "Aa" and a family name set in the UI's own
+ * Inter (audit D35) — a specimen of the product, not of the brand. A
+ * typeface tile has one job: prove what the brand's type looks like. So
+ * every glyph on it is set in the family it names, at the weight it
+ * names, and the tile says four things the old one did not:
+ *
+ *   • which weights the brand DECLARED, each drawn at that weight, so a
+ *     brand claiming 400·500·600·700 shows four visibly different cuts;
+ *   • the type SCALE, H1 down to caption, with the sizes, so the family
+ *     is judged at the sizes it will be used at rather than at one;
+ *   • the PAIRING — what this face is for and what the other one does —
+ *     because a typeface decision is never about one face;
+ *   • where the files come from, and a NOTICE when they cannot be had.
+ *     `GT Super` is a foundry family: it is not on Google Fonts, the
+ *     download can only ship a README for it, and until now nothing on
+ *     screen said so (audit D32).
+ *
+ * Sizes are in `cqw` against the tile's own inline size, so the same
+ * component is right at the 260px card, the 333px drilldown tile and a
+ * 4× offscreen export. No `px` literal decides how big anything is.
+ */
+
+/**
+ * The scale, as a share of the tile's width.
+ *
+ * `size` is `px * SCALE_UNIT` — the steps keep their TRUE ratios (48 is
+ * three times 16 on the tile as well as in the label), because a specimen
+ * that flattens the ratios is showing a scale the brand does not have.
+ * `SCALE_UNIT` is the largest value at which all four steps plus the
+ * header, the weight row and the footer fit a 1.6-aspect tile.
+ */
+const SCALE_UNIT = 0.173;
+const TYPE_SCALE_STEPS: ReadonlyArray<{ label: string; px: number; weight: 'heading' | 'body' }> = [
+  { label: 'H1', px: 48, weight: 'heading' },
+  { label: 'H2', px: 32, weight: 'heading' },
+  { label: 'Body', px: 16, weight: 'body' },
+  { label: 'Caption', px: 12, weight: 'body' },
+];
+
+/** The specimen string. Short enough not to wrap at 260px, wide enough to
+ *  show ascenders, descenders, a round and a diagonal. */
+const SPECIMEN_WORD = 'Handgloves';
+
+/**
+ * The CSS stack for ONE declared family.
+ *
+ * `fontStack(brand, role)` answers for a ROLE; this tile is about a
+ * specific entry in `brand.fonts`, which may be the third one. The family
+ * comes first, the brand's own declared fallback second, and a generic
+ * ladder last — chosen from the name, because a serif that falls back to
+ * Helvetica is a different specimen.
+ */
+function specimenStack(font: { family: string; fallback?: string }): string {
+  const name = font.family.trim().replace(/^['"]|['"]$/g, '');
+  const quoted = /^[A-Za-z][A-Za-z0-9-]*$/.test(name) ? name : `'${name}'`;
+  const lower = name.toLowerCase();
+  const generic = /\b(mono|code|courier|consol)/.test(lower)
+    ? 'ui-monospace, SFMono-Regular, Menlo, monospace'
+    : /\bsans\b|sans-/.test(lower)
+      ? 'system-ui, -apple-system, Helvetica, Arial, sans-serif'
+      : /serif|slab|garamond|georgia|times|playfair|baskerville|didot|bodoni|caslon|lora|spectral|cormorant|tiempos|canela|recoleta|super/.test(
+            lower,
+          )
+        ? "Georgia, 'Times New Roman', Times, serif"
+        : 'system-ui, -apple-system, Helvetica, Arial, sans-serif';
+  const declared = font.fallback?.trim();
+  return [quoted, declared, generic].filter(Boolean).join(', ');
+}
+
+/** What this face is FOR — read off the role the brand gave it. */
+function usageLine(role: string): string {
+  const r = (role ?? '').toLowerCase();
+  if (/mono|code/.test(r)) return 'Code, data and tabular figures.';
+  if (/display|head|title|primary/.test(r)) return 'Headlines and titles. Tighten tracking above 32px.';
+  if (/text|body|para|secondary/.test(r)) return 'Body copy, labels and UI. 16px floor, 1.5 line height.';
+  return 'Everything the brand sets in type.';
+}
+
+/** The other half of the pairing, in one sentence. */
+function pairingLine(
+  fonts: MockBrand['fonts'],
+  index: number,
+): string {
+  const self = fonts[index];
+  const other = fonts.find((f, i) => i !== index && f.family !== self?.family);
+  if (!other) return 'The brand sets everything in this one face.';
+  return `Pairs with ${other.family} for ${(other.role || 'the rest').toLowerCase()}.`;
+}
+
+/** What the download can actually ship for this family. */
+const SOURCE_BADGE: Record<FontSource, string> = {
+  uploaded: 'Your files',
+  google: 'Google Fonts',
+  unavailable: 'Not bundled',
+};
 
 export function BrandAssetFontRenderer({ brand, templateIndex }: Props) {
   const f = brand.fonts[templateIndex];
+  const family = f?.family ?? '';
+  const files = f?.files;
+  // Load the face the tile is a specimen OF. Uploaded bytes win — they are
+  // the cut the user owns. A family that is not on Google is never asked
+  // for: the request 400s and Chrome reports it as an error the user can
+  // see, which is exactly what this tile is here to explain in words
+  // instead (see `isGoogleFontFamily`).
+  useEffect(() => {
+    if (!family) return;
+    if (files && files.length > 0) registerUploadedFontFamily(family, files);
+    else if (isGoogleFontFamily(family)) loadFontFamily(family);
+  }, [family, files]);
+
   if (!f) return null;
-  const stack = `${f.family}, ${f.fallback ?? 'sans-serif'}`;
+
+  const tokens = surface(brand, 'card');
+  const source = fontSource(f);
+  const weights = parseWeights(f.weights);
+  const heaviest = weights[weights.length - 1] ?? 400;
+  const lightest = weights[0] ?? 400;
+  const stack = specimenStack(f);
+  const label = canonicalGoogleFamily(family) ?? family;
+
+  const eyebrow: CSSProperties = {
+    fontSize: '2.5cqw',
+    fontWeight: 600,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    lineHeight: 1,
+    color: tokens.textMuted,
+    whiteSpace: 'nowrap',
+  };
+
   return (
-    <div className="brand-asset-render brand-asset-render--font">
-      <span className="brand-asset-render-font-sample" style={{ fontFamily: stack }}>
-        Aa
+    <div
+      className="brand-asset-render brand-asset-render--font"
+      // The OUTER box only declares the container. Nothing on it may be
+      // sized in `cqw`: a container's own properties cannot query itself,
+      // so the unit silently resolves against the next container out — the
+      // viewport — and a 5cqw padding on a 333px tile came out 79px. The
+      // padding, the gaps and every type size live on the inner box, which
+      // is a normal descendant and resolves against this one.
+      style={{
+        containerType: 'inline-size',
+        display: 'block',
+        padding: 0,
+        background: tokens.bg,
+        color: tokens.text,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          alignItems: 'stretch',
+          gap: '1.4cqw',
+          padding: '4.4cqw 5cqw',
+          height: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
+      {/* Role + where the files come from. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '2cqw' }}>
+        <span style={eyebrow}>{f.role || 'Typeface'}</span>
+        <span style={{ ...eyebrow, opacity: 0.85 }}>{SOURCE_BADGE[source]}</span>
+      </div>
+
+      {/* The family, set in itself, at the heaviest weight it declares. */}
+      <span
+        style={{
+          fontFamily: stack,
+          fontWeight: heaviest,
+          fontSize: '5.6cqw',
+          lineHeight: 1.05,
+          letterSpacing: '-0.02em',
+          color: tokens.text,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {label}
       </span>
-      <span className="brand-asset-render-font-meta">
-        <span className="brand-asset-render-font-role">{f.role}</span>
-        <span className="brand-asset-render-font-family" style={{ fontFamily: stack }}>
-          {f.family}
+
+      {/* Every declared weight, each drawn at that weight. */}
+      <div style={{ display: 'flex', gap: '2.6cqw', alignItems: 'baseline', flexWrap: 'nowrap', overflow: 'hidden' }}>
+        {weights.map((w) => (
+          <span
+            key={w}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '0.4cqw',
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: stack,
+                fontWeight: w,
+                fontSize: '4cqw',
+                lineHeight: 1,
+                color: tokens.text,
+              }}
+            >
+              Aa
+            </span>
+            <span style={{ ...eyebrow, fontSize: '1.9cqw', letterSpacing: '0.08em' }}>{w}</span>
+          </span>
+        ))}
+      </div>
+
+      {/* The scale — the family judged at the sizes it will be used at. */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.6cqw',
+          borderTop: `0.35cqw solid ${tokens.border}`,
+          paddingTop: '1.8cqw',
+        }}
+      >
+        {TYPE_SCALE_STEPS.map((step) => (
+          <span
+            key={step.label}
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: '2cqw',
+              overflow: 'hidden',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: stack,
+                fontWeight: step.weight === 'heading' ? heaviest : lightest,
+                fontSize: `${(step.px * SCALE_UNIT).toFixed(2)}cqw`,
+                lineHeight: 1.1,
+                letterSpacing: step.px >= 32 ? '-0.02em' : '0',
+                color: tokens.text,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {SPECIMEN_WORD}
+            </span>
+            <span style={{ ...eyebrow, fontSize: '1.9cqw', letterSpacing: '0.06em', flex: '0 0 auto' }}>
+              {step.label} {step.px}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {/* The pairing rule, and — when we cannot get the files — why. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6cqw' }}>
+        <span style={{ fontSize: '2.3cqw', lineHeight: 1.35, color: tokens.textMuted }}>
+          {pairingLine(brand.fonts, templateIndex)}
         </span>
-      </span>
+        <span style={{ fontSize: '2.3cqw', lineHeight: 1.35, color: tokens.textMuted }}>
+          {source === 'unavailable' ? UPLOAD_HINT : usageLine(f.role)}
+        </span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -163,7 +163,7 @@ export const ICON_PACKS: readonly IconPack[] = [
       'education', 'educational', 'school', 'university', 'college', 'academy',
       'course', 'courses', 'curriculum', 'learning', 'learn', 'teaching', 'teacher',
       'tutor', 'tutoring', 'student', 'students', 'training', 'workshop', 'lesson',
-      'lessons', '研究', 'research', 'library', 'literacy', 'scholarship', 'charity',
+      'lessons', 'research', 'library', 'literacy', 'scholarship', 'charity',
       'nonprofit', 'volunteer', 'community',
     ],
     icons: [

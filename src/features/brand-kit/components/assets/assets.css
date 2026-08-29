@@ -1,0 +1,164 @@
+/**
+ * Brand-asset editors — the panels behind the Brand Kit's asset cards.
+ *
+ * One file, one block per editor, each under its own header. Every value
+ * here is a `--ds-*` token: these panels are CHROME, and chrome never
+ * wears the customer's brand. The only brand colour on the page is the
+ * artwork being edited.
+ */
+
+/* Colors */
+
+.bka-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The palette as it will be, above the controls that change it — the
+   whole point of the panel is that the change is visible before it is
+   saved. */
+.bka-colors-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bka-colors-preview-bar {
+  display: flex;
+  align-items: stretch;
+  height: 64px;
+  border-radius: var(--ds-radius-tile);
+  overflow: hidden;
+  border: 1px solid var(--ds-border);
+}
+
+.bka-colors-preview-seg {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  padding: 6px 7px;
+  transition: flex-grow var(--ds-duration-state) var(--ds-ease);
+}
+
+.bka-colors-preview-pct {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bka-colors-preview-name {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-colors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bka-colors-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 132px 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+}
+
+.bka-colors-row[data-editing='true'] {
+  border-color: var(--ds-text);
+}
+
+/* The swatch IS the button that opens the picker — a colour is edited by
+   pressing the colour, not by hunting for a pencil. */
+.bka-colors-chip {
+  width: 40px;
+  height: 32px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.bka-colors-chip:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+.bka-colors-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bka-colors-hex {
+  font-family: var(--ds-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ds-text-secondary);
+}
+
+.bka-colors-remove {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.bka-colors-remove:hover:not(:disabled) {
+  border-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+.bka-colors-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bka-colors-picker {
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface-subtle);
+}
+
+.bka-colors-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+.bka-colors-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}

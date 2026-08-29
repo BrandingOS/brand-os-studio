@@ -388,7 +388,23 @@ function Items({
   );
 }
 
-/** Subtotal · discount · tax · total. Every figure from `invoiceTotals`. */
+/**
+ * Subtotal · discount · tax · total. Every figure from `invoiceTotals`.
+ *
+ * Three of the panel's fields are only ever SEEN here, and two of them
+ * were printed as plain text: "Tax 5%" and "Discount 10%" read like part
+ * of the design, so a customer who wanted 20% VAT clicked the number,
+ * found no control, and had to guess that "Adjustments" further down the
+ * panel was the same thing. The percentages are the rates, so they bind
+ * to the rates.
+ *
+ * The grand total binds to `currency`, which is the one honest answer for
+ * it. The figure itself is DERIVED — a total a customer could type over
+ * is a total that can disagree with the line items above it, which is the
+ * defect this whole model exists to remove — but the currency it is
+ * quoted in is genuinely theirs to choose, and the total is where a
+ * reader looks to find out what currency an invoice is in.
+ */
 function Totals({
   ctx,
   s,
@@ -410,12 +426,12 @@ function Totals({
       <div>Subtotal · {money(t.subtotal)}</div>
       {t.discount > 0 && (
         <div>
-          Discount {formatPercent(c.discountRate)} · −{money(t.discount)}
+          Discount <Bind path="discountRate" value={formatPercent(c.discountRate)} /> · −{money(t.discount)}
         </div>
       )}
       {t.tax > 0 && (
         <div>
-          Tax {formatPercent(c.taxRate)} · {money(t.tax)}
+          Tax <Bind path="taxRate" value={formatPercent(c.taxRate)} /> · {money(t.tax)}
         </div>
       )}
       <Micro color={s.quiet} style={{ marginTop: 3 }}>
@@ -430,8 +446,52 @@ function Totals({
           color: size >= 24 ? onGround(s.accent, s.bg, true) : s.accent,
         }}
       >
-        {money(t.total)}
+        <Bind path="currency" value={money(t.total)} fit="shrink" />
       </div>
+    </div>
+  );
+}
+
+/**
+ * The discount and tax lines, without the rest of the totals block.
+ *
+ * Two designs draw the amount due themselves, because the amount due IS
+ * their layout — a deep brand footer and a page-sized centred figure —
+ * and so never went through `Totals`. Both therefore printed a total that
+ * silently included the customer's tax without naming it anywhere, and
+ * neither gave them any way to reach the rate. A total that is 5% larger
+ * than its line items with nothing on the page saying why is not a design
+ * decision, it is an invoice a client queries.
+ *
+ * Rendered only when there is an adjustment to state: a zero rate is not
+ * a fact worth a line.
+ */
+function Adjustments({
+  c,
+  t,
+  money,
+  color,
+  align = 'right',
+}: {
+  c: InvoiceContent;
+  t: InvoiceTotals;
+  money: (n: number) => string;
+  color: string;
+  align?: 'left' | 'right' | 'center';
+}) {
+  if (t.discount <= 0 && t.tax <= 0) return null;
+  return (
+    <div style={{ fontSize: 6, lineHeight: 1.45, color, textAlign: align }}>
+      {t.discount > 0 && (
+        <div>
+          Discount <Bind path="discountRate" value={formatPercent(c.discountRate)} /> · −{money(t.discount)}
+        </div>
+      )}
+      {t.tax > 0 && (
+        <div>
+          Tax <Bind path="taxRate" value={formatPercent(c.taxRate)} /> · {money(t.tax)}
+        </div>
+      )}
     </div>
   );
 }
@@ -734,9 +794,10 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
             </div>
           </div>
           <div className="text-right shrink-0">
+            <Adjustments c={c} t={t} money={money} color={band.quiet} />
             <Micro color={band.quiet}>Total due</Micro>
             <div style={{ fontFamily: k.head, fontSize: 22, lineHeight: 1.05, fontWeight: 700 }}>
-              {money(t.total)}
+              <Bind path="currency" value={money(t.total)} fit="shrink" />
             </div>
           </div>
         </div>
@@ -816,13 +877,23 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
       </Page>
     ),
 
-    // 9 — Colour Wash. The brand fading out of the head of the page.
+    /* 9 — Colour Wash. The brand fading out of the head of the page.
+
+       The wash is BELOW the type, not behind it. As first drawn, the head
+       was one `linear-gradient(brand → tint)` block with the type laid
+       over it, and the ink was `fgOn(primary)` — chosen for the top of
+       the ramp only. At the bottom of that ramp the ground is the pale
+       tint, so a white "Invoice" faded into it as it fell. The contrast
+       sweep could not even report it: a gradient is not one colour, so
+       all three lines were skipped rather than judged, and the design
+       "passed" by being unmeasurable.
+
+       So the head is a flat brand band the ink is picked against, and the
+       fade is its own strip underneath — which is what the name describes
+       anyway: the brand leaving the page, not type dissolving into it. */
     (
       <Page s={paper} k={k}>
-        <div
-          className="px-[7%] pt-[6%] pb-[5%]"
-          style={{ background: `linear-gradient(180deg, ${band.bg} 0%, ${tint.bg} 100%)`, color: band.ink }}
-        >
+        <div className="px-[7%] pt-[6%] pb-[5%]" style={{ background: band.bg, color: band.ink }}>
           <div className="flex items-start justify-between gap-2">
             <Logo brand={brand} k={k} color={band.ink} />
             <div className="text-right">
@@ -833,6 +904,14 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
             </div>
           </div>
         </div>
+        <div
+          aria-hidden
+          style={{
+            flex: '0 0 auto',
+            height: '9%',
+            background: `linear-gradient(180deg, ${band.bg} 0%, ${tint.bg} 55%, ${paper.bg} 100%)`,
+          }}
+        />
         <div className="flex-1 flex flex-col gap-[9px] px-[7%] pt-[5%] pb-[5%]">
           <Parties c={c} s={paper} />
           <RefRow c={c} s={paper} />
@@ -1156,8 +1235,9 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
                 marginTop: 2,
               }}
             >
-              {money(t.total)}
+              <Bind path="currency" value={money(t.total)} fit="shrink" />
             </div>
+            <Adjustments c={c} t={t} money={money} color={paper.quiet} align="center" />
           </div>
           <Items c={c} s={paper} money={money} max={4} header={false} />
           <Notes c={c} s={paper} align="center" className="mt-auto" />

@@ -24,7 +24,7 @@ export const curation: FamilyCuration = {
     'notecard-ext-1': 'Centred Mark',
     'notecard-ext-2': 'Open Greeting',
     'notecard-ext-3': 'Colour Block',
-    'notecard-ext-5': 'Embossed Initial',
+    'notecard-ext-5': 'Embossed Mark',
     'notecard-ext-8': 'Folded Edge',
     'notecard-ext-10': 'Postcard Stripe',
     'notecard-ext-15': 'Window Cut',

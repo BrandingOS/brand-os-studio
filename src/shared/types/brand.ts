@@ -349,6 +349,23 @@ export interface Iconography {
   cornerRadius: string;
   examples: IconExample[];
   usage: string;
+  /**
+   * The brand's icon SET, as UICONS class names (`fi-rr-camera`).
+   *
+   * The three fields above are PROSE — a guidelines page prints them as
+   * "Rounded outline icons" and "1.5px consistent stroke" — so the set, the
+   * pack it came from and the colour it is drawn in get fields of their own
+   * rather than being encoded into a sentence somebody reads.
+   *
+   * The WEIGHT lives in each name's own prefix (`fi-br-camera` is the bold
+   * cut), because that is what a UICONS class name already means; there is no
+   * second place for it to disagree with itself.
+   */
+  set?: string[];
+  /** Which curated pack the set was chosen from (`brand-kit/data/iconPacks`). */
+  pack?: string;
+  /** The colour every icon in the set is drawn in. Absent means brand primary. */
+  tint?: string;
 }
 
 export interface IconExample {

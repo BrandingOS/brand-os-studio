@@ -63,8 +63,16 @@ describe('the kit export, end to end', () => {
     expect(skipped).toEqual([]);
 
     const zip = await readZip(blob);
-    const file = zip.file('logos/primary.svg');
+    // Each variant gets a folder: the SVG itself, PNGs at three sizes, a
+    // print PDF, and a copy on every ground it was paired with.
+    const file = zip.file('logos/primary/primary.svg');
     expect(file, 'the logo lands under its own name and true extension').toBeTruthy();
+    const paths = Object.keys(zip.files).filter((f) => !zip.files[f].dir);
+    expect(paths).toContain('logos/README.md');
+    for (const size of [512, 1024, 2048]) {
+      expect(paths).toContain(`logos/primary/png/primary-${size}.png`);
+    }
+    expect(paths.some((f) => f.endsWith('.pdf'))).toBe(true);
 
     const text = await file!.async('string');
     // The whole point: what is in the zip is the ARTWORK.

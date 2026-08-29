@@ -617,7 +617,7 @@ describe('the preview shows the logo', () => {
 
   it('uses the wrapped artwork itself, never a re-encoded wrapper', async () => {
     cleanup();
-    const brand = { ...mockBrand, logos: [{ id: 'p', label: 'Primary', variant: 'light' as const, role: 'primary', svg: wrapper }] };
+    const brand = { ...mockBrand, logos: [{ id: 'p', label: 'Primary', variant: 'light' as const, role: 'primary' as const, svg: wrapper }] };
     render(
       <BrandKitCardEditor
         brand={brand}
@@ -626,6 +626,7 @@ describe('the preview shows the logo', () => {
         initialCustomization={null}
         onClose={() => {}}
         onSave={() => {}}
+        onDownload={() => {}}
       />,
     );
     const img = await waitFor(() => {

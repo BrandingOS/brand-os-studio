@@ -89,8 +89,21 @@ function inkFor(brand: Brand, kind: SurfaceKind): Ink {
   };
 }
 
-/** Brand colour as ink, but only where it reads on this ground. */
-function accentInk(accent: string, ink: Ink, large = false): string {
+/**
+ * Brand colour as ink, but only where it reads on this ground.
+ *
+ * The floor comes from the SIZE the caller will really render at rather
+ * than from a boolean, because the boolean drifted from the type it was
+ * describing: `ext-2` asked for the large floor (3:1) and then set its
+ * greeting at 15px, which WCAG counts as normal text however bold it is.
+ * SKAM's red cleared 3.76:1, passed, and shipped a greeting under AA.
+ *
+ * Large is ≥ 24px, or ≥ 18.66px at weight ≥ 700 — the same rule
+ * `__guards__/contrast.ts` measures with, so the design and the guard
+ * cannot disagree about what a heading is.
+ */
+function accentInk(accent: string, ink: Ink, sizePx = 12, weight = 400): string {
+  const large = sizePx >= 24 || (sizePx >= 18.66 && weight >= 700);
   return contrastOf(accent, ink.bg) >= (large ? 3 : 4.5) ? accent : ink.text;
 }
 
@@ -368,7 +381,7 @@ const DESIGNS: Record<number, Design> = {
           fonts={x.fonts}
           size={15}
           weight={700}
-          color={accentInk(x.primary, x.paper, true)}
+          color={accentInk(x.primary, x.paper, 15, 700)}
         />
       </div>
       <div className="absolute left-[9%] right-[30%] top-[36%]">
@@ -401,22 +414,40 @@ const DESIGNS: Record<number, Design> = {
     </CardStage>
   ),
 
-  // ext-5 · Embossed Initial — an outlined initial pressed into the
-  // stock behind the writing, in the elevated paper's own colour.
+  /* ext-5 · Embossed Mark — the brand's own mark pressed into the stock
+     behind the writing, the way a blind deboss shows on good card.
+
+     It used to be an INITIAL: a 58px letter with `color: transparent` and
+     a one-pixel stroke, taken from the first letter of the sign-off. Two
+     things were wrong with it and they are the same thing. It was a text
+     node that could never read — the contrast sweep measured the
+     transparent fill against the paper and got 1.00:1, and no stroke
+     weight fixes that, because an emboss on cream stock genuinely sits
+     around 1.3:1 in life. And at the 260px tile the card is authored for
+     it contributed nothing at all, which left the design indistinguishable
+     from the plain ones.
+
+     A debossed MARK says the same thing without pretending to be type:
+     it is artwork, so it is judged as artwork, and it is the brand's
+     rather than a letter borrowed from a sign-off nobody wrote yet. The
+     opacity is a real deboss weight, not a hiding place — at tile size it
+     reads as a watermark, which is what it is.
+
+     It is drawn ONLY where the brand has real artwork. `Mark` falls back
+     to `BrandLogo`, which sets the brand's NAME as type, and a name at
+     14% opacity is the invisible-text problem all over again wearing a
+     different hat. A deboss needs something to deboss. */
   4: (x) => (
     <CardStage stage={x.stage} paper={x.elevated.bg} border={x.elevated.border}>
-      <div
-        className="absolute right-[4%] bottom-[-6%] leading-none pointer-events-none"
-        style={{
-          fontSize: '58px',
-          fontFamily: x.fonts.heading,
-          fontWeight: 800,
-          color: 'transparent',
-          WebkitTextStroke: `1px ${x.elevated.border}`,
-        }}
-      >
-        {x.c.signOff.replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase() || '·'}
-      </div>
+      {x.showLogo && logoOn(x.brand, x.elevated.bg) && (
+        <div
+          aria-hidden
+          className="absolute right-[6%] bottom-[8%] pointer-events-none"
+          style={{ opacity: 0.14 }}
+        >
+          <Mark brand={x.brand} ground={x.elevated.bg} height={38} show />
+        </div>
+      )}
       <div className="absolute left-[9%] right-[9%] top-[13%] flex flex-col gap-[5px]">
         <Greeting c={x.c} ink={x.elevated} fonts={x.fonts} size={8.5} />
         <Message c={x.c} ink={x.elevated} fonts={x.fonts} lines={4} />

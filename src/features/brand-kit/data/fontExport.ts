@@ -1,4 +1,7 @@
-import { GOOGLE_FONTS } from '@/shared/design-system/googleFonts';
+import {
+  canonicalGoogleFamily,
+  isGoogleFontFamily,
+} from '@/shared/design-system/fonts';
 import type { BrandFontFile } from '@/features/setup/data/mockBrand';
 import { triggerBlobDownload } from './colorPaletteExport';
 import { zipAdd, type ZipFolder } from './zipFile';
@@ -111,28 +114,15 @@ function unique<T>(list: T[]): T[] {
 
 /* ─── Where a family can come from ─────────────────────────────────── */
 
-const GOOGLE_BY_NORMALISED = new Map<string, string>(
-  GOOGLE_FONTS.map((name) => [normaliseFamily(name), name]),
-);
-
-function normaliseFamily(family: string): string {
-  return family.trim().toLowerCase().replace(/['"]/g, '').replace(/\s+/g, ' ');
-}
-
 /**
  * Is this family on Google Fonts — decided offline, before any request.
  *
- * The list is the generated `GOOGLE_FONTS` catalogue (1929 families), so
- * the answer costs nothing and, crucially, cannot produce a console error.
+ * Re-exported from `@/shared/design-system/fonts`, which is where the
+ * runtime `<link>` injector asks the SAME question. Two answers to "is
+ * this family fetchable" is how a surface ends up drawing a notice that
+ * says "not available" beside a network request for it.
  */
-export function isGoogleFontFamily(family: string | undefined | null): boolean {
-  return !!family && GOOGLE_BY_NORMALISED.has(normaliseFamily(family));
-}
-
-/** The catalogue's own spelling of a family ("dm sans" → "DM Sans"). */
-export function canonicalGoogleFamily(family: string): string | undefined {
-  return GOOGLE_BY_NORMALISED.get(normaliseFamily(family));
-}
+export { isGoogleFontFamily, canonicalGoogleFamily };
 
 export type FontSource = 'uploaded' | 'google' | 'unavailable';
 

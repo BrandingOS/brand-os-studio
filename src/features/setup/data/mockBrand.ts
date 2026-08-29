@@ -166,7 +166,15 @@ export type MockBrand = {
     grey: BrandColor[];
   };
   fonts: BrandFont[];
+  /**
+   * The brand's icon set, as UICONS class names. The WEIGHT is the prefix on
+   * each name (`fi-br-camera`), so a set always carries its own weight.
+   */
   icons: string[];
+  /** Which curated pack the set came from — `brand-kit/data/iconPacks` ids. */
+  iconPack?: string;
+  /** The colour the set is drawn in. Absent means the brand's primary. */
+  iconTint?: string;
   photos: BrandPhoto[];
   websites: BrandWebsite[];
   voice: {

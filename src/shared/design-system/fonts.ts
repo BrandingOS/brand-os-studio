@@ -24,6 +24,7 @@
 
 import type { Brand } from '@/shared/types/brand';
 import type { FontTokenFile } from '@/shared/types/brandAssets';
+import { GOOGLE_FONTS } from './googleFonts';
 
 /** Families we've already pushed to Google Fonts. */
 const googleLoaded = new Set<string>();
@@ -45,6 +46,37 @@ function normalizeFamily(family: string): string {
 
 function isSystemFont(family: string): boolean {
   return SYSTEM_FONTS.has(normalizeFamily(family));
+}
+
+/** The catalogue, keyed by its normalised name. Built once. */
+const GOOGLE_BY_NORMALISED = new Map<string, string>(
+  GOOGLE_FONTS.map((name) => [normalizeFamily(name), name]),
+);
+
+/**
+ * Is this family actually ON Google Fonts?
+ *
+ * Answered OFFLINE, from the generated `GOOGLE_FONTS` catalogue, and
+ * answered BEFORE any request is made. A foundry face — `GT Super`, say —
+ * is not there, and asking fonts.googleapis.com for it does not fail
+ * quietly: the response is a 400 that Chrome reports as
+ * `net::ERR_BLOCKED_BY_ORB`, one red line in the user's console per brand
+ * that licensed a real typeface. That was 14–30 console errors on the
+ * Brand Kit's Typography page (audit D33/D34), and the fix is to never
+ * make the request.
+ *
+ * The catalogue is a snapshot (1929 families, 2026-04), so a family added
+ * to Google since then is treated as unavailable and falls through to the
+ * declared fallback stack. That is the safe direction: a fallback typeface
+ * is a cosmetic miss, a 400 is a defect the user can see.
+ */
+export function isGoogleFontFamily(family: string | undefined | null): boolean {
+  return !!family && GOOGLE_BY_NORMALISED.has(normalizeFamily(family));
+}
+
+/** The catalogue's own spelling of a family ("dm sans" → "DM Sans"). */
+export function canonicalGoogleFamily(family: string): string | undefined {
+  return GOOGLE_BY_NORMALISED.get(normalizeFamily(family));
 }
 
 function familyToGoogleParam(family: string): string {
@@ -135,6 +167,9 @@ function registerUploadedFamily(family: string, files: FontTokenFile[]): void {
 function loadFromGoogle(family: string, weights: number[] = [400, 500, 600, 700]): void {
   if (typeof document === 'undefined') return;
   if (!family || isSystemFont(family)) return;
+  // Never ask Google for a family it has never heard of — see
+  // `isGoogleFontFamily`. The caller's CSS already names a fallback.
+  if (!isGoogleFontFamily(family)) return;
 
   const key = normalizeFamily(family);
   if (googleLoaded.has(key)) return;

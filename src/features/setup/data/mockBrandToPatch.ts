@@ -6,6 +6,7 @@ import { logoRoleLabel } from '@/shared/brand/logoRoles';
 import { TILE_LABEL } from './logoBoard';
 import type { BrandLogo, MockBrand } from './mockBrand';
 import { isRampStep } from './neutralRamp';
+import { suggestedIconsFor } from './brandToMockBrand';
 
 /**
  * Inverse of `brandToMockBrand`: takes the current Setup mock shape
@@ -195,6 +196,48 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
           }
         : {}),
       ...(aboutChanged ? { aboutSections: nextAbout } : {}),
+    };
+  }
+
+  /* ─────────────────────────  icons  ───────────────────────── */
+  //
+  // The icon set is the brand's, so it is STORED — before this it was
+  // recomputed from the brand's prose on every read, and a weight, a tint or an
+  // added symbol survived exactly until the next paint (audit D11).
+  //
+  // It travels under `guidelines.iconography` and, like `guidelines` generally,
+  // that value is persisted WHOLE — so the write spreads what is already there
+  // (the prose a guidelines page prints: style, stroke weight, corner radius,
+  // usage) and only replaces the three fields that are the set itself.
+  //
+  // The WEIGHT is not a field: it is the prefix on each class name
+  // (`fi-br-camera`), which is what a UICONS name already means. One place to
+  // read it from is one place it can be wrong.
+
+  const heldIcons = existing.guidelines?.iconography;
+  const nextIcons = mock.icons.filter((c) => typeof c === 'string' && c.trim());
+  // The baseline is what the brand ALREADY OWNS, and only a suggestion when it
+  // owns nothing — otherwise a save about the mission would quietly commit a
+  // set of icons the user never looked at.
+  const heldSet = heldIcons?.set?.length ? heldIcons.set : suggestedIconsFor(existing);
+  const iconsChanged =
+    !arraysEqual(nextIcons, heldSet) ||
+    (mock.iconPack ?? '') !== (heldIcons?.pack ?? '') ||
+    (mock.iconTint ?? '') !== (heldIcons?.tint ?? '');
+
+  if (iconsChanged && nextIcons.length > 0) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      iconography: {
+        style: heldIcons?.style ?? '',
+        weight: heldIcons?.weight ?? '',
+        cornerRadius: heldIcons?.cornerRadius ?? '',
+        usage: heldIcons?.usage ?? '',
+        examples: heldIcons?.examples ?? [],
+        set: nextIcons,
+        ...(mock.iconPack ? { pack: mock.iconPack } : {}),
+        ...(mock.iconTint ? { tint: mock.iconTint } : {}),
+      },
     };
   }
 
