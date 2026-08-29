@@ -97,6 +97,7 @@ const CanvasGuidelinesPage = lazy(() => import("./pages/dashboard/brand/[slug]/g
 const AccountSettingsPage = lazy(() => import("./pages/settings/account"));
 const PreferencesSettingsPage = lazy(() => import("./pages/settings/preferences"));
 const PlansPage = lazy(() => import("./pages/settings/plans"));
+const MembersSettingsPage = lazy(() => import("./pages/settings/members"));
 const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
@@ -826,7 +827,9 @@ const App = () => (
                 now. Their URLs redirect so old bookmarks and any stale link
                 still land somewhere real. */}
             <Route path="workspace" element={<Navigate to="/settings/preferences" replace />} />
-            <Route path="members" element={<Navigate to="/settings/account" replace />} />
+            {/* Members was a redirect while membership was theatre. It is real now:
+                workspace_members / brand_access / the invitation RPCs. */}
+            <Route path="members" element={<MembersSettingsPage />} />
           </Route>
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />

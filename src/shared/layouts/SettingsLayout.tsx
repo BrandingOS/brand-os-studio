@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { DsTabBar } from '@/shared/ds';
+import { useCan } from '@/shared/access';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import '@/features/settings/settings.css';
 
@@ -19,11 +20,15 @@ import '@/features/settings/settings.css';
  *   Plan         — what you pay
  *
  * Workspace and Members used to be here and were pure theatre: local `useState`
- * plus a success toast, writing nothing. They are removed rather than restyled.
+ * plus a success toast, writing nothing. Workspace stays removed; PEOPLE is back
+ * because membership is now real — workspace_members / brand_access, written only
+ * through capability-checked RPCs. The tab hides itself for anyone without
+ * `members.view`, which is every guest.
  */
 
 const TABS = [
   { value: 'account', label: 'Account' },
+  { value: 'members', label: 'People' },
   { value: 'preferences', label: 'Preferences' },
   { value: 'plans', label: 'Plan' },
 ];
@@ -31,6 +36,15 @@ const TABS = [
 export function SettingsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // A guest has no member directory, so the tab is absent rather than present-and-refusing.
+  // `unknown` shows it optimistically: flashing a tab away after hydration is worse than a
+  // tab that turns out to be empty.
+  const canSeePeople = useCan('members.view') !== false;
+  const tabs = useMemo(
+    () => TABS.filter((t) => t.value !== 'members' || canSeePeople),
+    [canSeePeople],
+  );
 
   const active = useMemo(() => {
     const seg = location.pathname.split('/')[2] ?? 'account';
@@ -50,7 +64,7 @@ export function SettingsLayout() {
 
         <div className="settings-tabs">
           <DsTabBar
-            tabs={TABS}
+            tabs={tabs}
             value={active}
             onChange={(value) => navigate(`/settings/${value}`)}
             aria-label="Settings sections"

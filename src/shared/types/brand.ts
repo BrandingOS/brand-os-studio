@@ -125,6 +125,19 @@ export interface Brand {
   isPublic?: boolean;
   publicUrl?: string;
   customDomain?: string;
+
+  /**
+   * Tenancy and lifecycle (migrations 035–045). `workspaceId` used to exist as a column
+   * and be DROPPED by mapFromDatabase, so nothing in the app knew which workspace a brand
+   * belonged to; it is NOT NULL in the database now and carried here.
+   */
+  workspaceId?: string;
+  /** Archived brands are read-only for everyone and hidden from lists. */
+  archivedAt?: Date | null;
+  /** Optimistic-concurrency token. Send it back on a checked write; never set it. */
+  version?: number;
+  /** Who last changed the brand — stamped by trigger, never by a client. */
+  updatedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

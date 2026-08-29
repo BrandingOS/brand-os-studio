@@ -24,6 +24,7 @@ import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useWorkspaceStore } from '@/shared/store/workspaceStore';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useAccessStore } from '@/shared/access';
 import { reconfigureForAuth } from '@/core/boot';
 import { container } from '@/core/container/ServiceContainer';
 import { fetchDeletionState } from '@/features/auth/deletion/accountDeletion';
@@ -172,6 +173,9 @@ const runSignedInSideEffects = (userId: string) => {
   void hydratePreferences();
   void checkDeletionState();
   useWorkspaceStore.getState().loadAll().catch(console.error);
+  // What this user may do. Hydrated here and NEVER persisted, so a removed member's next
+  // load resolves to nothing rather than to a cached yes.
+  useAccessStore.getState().hydrate().catch(console.error);
   // Services were just swapped to Supabase — anything loaded against the
   // Local service is stale until re-fetched.
   useBrandStore.getState().loadAll().catch(console.error);
@@ -210,6 +214,7 @@ export function becomeGuest(): void {
   reconfigureForAuth(false);
   if (wasAuthed) {
     useWorkspaceStore.getState().reset();
+    useAccessStore.getState().reset();
     // The signed-out user's brands must not linger for the next visitor.
     useBrandStore.getState().resetScope();
     useBrandStore.getState().loadAll().catch(console.error);

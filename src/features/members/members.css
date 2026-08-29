@@ -1,0 +1,97 @@
+/* Members — feature-local chrome built on the DS tokens.
+   Scoped under [data-members] so nothing here leaks into other settings pages. */
+
+[data-members] .mem-hero-actions { display: flex; align-items: center; gap: var(--ds-space-3, 12px); flex-wrap: wrap; }
+[data-members] .mem-seats { color: var(--ds-text-muted, #6b6b6b); font-size: 13px; }
+[data-members] .mem-seats[data-tight='true'] { color: var(--ds-text-warning, #a35b00); }
+
+[data-members] .mem-table { display: grid; gap: var(--ds-space-3, 12px); }
+[data-members] .mem-table-filters { display: flex; gap: var(--ds-space-2, 8px); align-items: center; }
+[data-members] .mem-table-filters > :first-child { flex: 1 1 220px; max-width: 320px; }
+
+[data-members] .mem-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+[data-members] .mem-row {
+  display: flex; align-items: center; gap: var(--ds-space-2, 8px);
+  border: 1px solid var(--ds-border-subtle, rgba(0,0,0,.07));
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-surface, #fff);
+  padding: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
+  /* the in-place DsSelect / DsMenu must be able to escape the row */
+  overflow: visible;
+}
+[data-members] .mem-row[data-busy] { opacity: .6; pointer-events: none; }
+[data-members] .mem-row-main {
+  flex: 1; display: flex; align-items: center; gap: var(--ds-space-3, 12px);
+  background: none; border: 0; padding: var(--ds-space-2, 8px) 0; text-align: left;
+  cursor: pointer; color: inherit; font: inherit; min-width: 0;
+}
+[data-members] .mem-row-main--static { cursor: default; }
+[data-members] .mem-row-identity { display: grid; gap: 2px; min-width: 0; flex: 1; }
+[data-members] .mem-row-name {
+  display: flex; align-items: center; gap: var(--ds-space-2, 8px);
+  font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+[data-members] .mem-row-you {
+  font-size: 11px; color: var(--ds-text-muted, #6b6b6b);
+  border: 1px solid var(--ds-border-subtle, rgba(0,0,0,.1));
+  border-radius: 999px; padding: 0 6px;
+}
+[data-members] .mem-row-email,
+[data-members] .mem-row-access { color: var(--ds-text-muted, #6b6b6b); font-size: 13px; }
+[data-members] .mem-row-access { white-space: nowrap; }
+[data-members] .mem-row-menu {
+  border: 0; background: none; padding: 6px; border-radius: var(--ds-radius-sm, 8px);
+  color: var(--ds-text-muted, #6b6b6b); cursor: pointer; line-height: 0;
+}
+[data-members] .mem-row-menu:hover { background: var(--ds-surface-subtle, rgba(0,0,0,.04)); }
+
+[data-members] .mem-rowmenu { position: relative; }
+[data-members] .mem-rowmenu-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; }
+
+[data-members] .mem-avatar {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 36px; height: 36px; border-radius: 999px; overflow: hidden;
+  background: var(--ds-surface-subtle, #f1efec); color: var(--ds-text-muted, #6b6b6b);
+  font-size: 13px; font-weight: 600;
+}
+[data-members] .mem-avatar img { width: 100%; height: 100%; object-fit: cover; }
+[data-members] .mem-avatar--pending { font-size: 15px; }
+
+[data-members] .mem-empty,
+.mem-empty { color: var(--ds-text-muted, #6b6b6b); font-size: 13px; padding: var(--ds-space-3, 12px) 0; }
+
+/* modal interiors are NOT under [data-members] — DsModal renders in place but may be
+   mounted from anywhere, so these stay unscoped and use tokens with fallbacks */
+.mem-invite, .mem-sheet { display: grid; gap: var(--ds-space-4, 16px); }
+.mem-field { display: grid; gap: var(--ds-space-2, 8px); }
+.mem-field-label { font-size: 13px; font-weight: 500; }
+.mem-field-hint { font-size: 12px; color: var(--ds-text-muted, #6b6b6b); line-height: 1.5; }
+.mem-optional { color: var(--ds-text-muted, #6b6b6b); font-weight: 400; }
+.mem-all-row { display: flex; align-items: center; gap: var(--ds-space-2, 8px); flex-wrap: wrap; font-size: 13px; }
+.mem-switches { display: grid; gap: var(--ds-space-2, 8px); }
+.mem-brand-picker { display: grid; gap: var(--ds-space-2, 8px); }
+.mem-brand-list {
+  display: grid; gap: 4px; max-height: 220px; overflow: auto;
+  border: 1px solid var(--ds-border-subtle, rgba(0,0,0,.07));
+  border-radius: var(--ds-radius-md, 10px); padding: var(--ds-space-2, 8px);
+}
+.mem-brand-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-2, 8px); }
+.mem-sheet-head { display: flex; align-items: center; gap: var(--ds-space-3, 12px); }
+.mem-sheet-name { margin: 0; font-weight: 600; }
+.mem-sheet-email { margin: 0; font-size: 13px; color: var(--ds-text-muted, #6b6b6b); }
+
+.mem-matrix { display: grid; gap: var(--ds-space-5, 20px); }
+.mem-matrix h3 { margin: 0 0 4px; font-size: 15px; }
+.mem-matrix-roles { display: grid; gap: 6px; margin: var(--ds-space-3, 12px) 0; }
+.mem-matrix-roles div { display: grid; grid-template-columns: 90px 1fr; gap: var(--ds-space-2, 8px); }
+.mem-matrix-roles dt { font-weight: 600; font-size: 13px; }
+.mem-matrix-roles dd { margin: 0; font-size: 13px; color: var(--ds-text-muted, #6b6b6b); }
+.mem-matrix-scroll { overflow-x: auto; }
+.mem-matrix-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.mem-matrix-table th, .mem-matrix-table td {
+  border-bottom: 1px solid var(--ds-border-subtle, rgba(0,0,0,.07));
+  padding: 6px 10px; text-align: left; white-space: nowrap;
+}
+.mem-matrix-table td { text-align: center; }
+.mem-matrix-table thead th { font-weight: 600; }
+.mem-matrix-table tbody th { font-weight: 400; }

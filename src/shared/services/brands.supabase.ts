@@ -354,6 +354,11 @@ export class SupabaseBrandsService implements IBrandsService {
       // database had nowhere to put (pre-031).
       workspaceCard: data.workspace_card || rememberedWorkspaceCard(data.id) || undefined,
       isPublic: data.is_public || false,
+      // Carried, not dropped: the access model needs to know which workspace a brand is in
+      workspaceId: data.workspace_id ?? undefined,
+      archivedAt: data.archived_at ? new Date(data.archived_at) : null,
+      version: typeof data.version === 'number' ? data.version : undefined,
+      updatedBy: data.updated_by ?? null,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,
       assets: [],
