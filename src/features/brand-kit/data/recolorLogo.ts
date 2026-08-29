@@ -193,8 +193,51 @@ export function visuallyClose(a: string, b: string): boolean {
  * Used both to enumerate synthetic templates and to look up a combo
  * by index from the renderer.
  */
+/**
+ * Roles that are the SAME DRAWING as another logo, in one flat colour.
+ *
+ * A mono cut is not a second logo — it is the logo, redrawn in black or
+ * in white so it can sit on a ground that the coloured original cannot.
+ */
+const MONO_ROLES: ReadonlySet<string> = new Set(['mono.white', 'mono.black']);
+
+/**
+ * Which logos may act as a RECOLOURING SOURCE, by index into `logos`.
+ *
+ * The gallery paints every combo tile as a CSS mask filled with the mark
+ * colour, which discards the source artwork's own colour completely. So
+ * two logos that share a SILHOUETTE produce pixel-identical tiles, and a
+ * brand's mono cuts share the silhouette of the logo they were cut from
+ * by definition.
+ *
+ * Measured on Raqm, whose three logos are Primary, On dark (mono.white)
+ * and On light (mono.black) — one drawing in three colours: the drilldown
+ * generated 51 recoloured tiles of which only 17 were distinct. **34 of
+ * 54 tiles were exact duplicates**, and because the tile name carried no
+ * logo, they were duplicates under duplicate names too.
+ *
+ * A brand that has ONLY mono cuts still gets tiles — the first one is
+ * kept as the source rather than leaving the gallery empty.
+ *
+ * This does not claim to catch every shape collision: two genuinely
+ * different roles could still hold the same artwork (the same file
+ * uploaded as both Primary and Wordmark). Proving that needs the pixel
+ * comparison in `onboarding/understanding/artwork.ts`, which is async and
+ * cannot run inside this synchronous list. Role covers the case every
+ * brand actually has.
+ */
+export function recolorSourceIndexes(
+  logos: ReadonlyArray<{ role?: string }>,
+): number[] {
+  const distinct = logos
+    .map((logo, index) => ({ logo, index }))
+    .filter(({ logo }) => !MONO_ROLES.has(logo.role ?? ''));
+  if (distinct.length > 0) return distinct.map(({ index }) => index);
+  return logos.length > 0 ? [0] : [];
+}
+
 export function logoCombosFor(brand: {
-  logos: Array<{ id: string; label: string; svg: string }>;
+  logos: Array<{ id: string; label: string; svg: string; role?: string }>;
   colors: { core: { hex: string; name: string }[]; accent: { hex: string; name: string }[]; grey: { hex: string; name: string }[] };
 }): Array<{
   logoIndex: number;
@@ -229,6 +272,10 @@ export function logoCombosFor(brand: {
     if (!m) return;
     const key = m.hex.trim().toLowerCase();
     if (seenMarks.has(key)) return;
+    // Backgrounds are deduped perceptually; marks were deduped only by
+    // exact hex, so a brand whose secondary is #FEFEFE drew a tile
+    // indistinguishable from its White one.
+    if (marks.some((kept) => visuallyClose(kept.hex, m.hex))) return;
     seenMarks.add(key);
     marks.push(m);
   };
@@ -237,13 +284,17 @@ export function logoCombosFor(brand: {
   pushMark({ hex: '#FFFFFF', name: 'White' });
 
   const out: ReturnType<typeof logoCombosFor> = [];
-  brand.logos.forEach((logo, logoIndex) => {
+  // One source per silhouette. `logoIndex` stays an index into
+  // `brand.logos` — the renderer looks the artwork up by it.
+  for (const logoIndex of recolorSourceIndexes(brand.logos)) {
+    const logo = brand.logos[logoIndex];
+    if (!logo) continue;
     for (const mark of marks) {
       for (const bg of backgrounds) {
         if (colorsTooSimilar(mark.hex, bg.hex)) continue;
         out.push({ logoIndex, logoLabel: logo.label, mark, bg });
       }
     }
-  });
+  }
   return out;
 }

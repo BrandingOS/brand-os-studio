@@ -4,6 +4,7 @@
 // exports surface and the CJS module.exports pattern.
 import * as opentype from 'opentype.js';
 import { triggerBlobDownload } from './colorPaletteExport';
+import type { ZipFolder } from './kitExport';
 
 /**
  * Icons drilldown export pipeline. Produces a clean ZIP of editable
@@ -358,6 +359,32 @@ export async function downloadIconsBundle(
   zipName: string,
 ): Promise<void> {
   if (entries.length === 0) return;
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  await addIconsToZip(zip, entries, zipName);
+  triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${zipName}.zip`);
+}
+
+/**
+ * Write the icon bundle into a folder of an EXISTING zip.
+ *
+ * The whole-kit export needs the same SVG/PNG/JPG set the Icons card
+ * download produces, filed under `icons/` rather than in a zip of its
+ * own — so the builder is the shared thing and the download is a wrapper
+ * around it. Returns how many icons were written.
+ */
+export async function addIconsToZip(
+  zip: ZipFolder,
+  entries: IconExportEntry[],
+  zipName: string,
+  options: { lean?: boolean } = {},
+): Promise<number> {
+  if (entries.length === 0) return 0;
+  // `lean` is the whole-kit cut: vector plus one raster per icon, and the
+  // editable combined SVG. What it drops is the JPG set (a white-backed
+  // duplicate of the PNG) and the combined PDF, which wraps a raster of
+  // the whole grid and was, on its own, 8.7 MB of a 18 MB brand kit.
+  const lean = options.lean === true;
 
   // Pre-load every font referenced by the icons. opentype.js parses
   // each font once; results land in `fontCache` for the per-icon
@@ -369,11 +396,9 @@ export async function downloadIconsBundle(
   }
   await Promise.all(Array.from(families).map((f) => getFont(f)));
 
-  const { default: JSZip } = await import('jszip');
-  const zip = new JSZip();
   const svgDir = zip.folder('SVG');
   const pngDir = zip.folder('PNG');
-  const jpgDir = zip.folder('JPG');
+  const jpgDir = lean ? null : zip.folder('JPG');
   const usedNames = new Set<string>();
   const grid: { glyph: GlyphInfo; font: opentype.Font; name: string }[] = [];
 
@@ -399,9 +424,11 @@ export async function downloadIconsBundle(
     const canvas = await svgToCanvas(svg, ICON_SIZE, ICON_SIZE);
     if (canvas) {
       const png = await canvasToBlob(canvas, 'image/png');
-      const jpg = await whiteBackedJpg(canvas);
       if (pngDir && png) pngDir.file(`${slug}.png`, png);
-      if (jpgDir && jpg) jpgDir.file(`${slug}.jpg`, jpg);
+      if (jpgDir) {
+        const jpg = await whiteBackedJpg(canvas);
+        if (jpg) jpgDir.file(`${slug}.jpg`, jpg);
+      }
     }
     grid.push({ glyph, font, name: entry.name || slug });
   }
@@ -412,12 +439,14 @@ export async function downloadIconsBundle(
     // selectable, editable shape.
     const combined = buildCombinedIconsSvg(grid);
     zip.file(`${zipName}.svg`, combined.svg);
-    // PDF of the same grid for users who reach for that format —
-    // wraps the vector SVG into a single page. The SVG above
-    // remains the editable source.
-    const pdf = await buildCombinedPdfBlob(combined.svg, combined.width, combined.height);
-    if (pdf) zip.file(`${zipName}.pdf`, pdf);
+    if (!lean) {
+      // PDF of the same grid for users who reach for that format —
+      // wraps the vector SVG into a single page. The SVG above
+      // remains the editable source.
+      const pdf = await buildCombinedPdfBlob(combined.svg, combined.width, combined.height);
+      if (pdf) zip.file(`${zipName}.pdf`, pdf);
+    }
   }
 
-  triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${zipName}.zip`);
+  return grid.length;
 }

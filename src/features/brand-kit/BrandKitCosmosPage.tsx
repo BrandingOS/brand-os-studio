@@ -35,6 +35,7 @@ import {
   BrandKitCardEditor,
   type EditorTarget,
 } from './components/BrandKitCardEditor';
+import { ExportKitDialog } from './components/ExportKitDialog';
 import { IconPickerModal } from './components/IconPickerModal';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { variantsForCard } from './data/legacy-mapping';
@@ -55,6 +56,13 @@ import { downloadIconsBundle, type IconExportEntry } from './data/iconExport';
 import { downloadFontsBundle } from './data/fontExport';
 import { contentForTemplate, loadBrandCustomizations } from './data/savedContent';
 import {
+  DEFAULT_FEATURED_IDS_BY_LABEL,
+  PICKER_ASPECT_BY_LABEL,
+  PICKER_LABELS,
+  aspectForLabel,
+  featuredTemplates,
+} from './data/cardPresentation';
+import {
   cardCustomizationKey,
   loadCardCustomization,
   loadFeaturedVariants,
@@ -68,110 +76,13 @@ import {
 } from './data/templateSnapshot';
 import {
   downloadAboutDoc,
-  downloadKitZip,
   downloadLogosZip,
   paletteOf,
   slugifyName,
 } from './data/kitExport';
+import { downloadEverything } from './data/exportEverything';
+import { isCancelled } from './data/exportScheduler';
 
-/** Curated 3-tile defaults for cards that have a designed picker
- *  pattern. Anything not listed here falls back to the first 3
- *  templates returned by `variantsForCard` (in template order). The
- *  user-facing UX: each drilldown shows three featured tiles, plus a
- *  "+" button that opens the picker modal to browse the full library
- *  and append more tiles for the session. */
-const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
-  'Business Card': [
-    'business-cards-ext-3',   // Brute Force
-    'business-cards-ext-4',   // Frosted Layer
-    'business-cards-ext-113', // Wave 2 · 95
-  ],
-  Letterhead: [
-    'letterhead-ext-6',  // Bottom Block
-    'letterhead-ext-69', // Wave 2 · 39
-    'letterhead-ext-73', // Wave 2 · 43
-  ],
-  Envelope: [
-    'envelope-ext-30',  // Subtle Lux
-    'envelope-ext-3',   // Top Flap
-    'envelope-ext-127', // Wave 2 · 97
-  ],
-  Invoice: [
-    'invoices-ext-4', // Brute Force
-    'invoices-ext-3', // Editorial Header
-    'invoices-ext-8', // Receipt Roll
-  ],
-};
-
-/** Set of card labels that get the "3 featured + picker" pattern.
- *  Brand-asset cards (Logos / Colors / Fonts / Icons / Photos / About)
- *  are intentionally excluded — they're driven by real Setup data,
- *  not template variants. */
-const PICKER_LABELS: ReadonlySet<string> = new Set<string>([
-  // Stationery
-  'Business Card',
-  'Letterhead',
-  'Envelope',
-  'Invoice',
-  // Social
-  'Profile',
-  'Cover',
-  'Post',
-  'Story',
-  // Web
-  'Favicon',
-  'Website',
-  'Email Signature',
-  'Landing Page',
-  // Brand Guides
-  'Logo Guide',
-  'Color Guide',
-  'Typography Guide',
-  'Voice Guide',
-  'Imagery Guide',
-  // Presentations
-  'Pitch Deck',
-  'Business Plan',
-  'Proposal',
-  'Case Studies',
-  // Animations
-  'Logo Reveal',
-  'Slide In',
-  'Fade',
-  'Rotate',
-]);
-
-/** Per-label width-over-height ratio for the picker modal tiles.
- *  Falls back to 1.6 (the common business-card / landscape default).
- *  Keep this aligned with each card's natural orientation so the
- *  picker grid reads at a glance. */
-const PICKER_ASPECT_BY_LABEL: Record<string, number> = {
-  'Business Card': 1.6,
-  Letterhead: 1 / 1.414,
-  Envelope: 1.6,
-  Invoice: 1 / 1.414,
-  Profile: 1,
-  Cover: 1.6,
-  Post: 1,
-  Story: 9 / 16,
-  Favicon: 1,
-  Website: 1.6,
-  'Email Signature': 1.6,
-  'Landing Page': 1.6,
-  'Logo Guide': 1 / 1.414,
-  'Color Guide': 1 / 1.414,
-  'Typography Guide': 1 / 1.414,
-  'Voice Guide': 1 / 1.414,
-  'Imagery Guide': 1 / 1.414,
-  'Pitch Deck': 1.6,
-  'Business Plan': 1.6,
-  Proposal: 1.6,
-  'Case Studies': 1.6,
-  'Logo Reveal': 1,
-  'Slide In': 1,
-  Fade: 1,
-  Rotate: 1,
-};
 // Rounded weight family from Flaticon UICONS — Regular drives the
 // picker grid + default class names; Thin/Bold/Solid let the editor
 // retint a single icon's weight without changing the underlying name.
@@ -538,94 +449,99 @@ export function BrandKitCosmosPage({
     [effectiveBrand, sourceBrand, runColorsExport],
   );
 
-  // Section-level download (the small icon in each section header).
-  // Brand Assets → the full kit bundle; template sections → a zip with
-  // one rasterized PNG per card (its first variant).
   /**
-   * Bundle a whole group.
+   * Run an export and keep the page usable while it runs.
    *
-   * Driven by the ENTRIES the group actually shows, not by the storage
-   * section's full card list — otherwise a group would quietly export
-   * things the viewer cannot see, and (for a group whose items were
-   * regrouped) miss things they can. Composed items have no variant to
-   * rasterise and are skipped; a group made only of those offers no
-   * download at all (see the render).
+   * One job at a time, driven by CATALOG ENTRIES — the whole kit is every
+   * visible entry, a group is that group's entries, and both go through
+   * the same walker. A progress toast names the unit being worked on and
+   * carries a Cancel that is honoured between units, and anything that
+   * could not be included is reported rather than quietly missing.
    */
-  const handleDownloadGroup = useCallback(
-    async (entries: ReadonlyArray<KitEntry>, groupName: string) => {
-      const b = effectiveBrand;
-      const slug = slugifyName(b.name);
-      const id = toast.loading(`Preparing ${groupName} download…`);
+  const [exportingKit, setExportingKit] = useState(false);
+  const exportAbortRef = useRef<AbortController | null>(null);
+
+  const runKitExport = useCallback(
+    async (entries: ReadonlyArray<KitEntry>, title: string, fileSuffix: string) => {
+      if (exportAbortRef.current) {
+        toast('An export is already running');
+        return;
+      }
+      const controller = new AbortController();
+      exportAbortRef.current = controller;
+      setExportingKit(true);
+      const cancel = { label: 'Cancel', onClick: () => controller.abort() };
+      const id = toast.loading(`Exporting ${title}…`, { duration: Infinity, action: cancel });
       try {
-        // Brand Assets has a real, purpose-built bundle already.
-        if (entries.every((e) => e.sectionKey === 'brand-assets')) {
-          await downloadKitZip(b);
-          toast.success('Brand assets exported', { id });
-          return;
-        }
-        if (!sourceBrand) {
-          toast.error('Export needs a saved brand', { id });
-          return;
-        }
-        const { default: JSZip } = await import('jszip');
-        const zip = new JSZip();
-        const saved = loadBrandCustomizations(customizationBrandId);
-        let added = 0;
-        for (const entry of entries) {
-          if (entry.view !== 'variants') continue;
-          const tpl = variantsForCard(entry.sectionKey, entry.storageLabel, b)[0];
-          if (!tpl) continue;
-          const aspect = PICKER_ASPECT_BY_LABEL[entry.storageLabel] ?? 1.6;
-          const blob = await snapshotTemplatePng(
-            renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
-            260,
-            aspect,
-          );
-          if (blob) {
-            zip.file(`${slugifyName(entry.label)}.png`, blob);
-            added += 1;
-          }
-        }
-        if (added === 0) {
-          toast.error(`Nothing to export for ${groupName} yet`, { id });
-          return;
-        }
-        triggerBlobDownload(
-          await zip.generateAsync({ type: 'blob' }),
-          `${slug}-${slugifyName(groupName)}.zip`,
-        );
-        toast.success(`${groupName} exported`, { id });
-      } catch (err) {
-        toast.error('Download failed', {
-          id,
-          description: err instanceof Error ? err.message : 'Unknown error',
+        const result = await downloadEverything({
+          brand: effectiveBrand,
+          sourceBrand,
+          entries,
+          saved: loadBrandCustomizations(customizationBrandId),
+          featuredIdsByLabel,
+          signal: controller.signal,
+          fileName: `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`,
+          onProgress: (p) => {
+            toast.loading(
+              p.phase === 'zipping' ? p.label : `${p.label} — ${p.done + 1} of ${p.total}`,
+              { id, duration: Infinity, action: cancel },
+            );
+          },
         });
+        if (result.added === 0) {
+          toast.error(`Nothing to export for ${title} yet`, { id, duration: 5000 });
+          return;
+        }
+        const missed = result.skipped;
+        toast.success(`${title} exported`, {
+          id,
+          duration: 6000,
+          description:
+            missed.length > 0
+              ? `Left out: ${missed.slice(0, 3).map((m) => m.label).join(', ')}${
+                  missed.length > 3 ? ` and ${missed.length - 3} more` : ''
+                }.`
+              : undefined,
+        });
+      } catch (err) {
+        if (isCancelled(err)) {
+          toast('Export cancelled', { id, duration: 3000 });
+        } else {
+          toast.error('Export failed', {
+            id,
+            duration: 6000,
+            description: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      } finally {
+        exportAbortRef.current = null;
+        setExportingKit(false);
       }
     },
-    [effectiveBrand, sourceBrand],
+    [effectiveBrand, sourceBrand, customizationBrandId, featuredIdsByLabel],
   );
 
-  // Top-right "Export kit" (KIT-02) — previously a dead button.
-  const [exportingKit, setExportingKit] = useState(false);
-  const handleExportKit = useCallback(async () => {
-    if (exportingKit) return;
-    setExportingKit(true);
-    const id = toast.loading('Bundling your brand kit…');
-    try {
-      await downloadKitZip(effectiveBrand);
-      toast.success('Brand kit exported', {
-        id,
-        description: 'Colors, fonts, logos, about and brand.json in one zip.',
-      });
-    } catch (err) {
-      toast.error('Export failed', {
-        id,
-        description: err instanceof Error ? err.message : 'Unknown error',
-      });
-    } finally {
-      setExportingKit(false);
-    }
-  }, [effectiveBrand, exportingKit]);
+  // Section-level download (the small icon in each group header).
+  const handleDownloadGroup = useCallback(
+    (entries: ReadonlyArray<KitEntry>, groupName: string) =>
+      runKitExport(entries, groupName, slugifyName(groupName)),
+    [runKitExport],
+  );
+
+  // Top-right "Export kit" — asks first. Everything is ticked, so the
+  // default is still "the whole kit"; the sheet exists so the user can
+  // take less than that without giving up the button.
+  const [exportPickerOpen, setExportPickerOpen] = useState(false);
+  const allEntries = useMemo(() => groups.flatMap((g) => g.entries), [groups]);
+  const handleExportKit = useCallback(() => setExportPickerOpen(true), []);
+  const handleExportChosen = useCallback(
+    (chosen: KitEntry[]) => {
+      setExportPickerOpen(false);
+      const whole = chosen.length === allEntries.length;
+      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit');
+    },
+    [runKitExport, allEntries.length],
+  );
 
   // Apply a single rounded weight to every icon in the kit. Re-prefixes
   // each class name (camera → fi-{weight}-camera) and writes back into
@@ -926,14 +842,11 @@ export function BrandKitCosmosPage({
                   key={group.id}
                   dataKey={group.id}
                   title={group.label}
-                  onDownload={
-                    // A group of composed views has nothing to rasterise
-                    // — offering Download there only ever produced
-                    // "nothing to export".
-                    group.entries.some((e) => e.view === 'variants')
-                      ? () => handleDownloadGroup(group.entries, group.label)
-                      : undefined
-                  }
+                  // Every group is exportable now: a composed view
+                  // rasterises as a page body and Strategy writes the
+                  // about document, so there is no group whose Download
+                  // can only answer "nothing to export".
+                  onDownload={() => handleDownloadGroup(group.entries, group.label)}
                 >
                   <EntryGrid
                     entries={group.entries}
@@ -1172,6 +1085,12 @@ export function BrandKitCosmosPage({
           await handleDownloadCard(t);
         }}
         onUpdateIconAt={handleUpdateIconAt}
+      />
+      <ExportKitDialog
+        open={exportPickerOpen}
+        onClose={() => setExportPickerOpen(false)}
+        entries={allEntries}
+        onExport={handleExportChosen}
       />
       <IconPickerModal
         open={iconPickerOpen}

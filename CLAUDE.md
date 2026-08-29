@@ -869,6 +869,24 @@ falling back to `label:<label>` for direct card edits).
   generates every logo-on-background combination; `visuallyClose(a, b)`
   collapses tiles with RGB distance ≤ 60² (the helper that shrunk the
   93-tile logo wall to a curated set on 2026-05-09 in commit 021e1b1).
+  **A combo tile is a MASK, so the source artwork's colour is discarded —
+  two logos that share a SILHOUETTE draw the same tile.** A brand's mono
+  cuts share the silhouette of the logo they were cut from by definition,
+  so `recolorSourceIndexes` keeps one source per shape (`mono.white` /
+  `mono.black` are never separate sources; a brand holding ONLY mono cuts
+  still gets its first one). Measured on Raqm — Primary + On dark + On
+  light, one drawing in three colours — the drilldown was generating 51
+  recoloured tiles of which 17 were distinct: **34 of 54 tiles were exact
+  duplicates, under duplicate names.** Marks are deduped by
+  `visuallyClose` too, not only by exact hex. This does NOT catch every
+  shape collision (the same file uploaded as both Primary and Wordmark);
+  proving that needs the pixel comparison in
+  `onboarding/understanding/artwork.ts`, which is async and cannot run in
+  this synchronous list. The ORIGINAL tiles keep every variant — they show
+  the real files, and a white cut and a black cut are different artwork.
+  A combo tile is named `<logo> · <mark> on <bg>` whenever more than one
+  source survives, so the wordmark and the icon on the same ground can
+  never both read "Primary on Beige".
 - Neutrals are excluded from drilldown grids for Logos + Colors (commit
   90d8eb6, 2026-05-10). Don't reintroduce them without explicit ask.
 - `shared/brand/logoOnBackground.ts:contrastRatio()` is used at line
@@ -886,13 +904,106 @@ falling back to `label:<label>` for direct card edits).
   `scale: 4` — mounting wide produces starved text.
 - Card editor Download: snapshots the LIVE `.bk-preview-host` DOM so the
   export includes the user's unsaved overrides.
-- Top-right "Export kit": one zip (colors/ fonts/ logos/ about.md
-  brand.json) via `kitExport.downloadKitZip`. Kit colors are deliberately
-  slim (core+accent, svg+png only) — the full-fidelity palette (all
-  neutrals, jpg + ai) is the dedicated Colors download; the per-color
-  `.ai` files are ~10MB each and once ballooned the kit zip to 590MB.
 - Do NOT add a tint/veil overlay over the stock card cover art — tried
   2026-08-10, explicitly rejected by the user, reverted.
+
+**"Export kit" means the whole kit (`data/exportEverything.tsx`, 2026-08-22).**
+Until this it shipped `colors/ fonts/ logos/ about.md brand.json` and
+**none of the deliverables** — a brand kit containing no application of the
+brand. `buildKitZipBlob({brand, sourceBrand, entries, saved,
+featuredIdsByLabel, onProgress, signal})` is the one walker; the per-group
+header download calls it with one group's entries, which is why the two
+can never disagree. Rules that bind:
+
+- **THE CATALOG decides what is in the zip.** `entries` comes from
+  `visibleGroups(viewer)`, so an experimental capability cannot leak into a
+  customer's download and a regrouped item cannot be missed. `planKitExport`
+  is pure and total — one unit per entry — so the count in the progress
+  toast is the count of things the user asked for.
+- **A logo file is the logo, not a wrapper around its URL.** Setup hands
+  the kit each variant as `<svg><rect/><image href="…"/></svg>` so a TILE
+  can paint it on a ground. Zipped verbatim that is an `.svg` pointing at a
+  URL the recipient cannot resolve and a `.png` that is **blank** —
+  Chromium does not paint an embedded `<image>` when the SVG is loaded
+  through `<img>`, which is `rasterizeSvg`'s only path (probed four ways:
+  plain href, xlink, data:, and after `decode()`). `extractLogoHref` pulls
+  the href and the export ships the referenced bytes under their true
+  extension. The generated lettermark has no href and still ships as SVG.
+- **Already-compressed bytes are STOREd** (`compressionFor`, applied by
+  `zipAdd`). DEFLATE over a PNG or a WOFF2 is main-thread time for ~0
+  bytes, and a kit is nearly all of them. Pinned by measuring the ARCHIVE
+  (`compressedSize === uncompressedSize`), not the flag.
+- **The page stays alive.** Every unit yields (`exportScheduler.ts`:
+  `scheduler.yield()`, else rAF + macrotask) and the font cushion is paid
+  ONCE (`primeRenderEnvironment`) rather than 250ms per snapshot. No Web
+  Worker: html2canvas needs the DOM, so the expensive half cannot move.
+- **Cancel is real.** `signal` is checked between units and inside the long
+  ones; the progress toast carries it. `isCancelled(err)` distinguishes it
+  from failure.
+- **A short export is never silent.** Anything left out comes back in
+  `skipped` with a reason, and the success toast names it.
+- **THE SNAPSHOT HOST IS PART OF THE WORKSPACE.** `templateSnapshot` sets
+  `data-workspace` + `data-theme="light"` on the offscreen host. Nearly
+  every rule the kit's markup needs is written `[data-workspace] .bk-…`,
+  and a host hanging off `<body>` gets NONE of them: the system views'
+  example frames lose `position:absolute; inset:0`, collapse to 0×0, and
+  html2canvas dies parsing a gradient on a zero box ("addColorStop …
+  non-finite"). What survived that was a picture of unstyled text — an
+  export that looked like it worked, and a browser test that passed on it.
+  Same family as the Radix-portal gotcha: scoped CSS follows the ANCESTOR,
+  not the element. The theme is pinned light because an export is a
+  document someone sends on.
+- **The strategy ships as three files** (`data/strategyDocument.ts`):
+  `strategy.md`, `strategy.pdf` and the `brand.json` block. All three read
+  `STRATEGY_CARDS` — Setup's own list, order and names — so the export
+  cannot describe the brand differently from the screen the user filled
+  in. The PDF is VECTOR text (jsPDF), not a screenshot: cover on the
+  brand's colour with the real logo through `pickLogoOnBackground`, a
+  colour band that DROPS swatches too close to the ground, palette page,
+  type specimen, then the answers.
+- **jsPDF cannot render a VARIABLE font.** Google serves Inter, DM Sans
+  and most of its catalogue as variable faces; embedding one made every
+  line of the PDF render as a single stray glyph. `isVariableFont` reads
+  the sfnt table directory for `fvar` and refuses those, falling back to
+  Helvetica. A static uploaded face still embeds and still wins.
+- **Google's CSS API answers with one file PER SUBSET**
+  (`-latin`, `-cyrillic-ext`, `-greek`, …). `latinOnly` keeps the Latin
+  cut: embedding `cyrillic-ext` rendered the whole document as `A`, and
+  shipping all seven × TTF+OTF made `fonts/` 8 MB on its own.
+- **`lean` is the kit's cut of a dedicated download.** Fonts drop the OTF
+  duplicate and the non-Latin subsets; icons drop the JPG set and the
+  combined PDF (a raster of the grid — 8.7 MB of an 18 MB kit). The
+  dedicated Fonts and Icons downloads still ship everything. A whole kit
+  for a seed brand is 160 files / 7.4 MB / ~15s.
+- **The button ASKS first.** `components/ExportKitDialog.tsx` opens with
+  everything ticked, so the default is still the whole kit; the sheet
+  exists so a user can take less — `Everything` / `Essentials only`
+  presets, per-group and per-item checkboxes, and a rough size/time
+  estimate from measured per-kind costs. The list IS the catalog entries
+  the walker will be handed, so the sheet and the zip cannot diverge.
+- Composed views are DOCUMENTS: `snapshotDocumentPng` mounts at 1120px with
+  auto height (`.bk-snapshot-host--auto` resets the `height: 100%` the card
+  contract imposes on children, or they collapse to nothing). Brand Board
+  snapshots `BrandBoardCanvas` at its own 1600×1000 — never `BrandBoardView`,
+  which contains a react-router `Link` and would throw outside a Router.
+- No empty folders: `lazyFolder` (in `data/zipFile.ts`, a leaf both
+  `kitExport` and `fontExport` can import without a cycle) creates the
+  directory entry on first write. A brand with no icons was shipping
+  `icons/SVG/`, `icons/PNG/` and `icons/JPG/`, all empty, which reads as
+  "the export lost my icons".
+- Kit colors stay deliberately slim (core+accent, svg+png only) — the
+  full-fidelity palette (all neutrals, jpg + ai) is the dedicated Colors
+  download; the per-color `.ai` files are ~10MB each and once ballooned the
+  kit zip to 590MB.
+- `downloadKitZip` remains the assets-only bundle (BrandKitNextPage,
+  `folders/useKitLibrary`) and now shares the very same folder builders.
+- A card's shape and its featured variants live in `data/cardPresentation.ts`
+  so the export snapshots what the user is actually looking at.
+- Tests: `data/kitExport.test.ts`, `data/exportEverything.test.ts`,
+  `__tests__/kitExport.browser.test.tsx` (the browser one imports
+  `brand-kit.css` on purpose — an offscreen mount that misses
+  `.bk-snapshot-host` lays every renderer out at 0×0 and the export
+  succeeds with a zip full of empty pictures).
 
 **Canonical vs alternate (recap):** `features/brand-kit/` is the
 read-only visual showcase (Studio). `features/brand-kit-alt/` is the

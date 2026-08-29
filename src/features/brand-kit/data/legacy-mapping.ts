@@ -174,11 +174,21 @@ function brandAssetTemplates(
       orientation: 'landscape' as const,
       tags: ['brand-asset', 'logo', logo.label],
     }));
+    // Name a combo with the logo it was drawn from whenever more than one
+    // logo survives as a recolouring source. Without it two genuinely
+    // different tiles — the wordmark and the icon on the same ground —
+    // both read "Primary on Beige", which looks like a duplicate even
+    // when it is not.
+    const combos = logoCombosFor(brand);
+    const sources = new Set(combos.map((c) => c.logoIndex));
     return [
       ...originals,
-      ...logoCombosFor(brand).map((combo, idx) => ({
+      ...combos.map((combo, idx) => ({
         id: `brand-asset-logo-ext-${originals.length + idx + 1}`,
-        name: `${combo.mark.name} on ${combo.bg.name}`,
+        name:
+          sources.size > 1
+            ? `${combo.logoLabel} · ${combo.mark.name} on ${combo.bg.name}`
+            : `${combo.mark.name} on ${combo.bg.name}`,
         category: combo.bg.name,
         type: 'brand-asset-logo' as BrandKitTemplate['type'],
         orientation: 'landscape' as const,
