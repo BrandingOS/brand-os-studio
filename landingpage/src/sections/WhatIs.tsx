@@ -81,8 +81,18 @@ const CHIPS: { label: string; x: number; y: number; r: number; soft?: boolean }[
    Nothing vanishes: each chip travels to a compact left column IN
    LOCKSTEP with its own dot's suction (same stagger, same scroll
    window), straightened, at its original size. Chip k rides the
-   suction driver of dot CHIP_DOT[k]. */
-const CHIP_DOT = [2, 7, 0, 3, 1, 5];
+   suction driver of dot CHIP_DOT[k].
+
+   THE ORDER OF THIS ARRAY IS THE ORDER THE COLUMN FILLS. The dots are
+   sucked in around the ring (`ORD`), so a chip's departure time is its
+   dot's ring rank — and the first mapping paired row 0 with rank 1, row
+   1 with rank 7 and row 5 with rank 0. The bottom row left first and
+   the second row left last, so for most of the gather the column was a
+   few seated rows with holes between them and two chips adrift in the
+   middle of the canvas: chaos turning into more chaos, which is the one
+   thing this scene must not show. The ranks now run 0,1,3,4,6,7 — up in
+   order, and spread across the whole window so the flow never stalls. */
+const CHIP_DOT = [5, 2, 1, 6, 4, 7];
 
 /* Then the graph reads left→right: lines flow from the files INTO the
    core, and out the other side into the STRUCTURED column — the real
