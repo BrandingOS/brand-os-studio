@@ -50,9 +50,23 @@ function waitForDb(maxMs = 30_000) {
 
 let failed = 0;
 let crashed = 0;
+const fixture = readFileSync(join(dir, 'fixtures/access_fixture.sql'), 'utf8');
+const cases = readFileSync(join(dir, 'fixtures/access-cases.json'), 'utf8');
+
 for (const f of files) {
   if (!waitForDb()) { console.error('database did not come back within 30s'); process.exit(2); }
-  const sql = readFileSync(join(dir, f));
+  let sql = readFileSync(join(dir, f), 'utf8');
+  // A test opting in with `-- fixture: access` on its first line gets the shared cast
+  // inserted right after its BEGIN, and `__ACCESS_CASES__` replaced by the expectation
+  // table, so the SQL and TS resolvers are driven by one file.
+  if (/^--\s*fixture:\s*access/m.test(sql.split('\n')[0] ?? '')) {
+    // A function replacer, not a string: `$$` in SQL is a replacement-pattern escape and
+    // would silently collapse to `$`, breaking every dollar-quoted block in the fixture.
+    sql = sql.replace(/^BEGIN;\s*$/m, () => `BEGIN;\n${fixture}\n`);
+  }
+  if (sql.includes('__ACCESS_CASES__')) {
+    sql = sql.split('__ACCESS_CASES__').join(cases.replace(/'/g, "''"));
+  }
   const r = spawnSync(
     'docker',
     ['exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q', '-X'],

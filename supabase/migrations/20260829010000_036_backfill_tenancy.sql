@@ -163,6 +163,45 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.backfill_tenancy() FROM PUBLIC, anon, authenticated;
 
+-- ── the signup trigger must speak the new model too ─────────────────────────
+-- 001's handle_new_user_workspace() writes only the legacy `role` and does not mark the
+-- workspace personal, so every user signing up after this migration would get a
+-- membership the resolver reads as NOTHING. Rewritten in full (same slug logic) rather
+-- than patched by regex, so what it does is readable here.
+CREATE OR REPLACE FUNCTION public.handle_new_user_workspace()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+  ws_id     UUID;
+  ws_slug   TEXT;
+  base_slug TEXT;
+  counter   INTEGER := 1;
+BEGIN
+  base_slug := lower(regexp_replace(split_part(NEW.email, '@', 1), '[^a-z0-9]', '-', 'g'));
+  ws_slug := base_slug;
+  WHILE EXISTS (SELECT 1 FROM public.workspaces WHERE slug = ws_slug) LOOP
+    counter := counter + 1;
+    ws_slug := base_slug || '-' || counter;
+  END LOOP;
+
+  INSERT INTO public.workspaces (name, slug, owner_id, is_personal)
+  VALUES (
+    COALESCE(NEW.full_name, split_part(NEW.email, '@', 1)) || '''s Workspace',
+    ws_slug,
+    NEW.id,
+    true                              -- this IS the personal workspace
+  )
+  RETURNING id INTO ws_id;
+
+  INSERT INTO public.workspace_members
+    (workspace_id, user_id, role, role_v2, status, brand_access_mode, joined_at)
+  VALUES (ws_id, NEW.id, 'owner', 'owner', 'active', 'all', now());
+
+  RETURN NEW;
+END;
+$fn$;
+
 SELECT public.backfill_tenancy();
 
 -- ── 5. guard rail ───────────────────────────────────────────────────────────
@@ -186,6 +225,10 @@ BEGIN
     EXECUTE format('SELECT count(*) FROM public.%I c JOIN public.brands b ON b.id = c.brand_id WHERE c.workspace_id IS DISTINCT FROM b.workspace_id', t) INTO n;
     IF n > 0 THEN RAISE EXCEPTION '036 guard: %.workspace_id disagrees with the brand on % rows', t, n; END IF;
   END LOOP;
+
+  IF pg_get_functiondef('public.handle_new_user_workspace()'::regprocedure) NOT LIKE '%role_v2%' THEN
+    RAISE EXCEPTION '036 guard: the signup trigger still writes only the legacy role';
+  END IF;
 
   RAISE NOTICE '036 OK — tenancy backfilled: % brands moved, % orphan workspaces soft-deleted',
     (SELECT count(*) FROM public.migration_log WHERE action = 'brand_workspace_assigned'),

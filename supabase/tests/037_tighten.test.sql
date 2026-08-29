@@ -41,7 +41,9 @@ BEGIN
   BEGIN
     INSERT INTO public.brand_access (workspace_id, brand_id, user_id, role)
     VALUES ('bbbbbbbb-0000-0000-0000-000000000037','cccccccc-0000-0000-0000-000000000037','22222222-0000-0000-0000-000000000037','editor');
-  EXCEPTION WHEN foreign_key_violation THEN ok := true; END;
+  -- either guard may speak first: the composite FK, or the implicit-manager trigger
+  -- (user 2222 owns workspace B). Both mean "refused", which is what this asserts.
+  EXCEPTION WHEN foreign_key_violation OR check_violation THEN ok := true; END;
   IF NOT ok THEN RAISE EXCEPTION '037: brand_access with a foreign workspace_id was accepted'; END IF;
 
   -- a grant for a non-member is unrepresentable
