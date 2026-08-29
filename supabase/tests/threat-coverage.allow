@@ -3,7 +3,6 @@ A2   # check-plan-limit rewrite — Plan B (Edge Functions)
 A4   # storage object cross-brand via signed URL — Plan B (signed-URL TTL + function tests)
 A9   # revoked invitation reuse — Plan B (040)
 A10  # expired invitation — Plan B (040)
-A15  # share token guessing — Plan B (041)
 A17  # concurrent credit reservation — Plan B (044 + integration tests)
 A18  # retry idempotency — Plan B (044)
 A19  # reservation expiry — Plan B (044)
@@ -13,7 +12,6 @@ A26  # cleanup-onboarding-scratch cron secret — Plan B
 A27  # finalize-onboarding-assets session IDOR — Plan B
 A28  # invitation escalation ceiling — Plan B (040)
 A29  # text AI metering — Plan B
-A30  # anon enumeration of publications — Plan B (041)
 A31  # text AI without a JWT — Plan B
 A32  # late settle after expiry — Plan B (044)
 A33  # projectId/designId IDOR — Plan B
