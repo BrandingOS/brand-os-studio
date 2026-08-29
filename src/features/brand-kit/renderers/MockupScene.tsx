@@ -198,9 +198,42 @@ export function accentOn(faceBg: string, p: MockupPalette, large = false): strin
   return candidates.sort((a, b) => contrastOf(b, faceBg) - contrastOf(a, faceBg))[0]!;
 }
 
-/** A muted ink — the same hue as the face's own text, held back. */
-export function mutedOn(faceBg: string): string {
-  return ink(faceBg) === '#ffffff' ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.62)';
+/** `over` at `alpha` on top of `under`, as an opaque hex. */
+function mix(over: string, under: string, alpha: number): string {
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [ar, ag, ab] = rgb(normalizeHex(over) ?? '#000000');
+  const [br, bg, bb] = rgb(normalizeHex(under) ?? '#ffffff');
+  const ch = (a: number, b: number) =>
+    Math.round(a * alpha + b * (1 - alpha))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${ch(ar!, br!)}${ch(ag!, bg!)}${ch(ab!, bb!)}`;
+}
+
+/**
+ * A muted ink — the face's own text colour, held back only as far as it
+ * can be held back and still read.
+ *
+ * The obvious implementation is a fixed `rgba(…, 0.62)`, and it is wrong
+ * for exactly the case this family is full of: on near-white and
+ * near-black it lands around 6:1, but on a MID-TONE brand colour — Raqm's
+ * violet, SKAM's red — white at 72% composites to a pale tint that scores
+ * 3.7:1 against the colour underneath it. Measured, not guessed: six
+ * violations in the first contrast run, every one of them a secondary line
+ * on a brand-coloured face.
+ *
+ * So the hold-back is tried in order and the first value that clears AA on
+ * this particular face wins; a face where nothing is quiet enough gets the
+ * full ink. Muting is a preference, legibility is not. Returned opaque, so
+ * what the sweep measures and what the reader sees are the same colour.
+ */
+export function mutedOn(faceBg: string, large = false): string {
+  const full = ink(faceBg);
+  for (const alpha of [0.62, 0.74, 0.86]) {
+    const held = mix(full, faceBg, alpha);
+    if (contrastOk(held, faceBg, large)) return held;
+  }
+  return full;
 }
 
 /* ── The frame ────────────────────────────────────────────────────── */
@@ -651,14 +684,34 @@ export function DeclareRest({
 
 /* ── Dispatch ─────────────────────────────────────────────────────── */
 
-/** Render the scene at `templateIndex`, falling back to the first. */
+/**
+ * The scene an index names — BY ID, not by position.
+ *
+ * `templateIndex` is the dispatcher's reading of `…-ext-N`, so the scene
+ * it means is the one whose `idSuffix` is `ext-${N}`. Resolving by
+ * position instead would be the same answer only while a module's designs
+ * start at 1 and none is ever culled — and Signage, Business Card Stack
+ * and Device Screen share ONE id space (`mockups-ext-21…38`) across three
+ * modules, so their positions and their ids differ by construction.
+ * Looking the id up is also what makes culling a design in the middle of
+ * a family safe: the survivors keep their keys.
+ */
+export function sceneAtIndex(
+  scenes: ReadonlyArray<MockupScene>,
+  templateIndex: number,
+): MockupScene | undefined {
+  const wanted = `ext-${templateIndex + 1}`;
+  return scenes.find((s) => s.idSuffix === wanted) ?? scenes[0];
+}
+
+/** Render the scene an index names, falling back to the first. */
 export function renderScene(
   scenes: ReadonlyArray<MockupScene>,
   { brand, templateIndex, content }: MockupRendererProps,
 ): ReactNode {
   const c = mockupLabelContent(brand, content);
   const p = mockupPalette(brand, c);
-  const scene = scenes[templateIndex] ?? scenes[0];
+  const scene = sceneAtIndex(scenes, templateIndex);
   if (!scene) return null;
   return scene.render({ brand, c, p });
 }

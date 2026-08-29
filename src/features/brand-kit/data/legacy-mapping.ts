@@ -10,7 +10,12 @@ import { logoCombosFor } from './recolorLogo';
 import { curatedName, isArchived } from '../renderers/curation';
 import { BUSINESS_CARDS_EXTENDED } from '../renderers/BusinessCardsExtended';
 import { BUSINESS_CARDS_EXTENDED_2 } from '../renderers/BusinessCardsExtended2';
-import { MOCKUPS_EXTENDED } from '../renderers/MockupsExtended';
+import {
+  MOCKUPS_EXTENDED,
+  MOCKUP_SIGNAGE_EXTENDED,
+  MOCKUP_CARD_STACK_EXTENDED,
+  MOCKUP_DEVICE_EXTENDED,
+} from '../renderers/MockupsExtended';
 import { LETTERHEAD_EXTENDED } from '../renderers/LetterheadExtended';
 import { LETTERHEAD_EXTENDED_2 } from '../renderers/LetterheadExtended2';
 import { ENVELOPE_EXTENDED } from '../renderers/EnvelopeExtended';
@@ -108,12 +113,24 @@ const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
     'Fade': { moduleId: '__anim-fade__' },
     'Rotate': { moduleId: '__anim-rotate__' },
   },
-  // Mockups (spec §3, NEW). The catalog lists the eight labels and the
-  // renderers exist (MockupMug / TShirt / Billboard / Tote / Sticker); the
-  // Mockups family task wires each label to its synthetic moduleId here.
-  // Empty until then, so `variantsForCard` returns [] rather than a wrong
-  // family's designs.
-  mockups: {},
+  /* Mockups (spec §3, NEW) — eight cards over six template TYPES.
+   *
+   * Five artifacts own a type each. Signage, Business Card Stack and
+   * Device Screen share the `mockups` type and therefore ONE id range
+   * (`mockups-ext-21…38`), split three ways in `MockupsExtended.tsx` —
+   * which is why each of them still needs its own moduleId here: the
+   * moduleId is what narrows the shared range down to the six designs
+   * this particular card offers. */
+  mockups: {
+    'Signage': { moduleId: '__mockup-signage__' },
+    'Apparel': { moduleId: '__mockup-tshirt__' },
+    'Mug': { moduleId: '__mockup-mug__' },
+    'Tote': { moduleId: '__mockup-tote__' },
+    'Sticker': { moduleId: '__mockup-sticker__' },
+    'Business Card Stack': { moduleId: '__mockup-cardstack__' },
+    'Device Screen': { moduleId: '__mockup-device__' },
+    'Billboard': { moduleId: '__mockup-billboard__' },
+  },
 };
 
 /** Returns the legacy data source for a cosmos card, or null if the
@@ -367,13 +384,18 @@ function syntheticTemplates(moduleId: string, label: string): BrandKitTemplate[]
       tags: ['landing', 'extended', t.category],
     }));
   }
-  // Mockups (5 distinct artifacts)
+  // Mockups (8 cards). The last three share the `mockups` type — see
+  // MAP.mockups above — so their ids come out of one range and only the
+  // list differs.
   const mockupMap: Record<string, [readonly { idSuffix: string; name: string; category: string }[], string]> = {
     '__mockup-mug__': [MOCKUP_MUG_EXTENDED, 'mockup-mug'],
     '__mockup-tshirt__': [MOCKUP_TSHIRT_EXTENDED, 'mockup-tshirt'],
     '__mockup-billboard__': [MOCKUP_BILLBOARD_EXTENDED, 'mockup-billboard'],
     '__mockup-tote__': [MOCKUP_TOTE_EXTENDED, 'mockup-tote'],
     '__mockup-sticker__': [MOCKUP_STICKER_EXTENDED, 'mockup-sticker'],
+    '__mockup-signage__': [MOCKUP_SIGNAGE_EXTENDED, 'mockups'],
+    '__mockup-cardstack__': [MOCKUP_CARD_STACK_EXTENDED, 'mockups'],
+    '__mockup-device__': [MOCKUP_DEVICE_EXTENDED, 'mockups'],
   };
   if (mockupMap[moduleId]) {
     const [list, type] = mockupMap[moduleId];

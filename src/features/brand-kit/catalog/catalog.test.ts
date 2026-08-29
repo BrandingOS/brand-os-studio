@@ -102,11 +102,6 @@ describe('kit catalog — every entry resolves to something renderable', () => {
   it('resolves each variants entry to a registry def or a legacy source', () => {
     for (const e of KIT_CATALOG) {
       if (e.view !== 'variants') continue;
-      // Mockups is the one family whose renderers exist but whose
-      // labels are not yet routed (`legacy-mapping.ts`'s `mockups: {}`).
-      // Exempt by SECTION, not by name, and paid for by the assertion
-      // below: nobody outside a dev build can reach one.
-      if (e.sectionKey === 'mockups') continue;
       const renderable =
         Boolean(getDeliverable(e.sectionKey, e.storageLabel)) ||
         Boolean(resolveLegacyCard(e.sectionKey, e.storageLabel));
@@ -117,10 +112,13 @@ describe('kit catalog — every entry resolves to something renderable', () => {
     }
   });
 
-  it('never shows an unrouted mockup to a normal user', () => {
-    // The exemption above is only safe while this holds. When the Mockups
-    // family lands its `legacy-mapping` entries, delete the exemption
-    // BEFORE promoting any of these to active.
+  it('keeps the eight mockups experimental until they are promoted', () => {
+    // The section used to be exempt from the assertion above, because its
+    // renderers existed and its labels were not routed. They are routed
+    // now (`legacy-mapping.ts`'s `MAP.mockups`), so the exemption is gone
+    // and each of the eight resolves like every other card. What stays is
+    // the capability gate: routed is not the same as released, and the
+    // promote-to-active decision belongs to the chrome wave, not here.
     const mockups = KIT_CATALOG.filter((e) => e.sectionKey === 'mockups');
     expect(mockups.length).toBe(8);
     for (const e of mockups) expect(e.state).toBe('experimental');

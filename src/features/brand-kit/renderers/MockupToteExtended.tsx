@@ -1,63 +1,418 @@
-import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+/**
+ * Tote — the brand carried.
+ *
+ * Six vector scenes. The bag's canvas IS the print face: one flat opaque
+ * colour from the brand's neutrals (or the brand's own), with the straps,
+ * the seam and the cast shadow drawn around it in SVG. The audit found
+ * three designs printing dark text on a black tote; that pairing cannot be
+ * expressed here, because every ink on this family comes from `ink(face)`
+ * and every accent from `accentOn(face, …)`, which refuses a brand colour
+ * that does not clear AA on the cloth it is on.
+ *
+ * Ids `mockup-tote-ext-1 … -6` are the six kept designs; `-7 … -30` stay
+ * reserved and archived (`curation/mockups.ts`).
+ */
+import type { ReactNode } from 'react';
+import {
+  Badge,
+  CastShadow,
+  DeclareRest,
+  Mark,
+  Primary,
+  Print,
+  Scene,
+  SceneLight,
+  SceneSvg,
+  Secondary,
+  Url,
+  accentOn,
+  ink,
+  mutedOn,
+  renderScene,
+  templateList,
+  withIds,
+  type MockupPalette,
+  type MockupRendererProps,
+  type MockupScene,
+} from './MockupScene';
 
-/** Tote-bag mockups — 30 canvas-tote print compositions. */
-interface Props { brand: Brand; templateIndex: number }
+/* ── The object ───────────────────────────────────────────────────── */
 
-function ToteFrame({ children, bg = '#E1D8C0' }: { children: React.ReactNode; bg?: string }) {
+/**
+ * A tote: two straps behind, the body in front, a seam along the top.
+ *
+ * The straps keep their own aspect ratio (`xMidYMid meet` on a small box)
+ * — a stretched handle is the first thing that makes a vector mockup look
+ * like a diagram rather than a bag.
+ */
+function Tote({
+  canvas,
+  left = 22,
+  top = 30,
+  width = 56,
+  height = 52,
+  children,
+}: {
+  canvas: string;
+  left?: number;
+  top?: number;
+  width?: number;
+  height?: number;
+  children: ReactNode;
+}) {
+  const shade = ink(canvas) === '#ffffff' ? '#ffffff' : '#000000';
   return (
-    <div className="w-full h-full bg-[#EFE9DA] flex items-center justify-center p-[5%]">
-      <div className="relative" style={{ width: '40%', aspectRatio: '4/5' }}>
-        <div className="absolute -top-[6%] left-[16%] right-[16%] h-[14%] border-2 border-[#9A8E72] rounded-t-full" />
-        <div className="absolute top-[8%] left-0 right-0 bottom-0 rounded-sm shadow-md flex items-center justify-center p-[8%]" style={{ backgroundColor: bg }}>
-          <div className="w-full text-center">{children}</div>
-        </div>
-      </div>
+    <>
+      {/* The handles, drawn behind the body. */}
+      <SceneSvg
+        preserve="xMidYMid meet"
+        viewBox="0 0 100 60"
+        style={{
+          inset: 'auto',
+          left: `${left + width * 0.16}%`,
+          top: `${top - height * 0.44}%`,
+          width: `${width * 0.68}%`,
+          height: `${height * 0.5}%`,
+        }}
+      >
+        <path
+          d="M6 58 C6 14 40 4 50 4 C60 4 94 14 94 58"
+          fill="none"
+          stroke={canvas}
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
+        <path
+          d="M6 58 C6 14 40 4 50 4 C60 4 94 14 94 58"
+          fill="none"
+          stroke={shade}
+          strokeOpacity="0.16"
+          strokeWidth="9"
+          strokeLinecap="round"
+          transform="translate(0 2)"
+        />
+      </SceneSvg>
+      <Print
+        bg={canvas}
+        curve={0.13}
+        style={{
+          left: `${left}%`,
+          top: `${top}%`,
+          width: `${width}%`,
+          height: `${height}%`,
+          borderRadius: '2px 2px 5px 5px',
+          // A hairline edge: natural canvas is near-white and the studio
+          // wall is too, so without it a light bag has no shape.
+          boxShadow: `inset 0 0 0 0.5px ${shade}22`,
+        }}
+      >
+        {/* The hem: a darker band where the canvas is folded and stitched. */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 0,
+            height: '9%',
+            backgroundColor: shade,
+            opacity: 0.12,
+          }}
+        />
+        {children}
+      </Print>
+    </>
+  );
+}
+
+/** The column a tote print uses — centred, with room under the hem. */
+function Face({ children, pad = '14% 12% 10%' }: { children: ReactNode; pad?: string }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap: 3,
+        padding: pad,
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-export function MockupToteExtendedRenderer({ brand, templateIndex }: Props) {
-  const p = brand.primaryColor;
-  const init = brand.name.charAt(0).toUpperCase();
-  const N = brand.name.toUpperCase();
-
-  const arts = [
-    (<div><BrandLogo brand={brand} size="md" color={p} /><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{brand.name}</div></div>),
-    (<div className="text-[44px] font-serif font-black leading-none" style={{color:p}}>{init}</div>),
-    (<div><div className="text-[10px] font-bold leading-tight" style={{color:p}}>CARRY</div><div className="text-[10px] font-bold leading-tight" style={{color:p}}>{N}</div></div>),
-    (<div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-700">est · 2026</div><div className="text-[14px] font-serif font-bold mt-1" style={{color:p}}>{brand.name}</div></div>),
-    (<div className="rotate-90 origin-center"><span className="text-[6px] uppercase tracking-[0.4em]" style={{color:p}}>— {N} —</span></div>),
-    (<div><div className="border-2 inline-block px-2 py-0.5 -rotate-3 text-[5px] uppercase tracking-[0.22em]" style={{borderColor:p,color:p}}>not for sale</div><div className="text-[10px] font-bold mt-1" style={{color:p}}>{brand.name}</div></div>),
-    (<div className="grid grid-cols-3 gap-[2px]">{Array.from({length:9}).map((_,i)=><div key={i} className="aspect-square" style={{backgroundColor:i===4?p:`${p}33`}} />)}</div>),
-    (<div className="rounded-full mx-auto w-[40%] aspect-square flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white font-serif font-black text-[16px]">{init}</span></div>),
-    (<div className="text-[7px] italic font-serif" style={{color:p}}>"a small thing,<br/>made with care."</div>),
-    (<div><div className="text-[18px] font-serif font-black leading-tight" style={{color:p,fontFamily:'Caveat, cursive'}}>made by hand,</div><div className="text-[12px] italic mt-1" style={{fontFamily:'Caveat, cursive'}}>at {brand.name}.</div></div>),
-    (<div className="font-mono text-[6px]"><div style={{color:p}}>$ ./{brand.name.toLowerCase()}</div><div className="text-gray-700 mt-0.5">→ tote loaded.</div></div>),
-    (<div><div className="text-[7px] uppercase tracking-[0.32em]" style={{color:p}}>volume 014</div><div className="text-[14px] font-serif font-bold">spring 2026</div></div>),
-    (<div className="rounded-full px-3 py-1" style={{backgroundColor:p}}><span className="text-white text-[6px] uppercase tracking-[0.32em]">{brand.name} co.</span></div>),
-    (<div><div className="text-[6px] uppercase tracking-[0.4em]" style={{color:p}}>NEW YORK</div><div className="text-[12px] font-serif font-bold mt-1">{brand.name}</div><div className="text-[6px] uppercase tracking-[0.4em]" style={{color:p}}>2026</div></div>),
-    (<div className="border-y-2 py-1" style={{borderColor:p}}><span className="text-[8px] font-bold tracking-tight">{N} · CO.</span></div>),
-    (<div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-700">— manifesto —</div><div className="text-[8px] font-serif italic font-bold mt-1" style={{color:p}}>"buy less."</div></div>),
-    (<div className="text-[44px] font-bold tabular-nums" style={{color:p}}>14</div>),
-    (<div className="grid grid-cols-2 gap-1"><div className="aspect-square" style={{backgroundColor:p}} /><div className="aspect-square bg-[#0F1216]" /></div>),
-    (<div className="rounded-full inline-block w-[24px] h-[24px] flex items-center justify-center border-2" style={{borderColor:p}}><span className="text-[8px]" style={{color:p}}>★</span></div>),
-    (<div><div className="text-[6px] uppercase tracking-[0.32em] text-gray-600">— slogan —</div><div className="text-[12px] font-serif italic font-bold mt-1" style={{color:p}}>be small.</div></div>),
-    (<div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>— ● —</div><div className="text-[14px] font-serif font-bold mt-0.5">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>— ● —</div></div>),
-    (<div><div className="text-[6px] font-bold uppercase tracking-[0.4em]" style={{color:p}}>{brand.name.toLowerCase()}</div><div className="w-full h-[1.5px] mt-1" style={{backgroundColor:p}} /><div className="text-[6px] uppercase tracking-[0.4em] mt-1 text-gray-700">est · 2026</div></div>),
-    (<div className="rotate-12"><span className="text-[14px] font-serif italic font-bold" style={{color:p}}>welcome.</span></div>),
-    (<div><div className="text-[12px] font-bold tracking-tight" style={{color:p}}>{N}</div><div className="text-[12px] font-bold tracking-tight text-gray-900">CARRIES</div></div>),
-    (<div className="border-2 rounded-full px-3 py-2 inline-block" style={{borderColor:p}}><span className="text-[8px] font-serif italic" style={{color:p}}>{brand.name}</span></div>),
-    (<div className="font-mono text-[6px]"><div className="opacity-60">// brand.tote</div><div className="mt-0.5" style={{color:p}}>{`{ ${brand.name.toLowerCase()}: 'go' }`}</div></div>),
-    (<div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-700">— for the —</div><div className="text-[14px] font-serif italic font-bold mt-1" style={{color:p}}>quiet ones.</div></div>),
-    (<div className="grid grid-cols-1 gap-0.5"><div className="text-[8px] font-bold tracking-tight" style={{color:p}}>{N}</div><div className="text-[8px] font-bold tracking-tight">STUDIO</div><div className="text-[8px] font-bold tracking-tight" style={{color:p}}>SS · 2026</div></div>),
-    (<div className="text-[36px] leading-none font-serif" style={{color:p}}>"</div>),
-    (<div><BrandLogo brand={brand} size="sm" color={p} /><div className="w-full h-[1px] my-1" style={{backgroundColor:p}} /><div className="text-[5px] uppercase tracking-[0.32em] text-gray-700">{brand.name.toLowerCase()}.com</div></div>),
-  ];
-
-  // Mix tote canvas colors for variety.
-  const togs = ['#E1D8C0', '#FAF6EE', '#1F1F1F', '#E1D8C0'];
-  return <ToteFrame bg={togs[templateIndex % 4]}>{arts[templateIndex] ?? arts[0]}</ToteFrame>;
+function nameStyle(p: MockupPalette, face: string, size: number) {
+  return {
+    fontFamily: p.heading,
+    fontSize: size,
+    lineHeight: 1.05,
+    fontWeight: 700,
+    letterSpacing: '-0.01em',
+    color: ink(face),
+    maxWidth: '100%',
+  };
 }
 
-export const MOCKUP_TOTE_EXTENDED = Array.from({length:30},(_,i)=>({idSuffix:`ext-${i+1}`,name:['Logo Centered','Big Initial','Carry Brand','Est','Vertical','Stamp','Pixel Grid','Disc','Quote Italic','Hand-Made','Code Term','Issue','Pill','City','Bordered','Manifesto','Number','Quad','Outline Star','Slogan','Dot Border','Underline','Welcome','Carries','Pill Italic','Code Hash','Quiet','Stack','Quote Mark','Logo Strip'][i],category:'Apparel'}));
+function noteStyle(p: MockupPalette, face: string, size = 5) {
+  return {
+    fontFamily: p.body,
+    fontSize: size,
+    lineHeight: 1.35,
+    color: mutedOn(face),
+    maxWidth: '100%',
+  };
+}
+
+/* ── The six scenes ───────────────────────────────────────────────── */
+
+export const TOTE_SCENES: ReadonlyArray<MockupScene> = withIds([
+  {
+    name: 'Natural Canvas',
+    category: 'Merch',
+    tags: ['Minimal', 'Everyday', 'Craft'],
+    render: ({ brand, c, p }) => {
+      const canvas = p.paper;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={30} y={12} strength={0.45} />
+          <CastShadow cx={50} cy={84} rx={26} ry={3} opacity={0.2} />
+          <Tote canvas={canvas}>
+            <Face>
+              <Mark brand={brand} c={c} p={p} on={canvas} size={20} />
+              <Primary c={c} style={nameStyle(p, canvas, 10)} />
+              <Secondary c={c} style={noteStyle(p, canvas)} />
+            </Face>
+          </Tote>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Colour Drop',
+    category: 'Merch',
+    tags: ['Bold', 'Brand-led', 'Retail'],
+    render: ({ brand, c, p }) => {
+      const canvas = p.brand;
+      return (
+        <Scene ground={p.paper}>
+          <SceneLight x={26} y={10} strength={0.34} />
+          <CastShadow cx={50} cy={84} rx={26} ry={3} opacity={0.18} />
+          <Tote canvas={canvas}>
+            <Face>
+              <Mark brand={brand} c={c} p={p} on={canvas} size={26} />
+              <Primary c={c} style={{ ...nameStyle(p, canvas, 11), fontWeight: 800 }} />
+              <Badge c={c} on={canvas} p={p} style={{ marginTop: 2 }} />
+            </Face>
+          </Tote>
+          <DeclareRest c={c} omit={['primaryText', 'badge']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Market Band',
+    category: 'Merch',
+    tags: ['Grocery', 'Warm', 'Set'],
+    render: ({ brand, c, p }) => {
+      const canvas = p.paper;
+      const band = p.brand;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={62} y={14} strength={0.42} />
+          <CastShadow cx={50} cy={84} rx={26} ry={3} opacity={0.2} />
+          <Tote canvas={canvas}>
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: '34%',
+                height: '30%',
+                backgroundColor: band,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                padding: '0 8%',
+                textAlign: 'center',
+              }}
+            >
+              <Primary c={c} style={{ ...nameStyle(p, band, 9), fontWeight: 800 }} />
+              <Url c={c} style={{ ...noteStyle(p, band, 4.5), color: ink(band) }} />
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: '8%',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <Secondary c={c} style={noteStyle(p, canvas, 5)} />
+            </div>
+          </Tote>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Wordmark Carry',
+    category: 'Merch',
+    tags: ['Typographic', 'Modern', 'Statement'],
+    render: ({ c, p }) => {
+      const canvas = p.dark;
+      return (
+        <Scene ground={p.paper}>
+          <SceneLight x={38} y={10} strength={0.4} />
+          <CastShadow cx={50} cy={86} rx={27} ry={3.2} opacity={0.22} />
+          <Tote canvas={canvas} left={18} top={26} width={64} height={58}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                padding: '16% 9% 10%',
+              }}
+            >
+              <Primary c={c} style={{ ...nameStyle(p, canvas, 17), fontWeight: 800 }} />
+              <div>
+                <div
+                  style={{
+                    height: 1.5,
+                    width: '40%',
+                    backgroundColor: accentOn(canvas, p),
+                    borderRadius: 2,
+                    marginBottom: 3,
+                  }}
+                />
+                <Secondary c={c} style={noteStyle(p, canvas, 5)} />
+                <Url c={c} style={noteStyle(p, canvas, 4.5)} />
+              </div>
+            </div>
+          </Tote>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Swing Tag',
+    category: 'Merch',
+    tags: ['Product', 'Retail', 'Detail'],
+    render: ({ brand, c, p }) => {
+      const canvas = p.paper;
+      const tag = p.brand;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={30} y={16} strength={0.4} />
+          <CastShadow cx={46} cy={84} rx={24} ry={3} opacity={0.18} />
+          <Tote canvas={canvas} left={16} top={28} width={52} height={50}>
+            <Face pad="16% 10% 10%">
+              <Mark brand={brand} c={c} p={p} on={canvas} size={18} />
+              <Primary c={c} style={nameStyle(p, canvas, 9)} />
+            </Face>
+          </Tote>
+          {/* The tag hangs off the near strap. */}
+          <SceneSvg
+            preserve="xMidYMid meet"
+            viewBox="0 0 20 40"
+            style={{ inset: 'auto', left: '66%', top: '30%', width: '6%', height: '16%' }}
+          >
+            <path d="M10 0 L10 38" stroke={p.dark} strokeOpacity="0.55" strokeWidth="5" />
+          </SceneSvg>
+          <Print
+            bg={tag}
+            style={{
+              left: '62%',
+              top: '44%',
+              width: '26%',
+              height: '26%',
+              borderRadius: 3,
+              transform: 'rotate(-4deg)',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.22)',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                padding: '0 8%',
+                textAlign: 'center',
+              }}
+            >
+              <Badge c={c} on={tag} p={p} variant="plain" />
+              <Secondary c={c} style={{ ...noteStyle(p, tag, 5), color: ink(tag) }} wrap />
+              <Url c={c} style={noteStyle(p, tag, 4.5)} />
+            </div>
+          </Print>
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Pair on a Rail',
+    category: 'Merch',
+    tags: ['Range', 'Editorial', 'Studio'],
+    render: ({ brand, c, p }) => {
+      const light = p.paper;
+      const dark = p.dark;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={50} y={8} strength={0.3} />
+          {/* The rail the bags hang from. */}
+          <SceneSvg style={{ inset: 'auto', left: 0, top: '16%', width: '100%', height: '2%' }}>
+            <rect width="100" height="100" fill={p.dark} opacity="0.35" />
+          </SceneSvg>
+          <CastShadow cx={30} cy={80} rx={16} ry={2.4} opacity={0.16} />
+          <CastShadow cx={70} cy={84} rx={17} ry={2.6} opacity={0.2} />
+          <Tote canvas={light} left={6} top={34} width={36} height={40}>
+            <Face pad="16% 8% 8%">
+              <Mark brand={brand} c={c} p={p} on={light} size={13} />
+              <Primary c={c} style={nameStyle(p, light, 6.5)} />
+            </Face>
+          </Tote>
+          <Tote canvas={dark} left={56} top={38} width={38} height={42}>
+            <Face pad="16% 8% 8%">
+              <Secondary c={c} style={{ ...noteStyle(p, dark, 5.5), color: ink(dark) }} wrap />
+              <Url c={c} style={noteStyle(p, dark, 4.5)} />
+            </Face>
+          </Tote>
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: '4%',
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <Badge c={c} on={p.wall} p={p} />
+          </div>
+        </Scene>
+      );
+    },
+  },
+]);
+
+export function MockupToteExtendedRenderer(props: MockupRendererProps) {
+  return <>{renderScene(TOTE_SCENES, props)}</>;
+}
+
+export const MOCKUP_TOTE_EXTENDED = templateList(TOTE_SCENES);
