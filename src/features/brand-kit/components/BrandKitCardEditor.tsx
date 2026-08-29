@@ -32,7 +32,7 @@ import {
 // happened to import them first.
 import '../brand-kit.css';
 import { toast } from 'sonner';
-import { recolorLogoSvg, contrastRatio } from '../data/recolorLogo';
+import { recolorLogoSvg, contrastRatio, extractWrappedImageUrl, cachedRecoloredLogo } from '../data/recolorLogo';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
 import { hexToName } from '@/features/setup/data/colorNames';
 import { CopyIcon, type OrganicIconHandle } from '@/features/setup/components/organic-icons';
@@ -523,7 +523,17 @@ export function BrandKitCardEditor({
   const previewLogoSrc = useMemo<string | null>(() => {
     const logo = brand.logos.find((l) => l.id === selectedLogoId);
     if (!logo) return null;
+    // Setup hands the kit each logo as `<svg><image href="…"/></svg>` — a
+    // PREVIEW wrapper. Recoloured and re-encoded as a data URI it renders
+    // EMPTY: an SVG loaded through <img> cannot resolve an external
+    // reference, so every family's editor preview showed a blank logo.
+    // The wrapped artwork is used directly; a recolour, when one has been
+    // rasterised for this url + colour, is preferred over it.
+    const wrapped = extractWrappedImageUrl(logo.svg);
     const color = selectedLogoColor ?? brand.colors.core[0]?.hex ?? '#0F1216';
+    if (wrapped) {
+      return (selectedLogoColor ? cachedRecoloredLogo(wrapped, color) : undefined) ?? wrapped;
+    }
     const recolored = recolorLogoSvg(logo.svg, color);
     return `data:image/svg+xml;utf8,${encodeURIComponent(recolored)}`;
   }, [brand.logos, brand.colors.core, selectedLogoId, selectedLogoColor]);

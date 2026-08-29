@@ -1320,25 +1320,12 @@ export function BrandKitCosmosPage({
                       return;
                     }
                     if (drilldownTarget.label === 'Colors') {
-                      const palette: PaletteColor[] = [
-                        ...effectiveBrand.colors.core.map((c, i) => ({
-                          hex: c.hex,
-                          name: c.name,
-                          role:
-                            (['Primary', 'Secondary', 'Background'] as const)[i] ?? `Core ${i + 1}`,
-                        })),
-                        ...effectiveBrand.colors.accent.map((c) => ({
-                          hex: c.hex,
-                          name: c.name,
-                          role: 'Accent',
-                        })),
-                        ...effectiveBrand.colors.grey.map((c) => ({
-                          hex: c.hex,
-                          name: c.name,
-                          role: 'Neutral',
-                        })),
-                      ];
-                      await runColorsExport(palette, effectiveBrand.name);
+                      // One palette vocabulary. Position is not a role
+                      // ("Core 4" told a customer nothing, D40) and the
+                      // generated grey ladder is not the brand's palette
+                      // (it is most of why this download was 320 files,
+                      // D37) — `paletteOf` settles both.
+                      await runColorsExport(paletteOf(effectiveBrand), effectiveBrand.name);
                       return;
                     }
                     // Template drilldowns (stationery / social / web /
@@ -2064,6 +2051,7 @@ function BrandKitDrilldown({
               <button
                 type="button"
                 className="bk-variant-tile"
+                style={{ aspectRatio: String(aspectForLabel(target.label)) }}
                 onClick={() => onPickVariant(tpl)}
                 onContextMenu={onUseTemplate ? (e) => openTileMenu(e, tpl) : undefined}
                 aria-label={`Open ${tpl.name}`}
@@ -2109,6 +2097,7 @@ function BrandKitDrilldown({
                 <button
                   type="button"
                   className="bk-variant-tile"
+                style={{ aspectRatio: String(aspectForLabel(target.label)) }}
                   onClick={() => onPickVariant()}
                   aria-label={`Open ${label}`}
                 >
