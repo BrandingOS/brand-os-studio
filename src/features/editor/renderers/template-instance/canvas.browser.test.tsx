@@ -23,9 +23,35 @@ import { describe, it, expect } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
 import { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
 import { TemplateInstanceCanvas } from './TemplateInstanceCanvas';
-import { defaultContentFor, setAtPath } from '@/features/brandkit/content';
+import {
+  defaultContentFor,
+  setAtPath,
+  type InvoiceContent,
+  type LetterContent,
+} from '@/features/brandkit/content';
 import type { BrandOSDocument } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
+
+const BRAND = { name: 'SKAM' };
+
+/**
+ * What the model says this brand's invoice and letter open with.
+ *
+ * Asserted through, never copied: the defaults are facts about the brand
+ * (`brandFacts.ts`), so a literal here would pin the file to the day it
+ * was written rather than to the behaviour under test.
+ */
+function defaultInvoice(): InvoiceContent {
+  const content = defaultContentFor('invoice', BRAND);
+  if (content.kind !== 'invoice') throw new Error('narrowing failed');
+  return content;
+}
+
+function defaultLetter(): LetterContent {
+  const content = defaultContentFor('letter', BRAND);
+  if (content.kind !== 'letter') throw new Error('narrowing failed');
+  return content;
+}
 
 function doc(templateId = 'invoices-ext-3'): BrandOSDocument {
   return {
@@ -43,7 +69,7 @@ function doc(templateId = 'invoices-ext-3'): BrandOSDocument {
     body: {
       kind: 'template-instance',
       templateId,
-      content: defaultContentFor('invoice', { name: 'SKAM' }),
+      content: defaultContentFor('invoice', BRAND),
       design: {},
     },
   } as BrandOSDocument;
@@ -156,7 +182,7 @@ describe('the artifact is the editing surface', () => {
 
   it('edits content by clicking the artifact, and the renderer repaints from state', async () => {
     await mountCanvas();
-    expect(region('clientName').textContent).toBe('Acme Co.');
+    expect(region('clientName').textContent).toBe(defaultInvoice().clientName);
 
     editRegion('clientName', 'Globex Corporation');
 
@@ -185,8 +211,8 @@ describe('the artifact is the editing surface', () => {
     el.textContent = 'Half-typed';
     fireEvent.keyDown(el, { key: 'Escape' });
 
-    expect(region('clientName').textContent).toBe('Acme Co.');
-    expect(invoiceContent(adapter).clientName).toBe('Acme Co.');
+    expect(region('clientName').textContent).toBe(defaultInvoice().clientName);
+    expect(invoiceContent(adapter).clientName).toBe(defaultInvoice().clientName);
   });
 
   it('records one undo-able change per commit, not per keystroke', async () => {
@@ -194,7 +220,7 @@ describe('the artifact is the editing surface', () => {
     editRegion('clientName', 'Globex Corporation');
     expect(adapter.canUndo()).toBe(true);
     act(() => adapter.undo());
-    expect(invoiceContent(adapter).clientName).toBe('Acme Co.');
+    expect(invoiceContent(adapter).clientName).toBe(defaultInvoice().clientName);
   });
 
   it('survives a re-render that hands it an equal-but-new initialDocument object', async () => {
@@ -237,7 +263,20 @@ describe('long values do not collide', () => {
 });
 
 describe('the letterhead body', () => {
-  it('keeps the blank letterhead until there is something to say', async () => {
+  /**
+   * Was "keeps the blank letterhead until there is something to say",
+   * which asserted the body region was ABSENT on a fresh letter.
+   *
+   * That intent is superseded — `defaultLetterContent` now seeds a real
+   * branded paragraph precisely so the artifact is not a page of grey
+   * rules (see `LetterContent.body`). So the claim is inverted at the
+   * front: the body arrives as an editable region naming the brand. The
+   * renderer's empty-body fallback still exists and is still worth
+   * defending, so the second half of this test drives the body back to
+   * empty and asserts the rules come back — the same code path the old
+   * test covered, now reached the only way a user can reach it.
+   */
+  it('arrives as a real region, and falls back to the rules only when emptied', async () => {
     const adapter = new TemplateInstanceAdapter();
     const letterDoc: BrandOSDocument = {
       ...doc(),
@@ -245,25 +284,33 @@ describe('the letterhead body', () => {
       body: {
         kind: 'template-instance',
         templateId: 'letterhead-ext-6',
-        content: defaultContentFor('letter', { name: 'SKAM' }),
+        content: defaultContentFor('letter', BRAND),
         design: {},
       },
     };
     await adapter.loadDocument(letterDoc);
     adapter.setBrand(brand());
     render(<TemplateInstanceCanvas adapter={adapter} initialDocument={letterDoc} />);
-    expect(document.querySelector('.ti-canvas [data-bind="body"]')).toBeNull();
+    expect(region('body').textContent).toBe(defaultLetter().body);
+    expect(region('body').textContent).toContain(BRAND.name);
 
-    act(() => {
-      const current = adapter.getBody();
-      if (current?.kind !== 'template-instance') throw new Error('narrowing failed');
-      adapter.updateBody(
-        { ...current, content: setAtPath(current.content, 'body', 'Dear team,') },
-        'Edit body',
-      );
-    });
+    const setBody = (value: string) =>
+      act(() => {
+        const current = adapter.getBody();
+        if (current?.kind !== 'template-instance') throw new Error('narrowing failed');
+        adapter.updateBody(
+          { ...current, content: setAtPath(current.content, 'body', value) },
+          'Edit body',
+        );
+      });
 
+    setBody('Dear team,');
     expect(region('body').textContent).toBe('Dear team,');
+
+    // Emptied on purpose — the design goes back to drawing its rules, so
+    // a blank letterhead still looks like a blank letterhead.
+    setBody('');
+    expect(document.querySelector('.ti-canvas [data-bind="body"]')).toBeNull();
   });
 });
 

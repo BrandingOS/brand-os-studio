@@ -33,7 +33,7 @@ import {
   createTemplateInstanceDocument,
   instantiateFromMaster,
 } from '@/features/editor/renderers/template-instance/createDocument';
-import { defaultContentFor } from '@/features/brandkit/content';
+import { defaultContentFor, type InvoiceContent } from '@/features/brandkit/content';
 import { saveFeaturedVariants } from '../data/cardCustomizations';
 
 /**
@@ -283,12 +283,26 @@ describe('Edit Template — always the same canonical master', () => {
 
 describe('§7.2 invariant — editing a master leaves an existing instance untouched', () => {
   it('editing a master leaves an existing instance untouched', () => {
+    // Asserted through the model, not against a copy of its literals:
+    // the defaults are facts about the brand (`brandFacts.ts`) and are
+    // meant to move when the brand does. What must not move is that the
+    // instance still holds them after the master was edited.
+    const seededInvoice = (): InvoiceContent => {
+      const content = defaultContentFor('invoice', { name: 'SKAM' });
+      if (content.kind !== 'invoice') throw new Error('narrowing failed');
+      return content;
+    };
+    // A SECOND, independent call for the document: the body holds its
+    // content by reference, so sharing one object would let the master's
+    // edits below rewrite the very values this test expects back.
+    const seeded = seededInvoice();
+
     const master = createTemplateInstanceDocument({
       designId: '22222222-2222-4222-8222-222222222222',
       brandId: 'skam',
       contentType: 'invoice',
       templateId: 'invoices-ext-4',
-      content: defaultContentFor('invoice', { name: 'SKAM' }),
+      content: seeded,
       design: {},
     });
 
@@ -298,7 +312,13 @@ describe('§7.2 invariant — editing a master leaves an existing instance untou
       throw new Error('narrowing failed');
     }
     instance.body.content.clientName = 'Northwind Ltd';
-    instance.body.content.lineItems.push({ id: 'li-5', label: 'Retainer', qty: 3, unitPrice: 500 });
+    const itemsBefore = instance.body.content.lineItems.length;
+    instance.body.content.lineItems.push({
+      id: `li-${itemsBefore + 1}`,
+      label: 'Retainer',
+      qty: 3,
+      unitPrice: 500,
+    });
 
     // A month later the brand tunes the master.
     if (master.body?.kind !== 'template-instance' || master.body.content.kind !== 'invoice') {
@@ -315,8 +335,12 @@ describe('§7.2 invariant — editing a master leaves an existing instance untou
     }
 
     expect(reloaded.body.content.clientName).toBe('Northwind Ltd');
-    expect(reloaded.body.content.issuerAddress).toBe('1234 Studio · NY');
-    expect(reloaded.body.content.lineItems).toHaveLength(5);
+    // The seeded address, not the master's 'New HQ · Berlin'.
+    expect(reloaded.body.content.issuerAddress).toBe(seededInvoice().issuerAddress);
+    expect(reloaded.body.content.issuerAddress).not.toBe('New HQ · Berlin');
+    // The master's list was emptied; the instance kept its own, plus the
+    // item the user added.
+    expect(reloaded.body.content.lineItems).toHaveLength(itemsBefore + 1);
     expect(reloaded.body.templateId).toBe('invoices-ext-4');
   });
 });

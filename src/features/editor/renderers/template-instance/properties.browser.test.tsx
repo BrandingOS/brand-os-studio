@@ -4,9 +4,17 @@ import { MemoryRouter } from 'react-router-dom';
 import { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
 import { TemplateInstanceProperties } from './TemplateInstanceProperties';
 import { Editor } from '@/features/editor/shell/Editor';
-import { defaultContentFor, invoiceTotals } from '@/features/brandkit/content';
+import {
+  defaultContentFor,
+  formatMoney,
+  invoiceTotals,
+  type InvoiceContent,
+  type LetterContent,
+} from '@/features/brandkit/content';
 import type { BrandOSDocument, DesignBody } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
+
+const BRAND = { name: 'SKAM' };
 
 function doc(): BrandOSDocument {
   return {
@@ -24,10 +32,41 @@ function doc(): BrandOSDocument {
     body: {
       kind: 'template-instance',
       templateId: 'invoices-ext-4',
-      content: defaultContentFor('invoice', { name: 'SKAM' }),
+      content: defaultContentFor('invoice', BRAND),
       design: {},
     },
   } as BrandOSDocument;
+}
+
+/**
+ * The invoice and letter the model hands out for this brand.
+ *
+ * Every expectation below is asserted THROUGH these rather than against
+ * copies of them. The defaults are facts about the brand (`brandFacts.
+ * ts`) and the price ladder is a starting point, both of which are meant
+ * to move; what must not move is that the total tracks the line items and
+ * that the panel opens on whatever the model says.
+ */
+function defaultInvoice(): InvoiceContent {
+  const content = defaultContentFor('invoice', BRAND);
+  if (content.kind !== 'invoice') throw new Error('narrowing failed');
+  return content;
+}
+
+function defaultLetter(): LetterContent {
+  const content = defaultContentFor('letter', BRAND);
+  if (content.kind !== 'letter') throw new Error('narrowing failed');
+  return content;
+}
+
+/** The Total row the artifact should be showing for this content. */
+function totalOf(content: InvoiceContent): string {
+  return formatMoney(invoiceTotals(content).total, content.currency);
+}
+
+/** The default invoice with one field overridden — an expected shape. */
+function invoiceWith(patch: Partial<InvoiceContent>): InvoiceContent {
+  return { ...defaultInvoice(), ...patch };
 }
 
 /** A document body for an arbitrary template + content kind — the panel
@@ -36,7 +75,7 @@ function bodyFor(templateId: string, kind: Parameters<typeof defaultContentFor>[
   return {
     kind: 'template-instance',
     templateId,
-    content: defaultContentFor(kind, { name: 'SKAM' }),
+    content: defaultContentFor(kind, BRAND),
     design: {},
   };
 }
@@ -91,7 +130,7 @@ describe('TemplateInstanceProperties', () => {
 
   it('writes an edit back through the adapter', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
-    const input = screen.getByDisplayValue('Acme Co.') as HTMLInputElement;
+    const input = screen.getByDisplayValue(defaultInvoice().clientName) as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'Northwind Ltd' } });
 
     const body = adapter.getBody();
@@ -103,20 +142,22 @@ describe('TemplateInstanceProperties', () => {
 
   it('shows totals computed from the line items, with no input to type one', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
-    // 2400 + 3800 + 1200 + 900 = 8300, +5% default tax = 8715.
-    // `formatMoney` drops decimals on whole amounts — "$8,715", not
-    // "$8,715.00". See compute.ts.
-    expect(screen.getByText('$8,715')).toBeTruthy();
+    // The default ladder, plus the default tax rate — worked out by the
+    // same pure function the panel uses, never typed in here.
+    // `formatMoney` drops decimals on whole amounts (see compute.ts).
+    expect(screen.getByText(totalOf(defaultInvoice()))).toBeTruthy();
+    // And it is a REAL total, not an empty one — the point of the block.
+    expect(invoiceTotals(defaultInvoice()).total).toBeGreaterThan(0);
   });
 
   it('opens the control for whatever the artwork selected', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
     expect(screen.queryByText('Selected')).toBeNull();
 
-    // What clicking `Acme Co.` on the artifact does. React 18 batches a
-    // state update triggered outside a DOM event to a microtask, so the
-    // assertion needs to wait for that flush the same way a real click
-    // (routed through React's event system) would.
+    // What clicking the client-name region on the artifact does. React
+    // 18 batches a state update triggered outside a DOM event to a
+    // microtask, so the assertion needs to wait for that flush the same
+    // way a real click (routed through React's event system) would.
     act(() => {
       adapter.setSelectedPath('clientName');
     });
@@ -153,8 +194,10 @@ describe('the panel is contextual, not generic', () => {
     const adapter = await adapterWith(bodyFor('email-sig-ext-1', 'person'));
     render(<TemplateInstanceProperties adapter={adapter} />);
     expect(within(panel()).getByText('Identity')).toBeTruthy();
-    expect((screen.getByDisplayValue('Jane Smith') as HTMLInputElement).value).toBe(
-      'Jane Smith',
+    const person = defaultContentFor('person', BRAND);
+    if (person.kind !== 'person') throw new Error('narrowing failed');
+    expect((screen.getByDisplayValue(person.fullName) as HTMLInputElement).value).toBe(
+      person.fullName,
     );
   });
 });
@@ -180,41 +223,48 @@ describe('structured data is real', () => {
       .querySelector('input') as HTMLInputElement;
     fireEvent.change(price, { target: { value: '3400' } });
 
-    // 3400 + 3800 + 1200 + 900 = 9300, +5% = 9765
-    expect(totalRow('Total')).toBe('$9,765');
-    expect(totalRow('Total')).not.toBe('$8,715');
+    const base = defaultInvoice();
+    const moved = invoiceWith({
+      lineItems: [{ ...base.lineItems[0], unitPrice: 3400 }, ...base.lineItems.slice(1)],
+    });
+    expect(totalRow('Total')).toBe(totalOf(moved));
+    // ...and it MOVED — the whole point of the model.
+    expect(totalRow('Total')).not.toBe(totalOf(base));
   });
 
   it('adds a line item', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
-    expect(document.querySelectorAll('.bk-qe-item').length).toBe(4);
+    expect(document.querySelectorAll('.bk-qe-item').length).toBe(
+      defaultInvoice().lineItems.length,
+    );
 
     fireEvent.click(within(panel()).getByText('Add item'));
     expect(document.querySelectorAll('.bk-qe-item').length).toBe(5);
     // A new empty item is worth nothing, so the total must not move.
-    expect(totalRow('Total')).toBe('$8,715');
+    expect(totalRow('Total')).toBe(totalOf(defaultInvoice()));
   });
 
   it('removes a line item and re-totals', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
     fireEvent.click(within(panel()).getAllByLabelText('Remove item')[0]);
 
-    expect(document.querySelectorAll('.bk-qe-item').length).toBe(3);
-    // 8300 − 2400 = 5900, +5% = 6195
-    expect(totalRow('Total')).toBe('$6,195');
-    expect(invoiceContent().lineItems[0].label).toBe('Identity System');
+    const base = defaultInvoice();
+    expect(document.querySelectorAll('.bk-qe-item').length).toBe(base.lineItems.length - 1);
+    expect(totalRow('Total')).toBe(totalOf(invoiceWith({ lineItems: base.lineItems.slice(1) })));
+    expect(invoiceContent().lineItems[0].label).toBe(base.lineItems[1].label);
   });
 
   it('reorders line items — the model moves, not just the DOM', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
-    expect(invoiceContent().lineItems[0].label).toBe('Brand Strategy');
+    const base = defaultInvoice();
+    expect(invoiceContent().lineItems[0].label).toBe(base.lineItems[0].label);
 
     fireEvent.click(within(panel()).getAllByLabelText('Move down')[0]);
 
-    expect(invoiceContent().lineItems[0].label).toBe('Identity System');
-    expect(invoiceContent().lineItems[1].label).toBe('Brand Strategy');
+    expect(invoiceContent().lineItems[0].label).toBe(base.lineItems[1].label);
+    expect(invoiceContent().lineItems[1].label).toBe(base.lineItems[0].label);
     // Reordering moves nothing in or out, so the total is unchanged.
-    expect(totalRow('Total')).toBe('$8,715');
+    expect(totalRow('Total')).toBe(totalOf(base));
   });
 
   it('applies a discount before tax', () => {
@@ -222,18 +272,35 @@ describe('structured data is real', () => {
     const discount = within(panel()).getAllByText('Discount')[0].closest('label')!
       .querySelector('input') as HTMLInputElement;
     fireEvent.change(discount, { target: { value: '10' } });
-    // 8300 − 830 = 7470, +5% = 7843.50
-    expect(totalRow('Total')).toBe('$7,843.50');
+    // Discount comes off BEFORE tax — the ordering is the claim, so the
+    // expectation is the pure function's answer for the same content.
+    expect(totalRow('Total')).toBe(totalOf(invoiceWith({ discountRate: 10 })));
+    expect(totalRow('Total')).not.toBe(totalOf(defaultInvoice()));
   });
 });
 
 describe('the letterhead body', () => {
-  it('keeps the blank letterhead until there is something to say', async () => {
+  /**
+   * This test used to be "keeps the blank letterhead until there is
+   * something to say", and asserted `bodyField.value === ''`.
+   *
+   * Its intent is SUPERSEDED: a blank letter body is now deliberately
+   * impossible to arrive at. `defaultLetterContent` seeds a short branded
+   * paragraph because the letterhead designs paint grey rules where copy
+   * goes, so an empty default shipped a page of grey bars as the finished
+   * artifact (see `LetterContent.body`'s doc comment). The claim now is
+   * the one that replaced it — the panel opens on a real, brand-specific
+   * paragraph — plus the half of the old claim that is still true and
+   * still worth defending: an EMPTIED body is kept as the user's answer
+   * rather than refilled with the default.
+   */
+  it('opens on the brand\'s own letter body, and keeps whatever replaces it', async () => {
     const adapter = await adapterWith(bodyFor('letterhead-ext-6', 'letter'));
     render(<TemplateInstanceProperties adapter={adapter} />);
     const bodyField = within(panel()).getByText('Body').closest('label')!
       .querySelector('textarea') as HTMLTextAreaElement;
-    expect(bodyField.value).toBe('');
+    expect(bodyField.value).toBe(defaultLetter().body);
+    expect(bodyField.value).toContain(BRAND.name);
 
     fireEvent.change(bodyField, { target: { value: 'Dear team,' } });
 
@@ -242,6 +309,14 @@ describe('the letterhead body', () => {
       throw new Error('narrowing failed');
     }
     expect(body.content.body).toBe('Dear team,');
+
+    // Clearing it is an answer too — the default must not creep back.
+    fireEvent.change(bodyField, { target: { value: '' } });
+    const cleared = adapter.getBody();
+    if (cleared?.kind !== 'template-instance' || cleared.content.kind !== 'letter') {
+      throw new Error('narrowing failed');
+    }
+    expect(cleared.content.body).toBe('');
   });
 });
 
@@ -253,19 +328,15 @@ describe('the model is the source of truth', () => {
       .querySelector('input') as HTMLInputElement;
     fireEvent.change(tax, { target: { value: '20' } });
 
-    const expected = invoiceTotals({
-      issuerName: '', issuerAddress: '', clientName: '', clientAddress: '',
-      number: '', issueDate: '', dueDate: '', currency: 'USD',
-      lineItems: [
-        { id: 'li-1', label: '', qty: 1, unitPrice: 2400 },
-        { id: 'li-2', label: '', qty: 1, unitPrice: 3800 },
-        { id: 'li-3', label: '', qty: 1, unitPrice: 1200 },
-        { id: 'li-4', label: '', qty: 1, unitPrice: 900 },
-      ],
-      discountRate: 0, taxRate: 20, notes: '',
-    });
-    expect(expected.total).toBe(9960);
-    expect(totalRow('Total')).toBe('$9,960');
+    const base = defaultInvoice();
+    const expected = invoiceTotals(invoiceWith({ taxRate: 20 }));
+    // The arithmetic done HERE, by hand, so this is still an independent
+    // check of `invoiceTotals` and not the pure function agreeing with
+    // itself. (The old version wrote the ladder out as literals to the
+    // same end; the ladder moved, the check did not have to.)
+    const subtotal = base.lineItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
+    expect(expected.total).toBe(Math.round(subtotal * 1.2 * 100) / 100);
+    expect(totalRow('Total')).toBe(formatMoney(expected.total, base.currency));
   });
 });
 
