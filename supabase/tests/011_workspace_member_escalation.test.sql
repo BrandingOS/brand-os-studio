@@ -68,7 +68,7 @@ BEGIN
   BEGIN
     INSERT INTO public.workspace_members (workspace_id, user_id, role)
     VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-            '22222222-2222-2222-2222-222222222222', 'editor');
+            '22222222-2222-2222-2222-222222222222', 'member');
     RAISE EXCEPTION 'PROOF 1b FAILED: attacker self-inserted as editor into a foreign workspace';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PROOF 1b PASSED: cross-tenant self-insert (editor) blocked';
@@ -92,27 +92,41 @@ BEGIN
 END $$;
 RESET ROLE;
 
--- ── PROOF 2 — workspace admins can still legitimately manage members ─────────
--- Admin C of the victim adds an editor and then updates their role. Must succeed.
+-- ── PROOF 2 — admins still manage members, but only through the RPC ─────────
+-- Migration 039 removed every client write policy on workspace_members: membership
+-- changes go through set_member_role / remove_member, which check capabilities and hold
+-- the ownership invariants. So the proof is now twofold — a direct write is refused for
+-- everyone, and the sanctioned path still works for an admin.
 SELECT pg_temp.act_as('33333333-3333-3333-3333-333333333333');
-INSERT INTO public.workspace_members (workspace_id, user_id, role)
-VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        '44444444-4444-4444-4444-444444444444', 'editor');  -- succeeds or aborts loudly
-UPDATE public.workspace_members
-   SET role = 'viewer'
- WHERE workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-   AND user_id = '44444444-4444-4444-4444-444444444444';
+DO $$
+DECLARE ok boolean := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.workspace_members (workspace_id, user_id, role)
+    VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','44444444-4444-4444-4444-444444444444','member');
+  EXCEPTION WHEN insufficient_privilege THEN ok := true; END;
+  IF NOT ok THEN RAISE EXCEPTION 'PROOF 2a FAILED: a member row was written directly'; END IF;
+  RAISE NOTICE 'PROOF 2a PASSED: workspace_members is not client-writable';
+END $$;
+RESET ROLE;
+
+-- the member exists (in production an invitation puts them here)
+INSERT INTO public.workspace_members (workspace_id, user_id, role, brand_access_mode, default_brand_role)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','44444444-4444-4444-4444-444444444444','member','all','editor');
+
+SELECT pg_temp.act_as('33333333-3333-3333-3333-333333333333');
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.workspace_members
-    WHERE workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-      AND user_id = '44444444-4444-4444-4444-444444444444'
-      AND role = 'viewer'
-  ) THEN
-    RAISE EXCEPTION 'PROOF 2 FAILED: admin could not legitimately add/update a member';
+  PERFORM public.set_member_role('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                                 '44444444-4444-4444-4444-444444444444',
+                                 'guest', 'selected', 'viewer');
+  IF NOT EXISTS (SELECT 1 FROM public.workspace_members
+                  WHERE workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+                    AND user_id = '44444444-4444-4444-4444-444444444444'
+                    AND role = 'guest') THEN
+    RAISE EXCEPTION 'PROOF 2b FAILED: an admin could not manage a member through the RPC';
   END IF;
-  RAISE NOTICE 'PROOF 2 PASSED: admin can add and update non-owner members';
+  RAISE NOTICE 'PROOF 2b PASSED: admin manages members through set_member_role';
 END $$;
 RESET ROLE;
 
@@ -143,7 +157,7 @@ DECLARE affected INT;
 BEGIN
   BEGIN
     UPDATE public.workspace_members
-       SET role = 'viewer'
+       SET role = 'member'
      WHERE workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
        AND user_id = '11111111-1111-1111-1111-111111111111';  -- the owner
     GET DIAGNOSTICS affected = ROW_COUNT;
@@ -172,26 +186,31 @@ END $$;
 RESET ROLE;
 
 -- ── REGRESSION — the legitimate create-workspace bootstrap still works ───────
--- Mirrors SupabaseWorkspaceService.create(): user B creates a workspace they own,
--- then self-inserts the owner membership row. Both steps must succeed.
+-- 039 removed the direct INSERT policy on workspaces: creation is create_workspace(),
+-- which is where the owned-workspace entitlement is enforced. The bootstrap it replaces
+-- must still work, and the two steps must still be atomic.
 SELECT pg_temp.act_as('22222222-2222-2222-2222-222222222222');
-INSERT INTO public.workspaces (id, name, slug, owner_id)
-VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'B New WS', 'b-new-ws',
-        '22222222-2222-2222-2222-222222222222');   -- workspaces_insert_auth: owner_id = self
-INSERT INTO public.workspace_members (workspace_id, user_id, role)
-VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc',
-        '22222222-2222-2222-2222-222222222222', 'owner');  -- clause (b): genuine owner
 DO $$
+DECLARE ws uuid; ok boolean := false;
 BEGIN
+  BEGIN
+    INSERT INTO public.workspaces (id, name, slug, owner_id)
+    VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'B New WS', 'b-new-ws',
+            '22222222-2222-2222-2222-222222222222');
+  EXCEPTION WHEN insufficient_privilege THEN ok := true; END;
+  IF NOT ok THEN RAISE EXCEPTION 'REGRESSION FAILED: workspaces is still directly insertable'; END IF;
+
+  ws := public.create_workspace('B New WS', 'b-new-ws');
   IF NOT EXISTS (
     SELECT 1 FROM public.workspace_members
-    WHERE workspace_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
-      AND user_id = '22222222-2222-2222-2222-222222222222'
-      AND role = 'owner'
+     WHERE workspace_id = ws AND user_id = '22222222-2222-2222-2222-222222222222' AND role = 'owner'
   ) THEN
-    RAISE EXCEPTION 'REGRESSION FAILED: legitimate create-workspace owner bootstrap was blocked';
+    RAISE EXCEPTION 'REGRESSION FAILED: create_workspace did not make the caller its owner';
   END IF;
-  RAISE NOTICE 'REGRESSION PASSED: genuine owner can bootstrap their own new workspace';
+  IF NOT public.has_capability('members.invite', ws) THEN
+    RAISE EXCEPTION 'REGRESSION FAILED: the creator cannot manage their own new workspace';
+  END IF;
+  RAISE NOTICE 'REGRESSION PASSED: genuine owner bootstraps a workspace through create_workspace()';
 END $$;
 RESET ROLE;
 

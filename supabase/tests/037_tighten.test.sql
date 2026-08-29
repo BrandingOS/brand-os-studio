@@ -10,10 +10,10 @@ DELETE FROM public.workspaces WHERE owner_id IN ('11111111-0000-0000-0000-000000
 INSERT INTO public.workspaces (id,name,slug,owner_id,is_personal) VALUES
   ('aaaaaaaa-0000-0000-0000-000000000037','W1','w1-037','11111111-0000-0000-0000-000000000037', true),
   ('bbbbbbbb-0000-0000-0000-000000000037','W2','w2-037','22222222-0000-0000-0000-000000000037', true);
-INSERT INTO public.workspace_members (workspace_id,user_id,role,role_v2) VALUES
-  ('aaaaaaaa-0000-0000-0000-000000000037','11111111-0000-0000-0000-000000000037','owner','owner'),
-  ('aaaaaaaa-0000-0000-0000-000000000037','22222222-0000-0000-0000-000000000037','editor','member'),
-  ('bbbbbbbb-0000-0000-0000-000000000037','22222222-0000-0000-0000-000000000037','owner','owner');
+INSERT INTO public.workspace_members (workspace_id,user_id,role) VALUES
+  ('aaaaaaaa-0000-0000-0000-000000000037','11111111-0000-0000-0000-000000000037','owner'),
+  ('aaaaaaaa-0000-0000-0000-000000000037','22222222-0000-0000-0000-000000000037','member'),
+  ('bbbbbbbb-0000-0000-0000-000000000037','22222222-0000-0000-0000-000000000037','owner');
 INSERT INTO public.brands (id,user_id,name,primary_color,slug,workspace_id) VALUES
   ('cccccccc-0000-0000-0000-000000000037','11111111-0000-0000-0000-000000000037','B1','#000000','b1-037','aaaaaaaa-0000-0000-0000-000000000037');
 

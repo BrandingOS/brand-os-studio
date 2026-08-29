@@ -28,33 +28,16 @@ INSERT INTO public.workspaces (id, name, slug, owner_id, is_personal) VALUES
   ('aaaaaaaa-0000-0000-0000-000000000001','Kaafex','kaafex-fx','11111111-0000-0000-0000-000000000001', false),
   ('aaaaaaaa-0000-0000-0000-000000000002','Bob Co','bobco-fx', '11111111-0000-0000-0000-000000000008', false);
 
--- memberships (role = legacy column while it still exists; role_v2 = the model)
-DO $$
-DECLARE has_legacy boolean;
-BEGIN
-  SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='workspace_members' AND column_name='role_v2') INTO has_legacy;
-  IF has_legacy THEN
-    INSERT INTO public.workspace_members (workspace_id, user_id, role, role_v2, status, brand_access_mode, default_brand_role, capability_overrides) VALUES
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000001','owner', 'owner', 'active','all',      NULL,     '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000002','admin', 'admin', 'active','all',      NULL,     '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000003','editor','member','active','all',      'editor', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000004','viewer','member','active','selected', 'designer','{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000005','viewer','member','active','all',      'viewer', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000006','viewer','guest', 'active','selected', 'viewer', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000007','editor','member','suspended','all',   'editor', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000008','owner', 'owner', 'active','all',      NULL,     '{}');
-  ELSE
-    INSERT INTO public.workspace_members (workspace_id, user_id, role, status, brand_access_mode, default_brand_role, capability_overrides) VALUES
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000001','owner', 'active','all',      NULL,     '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000002','admin', 'active','all',      NULL,     '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000003','member','active','all',      'editor', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000004','member','active','selected', 'designer','{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000005','member','active','all',      'viewer', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000006','guest', 'active','selected', 'viewer', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000007','member','suspended','all',   'editor', '{}'),
-      ('aaaaaaaa-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000008','owner', 'active','all',      NULL,     '{}');
-  END IF;
-END $$;
+-- memberships
+INSERT INTO public.workspace_members (workspace_id, user_id, role, status, brand_access_mode, default_brand_role, capability_overrides) VALUES
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000001','owner', 'active','all',      NULL,      '{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000002','admin', 'active','all',      NULL,      '{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000003','member','active','all',      'editor',  '{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000004','member','active','selected', 'designer','{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000005','member','active','all',      'viewer',  '{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000006','guest', 'active','selected', 'viewer',  '{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000007','member','suspended','all',   'editor',  '{}'),
+  ('aaaaaaaa-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000008','owner', 'active','all',      NULL,      '{}');
 
 -- brands (A3 archived)
 INSERT INTO public.brands (id, user_id, workspace_id, name, primary_color, slug, archived_at) VALUES

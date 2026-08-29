@@ -479,7 +479,7 @@ DECLARE col text; old_v text; new_v text;
 BEGIN
   IF (SELECT auth.uid()) IS NULL OR public.is_super_admin() THEN RETURN NEW; END IF;
   FOREACH col IN ARRAY TG_ARGV LOOP
-    EXECUTE format('SELECT ($1).%sI::text, ($2).%sI::text', col, col) INTO old_v, new_v USING OLD, NEW;
+    EXECUTE format('SELECT ($1).%I::text, ($2).%I::text', col, col) INTO old_v, new_v USING OLD, NEW;
     IF old_v IS DISTINCT FROM new_v THEN
       RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'immutable_column', DETAIL = format('%s.%s cannot be changed', TG_TABLE_NAME, col);
     END IF;

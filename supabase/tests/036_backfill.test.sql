@@ -9,69 +9,54 @@
 --   asset D1 on B1 with no workspace_id                               → denormalised to W1
 -- ============================================================================
 BEGIN;
-
-INSERT INTO auth.users (id, email, instance_id, aud, role, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
-VALUES ('11111111-0000-0000-0000-000000000036','u1-036@test.local','00000000-0000-0000-0000-000000000000','authenticated','authenticated', now(), now(), '{}', '{}'),
-       ('22222222-0000-0000-0000-000000000036','u2-036@test.local','00000000-0000-0000-0000-000000000000','authenticated','authenticated', now(), now(), '{}', '{}'),
-       ('33333333-0000-0000-0000-000000000036','u3-036@test.local','00000000-0000-0000-0000-000000000000','authenticated','authenticated', now(), now(), '{}', '{}')
-ON CONFLICT (id) DO NOTHING;
-
--- The signup trigger created personal workspaces for these users via profiles; we want a
--- deterministic one for U1, so delete what the trigger made (test-local) and insert ours.
-DELETE FROM public.workspaces WHERE owner_id IN ('11111111-0000-0000-0000-000000000036','22222222-0000-0000-0000-000000000036','33333333-0000-0000-0000-000000000036');
-
-INSERT INTO public.workspaces (id,name,slug,owner_id,is_personal) VALUES
-  ('aaaaaaaa-0000-0000-0000-000000000036','W1','w1-036','11111111-0000-0000-0000-000000000036', false),
-  ('cccccccc-0000-0000-0000-000000000036','Orphan','orphan-036','99999999-0000-0000-0000-000000000036', false);
-INSERT INTO public.workspace_members (workspace_id,user_id,role) VALUES
-  ('aaaaaaaa-0000-0000-0000-000000000036','11111111-0000-0000-0000-000000000036','owner'),
-  ('aaaaaaaa-0000-0000-0000-000000000036','22222222-0000-0000-0000-000000000036','editor'),
-  ('aaaaaaaa-0000-0000-0000-000000000036','33333333-0000-0000-0000-000000000036','exporter'),
-  ('cccccccc-0000-0000-0000-000000000036','99999999-0000-0000-0000-000000000036','owner');
--- role_v2 was backfilled by the migration for pre-existing rows; these are NEW rows, so NULL it
-UPDATE public.workspace_members SET role_v2 = NULL WHERE workspace_id IN ('aaaaaaaa-0000-0000-0000-000000000036','cccccccc-0000-0000-0000-000000000036');
-
--- Simulate the pre-037 shape inside this transaction (rolled back): a brand with no workspace.
-ALTER TABLE public.brands DISABLE TRIGGER trg_brands_default_workspace;
-ALTER TABLE public.brands ALTER COLUMN workspace_id DROP NOT NULL;
-ALTER TABLE public.assets DISABLE TRIGGER trg_assets_workspace_from_brand;
-ALTER TABLE public.assets ALTER COLUMN workspace_id DROP NOT NULL;
-ALTER TABLE public.assets DROP CONSTRAINT assets_brand_workspace_fk;
-INSERT INTO public.brands (id,user_id,name,primary_color,slug,workspace_id)
-  VALUES ('bbbbbbbb-0000-0000-0000-000000000036','11111111-0000-0000-0000-000000000036','B1','#000000','b1-036', NULL);
-INSERT INTO public.assets (id,brand_id,name,type,category,url)
-  VALUES ('dddddddd-0000-0000-0000-000000000036','bbbbbbbb-0000-0000-0000-000000000036','a','image','logo','x');
-
-SELECT public.backfill_tenancy();
--- idempotent: running it twice changes nothing and raises nothing
-SELECT public.backfill_tenancy();
-
+-- 039 drops backfill_tenancy() once it has done its work, so this suite asserts the STATE a
+-- fully migrated database is in rather than re-running the function.
 DO $$
-DECLARE v_ws uuid; v_role public.workspace_role_v2; v_mode public.brand_access_mode; v_def public.brand_role; v_ov jsonb;
+DECLARE n int;
 BEGIN
-  SELECT workspace_id INTO v_ws FROM public.brands WHERE id='bbbbbbbb-0000-0000-0000-000000000036';
-  IF v_ws IS DISTINCT FROM 'aaaaaaaa-0000-0000-0000-000000000036' THEN RAISE EXCEPTION '036: brand not moved to the creator''s personal workspace (got %)', v_ws; END IF;
+  SELECT count(*) INTO n FROM public.brands WHERE workspace_id IS NULL;
+  IF n > 0 THEN RAISE EXCEPTION '036: % brands have no workspace', n; END IF;
 
-  IF NOT (SELECT is_personal FROM public.workspaces WHERE id='aaaaaaaa-0000-0000-0000-000000000036') THEN RAISE EXCEPTION '036: is_personal not set on the earliest owned workspace'; END IF;
+  SELECT count(*) INTO n FROM public.workspaces w
+   WHERE w.deleted_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM public.workspace_members m
+                      WHERE m.workspace_id = w.id AND m.role = 'owner' AND m.status = 'active');
+  IF n > 0 THEN RAISE EXCEPTION '036: % live workspaces have no active owner', n; END IF;
 
-  IF (SELECT deleted_at FROM public.workspaces WHERE id='cccccccc-0000-0000-0000-000000000036') IS NULL THEN RAISE EXCEPTION '036: orphan workspace not soft-deleted'; END IF;
-  IF EXISTS (SELECT 1 FROM public.workspace_members WHERE workspace_id='cccccccc-0000-0000-0000-000000000036') THEN RAISE EXCEPTION '036: orphan member rows not removed'; END IF;
+  SELECT count(*) INTO n FROM public.workspaces w
+   WHERE w.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = w.owner_id);
+  IF n > 0 THEN RAISE EXCEPTION '036: % live workspaces have an owner who no longer exists', n; END IF;
 
-  SELECT role_v2 INTO v_role FROM public.workspace_members WHERE workspace_id='aaaaaaaa-0000-0000-0000-000000000036' AND user_id='11111111-0000-0000-0000-000000000036';
-  IF v_role <> 'owner' THEN RAISE EXCEPTION '036: owner not remapped (got %)', v_role; END IF;
+  IF to_regclass('public.brand_access') IS NULL THEN RAISE EXCEPTION '036: brand_access missing'; END IF;
+  IF to_regclass('public.migration_log') IS NULL THEN RAISE EXCEPTION '036: migration_log missing'; END IF;
 
-  SELECT role_v2, brand_access_mode, default_brand_role INTO v_role, v_mode, v_def FROM public.workspace_members WHERE workspace_id='aaaaaaaa-0000-0000-0000-000000000036' AND user_id='22222222-0000-0000-0000-000000000036';
-  IF v_role <> 'member' OR v_mode <> 'all' OR v_def <> 'editor' THEN RAISE EXCEPTION '036: editor remap wrong (% % %)', v_role, v_mode, v_def; END IF;
-
-  SELECT role_v2, brand_access_mode, default_brand_role, capability_overrides INTO v_role, v_mode, v_def, v_ov FROM public.workspace_members WHERE workspace_id='aaaaaaaa-0000-0000-0000-000000000036' AND user_id='33333333-0000-0000-0000-000000000036';
-  IF v_role <> 'member' OR v_mode <> 'all' OR v_def <> 'viewer' THEN RAISE EXCEPTION '036: exporter remap wrong (% % %)', v_role, v_mode, v_def; END IF;
-  IF NOT (v_ov->'grant') ? 'designs.export' THEN RAISE EXCEPTION '036: exporter did not receive the export grant (%)', v_ov; END IF;
-
-  IF (SELECT workspace_id FROM public.assets WHERE id='dddddddd-0000-0000-0000-000000000036') IS DISTINCT FROM 'aaaaaaaa-0000-0000-0000-000000000036' THEN RAISE EXCEPTION '036: asset workspace_id not denormalised'; END IF;
-
-  IF (SELECT count(*) FROM public.migration_log WHERE action='brand_workspace_assigned' AND target_id='bbbbbbbb-0000-0000-0000-000000000036') <> 1 THEN RAISE EXCEPTION '036: brand move not logged exactly once'; END IF;
-
-  IF to_regclass('public.brand_access') IS NULL THEN RAISE EXCEPTION '036: brand_access table missing'; END IF;
+  -- the signup trigger speaks the model: a new user gets a personal workspace and an
+  -- owner membership the resolver can read
+  IF pg_get_functiondef('public.handle_new_user_workspace()'::regprocedure) NOT LIKE '%is_personal%' THEN
+    RAISE EXCEPTION '036: the signup trigger does not mark the personal workspace';
+  END IF;
   RAISE NOTICE '✓ ALL 036 ASSERTIONS PASSED';
+END $$;
+
+-- a brand-new signup lands correctly under the new model
+DO $$
+DECLARE uid uuid := '11111111-0000-0000-0000-0000000f0036'; ws uuid; caps text[];
+BEGIN
+  INSERT INTO auth.users (id, email, instance_id, aud, role, created_at, updated_at,
+                          raw_app_meta_data, raw_user_meta_data, email_confirmed_at)
+  VALUES (uid, 'fresh-036@test.local', '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated', now(), now(), '{}', '{}', now());
+
+  SELECT id INTO ws FROM public.workspaces WHERE owner_id = uid;
+  IF ws IS NULL THEN RAISE EXCEPTION '036: signup created no workspace'; END IF;
+  IF NOT (SELECT is_personal FROM public.workspaces WHERE id = ws) THEN
+    RAISE EXCEPTION '036: the signup workspace is not marked personal';
+  END IF;
+
+  caps := public.effective_capabilities(uid, ws);
+  IF NOT (caps @> ARRAY['brands.create','members.invite']) THEN
+    RAISE EXCEPTION '036: a new user is not the owner of their own workspace (caps: %)', caps;
+  END IF;
+  RAISE NOTICE '✓ ALL 036 SIGNUP ASSERTIONS PASSED';
 END $$;
 ROLLBACK;

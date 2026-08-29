@@ -7,7 +7,7 @@
 -- ============================================================================
 BEGIN;
 
--- ── the last owner cannot leave, be demoted, or be removed ──────────────────
+-- A13 — the last owner cannot leave, be demoted, or be removed ─────────────
 DO $$
 DECLARE ok boolean;
 BEGIN
@@ -29,10 +29,10 @@ BEGIN
   IF NOT ok THEN RAISE EXCEPTION 'invariant.last_owner: the last owner was removed'; END IF;
 
   PERFORM pg_temp.back_to_super();
-  RAISE NOTICE '✓ invariant.last_owner';
+  RAISE NOTICE '✓ A13 invariant.last_owner';
 END $$;
 
--- ── nobody changes their own role (rls.members.self_role) ───────────────────
+-- A11 — nobody changes their own role ──────────────────────────────────────
 DO $$
 DECLARE ok boolean := false;
 BEGIN
@@ -44,7 +44,7 @@ BEGIN
   RAISE NOTICE '✓ rls.members.self_role';
 END $$;
 
--- ── an admin cannot mint an owner (rls.members.admin_to_owner) ──────────────
+-- A12 — an admin cannot mint an owner ──────────────────────────────────────
 DO $$
 DECLARE ok boolean := false;
 BEGIN
@@ -131,7 +131,7 @@ BEGIN
   RAISE NOTICE '✓ rls.overrides.ceiling';
 END $$;
 
--- ── rls.overrides.demotion — a role change re-validates existing overrides ──
+-- A34 — a role change re-validates existing overrides ──────────────────────
 DO $$
 DECLARE ov jsonb;
 BEGIN
@@ -146,7 +146,7 @@ BEGIN
   RAISE NOTICE '✓ rls.overrides.demotion';
 END $$;
 
--- ── rpc.guest_ai_default — the guest AI deny is applied by the SERVER ───────
+-- A35 — the guest AI deny is applied by the SERVER, not by a UI ────────────
 DO $$
 DECLARE ov jsonb;
 BEGIN
@@ -174,7 +174,7 @@ BEGIN
   RAISE NOTICE '✓ rpc.guest_ai_default';
 END $$;
 
--- ── a member cannot call the management RPCs (rpc.denied) ──────────────────
+-- A5 — a member cannot call the management RPCs despite a hidden UI ────────
 DO $$
 DECLARE ok boolean := false;
 BEGIN
@@ -202,8 +202,8 @@ BEGIN
   IF has_function_privilege('authenticated', 'public.effective_capabilities(uuid,uuid,uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'effective_capabilities is callable by clients — it answers for ANY user';
   END IF;
-  IF has_function_privilege('authenticated', 'public.backfill_tenancy()', 'EXECUTE') THEN
-    RAISE EXCEPTION 'backfill_tenancy is callable by clients';
+  IF has_function_privilege('authenticated', 'public.assert_capability(text,uuid,uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'assert_capability is callable by clients';
   END IF;
   IF NOT has_function_privilege('authenticated', 'public.my_access()', 'EXECUTE') THEN
     RAISE EXCEPTION 'my_access must be callable by clients';

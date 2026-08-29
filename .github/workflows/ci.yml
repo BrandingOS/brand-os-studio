@@ -85,3 +85,23 @@ jobs:
 
       - name: Run tests
         run: npx vitest run --reporter=verbose
+
+  # The SQL policy/invariant suite: RLS is the security boundary, so it is a gate, not a
+  # thing someone remembers to run. Needs a real Postgres, which the CLI brings up.
+  db:
+    name: Database policies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Start Supabase (db, api and storage only)
+        run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,pgbouncer
+      - name: Run the SQL suites
+        run: node scripts/db-test.mjs --no-reset
+      - name: Threat-model coverage
+        run: node scripts/threat-model-coverage.mjs

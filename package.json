@@ -21,7 +21,8 @@
     "auth:templates:push": "node scripts/push-auth-templates.mjs",
     "gen:tokens:check": "node scripts/gen-ds-tokens.mjs --check",
     "gen:icons": "bash scripts/gen-app-icons.sh",
-    "eval:image": "vite-node evals/image/run.ts --"
+    "eval:image": "vite-node evals/image/run.ts --",
+    "threat:coverage": "node scripts/threat-model-coverage.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.81.0",
