@@ -31,6 +31,12 @@ INSERT INTO public.workspace_members (workspace_id,user_id,role) VALUES
 -- role_v2 was backfilled by the migration for pre-existing rows; these are NEW rows, so NULL it
 UPDATE public.workspace_members SET role_v2 = NULL WHERE workspace_id IN ('aaaaaaaa-0000-0000-0000-000000000036','cccccccc-0000-0000-0000-000000000036');
 
+-- Simulate the pre-037 shape inside this transaction (rolled back): a brand with no workspace.
+ALTER TABLE public.brands DISABLE TRIGGER trg_brands_default_workspace;
+ALTER TABLE public.brands ALTER COLUMN workspace_id DROP NOT NULL;
+ALTER TABLE public.assets DISABLE TRIGGER trg_assets_workspace_from_brand;
+ALTER TABLE public.assets ALTER COLUMN workspace_id DROP NOT NULL;
+ALTER TABLE public.assets DROP CONSTRAINT assets_brand_workspace_fk;
 INSERT INTO public.brands (id,user_id,name,primary_color,slug,workspace_id)
   VALUES ('bbbbbbbb-0000-0000-0000-000000000036','11111111-0000-0000-0000-000000000036','B1','#000000','b1-036', NULL);
 INSERT INTO public.assets (id,brand_id,name,type,category,url)
