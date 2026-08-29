@@ -324,3 +324,92 @@
   border-color: var(--ds-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-accent) 45%, transparent);
 }
+
+/* ─── String lists ─────────────────────────────────────────── */
+/* Address lines, nav links, slide bullets: several short strings in an
+   order. A record control would have meant inventing a wrapper object
+   for each of them purely so the panel had something to address. */
+.bk-qe-strings {
+  gap: 6px;
+}
+.bk-qe-string-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bk-qe-string-row .bk-qe-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Colour ───────────────────────────────────────────────── */
+/* The trigger reads as a value, not a button: the swatch IS the answer
+   and the hex is there so it can be copied and compared. */
+.bk-qe-color-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control, 8px);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.bk-qe-color-trigger:hover {
+  border-color: var(--ds-border-strong, var(--ds-border));
+}
+.bk-qe-color-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.bk-qe-color-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid var(--ds-border);
+  flex-shrink: 0;
+}
+.bk-qe-color-hex {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.bk-qe-color-picker {
+  margin-top: 8px;
+}
+
+/* ─── Image ────────────────────────────────────────────────── */
+.bk-qe-image-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bk-qe-image-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-control, 8px);
+  border: 1px solid var(--ds-border);
+  object-fit: contain;
+  background: var(--ds-surface);
+  flex-shrink: 0;
+}
+.bk-qe-image-thumb.is-empty {
+  display: block;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--ds-surface),
+    var(--ds-surface) 5px,
+    var(--ds-bg) 5px,
+    var(--ds-bg) 10px
+  );
+}
+.bk-qe-image-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Boolean ──────────────────────────────────────────────── */
+.bk-qe-boolean {
+  gap: 4px;
+}

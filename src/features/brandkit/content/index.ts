@@ -7,6 +7,7 @@
  * future Design surface would read: both edit the same object rather than
  * each owning a private copy of "what this artifact says".
  */
+export * from './brandFacts';
 export * from './kinds';
 export * from './paths';
 export * from './compute';
