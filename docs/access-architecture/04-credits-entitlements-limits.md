@@ -30,8 +30,13 @@ image jobs pass 4 min > provider deadline); `settle`/`release` resolve it. A pg_
 `expire_stale_reservations()` every minute releases `held` rows past `expires_at` with
 idempotency key `release:<id>:expired` and writes an audit event. If a late settle arrives
 for an expired reservation, `settle_credits` finds status `expired`, charges nothing, and
-returns `{ok:false, error:'reservation_expired'}` — the function logs it; the customer was
-not charged for work we could not confirm.
+returns `{ok:false, error:'reservation_expired'}`. **The job follows the reservation:** on
+that answer the function marks the job `failed` with `error_code = reservation_expired`,
+deletes any outputs it stored, and writes an `ai_usage_events` row with
+`status = 'expired_unbilled'` carrying the provider cost — so the loss is visible in
+telemetry and the customer never receives work we could not bill. TTL is never a flat
+default: every metered path sets `ttl = provider deadline + 60 s` (images 170 + 60 = 230 s,
+text 120 + 60 = 180 s), so expiry can only precede settlement after a genuine hang.
 
 ### 2.2 `ai_usage_events` — immutable telemetry, one row per paid call
 ```
@@ -50,13 +55,18 @@ reserved_credits` and `= sum(ledger.amount)`; nightly cron flags mismatches into
 `audit_events(action='credits.reconcile_mismatch')`. Every balance is explainable by the ledger.
 
 ### 2.4 Text AI is metered (owner decision #5)
-`anthropic-proxy` and `ai-apply-command`, when called with a user JWT: `requireCaller` →
+`anthropic-proxy` and `ai-apply-command` **require a user JWT unconditionally** — a request
+without a valid `Authorization` header is refused, never downgraded to the anon path (a
+signed-in client that simply omits the header must not get free calls). Their five call
+sites are all signed-in product features. Only `generate-description` and
+`fetch-url-preview` remain anon-capable, on the session/IP limiter, with no wallet. Flow:
+`requireCaller` →
 resolve workspace (from `brandId` when present, else the caller's current workspace passed as
 `workspaceId` and **verified via membership**) → `has_capability('ai.generate', ws, brand)` →
 reserve `estimate = ceil(max_tokens × rate)` → call → settle on actual `usage` →
-`ai_usage_events`. Pre-signup onboarding calls (`generate-description`, `fetch-url-preview`)
-stay on the anon rate limiter with no wallet. Pricing rules for text models join
-`_shared/pricing.ts` under the same `PRICING_VERSION`.
+`ai_usage_events`. Pricing rules for text models join `_shared/pricing.ts` under the same
+`PRICING_VERSION`. Text calls run under a 120 s provider deadline; their reservation TTL is
+deadline + 60 s.
 
 ### 2.5 Per-member monthly cap
 `workspace_members.credits_monthly_cap` (NULL = none). `reserve_credits` sums this month's
