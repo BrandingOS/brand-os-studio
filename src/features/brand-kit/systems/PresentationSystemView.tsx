@@ -46,7 +46,7 @@ import { SystemBand, SystemEmpty, SystemExample, SystemExamples, SystemRule, Sys
 /** What each slide kind is FOR. System prose, not the customer's copy. */
 const KIND_NOTES: Record<DeckSlideKind, { label: string; note: string }> = {
   title: { label: 'Title', note: 'Full bleed. The name, and who is presenting.' },
-  section: { label: 'Divider', note: 'A number and a word. Nothing else.' },
+  section: { label: 'Divider', note: 'A number and a heading, and a line if it earns one.' },
   content: { label: 'Content', note: 'One idea, then at most four points.' },
   stat: { label: 'Data', note: 'The number is the headline.' },
   quote: { label: 'Quote', note: 'Someone else’s words, and their name.' },

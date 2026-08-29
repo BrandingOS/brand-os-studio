@@ -176,9 +176,5 @@ export function formatScanTable(scans: FileScan[]): string {
  */
 export const KNOWN_DIRTY_FILES: ReadonlySet<string> = new Set([
   'src/features/brand-kit/renderers/BrandGuidesExtended.tsx',
-  'src/features/brand-kit/renderers/InvoicesExtended.tsx',
-  'src/features/brand-kit/renderers/InvoicesExtended2.tsx',
-  'src/features/brand-kit/renderers/PresentationsExtended.tsx',
   'src/features/brandkit/components/renderers/BrandGuideRenderer.tsx',
-  'src/features/brandkit/components/renderers/InvoiceRenderer.tsx',
 ]);

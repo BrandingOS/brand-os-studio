@@ -134,6 +134,37 @@ export const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
     'anim-rotate-ext-9', // Turn & Reveal
   ],
 
+  /* The four decks. One variant is one SLIDE (`pres-pitch-ext-3` is slide
+   * three), so a deck's shelf is not three designs — it is three PAGES,
+   * and the three worth showing are the three GROUNDS the family paints
+   * on: the cover, a divider, and a working page. Picking slides 1, 2 and
+   * 3 would have shown the cover twice over, because slide 2 is a divider
+   * and slide 3 is a page anyway, only with less on it.
+   *
+   * Without an entry here `featuredTemplates` falls back to the whole
+   * library, so each of these cards drew ten tiles where it promises
+   * three — which is how a ten-slide deck read as ten separate designs. */
+  'Pitch Deck': [
+    'pres-pitch-ext-1', // Cover
+    'pres-pitch-ext-5', // Offer divider
+    'pres-pitch-ext-6', // What we make
+  ],
+  'Business Plan': [
+    'pres-plan-ext-1', // Cover
+    'pres-plan-ext-5', // Operations divider
+    'pres-plan-ext-6', // Products and services
+  ],
+  Proposal: [
+    'pres-proposal-ext-1', // Cover
+    'pres-proposal-ext-5', // Scope divider
+    'pres-proposal-ext-6', // Scope of work
+  ],
+  'Case Studies': [
+    'pres-case-ext-1', // Cover
+    'pres-case-ext-5', // Work divider
+    'pres-case-ext-6', // What we made
+  ],
+
   /* Mockups — eight cards, three readings each rather than three
    * variations of one: the object plain, the object in the brand's own
    * colour, and the object in use beside something else.

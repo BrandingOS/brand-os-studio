@@ -225,7 +225,18 @@ function Micro({
   );
 }
 
-/** The logo, or the space it would have taken. */
+/**
+ * The logo, or the space it would have taken.
+ *
+ * `BrandLogo` sizes by HEIGHT and leaves the width to the artwork, which
+ * is right on a full-width masthead and wrong inside a column: Raqm's
+ * wordmark drawn at `h-3` is about sixty pixels wide, the Side Stripe's
+ * brand column is under forty, and the sheet clips its overflow — so the
+ * front of the brand's own name was cut off. `max-w-full` hands the
+ * shortfall to `object-contain`, which shrinks the drawing instead. It
+ * can only ever narrow a logo that did not fit, so it is applied here
+ * once rather than at the one call site that happened to show it.
+ */
 function Logo({
   brand,
   k,
@@ -238,7 +249,7 @@ function Logo({
   size?: 'xs' | 'sm' | 'md';
 }) {
   if (!k.showLogo) return <span />;
-  return <BrandLogo brand={brand} size={size} color={color} />;
+  return <BrandLogo brand={brand} size={size} color={color} className="max-w-full" />;
 }
 
 /** A micro caption over one value. */
@@ -603,7 +614,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
     // 1 — Side Stripe. A full-height brand column carries the identity.
     (
       <Page s={paper} k={k} style={{ flexDirection: 'row' }}>
-        <div className="w-[16%] flex flex-col items-center justify-between py-[6%]" style={{ background: band.bg, color: band.ink }}>
+        <div className="w-[16%] flex flex-col items-center justify-between px-[2.5%] py-[6%]" style={{ background: band.bg, color: band.ink }}>
           <Logo brand={brand} k={k} color={band.ink} size="xs" />
           <div style={{ ...MICRO, color: band.ink, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
             <Bind path="issuerName" value={c.issuerName} />
