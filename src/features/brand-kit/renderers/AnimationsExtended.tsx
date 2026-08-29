@@ -972,38 +972,81 @@ export function pauseAtEnd(root: HTMLElement | null | undefined): void {
  * `curation/animations.ts`, so they show nowhere while a customer who
  * saved one can still open it. Shortening this array instead would make
  * those saves unresolvable.
+ *
+ * An archived id keeps the name of the design it USED to be a copy of.
+ * The old list was `[...ten, ...ten, ...ten]`, so `-ext-11` was design 1
+ * over again; calling it "Reveal 11" would invent a design that never
+ * existed and make a customer's saved card unrecognisable to them.
  */
-function meta(designs: Design[], prefix: string) {
-  return Array.from({ length: 30 }, (_, i) => ({
+/** How many ids each family reserves — kept plus archived. */
+export const ANIMATION_ID_COUNT = 30;
+
+/** How many of those thirty are real designs. Ten, in every family. */
+export const ANIMATION_KEPT_COUNT = REVEAL.length;
+
+function meta(designs: Design[]) {
+  return Array.from({ length: ANIMATION_ID_COUNT }, (_, i) => ({
     idSuffix: `ext-${i + 1}`,
-    name: designs[i]?.name ?? `${prefix} ${i + 1}`,
-    category: 'Modern',
+    name: designs[i % designs.length]!.name,
+    category: i < designs.length ? 'Motion' : 'Archived',
   }));
 }
 
-export const LOGO_REVEAL_EXTENDED = meta(REVEAL, 'Reveal');
-export const SLIDE_IN_EXTENDED = meta(SLIDE, 'Slide');
-export const FADE_EXTENDED = meta(FADE, 'Fade');
-export const ROTATE_EXTENDED = meta(ROTATE, 'Rotate');
+export const LOGO_REVEAL_EXTENDED = meta(REVEAL);
+export const SLIDE_IN_EXTENDED = meta(SLIDE);
+export const FADE_EXTENDED = meta(FADE);
+export const ROTATE_EXTENDED = meta(ROTATE);
 
 /**
- * The kept designs, as curation sees them.
+ * The four families, as curation and the tests see them.
  *
  * `curation/animations.ts` builds its names, tags and archived list from
  * THIS, rather than repeating forty names in a second file — a name that
  * exists twice is a name that will disagree with itself.
  */
-export type AnimationDesignRef = { name: string; tags: string[] };
-
 export const ANIMATION_FAMILIES: ReadonlyArray<{
+  /** The template type, which is also the id prefix. */
   type: string;
-  designs: AnimationDesignRef[];
+  /** The card label this type is reached by, in the catalog. */
+  label: string;
+  designs: ReadonlyArray<{ name: string; tags: string[] }>;
 }> = [
-  { type: 'anim-reveal', designs: REVEAL.map(({ name, tags }) => ({ name, tags })) },
-  { type: 'anim-slide', designs: SLIDE.map(({ name, tags }) => ({ name, tags })) },
-  { type: 'anim-fade', designs: FADE.map(({ name, tags }) => ({ name, tags })) },
-  { type: 'anim-rotate', designs: ROTATE.map(({ name, tags }) => ({ name, tags })) },
+  { type: 'anim-reveal', label: 'Logo Reveal', designs: REVEAL.map(({ name, tags }) => ({ name, tags })) },
+  { type: 'anim-slide', label: 'Slide In', designs: SLIDE.map(({ name, tags }) => ({ name, tags })) },
+  { type: 'anim-fade', label: 'Fade', designs: FADE.map(({ name, tags }) => ({ name, tags })) },
+  { type: 'anim-rotate', label: 'Rotate', designs: ROTATE.map(({ name, tags }) => ({ name, tags })) },
 ];
 
-/** How many ids each family reserves — kept plus archived. */
-export const ANIMATION_ID_COUNT = 30;
+/** The ids each family still shows, in order, by template type. */
+export const ANIMATION_KEPT_IDS_BY_TYPE: Record<string, string[]> = Object.fromEntries(
+  ANIMATION_FAMILIES.map((f) => [
+    f.type,
+    f.designs.map((_, i) => `${f.type}-ext-${i + 1}`),
+  ]),
+);
+
+/** Every id this family still shows, all four types. */
+export const ANIMATION_KEPT_IDS: string[] = Object.values(ANIMATION_KEPT_IDS_BY_TYPE).flat();
+
+/** The tripled ids — reserved for old saves, shown nowhere. */
+export const ANIMATION_ARCHIVED_IDS: string[] = ANIMATION_FAMILIES.flatMap((f) =>
+  Array.from(
+    { length: ANIMATION_ID_COUNT - f.designs.length },
+    (_, i) => `${f.type}-ext-${f.designs.length + i + 1}`,
+  ),
+);
+
+/** The designer names, by template id — mirrored in the curation file. */
+export const ANIMATION_NAMES: Record<string, string> = Object.fromEntries(
+  ANIMATION_FAMILIES.flatMap((f) =>
+    f.designs.map((d, i) => [`${f.type}-ext-${i + 1}`, d.name] as const),
+  ),
+);
+
+/** The filter chips, by template id — mirrored in the curation file. */
+export const ANIMATION_TAGS: Record<string, string[]> = Object.fromEntries(
+  ANIMATION_FAMILIES.flatMap((f) =>
+    f.designs.map((d, i) => [`${f.type}-ext-${i + 1}`, d.tags] as const),
+  ),
+);
+
