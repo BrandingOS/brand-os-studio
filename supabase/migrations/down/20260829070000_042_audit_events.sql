@@ -1,0 +1,15 @@
+DROP TRIGGER IF EXISTS trg_credit_ledger_audit ON public.credit_ledger;
+DROP TRIGGER IF EXISTS trg_share_links_audit ON public.share_links;
+DROP TRIGGER IF EXISTS trg_brands_audit ON public.brands;
+DROP TRIGGER IF EXISTS trg_workspace_invitations_audit ON public.workspace_invitations;
+DROP TRIGGER IF EXISTS trg_brand_access_audit ON public.brand_access;
+DROP TRIGGER IF EXISTS trg_workspace_members_audit ON public.workspace_members;
+DROP FUNCTION IF EXISTS public.prune_audit_events();
+DROP FUNCTION IF EXISTS public.audit_credit_grant();
+DROP FUNCTION IF EXISTS public.audit_share_link_change();
+DROP FUNCTION IF EXISTS public.audit_brand_change();
+DROP FUNCTION IF EXISTS public.audit_invitation_change();
+DROP FUNCTION IF EXISTS public.audit_brand_access_change();
+DROP FUNCTION IF EXISTS public.audit_membership_change();
+DROP FUNCTION IF EXISTS public.record_audit(uuid, text, text, text, jsonb, jsonb, uuid, jsonb);
+DROP TABLE IF EXISTS public.audit_events;
