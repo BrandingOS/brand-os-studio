@@ -1298,7 +1298,12 @@ export function BrandKitCosmosPage({
           // — snapshot that DOM so the download matches what they see.
           const host = document.querySelector<HTMLElement>('.bk-preview-host');
           if (host) {
-            const id = toast.loading(`Exporting ${t.label}…`);
+            // Top-centre, deliberately: the editor's Cancel · Download ·
+            // Save bar sits bottom-right, exactly where a toast lands by
+            // default. "Business Card exported" used to cover Save, and the
+            // click after a download went to the toast instead.
+            const where = { position: 'top-center' as const };
+            const id = toast.loading(`Exporting ${t.label}…`, where);
             try {
               const blob = await snapshotElementPng(host, 4);
               if (!blob) throw new Error('Rasterization produced no image');
@@ -1306,10 +1311,11 @@ export function BrandKitCosmosPage({
                 blob,
                 `${slugifyName(effectiveBrand.name)}-${slugifyName(t.label)}.png`,
               );
-              toast.success(`${t.label} exported`, { id });
+              toast.success(`${t.label} exported`, { id, ...where });
             } catch (err) {
               toast.error('Download failed', {
                 id,
+                ...where,
                 description: err instanceof Error ? err.message : 'Unknown error',
               });
             }

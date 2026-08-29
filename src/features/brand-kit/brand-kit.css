@@ -3016,9 +3016,11 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  max-height: min(52vh, 420px);
-  overflow-y: auto;
-  padding-right: 4px;
+  /* No nested scroll region. The list used to cap itself at 420px and
+     scroll inside the modal, so at a 900px viewport the last group's row
+     was cut off with nothing to say more was below. `DsModal` already
+     scrolls its whole body (`max-height: calc(100vh - 48px)`), which is the
+     one scrollbar a dialog should have. */
 }
 .bk-export-group-head {
   display: flex;
