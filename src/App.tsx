@@ -98,6 +98,7 @@ const AccountSettingsPage = lazy(() => import("./pages/settings/account"));
 const PreferencesSettingsPage = lazy(() => import("./pages/settings/preferences"));
 const PlansPage = lazy(() => import("./pages/settings/plans"));
 const MembersSettingsPage = lazy(() => import("./pages/settings/members"));
+const InvitePage = lazy(() => import("./pages/invite/[token]"));
 const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
@@ -838,6 +839,10 @@ const App = () => (
           <Route path="/i/:token" element={<PublishedIdentityRoute />} />
           <Route path="/p/:slug" element={<BrandPortalV2Page />} />
           <Route path="/d/:brandSlug/:designSlug" element={<PublicDesignPage />} />
+          {/* Deliberately outside ProtectedRoute: the point of an invitation is that the
+              person does not have an account yet. invitation_preview is the only thing
+              anon may call, and it cannot be used to probe for real workspaces. */}
+          <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<LoginPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />

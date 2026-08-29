@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import { initialsFromName } from '@/shared/utils/initials';
 import { BrandMark } from '@/shared/ds';
+import { WorkspaceSwitcher } from '@/features/members/components/WorkspaceSwitcher';
 import '@/shared/styles/workspace.css';
 import '@/shared/styles/workspace-home.css';
 
@@ -79,6 +80,10 @@ export function WorkspaceShell({
             </span>
             <span>{brandName}</span>
           </NavLink>
+          {/* The workspace context, beside the wordmark — this shell has no brand
+              switcher, and the dashboard and settings are exactly where switching
+              matters. Hides itself for one workspace and for guests. */}
+          <WorkspaceSwitcher />
         </div>
 
         {/* Center intentionally empty — workspace shell has no tabs */}
