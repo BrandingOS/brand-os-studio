@@ -79,7 +79,7 @@ export async function callAnthropic(
   });
   if (error) {
     const reason = await readFunctionError(error);
-    if (reason) throw new AiCreditError(reason.error, reason);
+    if (reason) throw new AiCreditError(String(reason.error), reason);
     throw new Error(`anthropic-proxy failed: ${error.message}`);
   }
   if (!data) throw new Error('anthropic-proxy: empty response');

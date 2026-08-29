@@ -1,0 +1,21 @@
+{
+  "brandSlug": "uniex",
+  "tasks": [
+    {
+      "id": "post-with-copy",
+      "why": "The core case: a finished social post with real copy.",
+      "userPrompt": "instagram post announcing our new student mentorship programme",
+      "copy": { "headline": "Find your mentor", "subhead": "Applications close 30 September", "cta": "Apply now" },
+      "formatId": "1:1 Square",
+      "kind": "design"
+    },
+    {
+      "id": "ad-no-copy",
+      "why": "The invented-discount trap: an advert with NO copy supplied.",
+      "userPrompt": "an advertisement for our university admissions service",
+      "copy": null,
+      "formatId": "1:1 Square",
+      "kind": "design"
+    }
+  ]
+}

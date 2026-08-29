@@ -39,11 +39,16 @@ const haystack = [
   ...walk(join(root, 'supabase/functions')).filter((f) => f.includes('test')),
 ].map((f) => readFileSync(f, 'utf8')).join('\n');
 
-// A test CLAIMS an id by naming it in a comment (`-- A13`) or in its pass notice
-// (`✓ A13 …`). A bare word match would collide with fixture names like brand "A2".
-const covered = new Set(
-  [...haystack.matchAll(/(?:--\s*|✓\s*)(A\d+)\b/g)].map((m) => m[1]),
-);
+// A test CLAIMS an id by naming it on a COMMENT or pass-notice line (`-- A13`,
+// `// A29, A31`, `✓ A13 …`). Scanning whole lines rather than one id per marker means a
+// comment covering two ids is honest about both. A bare word match would collide with
+// fixture names like brand "A2".
+const covered = new Set();
+for (const line of haystack.split('\n')) {
+  if (!/(--|\/\/|✓)/.test(line)) continue;
+  for (const m of line.matchAll(/\bA\d+\b/g)) covered.add(m[0]);
+}
+
 const missing = declared.filter((id) => !covered.has(id) && !allowed.has(id));
 const staleAllow = [...allowed].filter((id) => covered.has(id));
 

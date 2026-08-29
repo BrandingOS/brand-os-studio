@@ -58,7 +58,8 @@ describe('service-role Edge Functions authorize their caller', () => {
     }
   });
 
-  // A31 — a signed-in client must not be able to drop the header and reach a free path.
+  // A29, A31 — a signed-in client must not be able to drop the header and reach a free,
+  // unmetered path; the proxy requires a JWT and spends from the wallet.
   it('the text-AI proxy requires a JWT rather than a body-supplied session id', () => {
     const proxy = read('anthropic-proxy');
     expect(proxy).toContain('requireCaller(');

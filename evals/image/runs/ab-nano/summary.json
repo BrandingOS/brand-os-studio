@@ -1,0 +1,54 @@
+{
+  "runId": "ab-nano",
+  "gitSha": "999d53ac",
+  "mode": "live",
+  "stage": "generate",
+  "cells": 4,
+  "creditsSpent": 0,
+  "byVariant": {
+    "baseline": {
+      "n": 2,
+      "heuristic": {
+        "saysFinished": 1,
+        "refusesBackdrop": 1,
+        "namesHowItIsRead": 0,
+        "namesConventions": 0,
+        "setsTypeFloor": 0,
+        "hasConcept": 0,
+        "directsHierarchy": 1,
+        "directsColourRoles": 0,
+        "directsLight": 0,
+        "hasSafeMargin": 1,
+        "quotesExactCopy": 1,
+        "bansInventedFacts": 1,
+        "noPlaceholderReserve": 1,
+        "wordlessStaysWordless": 1,
+        "notProhibitionHeavy": 0,
+        "notBloated": 0
+      },
+      "meanPromptChars": 2463
+    },
+    "candidate": {
+      "n": 2,
+      "heuristic": {
+        "saysFinished": 1,
+        "refusesBackdrop": 1,
+        "namesHowItIsRead": 1,
+        "namesConventions": 1,
+        "setsTypeFloor": 1,
+        "hasConcept": 1,
+        "directsHierarchy": 1,
+        "directsColourRoles": 1,
+        "directsLight": 1,
+        "hasSafeMargin": 1,
+        "quotesExactCopy": 1,
+        "bansInventedFacts": 1,
+        "noPlaceholderReserve": 1,
+        "wordlessStaysWordless": 1,
+        "notProhibitionHeavy": 1,
+        "notBloated": 0
+      },
+      "meanPromptChars": 2642
+    }
+  }
+}

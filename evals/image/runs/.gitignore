@@ -1,0 +1,10 @@
+# Runs are evidence, not source. Keep the ones a change is argued from and let
+# the rest stay local — a JPEG per cell adds up fast.
+*
+!.gitignore
+!ab-nano/
+!ab-nano/**
+!ab-fix/
+!ab-fix/**
+!diversity/
+!diversity/**

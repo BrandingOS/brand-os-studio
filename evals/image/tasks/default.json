@@ -1,0 +1,54 @@
+{
+  "$comment": "Six tasks chosen because each one is a failure mode this pipeline was built to survive. Keep it small — this set runs on every change; full.json is the opt-in sweep.",
+  "brandSlug": "uniex",
+  "tasks": [
+    {
+      "id": "post-with-copy",
+      "why": "The core case. A finished social post with real copy — the result must BE the design, not a backdrop with room left for text.",
+      "userPrompt": "instagram post announcing our new student mentorship programme",
+      "copy": { "headline": "Find your mentor", "subhead": "Applications close 30 September", "cta": "Apply now" },
+      "formatId": "square",
+      "kind": "design"
+    },
+    {
+      "id": "ad-no-copy",
+      "why": "The invented-discount trap. An advert with NO copy supplied; anything the model writes is invention.",
+      "userPrompt": "an advertisement for our university admissions service",
+      "copy": null,
+      "formatId": "square",
+      "kind": "design"
+    },
+    {
+      "id": "poster-underspecified",
+      "why": "Three words. Tests whether the system infers strong direction from the brand instead of producing something thin.",
+      "userPrompt": "poster for orientation week",
+      "copy": null,
+      "formatId": "portrait",
+      "kind": "auto"
+    },
+    {
+      "id": "plain-photo",
+      "why": "Must stay wordless. A picture request must never acquire type, a logo or a layout.",
+      "userPrompt": "a photograph of a student reading in a sunlit library",
+      "copy": null,
+      "formatId": "landscape",
+      "kind": "image"
+    },
+    {
+      "id": "colour-override",
+      "why": "An explicit user colour direction must EMPTY the brand palette, not be blended with it.",
+      "userPrompt": "black and white editorial poster for our alumni night",
+      "copy": { "headline": "Alumni Night" },
+      "formatId": "portrait",
+      "kind": "design"
+    },
+    {
+      "id": "billboard-branded",
+      "why": "A clearly branded surface — the one case where the logo belongs, placed and reproduced faithfully.",
+      "userPrompt": "billboard for our new campus with our logo on it",
+      "copy": { "headline": "One place, all connected" },
+      "formatId": "landscape",
+      "kind": "design"
+    }
+  ]
+}
