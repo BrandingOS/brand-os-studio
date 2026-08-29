@@ -84,6 +84,15 @@ describe('the kit export, end to end', () => {
     // than an empty canvas that happened to encode.
     expect(Array.from(bytes.slice(0, 4))).toEqual([0x89, 0x50, 0x4e, 0x47]);
     expect(bytes.byteLength).toBeGreaterThan(2000);
+    // AND the card's own shape. A business card is 1.6:1; the export once
+    // came out 1040×3600 because the snapshot host inherited the
+    // workspace's `min-height: 100vh` — the artwork was a thin band in a
+    // viewport-tall canvas and every deliverable in the kit shipped that way.
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const width = view.getUint32(16);
+    const height = view.getUint32(20);
+    expect(width).toBe(1040);
+    expect(Math.abs(width / height - 1.6)).toBeLessThan(0.05);
   }, 60_000);
 
   it('STOREs the raster and DEFLATEs the text', async () => {

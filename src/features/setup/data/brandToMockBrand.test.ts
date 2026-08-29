@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Brand } from '@/shared/types/brand';
-import { brandToMockBrand } from './brandToMockBrand';
+import { brandToMockBrand, looksLikeAName } from './brandToMockBrand';
 
 function brand(patch: Partial<Brand> = {}): Brand {
   return {
@@ -125,5 +125,26 @@ describe('brandToMockBrand — logos', () => {
     expect(mock.logos.map((l) => l.id)).toEqual(
       expect.arrayContaining(['primary', 'mark', 'wordmark', 'on-dark', 'on-light']),
     );
+  });
+});
+
+describe('looksLikeAName — a description is not always a name', () => {
+  // Onboarding writes a PARAGRAPH into `LogoRef.description`. Used verbatim as
+  // the variant label it became the tile caption, the export filename and a
+  // 600px column in the logo picker.
+  it('accepts a short label', () => {
+    expect(looksLikeAName('Primary')).toBe(true);
+    expect(looksLikeAName('Holiday edition')).toBe(true);
+    expect(looksLikeAName('Mark — reversed')).toBe(true);
+  });
+  it('refuses prose', () => {
+    expect(
+      looksLikeAName(
+        'The RAQM wordmark features bold geometric letterforms with angular cuts and rectangular counters.',
+      ),
+    ).toBe(false);
+    expect(looksLikeAName('Reversed white version for dark backgrounds and photography overlays.')).toBe(false);
+    expect(looksLikeAName('Single-color black (#0A0A0F) version')).toBe(false);
+    expect(looksLikeAName('')).toBe(false);
   });
 });

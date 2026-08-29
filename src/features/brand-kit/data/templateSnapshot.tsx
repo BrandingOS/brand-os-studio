@@ -93,6 +93,12 @@ async function withOffscreenHost<T>(
   // set at the moment they pressed the button.
   host.setAttribute('data-workspace', '');
   host.setAttribute('data-theme', 'light');
+  // `[data-workspace]` also carries `min-height: 100vh` (workspace.css) so
+  // the shell fills the window. On a snapshot host that made EVERY export a
+  // viewport-tall canvas with the artwork in a thin band — 1040×3600 for a
+  // business card. The attribute is wanted for the tokens and scoped rules;
+  // the height is not.
+  host.style.minHeight = '0';
   Object.assign(host.style, style);
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -172,6 +178,7 @@ export async function withOffscreenMounts<T>(
       host.className = 'bk-snapshot-host';
       host.setAttribute('data-workspace', '');
       host.setAttribute('data-theme', 'light');
+      host.style.minHeight = '0';
       host.style.width = `${width}px`;
       host.style.height = `${height}px`;
       document.body.appendChild(host);

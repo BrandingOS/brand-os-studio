@@ -124,8 +124,16 @@ function mapLogos(brand: Brand): BrandLogo[] {
   const bySlot = (role: LogoRole) => resolveBrandLogo(brand, role)?.url;
   // A name the user gave the variant. `LogoRef.description` is the one field
   // the model has for it; absent, the role's own name is the label.
-  const nameOf = (role: LogoRole, fallback: string) =>
-    logoRefByRole(brand, role)?.description?.trim() || fallback;
+  //
+  // But a DESCRIPTION is not always a NAME. Onboarding writes a paragraph
+  // there ("The RAQM wordmark features bold geometric letterforms…"), and
+  // used verbatim it became the tile caption, the export filename and a
+  // 600px-tall column in the logo picker. A name is short and has no
+  // sentence punctuation; anything else keeps the role's own name.
+  const nameOf = (role: LogoRole, fallback: string) => {
+    const text = logoRefByRole(brand, role)?.description?.trim() ?? '';
+    return looksLikeAName(text) ? text : fallback;
+  };
 
   const primaryUrl = bySlot('primary') ?? brand.logoAssets?.full ?? brand.logo;
   const wordmarkUrl = bySlot('wordmark') ?? brand.logoAssets?.wordmark;
@@ -230,6 +238,15 @@ function mapLogos(brand: Brand): BrandLogo[] {
     });
   }
   return logos;
+}
+
+/** Short, no sentence punctuation, fewer than seven words — a label, not prose. */
+export function looksLikeAName(text: string): boolean {
+  if (!text) return false;
+  if (text.length > 40) return false;
+  // Sentence punctuation, parentheses and a hex code are all prose tells.
+  if (/[.!?;:()#]/.test(text)) return false;
+  return text.split(/\s+/).length <= 6;
 }
 
 function buildLogoSvg(url: string, label: string, bg: string, fg: string): string {
