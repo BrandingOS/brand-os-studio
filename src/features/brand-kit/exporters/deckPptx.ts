@@ -354,6 +354,22 @@ function drawStat(s: SlideLike, slide: DeckSlide, ground: Ground, faces: Faces) 
 }
 
 function drawQuote(s: SlideLike, slide: DeckSlide, ground: Ground, faces: Faces) {
+  // A quote slide may still be ABOUT something. The heading used to be
+  // dropped here, which meant typing one on a quote slide silently threw
+  // it away — the deck showed it, the export did not.
+  const heading = (slide.heading ?? '').trim();
+  if (heading) {
+    s.addText(heading, {
+      x: MARGIN,
+      y: MARGIN,
+      w: CONTENT_W,
+      h: 0.5,
+      fontFace: faces.body,
+      fontSize: 15,
+      color: hex6(ground.muted),
+      valign: 'top',
+    });
+  }
   s.addText(slide.quote?.text ?? '', {
     x: MARGIN,
     y: 1.3,
