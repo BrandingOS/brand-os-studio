@@ -1,0 +1,63 @@
+/**
+ * Sizing rules for `<ScalingStage>` and the frame that hosts it.
+ *
+ * This file MOVED here from `src/features/brand-kit/brand-kit.css`
+ * (2026-08-20). `ScalingStage` is a SHARED component
+ * (`src/shared/brand/ScalingStage.tsx`) with consumers outside Brand
+ * Kit — the Design editor's template-instance canvas
+ * (`features/editor/renderers/template-instance/TemplateInstanceCanvas.tsx`)
+ * mounts it too, wrapped in the same `.bk-editor-preview-frame` frame
+ * that `BrandKitCardEditor` uses. `brand-kit.css` is only imported by
+ * three Brand Kit PAGES, none of which sit on the Design editor's
+ * import graph — so a design opened cold, without a Brand Kit page
+ * having loaded first in the same session, rendered the frame/host/
+ * stage with no sizing at all: 0×0 all the way down, because the
+ * absolutely-positioned `.bk-preview-stage` has nothing to size
+ * against without a sized `.bk-preview-host`. Moving the rules to live
+ * beside the component that needs them (imported directly by
+ * `ScalingStage.tsx`) means the styling travels with the component
+ * into every consumer, Brand Kit or Design, with no import-order
+ * dependency. Moved, not copied — this is now the only copy of these
+ * rules.
+ */
+.bk-editor-preview-frame {
+  width: 100%;
+  max-width: 720px;
+  display: block;
+}
+/* Host owns the visible border-radius + drop-shadow + aspect ratio
+   (set inline by ScalingStage from the per-template aspectFor map).
+   The inner stage scales the renderer up from its native ~260px
+   canonical width so absolute pixel sizes (text-[4.5px], etc.) read
+   correctly at any preview size. */
+.bk-preview-host {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 18px 48px -16px rgba(15, 18, 22, 0.35);
+}
+.bk-preview-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+.bk-preview-stage > * {
+  width: 100%;
+  height: 100%;
+}
+/* Font override — wins over Tailwind utilities (font-mono / font-serif)
+   that individual designs apply, so swapping the typography pick is
+   truly global across the rendered preview. */
+.bk-preview-host[data-font-override],
+.bk-preview-host[data-font-override] * {
+  font-family: var(--bk-preview-font) !important;
+}
+/* Show Logo toggle — BrandLogo renders itself as <img>, so hiding
+   <img> covers the common case without per-renderer changes.
+   `visibility: hidden` keeps the layout box, so designs that
+   reserve space for the logo don't reflow. */
+.bk-preview-host[data-hide-logo] img {
+  visibility: hidden;
+}

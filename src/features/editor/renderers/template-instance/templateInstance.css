@@ -1,0 +1,53 @@
+/**
+ * Layout for `.ti-canvas` — the frame `TemplateInstanceCanvas` mounts
+ * `ScalingStage`'s host into, inside the Design editor's canvas region.
+ *
+ * The canvas region (`Editor.tsx`'s `<main data-editor-canvas-region>`)
+ * centers its child by flex centering, but that only works once the
+ * child has a real, non-percentage size to center against — the
+ * shrink-to-fit chain of plain block/flex ancestors between `<main>`
+ * and this frame (`data-editor-canvas-zoom-wrap`, `data-editor-canvas-
+ * surface`) never resolves a `width: 100%`, because none of them has a
+ * definite width of its own to be 100% OF. Fabric's own canvas solves
+ * this by setting explicit pixel `width`/`height` on its `<canvas>`
+ * element; `.ti-canvas` does the same via an inline style driven by the
+ * document's page dimensions (`TemplateInstanceCanvas.tsx`), so the
+ * editor's zoom-to-fit math — computed against those same page
+ * dimensions in `Editor.tsx`'s `fitToContainer` — stays consistent
+ * with what is actually on screen.
+ *
+ * `.bk-editor-preview-frame`'s `width: 100%; max-width: 720px` (moved
+ * to `ScalingStage.css`) is sized for Brand Kit's fixed-size preview
+ * card and doesn't apply here — the compound selector below has higher
+ * specificity than that single-class rule and drops the cap so the
+ * frame can be the full, unscaled page size the zoom system expects.
+ */
+.bk-editor-preview-frame.ti-canvas {
+  position: relative;
+  display: flex;
+  max-width: none;
+}
+/* `margin: auto` on the lone flex child centers it INSIDE this frame
+   without the `items-center`/`justify-center`-on-`overflow` trap (see
+   CLAUDE.md "Centering overflow content"): the artwork's aspect ratio
+   rarely matches the page's, so there is always leftover space on one
+   axis. Auto margins absorb that space when the child is smaller and
+   collapse to 0 — pinning the child to the frame's origin, never
+   pushing it out of reach — when it is larger. `flex-shrink: 0` keeps
+   the child at its aspect-ratio-derived size instead of letting the
+   flex algorithm compress it below that. */
+.ti-canvas > .bk-preview-host {
+  margin: auto;
+  flex-shrink: 0;
+}
+.ti-canvas-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 320px;
+  padding: 24px;
+  text-align: center;
+  color: #6b6b6b;
+  font-size: 13px;
+}

@@ -28,6 +28,7 @@ import { SERVICE_KEYS } from '@/core';
 import { container as serviceContainer } from '@/core/container/ServiceContainer';
 import type { ITemplatesService } from '@/core/services/ITemplatesService';
 import type { DesignSummary, IDesignStorage } from '@/core/types/services';
+import { excludeTemplates } from '@/shared/services/designSummary';
 import type {
   Template,
   TemplateCategory,
@@ -166,7 +167,9 @@ export function TemplatesPanel({ mode = 'editor', adapter, activePageId }: Templ
     setMyDesignsLoading(true);
     void designStorage.listDesigns(brand.id).then((rows) => {
       if (cancelled) return;
-      setMyDesigns(rows);
+      // Brand Kit masters live in the same store as working designs but
+      // do not belong in My Designs — see excludeTemplates.
+      setMyDesigns(excludeTemplates(rows));
       setMyDesignsLoading(false);
     });
     return () => { cancelled = true; };

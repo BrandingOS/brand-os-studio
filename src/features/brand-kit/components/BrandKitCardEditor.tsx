@@ -14,6 +14,8 @@ import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
+import { rendererBindsContent } from '../renderers/contentBinding';
+import { ContentPanel } from '@/features/brandkit/content';
 import {
   BindProvider,
   contentKindForTemplateType,
@@ -24,7 +26,7 @@ import {
   type ContentKind,
   type DeliverableContent,
 } from '@/features/brandkit/content';
-import { ContentPanel } from './quick-edit/ContentPanel';
+
 // The editor portals to document.body and is mounted from more than one
 // page, so it brings its own styles rather than relying on whichever page
 // happened to import them first.
@@ -292,6 +294,16 @@ type Props = {
    *  user picks a different weight, the page rewrites brand.icons
    *  at this index so the drilldown tile matches on close. */
   onUpdateIconAt?: (index: number, newClassName: string) => void;
+  /**
+   * `Use Template` / `Edit Template` — the Design hand-off (owner decision
+   * 2026-08-29: kit-side Quick Edit for CONTENT stays; Design is offered
+   * BESIDE it, never instead of it). Present only when the page has wired
+   * this deliverable's family to Design; absent handlers hide the buttons
+   * rather than offering a dead affordance. Never offered for a
+   * brand-asset target.
+   */
+  onUseTemplate?: (template: BrandKitTemplate) => void;
+  onEditTemplate?: (template: BrandKitTemplate) => void;
 };
 
 /**
@@ -315,6 +327,8 @@ export function BrandKitCardEditor({
   onSave,
   onDownload,
   onUpdateIconAt,
+  onUseTemplate,
+  onEditTemplate,
 }: Props) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedCover, setSelectedCover] = useState<string | null>(null);
@@ -1473,6 +1487,33 @@ export function BrandKitCardEditor({
                 <span>Reset</span>
               </DsButton>
             )}
+            {!isBrandAsset &&
+              target.template &&
+              (onUseTemplate || onEditTemplate) &&
+              rendererBindsContent(target.template) && (
+                <>
+                  {onEditTemplate && (
+                    <DsButton
+                      tone="tertiary"
+                      size="sm"
+                      onClick={() => onEditTemplate(target.template!)}
+                      title="Open this variant's master template in Design"
+                    >
+                      Edit Template
+                    </DsButton>
+                  )}
+                  {onUseTemplate && (
+                    <DsButton
+                      tone="tertiary"
+                      size="sm"
+                      onClick={() => onUseTemplate(target.template!)}
+                      title="Start a Design from this template"
+                    >
+                      Use Template
+                    </DsButton>
+                  )}
+                </>
+              )}
             <DsButton tone="secondary" size="sm" onClick={onClose}>
               Cancel
             </DsButton>

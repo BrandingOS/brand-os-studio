@@ -9,6 +9,10 @@ export type ContextMenuItem = {
   /** Greyed out, non-clickable. Used to show the current state of a
    *  toggleable option (e.g. the role a color already occupies). */
   disabled?: boolean;
+  /** Why this item reads the way it does — a small second line under the
+   *  label. A greyed row with no explanation is a dead end, so anything
+   *  disabled for a reason the user cannot infer should carry one. */
+  hint?: string;
   /** Optional 14px icon shown before the label. */
   icon?: React.ReactNode;
   /** Submenu: clicking this item MORPHS the menu box into these items
@@ -174,7 +178,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             <button
               type="button"
               role="menuitem"
-              className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}`}
+              className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}${it.hint ? ' has-hint' : ''}`}
               disabled={it.disabled}
               onClick={() => {
                 if (it.disabled) return;
@@ -191,7 +195,14 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
                   {it.icon}
                 </span>
               )}
-              <span className="ctx-menu-label">{it.label}</span>
+              {it.hint ? (
+                <span className="ctx-menu-text">
+                  <span className="ctx-menu-label">{it.label}</span>
+                  <span className="ctx-menu-hint">{it.hint}</span>
+                </span>
+              ) : (
+                <span className="ctx-menu-label">{it.label}</span>
+              )}
               {it.children && it.children.length > 0 && (
                 <span className="ctx-menu-chevron" aria-hidden>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

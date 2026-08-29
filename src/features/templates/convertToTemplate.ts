@@ -17,6 +17,18 @@
 //
 // Anything that doesn't match a kit value stays a literal — that's
 // the user's intentional ad-hoc choice, not a brand binding.
+//
+// A document's `body` gets the same treatment for the same reason, and
+// one more. A template-instance body holds the DELIVERABLE'S CONTENT —
+// for an invoice that is a client's name, their billing address, the
+// invoice number, every line item and what was charged for it. A saved
+// template is a starting point for other documents, and a public one is
+// read by an admin reviewer before it reaches anyone else. Neither is a
+// place for one customer's invoice. The content is reset to the kind's
+// defaults here, at the data layer, so no caller can submit it by
+// forgetting to — which is why `kit` is nullable: the only caller used
+// to skip this whole function when there was no brand kit to convert
+// against, and that path must not be a way around the reset.
 
 import type {
   BrandOSDocument,
@@ -26,18 +38,47 @@ import type {
   SlotRef,
 } from '@/features/editor/schema';
 import type { BrandKit } from '@/features/editor/brand/BrandKit';
+import { defaultContentFor } from '@/features/brandkit/content';
+
+/**
+ * The name a template's placeholder content is written against. A
+ * template is brand-agnostic by definition, so it cannot be the author's
+ * brand — and it must not be, or the defaults would carry their name and
+ * their domain into everyone else's copy.
+ */
+const PLACEHOLDER_BRAND = { name: 'Brand' };
 
 export function convertToTemplate(
   doc: BrandOSDocument,
-  kit: BrandKit,
+  kit: BrandKit | null | undefined,
 ): BrandOSDocument {
-  const colorMap = buildColorMap(kit);
-  const fontMap = buildFontMap(kit);
+  const colorMap = kit ? buildColorMap(kit) : new Map<string, SlotRef>();
+  const fontMap = kit ? buildFontMap(kit) : new Map<string, SlotRef>();
   return {
     ...doc,
     pages: doc.pages.map((p) => convertPage(p, colorMap, fontMap)),
     masterPages: doc.masterPages.map((p) => convertPage(p, colorMap, fontMap)),
+    ...(doc.body ? { body: convertBody(doc.body) } : {}),
   };
+}
+
+/**
+ * Reset a layerless renderer's payload to its kind's defaults.
+ *
+ * The design picks (which brand colour, which logo, which typeface) are
+ * KEPT: they are choices about the template, and they are already
+ * brand-relative. The content is not.
+ */
+function convertBody(body: NonNullable<BrandOSDocument['body']>): BrandOSDocument['body'] {
+  switch (body.kind) {
+    case 'template-instance':
+      return {
+        ...body,
+        content: defaultContentFor(body.content.kind, PLACEHOLDER_BRAND),
+      };
+    default:
+      return body;
+  }
 }
 
 function convertPage(

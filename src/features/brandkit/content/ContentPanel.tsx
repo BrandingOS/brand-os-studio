@@ -1,19 +1,20 @@
 import { useRef } from 'react';
 import { Plus, Trash2, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
+import { fieldGroupsFor, findFieldForPath, type FieldSpec } from './fields';
+import { getStringAtPath, setAtPath } from './paths';
+import { invoiceTotals, formatMoney } from './compute';
 import {
-  fieldGroupsFor,
-  findFieldForPath,
-  getStringAtPath,
-  invoiceTotals,
-  formatMoney,
   isInvoice,
   nextLineItemId,
-  setAtPath,
   type ContentKind,
   type DeliverableContent,
-  type FieldSpec,
   type InvoiceContent,
-} from '@/features/brandkit/content';
+} from './kinds';
+// The `.bk-qe-*` rules this panel's classNames rely on — moved here
+// (2026-08-20) from `brand-kit.css` so the panel is styled wherever it
+// mounts, including the Design editor route, which never imports any
+// Brand Kit page. See content.css's own header for why.
+import './content.css';
 
 /**
  * The contextual panel.

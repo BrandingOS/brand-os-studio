@@ -74,6 +74,9 @@ export type DeliverableDef = {
    *  or null when generation can proceed. */
   validate?: (brand: MockBrand) => string | null;
   exportFormats: ReadonlyArray<'png'>;
+  /** The Design content type this deliverable instantiates as. Absent
+   *  until the family has been promoted to a real Design type. */
+  contentTypeId?: string;
 };
 
 /* ── Per-type helpers (moved from BrandKitCardEditor) ─────────────── */
@@ -268,6 +271,7 @@ type DefInput = {
   featuredIds?: string[];
   candidateCount?: number;
   validate?: DeliverableDef['validate'];
+  contentTypeId?: string;
 };
 
 function makeDefs(sectionKey: KitSectionKey, inputs: DefInput[]): DeliverableDef[] {
@@ -288,6 +292,7 @@ function makeDefs(sectionKey: KitSectionKey, inputs: DefInput[]): DeliverableDef
       featuredIds: input.featuredIds,
       validate: input.validate,
       exportFormats: ['png'],
+      contentTypeId: input.contentTypeId,
     };
   });
 }
@@ -316,6 +321,7 @@ export const DELIVERABLES: DeliverableDef[] = [
       label: 'Invoice',
       templateType: 'invoices',
       featuredIds: ['invoices-ext-4', 'invoices-ext-3', 'invoices-ext-8'],
+      contentTypeId: 'invoice',
     },
   ]),
   ...makeDefs('social', [
