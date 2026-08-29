@@ -419,8 +419,15 @@ claude.ai/design project) is implemented as a self-contained module:
   (sliding indicator, measured via offsetLeft — transform-safe), `DsRail`
   (separate 43px cards; tab bars are one container — never mix the models),
   `DsAssetRow`, `DsSwatchRow` (label flip via `pickFgOnBackground`),
-  `DsLogoTile`, `BrandMark/LoadingPill` (the 9-dot mark loader — never a
-  generic ring spinner), `DsEyebrow/DsKbd/DsChip/DsEmptyState`.
+  `DsLogoTile`, `BrandMark/LoadingPill` (the 9-dot mark — the product's LOGO as
+  well as its loader, never a generic ring spinner. Three modes, and they must
+  not be confused: `loading` fades the ring in sequence at 1.2s; `idle` turns
+  the whole mark 90° over 20s and touches no opacity, for the mark used AS the
+  logo — one permanently wearing the loader says the app is permanently busy —
+  and `loading` wins when both are asked for; `activeNodes` lights a subset.
+  **Never draw a letter B for BrandingOS**: the shells' `top-nav-brand-mark`
+  and onboarding's `.brand-mark` tile both draw this, idle, on the charcoal
+  tile), `DsEyebrow/DsKbd/DsChip/DsEmptyState`.
 - Overlay components (Select/Menu/Modal) render **in place, no portal**, so
   `--ds-*` tokens resolve in the local theme scope (avoids the Radix Portal
   gotcha below).
@@ -1360,6 +1367,25 @@ Rules that bind here:
 - **Selection is a check badge, not only a ring.** Radix moves focus into the
   panel on open, so the first tile wears a focus ring before anything has been
   chosen and two rings meaning different things is one too many.
+- **Shuffle is an action ON the Change cover row, not a row under it** (owner
+  request 2026-08-29). Shuffling IS changing the cover — the same decision,
+  taken for you — so it belongs to that item rather than beside it in the list
+  of everything else a project can do. `ContextMenuItem.action` is the general
+  form: an icon-only second action at the row's end, which makes the row two
+  buttons sharing one hover, because a button inside a button is not a button.
+  It sets `keepOpen`, since one press is rarely the answer.
+  `brandCardPairings` is the card's own measurement not stopped at
+  the first success: every logo × every ground that reads, ground-major, so its
+  HEAD is exactly what the card would have chosen and everything after it is a
+  real alternative. Two tiers, and the second is load-bearing — requiring every
+  ink cluster to clear the floor is right for one choice but far too strict for
+  a LIST: a two-tone lockup often has exactly one flat ground where both halves
+  survive, so pairings losing up to a quarter of the ink follow the perfect
+  ones. The menu item steps from what the card is SHOWING, never from what it
+  has stored: an untouched card stores nothing, and starting at the head would
+  re-apply the answer already on screen — one press that visibly does nothing,
+  on the control whose whole promise is that it does. Hidden when there is
+  nothing to step to.
 - **`brandCardGrounds` is the offered list** — the brand's own colours plus the
   two `surfacePalette(…, 'inverted')` extremes the automatic rule already
   reaches for, so the manual list can express every answer the measurement could
@@ -1380,9 +1406,15 @@ resolves to the CSS default rather than to the drawing, so a logo could be laid
 out far wider than its band and merely clipped by it.
 
 **Selecting projects** (`useProjectSelection` + `ProjectSelectionBar` +
-`MoveToFolderModal`): a checkbox on the card, ⌘-click and Shift-click, and a
-rubber band dragged across the grid, all sharing one piece of state so they
-compose. **The band starts anywhere on the PAGE, cards included** — two rules
+`MoveToFolderModal`): **Select** in the card's menu, ⌘-click and Shift-click, a
+rubber band dragged across the grid, and a checkbox on every card once a
+selection exists — all sharing one piece of state so they compose. **The
+checkbox is NOT a hover affordance** (owner request 2026-08-29): it belongs to
+a MODE, so it appears on every card at once and on none before that. Revealing
+it under the pointer put a control on every card the eye passed over, on a page
+people mostly come to in order to open ONE brand. While hidden it is also
+`pointer-events: none` — it sits in the card's top-left corner and would
+otherwise swallow the click meant for the card. **The band starts anywhere on the PAGE, cards included** — two rules
 used to stand in the way and both are gone: the press had to miss every card,
 and it had to land on the grid element, which is a narrow strip of a wide page.
 Between them they left the gutters between cards and little else. So the
@@ -2020,6 +2052,20 @@ four ask-chips (Colors · Typography · Brand Strategy · Icons), the same
   cannot repeat the 1.5 MB history incident; restore is whole or per-section,
   also one `setBrand`. The snapshot is taken OUTSIDE the updater — an updater
   must stay pure or StrictMode saves the checkpoint twice.
+- **The icon suggester REFUSES more than it ranks** (fixed 2026-08-29). The
+  catalogue is 3,550 Flaticon names and most of it is not brand material: the
+  braille alphabet, `circle-a`…`circle-z`, `square-0`…`square-9`,
+  age-restriction badges, emoji faces, and several hundred arrows, carets,
+  angles and sort handles. `isBrandIconCandidate` drops them by FAMILY (a name
+  list would fall behind the catalogue) plus a glyph rule — a single letter or
+  bare number as the last part. Three more rules, each a real failure: a loose
+  match needs four characters on BOTH sides and prefix containment (with no
+  floor on the icon's side, the letter "a" matched every brand token containing
+  one, which is how Kaafex was offered Braille A through Z); a loose hit alone
+  is not evidence, so an icon with no exact part hit is dropped rather than
+  padding the tail; and one family may contribute at most three, because "cloud"
+  is a synonym for tech and the catalogue answers with twenty weather states. An
+  icon SET is a set of different things. Tests: `suggestIcons.test.ts` (9).
 - **Icons are computed, not parsed**: `suggestIconsForBrand` over the
   POST-apply strategy text + direction, previewed as a before/after grid. The
   5 hand-curated industry icon sets are an approved follow-up that slots into
