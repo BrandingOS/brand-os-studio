@@ -93,7 +93,11 @@ import {
   paletteOf,
   slugifyName,
 } from './data/kitExport';
-import { downloadEntry, downloadEverything } from './data/exportEverything';
+import {
+  downloadEntry,
+  downloadEverything,
+  type KitExportFormats,
+} from './data/exportEverything';
 import { isCancelled } from './data/exportScheduler';
 
 // Rounded weight family from Flaticon UICONS — Regular drives the
@@ -777,6 +781,7 @@ export function BrandKitCosmosPage({
       title: string,
       fileSuffix: string,
       allVariants = false,
+      formats?: KitExportFormats,
     ) => {
       if (exportAbortRef.current) {
         toast('An export is already running');
@@ -795,6 +800,7 @@ export function BrandKitCosmosPage({
           saved: loadBrandCustomizations(customizationBrandId),
           featuredIdsByLabel,
           allVariants,
+          formats,
           signal: controller.signal,
           fileName: `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`,
           onProgress: (p) => {
@@ -851,10 +857,10 @@ export function BrandKitCosmosPage({
   const allEntries = useMemo(() => groups.flatMap((g) => g.entries), [groups]);
   const handleExportKit = useCallback(() => setExportPickerOpen(true), []);
   const handleExportChosen = useCallback(
-    (chosen: KitEntry[], allVariants: boolean) => {
+    (chosen: KitEntry[], allVariants: boolean, formats: KitExportFormats) => {
       setExportPickerOpen(false);
       const whole = chosen.length === allEntries.length;
-      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit', allVariants);
+      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit', allVariants, formats);
     },
     [runKitExport, allEntries.length],
   );

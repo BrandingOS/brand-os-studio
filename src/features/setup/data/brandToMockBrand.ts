@@ -48,6 +48,15 @@ export function brandToMockBrand(brand: Brand): MockBrand {
   return {
     name: brand.name,
     logos: mapLogos(brand),
+    // The brand's own policy about its logo system. Spread rather than set,
+    // so a brand that has never expressed one carries no field at all and
+    // every reader falls back to the derived answer.
+    ...(brand.guidelines?.logoUsage?.grounds
+      ? { logoGrounds: [...brand.guidelines.logoUsage.grounds] }
+      : {}),
+    ...(brand.guidelines?.logoUsage?.treatments
+      ? { logoTreatments: [...brand.guidelines.logoUsage.treatments] }
+      : {}),
     colors: mapColors(brand),
     fonts: mapFonts(brand),
     icons: mapIcons(brand),

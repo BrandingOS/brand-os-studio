@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  BRAND_KIT_CONTENT_TYPE_IDS,
   CONTENT_TYPES,
   ContentTypeConfigSchema,
   getContentTypeConfig,
@@ -15,8 +16,10 @@ describe('content-type configs', () => {
     }
   });
 
-  it('exposes the eleven seed configs (5 master-prompt + 2 from Step 9 brandkit + 4 from Phase 4 Content Universe)', () => {
-    const ids = Object.keys(CONTENT_TYPES).sort();
+  it('exposes the eleven Fabric seed configs (5 master-prompt + 2 from Step 9 brandkit + 4 from Phase 4 Content Universe)', () => {
+    const ids = Object.keys(CONTENT_TYPES)
+      .filter((id) => !BRAND_KIT_CONTENT_TYPE_IDS.includes(id))
+      .sort();
     expect(ids).toEqual([
       'banner',
       'brand-guideline-slide',
@@ -30,6 +33,35 @@ describe('content-type configs', () => {
       'profile-icon',
       'social-post',
     ]);
+  });
+
+  // The Brand Kit deliverables are a second, disjoint set of ids. They
+  // exist because the hand-off needs a `template-instance` renderer and
+  // every id above already names live Fabric documents — see
+  // `brandKit.configs.ts`.
+  it('registers the Brand Kit deliverable configs on the template-instance renderer', () => {
+    expect(BRAND_KIT_CONTENT_TYPE_IDS.length).toBeGreaterThan(0);
+    for (const id of BRAND_KIT_CONTENT_TYPE_IDS) {
+      const cfg = getContentTypeConfig(id);
+      expect(cfg.renderer, id).toBe('template-instance');
+      // One page, no layers — a template-instance document has neither a
+      // page list nor a layer stack to show.
+      expect(cfg.pageModel, id).toBe('single');
+      expect(cfg.panels.layers, id).toBe(false);
+      // The export path rasterises the live artwork; PNG is all it makes.
+      expect(cfg.exportFormats, id).toEqual(['png']);
+    }
+  });
+
+  it('gives the Brand Kit its own ids rather than repointing a live Fabric type', () => {
+    // Flipping `business-card` (or any other seeded type) to
+    // template-instance would break every Fabric document already saved
+    // under it. A `-kit` id cannot.
+    for (const id of BRAND_KIT_CONTENT_TYPE_IDS) {
+      expect(id.endsWith('-kit'), id).toBe(true);
+    }
+    expect(getContentTypeConfig('business-card').renderer).toBe('fabric');
+    expect(getContentTypeConfig('social-post').renderer).toBe('fabric');
   });
 
   it('multi-page configs enable both pageNavigator and masterPages panels', () => {

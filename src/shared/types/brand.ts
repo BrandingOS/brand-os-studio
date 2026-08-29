@@ -199,6 +199,8 @@ export interface BrandGuidelines {
    *  the user wrote so Setup/About can render it all. */
   aboutSections?: Array<{ id: string; title: string; content: string }>;
   logoSystem?: LogoSystem;
+  /** The brand's own policy about where its logo may go. See `LogoUsagePolicy`. */
+  logoUsage?: LogoUsagePolicy;
   colorPalette?: ExtendedColorPalette;
   typography?: ExtendedTypography;
   voiceAndTone?: VoiceAndTone;
@@ -258,6 +260,24 @@ export interface LogoUsageRule {
   do: string;
   dont: string;
   example?: string;
+}
+
+/**
+ * What the brand has DECIDED about its logo system, as opposed to what the
+ * kit can measure about it.
+ *
+ * The Brand Kit derives every approved pairing from contrast — which variant
+ * reads on which brand colour, which mono cut covers the grounds the coloured
+ * artwork cannot. Two answers are not measurable: a ground the brand has
+ * ruled out anyway, and a mono cut it does not publish. Absent means the
+ * derived answer stands, so an existing brand keeps exactly the system it
+ * had.
+ */
+export interface LogoUsagePolicy {
+  /** Hexes the logo may be published on. Absent = every ground that clears the floor. */
+  grounds?: string[];
+  /** Mono cuts the system offers. Absent = both. */
+  treatments?: Array<'black' | 'white'>;
 }
 
 export interface ExtendedColorPalette {

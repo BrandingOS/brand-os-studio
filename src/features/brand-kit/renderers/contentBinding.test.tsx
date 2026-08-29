@@ -1,23 +1,33 @@
 /**
- * The predicate is a table. This is what makes it trustworthy.
+ * The predicate is DERIVED. This is what proves the derivation is right.
  *
- * Every variant of every WIRED family is rendered through the real
- * dispatcher with real content, and the presence of a `[data-bind]` region
- * — the mark `<Bind>` leaves on any text a renderer declared — is compared
- * against what `rendererBindsContent` claims. A renderer that gains or
- * loses its content prop fails here rather than shipping a silent no-op
- * edit into Design.
+ * Every kept variant of every family that has a content kind is rendered
+ * through the real dispatcher with real content, and the presence of a
+ * `[data-bind]` region — the mark `<Bind>` leaves on any text a renderer
+ * declared — is compared against what `rendererBindsContent` claims. A
+ * renderer that loses its content prop, or a family that is converted
+ * without being wired, fails here rather than shipping a silent no-op edit
+ * into Design.
  *
- * The first version of that table read the wave boundary out of
- * `renderCosmosTemplate`'s dispatcher and claimed 22 bound invoice
- * designs. This test rendered them and found 8.
+ * Two earlier versions of this gate were wrong in the same way and this
+ * test is the reason we know:
+ *
+ *   • It was first written as a wave boundary read out of the dispatcher,
+ *     claiming 22 bound invoice designs. Rendering them found 8.
+ *   • It was then written as a hand-kept table, which stayed at "only
+ *     invoices bind" while ten more families were converted — so `Use
+ *     Template` was dark across the whole kit and nothing said so. Hence
+ *     the sweep below covers EVERY family with a kind, not just the ones
+ *     someone remembered to list.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { renderCosmosTemplate } from './index';
 import { rendererBindsContent, CONTENT_BOUND_TEMPLATE_TYPES } from './contentBinding';
+import { isArchived } from './curation';
 import { variantsForCard } from '../data/legacy-mapping';
 import { DELIVERABLES } from '../kit/registry';
+import { getContentTypeConfig } from '@/features/editor/content-types';
 import { contentKindForTemplateType, defaultContentFor } from '@/features/brandkit/content/kinds';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
@@ -35,10 +45,15 @@ const brand = {
 
 afterEach(cleanup);
 
-/** The deliverables Brand Kit actually offers `Use Template` on. */
+/** Every deliverable whose family was put on the content model. */
+const KINDED = DELIVERABLES.filter((d) => contentKindForTemplateType(d.templateType) !== null);
+/** Every deliverable Brand Kit actually offers `Use Template` on. */
 const WIRED = DELIVERABLES.filter((d) => d.contentTypeId);
 
-describe('rendererBindsContent', () => {
+const synthetic = (id: string, type: string) =>
+  ({ id, type: type as BrandKitTemplate['type'] });
+
+describe('the gate and the registry agree about which families are wired', () => {
   it('knows about every family Brand Kit hands to Design', () => {
     expect(WIRED.length).toBeGreaterThan(0);
     for (const def of WIRED) {
@@ -46,11 +61,49 @@ describe('rendererBindsContent', () => {
     }
   });
 
-  for (const def of WIRED) {
-    it(`agrees with what ${def.label} actually renders, variant by variant`, () => {
+  /**
+   * The regression this whole rewrite exists for: a family that gains a
+   * content kind but no `contentTypeId` is fully converted and still
+   * unreachable — the tile menu offers `Use Template` disabled forever,
+   * with no failing test anywhere.
+   */
+  it('leaves no converted family unwired', () => {
+    const unwired = KINDED.filter((d) => !d.contentTypeId).map((d) => d.label);
+    expect(unwired).toEqual([]);
+  });
+
+  /**
+   * A `contentTypeId` naming a Fabric config would create the document,
+   * navigate to it, and open an EMPTY canvas — the shell picks its
+   * renderer from the content type alone.
+   */
+  it('names a registered content type that the template-instance renderer paints', () => {
+    for (const def of WIRED) {
+      const cfg = getContentTypeConfig(def.contentTypeId as string);
+      expect(cfg.renderer, `${def.label} → ${def.contentTypeId}`).toBe('template-instance');
+    }
+  });
+
+  it('leaves Brand Guides unwired on purpose — they are drawn from the brand', () => {
+    const guides = DELIVERABLES.filter((d) => d.sectionKey === 'brand-guides');
+    expect(guides.length).toBeGreaterThan(0);
+    for (const def of guides) {
+      expect(contentKindForTemplateType(def.templateType)).toBeNull();
+      expect(def.contentTypeId).toBeUndefined();
+      expect(rendererBindsContent(synthetic(`${def.templateType}-ext-1`, def.templateType))).toBe(
+        false,
+      );
+    }
+  });
+});
+
+describe('rendererBindsContent agrees with what the renderers actually do', () => {
+  for (const def of KINDED) {
+    it(`agrees with what ${def.label} renders, variant by variant`, () => {
       const kind = contentKindForTemplateType(def.templateType);
-      if (!kind) throw new Error(`${def.label} has a contentTypeId but no content kind`);
+      if (!kind) throw new Error(`${def.label} lost its content kind`);
       const content = defaultContentFor(kind, mockBrand);
+      // `variantsForCard` is the KEPT set — what a drilldown can reach.
       const variants = variantsForCard(def.sectionKey, def.label);
       expect(variants.length).toBeGreaterThan(0);
 
@@ -69,26 +122,49 @@ describe('rendererBindsContent', () => {
         if (actual) bound += 1;
       }
       expect(disagreements).toEqual([]);
-      // A family where nothing binds would make the comparison vacuous.
-      expect(bound).toBeGreaterThan(0);
-      // Everything binding is the SUCCESS state now: curation archives the
-      // designs that do not, so the gate's job is to stay in agreement with
-      // the renderers, not to find stragglers.
+      // Everything binding is the SUCCESS state: curation archives the
+      // designs that do not, so the gate's job is to stay in agreement
+      // with the renderers, not to find stragglers.
+      expect(bound).toBe(variants.length);
     });
   }
+});
 
+describe('what it refuses, and why', () => {
   it('refuses a legacy (non-extension) id, which routes to the content-blind renderer', () => {
     expect(rendererBindsContent({ id: 'invoices-3', type: 'invoices' })).toBe(false);
   });
 
-  it('refuses a family Brand Kit does not hand to Design', () => {
-    // `envelope` / `letterhead` are synthetic template types — they are
-    // not members of the legacy `BrandKitModuleType` union, which is why
-    // `renderCosmosTemplate` casts them at its own switch too.
-    const synthetic = (id: string, type: string) =>
-      ({ id, type: type as BrandKitTemplate['type'] });
-    expect(rendererBindsContent(synthetic('envelope-ext-3', 'envelope'))).toBe(false);
-    expect(rendererBindsContent(synthetic('letterhead-ext-1', 'letterhead'))).toBe(false);
+  /**
+   * Archived ids stay reserved (a saved customization can still name one)
+   * so the gate has to answer for them even though no tile shows them.
+   * Taken from curation rather than hardcoded — an id list would be a
+   * second copy of the very record this predicate now derives from.
+   */
+  it('refuses an archived design in an otherwise wired family', () => {
+    const archivedIds: string[] = [];
+    for (const def of KINDED) {
+      for (let n = 1; n <= 140 && archivedIds.length < 3; n += 1) {
+        const id = `${def.templateType}-ext-${n}`;
+        if (isArchived(id)) archivedIds.push(id);
+      }
+      if (archivedIds.length >= 3) break;
+    }
+    expect(archivedIds.length).toBeGreaterThan(0);
+    for (const id of archivedIds) {
+      const type = id.replace(/-ext-\d+$/, '');
+      expect(rendererBindsContent(synthetic(id, type)), id).toBe(false);
+    }
+  });
+
+  it('refuses a brand-asset card, which paints the brand and not a deliverable', () => {
+    expect(rendererBindsContent(synthetic('brand-asset-logo-ext-1', 'brand-asset-logo'))).toBe(
+      false,
+    );
+  });
+
+  it('refuses a template type nobody has modelled', () => {
+    expect(rendererBindsContent(synthetic('made-up-ext-1', 'made-up'))).toBe(false);
   });
 
   it('refuses a missing template rather than throwing', () => {

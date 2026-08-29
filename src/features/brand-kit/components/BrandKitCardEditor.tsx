@@ -857,7 +857,7 @@ export function BrandKitCardEditor({
     try {
       const { downloadFontsBundle } = await import('../data/fontExport');
       const result = await downloadFontsBundle(
-        [{ name: fontPreview.family, files: fontPreview.files }],
+        [{ name: fontPreview.family, files: fontPreview.files, weights: fontPreview.weights }],
         fontPreview.family.toLowerCase().replace(/\s+/g, '-'),
         { flatten: true },
       );

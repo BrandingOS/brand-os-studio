@@ -160,6 +160,21 @@ export const EMPTY_STRATEGY: BrandStrategyFields = {
 export type MockBrand = {
   name: string;
   logos: BrandLogo[];
+  /**
+   * The brand grounds the logo may be published on, as hexes.
+   *
+   * The kit DERIVES the pairings — which variant reads on which colour — and
+   * that derivation is measurement, not taste. This is the half measurement
+   * cannot reach: "we never place the logo on Sand" is a decision, and a
+   * system that keeps offering a ruled-out pairing is one the brand cannot
+   * publish. Absent means every ground that clears the contrast floor.
+   */
+  logoGrounds?: string[];
+  /**
+   * The mono cuts the system offers. Absent means both — the black cut and
+   * the white one. A brand that publishes neither says so here.
+   */
+  logoTreatments?: Array<'black' | 'white'>;
   colors: {
     core: BrandColor[];
     accent: BrandColor[];

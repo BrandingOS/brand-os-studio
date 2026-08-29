@@ -465,7 +465,7 @@ export function BrandKitNextPage({
           }
           case 'Fonts': {
             const result = await downloadFontsBundle(
-              b.fonts.map((f) => ({ name: f.family, files: f.files })),
+              b.fonts.map((f) => ({ name: f.family, files: f.files, weights: f.weights })),
               `${slug}-fonts`,
             );
             if (result.missing.length > 0) {

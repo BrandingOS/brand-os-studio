@@ -352,6 +352,20 @@ export function stripLogoBackground(svg: string): string {
 
 export type BrandGround = { hex: string; name: string };
 
+/** The mono cuts a system may offer. */
+export type LogoTreatment = 'black' | 'white';
+
+/**
+ * The two decisions a guideline makes about its own logo system that no
+ * amount of measurement can make for it.
+ *
+ * `logoCombosFor` derives everything else — which variant reads on which
+ * ground, which cut covers what the coloured artwork cannot. But "we never
+ * put the logo on Sand" and "we do not publish a black cut" are POLICY, and
+ * a system that silently offers a pairing the brand has ruled out is a
+ * system the brand cannot publish. Absent means the derived answer stands:
+ * every ground that clears the floor, both cuts.
+ */
 type GroundBrand = {
   colors: {
     core: ReadonlyArray<{ hex: string; name: string }>;
@@ -359,7 +373,35 @@ type GroundBrand = {
     grey?: ReadonlyArray<{ hex: string; name: string }>;
     accent: ReadonlyArray<{ hex: string; name: string }>;
   };
+  /** Hexes the logo may be published on. Absent = all of them. */
+  logoGrounds?: ReadonlyArray<string>;
+  /** Mono cuts the system offers. Absent = both. */
+  logoTreatments?: ReadonlyArray<LogoTreatment>;
 };
+
+/** Case- and shorthand-insensitive hex identity, for matching a stored
+ *  allowlist against a palette that may have been re-cased since. */
+function sameHex(a: string, b: string): boolean {
+  const norm = (v: string) => {
+    const h = v.trim().toLowerCase().replace('#', '');
+    return h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
+  };
+  return norm(a) === norm(b);
+}
+
+/** Whether a ground is one the brand still publishes on. */
+export function groundAllowed(brand: GroundBrand, hex: string): boolean {
+  const allow = brand.logoGrounds;
+  if (!allow) return true;
+  return allow.some((h) => sameHex(h, hex));
+}
+
+/** Whether a mono cut is one the brand still publishes. */
+export function treatmentAllowed(brand: GroundBrand, cut: LogoTreatment): boolean {
+  const allow = brand.logoTreatments;
+  if (!allow) return true;
+  return allow.includes(cut);
+}
 
 /** Neutral extremes every logo system needs a lockup for. */
 const UNIVERSAL_GROUNDS: BrandGround[] = [
@@ -381,10 +423,20 @@ export function brandGrounds(brand: GroundBrand): BrandGround[] {
   const out: BrandGround[] = [];
   for (const g of [...brand.colors.core, ...brand.colors.accent, ...UNIVERSAL_GROUNDS]) {
     if (!g?.hex) continue;
+    // The brand's own policy is applied BEFORE the perceptual dedupe: ruling
+    // out a brand's near-white should hand the slot back to the generic
+    // White, not delete both.
+    if (!groundAllowed(brand, g.hex)) continue;
     if (out.some((kept) => visuallyClose(kept.hex, g.hex))) continue;
     out.push({ hex: g.hex, name: g.name });
   }
   return out;
+}
+
+/** Every ground the brand COULD publish on, before its own policy is applied.
+ *  The editor offers this list; the system reads `brandGrounds`. */
+export function allBrandGrounds(brand: GroundBrand): BrandGround[] {
+  return brandGrounds({ colors: brand.colors });
 }
 
 type ComboBrand = GroundBrand & { logos: ReadonlyArray<LogoLike & { id?: string }> };
@@ -432,10 +484,11 @@ export function logoCombosFor(brand: ComboBrand): LogoTile[] {
   /* 2 — Treatments. The mono cut for each ground, skipped where the
      pairing already put that exact ink there. */
   for (const ground of grounds) {
-    const candidates = [
-      { hex: '#000000', name: 'Black' },
-      { hex: '#FFFFFF', name: 'White' },
-    ]
+    const candidates = ([
+      { hex: '#000000', name: 'Black', cut: 'black' as LogoTreatment },
+      { hex: '#FFFFFF', name: 'White', cut: 'white' as LogoTreatment },
+    ] as const)
+      .filter((c) => treatmentAllowed(brand, c.cut))
       .map((c) => ({ ...c, ratio: contrastRatio(c.hex, ground.hex) }))
       .filter((c) => c.ratio >= MIN_PAIRING_CONTRAST)
       .sort((a, b) => b.ratio - a.ratio);

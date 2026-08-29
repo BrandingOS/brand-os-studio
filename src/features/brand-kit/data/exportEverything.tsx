@@ -61,13 +61,35 @@ import {
 } from './kitExport';
 import { triggerBlobDownload } from './colorPaletteExport';
 import {
+  NATIVE_FORMATS,
   PRINT_PAGE_MM,
+  SOCIAL_PACK_SLOTS,
+  nativeFormatFor,
   pngToJpg,
   pngToPdf,
   resizePng,
   type CustomSize,
   type DownloadFormat,
+  type KitNativeFormat,
 } from './exportFormats';
+import {
+  buildDeckPptx,
+  buildFaviconSet,
+  buildKitReadmeFile,
+  buildSignatureHtml,
+  buildSocialSizePack,
+  type ExportFile,
+  type KitManifestEntry,
+} from '../exporters';
+import { dataUrlToBlob, planLogoExport } from './logoExport';
+import { rasterizeLogo } from '@/shared/brand/rasterizeLogo';
+import { brandColors } from '../renderers/brandStyle';
+import {
+  hydrateContent,
+  type DeckContent,
+  type PersonContent,
+} from '@/features/brandkit/content/kinds';
+import { buildPhotoFiles, directionForMock } from './photoExport';
 import { throwIfAborted, yieldToBrowser } from './exportScheduler';
 
 /* ─── The plan ────────────────────────────────────────────────────── */
@@ -174,9 +196,29 @@ export type KitExportInput = {
    * for anyone who actually wants all of it.
    */
   allVariants?: boolean;
+  /**
+   * Which formats travel beside the universal PNG.
+   *
+   * PNG is not a choice — every deliverable ships one, because it is the
+   * one format that opens anywhere. `native` is the family's real file
+   * (PPTX, ICO, HTML, a platform size pack) and is ON by default: it is
+   * what makes the zip a kit rather than a folder of screenshots. `pdf` is
+   * OFF by default because a print sheet per deliverable is a real cost
+   * for people who only wanted the artwork.
+   */
+  formats?: KitExportFormats;
   onProgress?: (progress: KitExportProgress) => void;
   signal?: AbortSignal;
 };
+
+export type KitExportFormats = {
+  /** The family's own file — PPTX · ICO · HTML · platform sizes. */
+  native?: boolean;
+  /** A print sheet at the deliverable's real paper size, per raster. */
+  pdf?: boolean;
+};
+
+export const DEFAULT_FORMATS: KitExportFormats = { native: true, pdf: false };
 
 export type KitExportResult = {
   blob: Blob;
@@ -256,29 +298,244 @@ async function writeIcons(
   );
 }
 
-/** The brand's photographs, fetched as their own bytes. */
+/**
+ * The brand's photography — every file proven to be one, and the rules.
+ *
+ * This function shipped D1. It fetched each source, checked `res.ok`, and
+ * zipped whatever came back under a name it INVENTED from the mime type
+ * (`photo-1.<blob.type>`). SKAM's only image is `/images/grain.png`, which
+ * does not exist — and a single-page app answers a missing path with its own
+ * `index.html` at status **200, text/html**. So `res.ok` passed, the type
+ * split to `html`, and the download was a 2.9 KB zip holding the application
+ * itself named `photo-1.html`.
+ *
+ * Every part of that is now `photoExport`'s job and none of it is guessed:
+ * the response must claim `image/*` AND carry a real image signature
+ * (`verifyImageBytes`), the extension comes from the bytes a decoder will
+ * read, and the filename comes from the asset's own name in the Library.
+ * Anything that fails is SKIPPED with a reason the user can act on.
+ *
+ * It also answers D12 — "the download produced no file". The art direction is
+ * a document in its own right, so a brand that has written down how its
+ * photography must look exports that even before it owns a photograph; only a
+ * brand with neither pictures nor rules writes nothing, and then `writeUnit`
+ * says so in the skip list.
+ */
 async function writePhotos(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
 ): Promise<{ added: number; skipped: ExportSkip[] }> {
-  const photos = brand.photos.filter((p) => p.src);
-  const skipped: ExportSkip[] = [];
+  throwIfAborted(signal);
+  const direction = directionForMock(brand);
+  const { files, skipped } = await buildPhotoFiles(brand, { direction, signal });
+  // The rules document rides along whenever there is anything to SAY: a written
+  // art direction, a photograph that went in, or a photograph that could not.
+  // A brand with none of the three writes nothing, and `writeUnit` says so —
+  // an `art-direction.md` reading "none yet" is an empty folder wearing a
+  // filename. A brand whose only picture is broken gets the document, and the
+  // document names the picture and the reason, which is the user-facing half
+  // of D1.
+  const worthSaying =
+    direction.note.trim().length > 0 || files.length > 1 || skipped.length > 0;
   let added = 0;
-  for (let i = 0; i < photos.length; i += 1) {
+  for (const file of files) {
+    if (file.path === 'art-direction.md' && !worthSaying) continue;
     throwIfAborted(signal);
-    try {
-      const res = await fetch(photos[i].src);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const blob = await res.blob();
-      zipAdd(folder, `photo-${i + 1}.${blob.type.split('/')[1] || 'png'}`, blob);
-      added += 1;
-    } catch {
-      skipped.push({ label: `Photo ${i + 1}`, reason: "the file couldn't be read from storage" });
-    }
+    zipAdd(folder, file.path, file.blob);
+    added += 1;
     await yieldToBrowser(signal);
   }
   return { added, skipped };
+}
+
+/* ─── Native formats ──────────────────────────────────────────────── */
+
+/**
+ * The formats a family owes BEYOND the picture of itself.
+ *
+ * A PNG of a deck is a picture of a presentation: nobody can present it and
+ * nobody can fix a typo in it. A PNG of a favicon is not a favicon — a
+ * browser asks for `/favicon.ico` and gets a 404. A PNG of an email
+ * signature cannot be pasted into a mail client, and a 1040px square is not
+ * an Instagram Story. So every one of those families writes its real file
+ * as well, out of `exporters/`, from the same content the picture was drawn
+ * from.
+ *
+ * PNG stays universal. This is additive: nothing that used to be in the zip
+ * leaves it, and a family with no native format is untouched.
+ */
+
+/** Every file an exporter handed back, into the folder it belongs in. */
+function writeFiles(folder: ZipFolder, files: ReadonlyArray<ExportFile>): number {
+  for (const file of files) zipAdd(folder, file.path, file.blob);
+  return files.length;
+}
+
+/**
+ * The brand's own logo as a PNG data URL, rasterized ONCE per brand.
+ *
+ * Three natives want it (deck, favicon, signature) and rasterizing a logo
+ * is a canvas round trip, so a whole-kit export would otherwise pay for it
+ * three times. `planLogoExport` is the same plan the `logos/` folder is
+ * built from, so the mark in the deck is the mark in the zip.
+ */
+const LOGO_PNG_CACHE = new WeakMap<object, Promise<string | null>>();
+
+function brandLogoPngUrl(brand: MockBrand): Promise<string | null> {
+  const cached = LOGO_PNG_CACHE.get(brand);
+  if (cached) return cached;
+  const work = (async () => {
+    const [variant] = planLogoExport(brand);
+    if (!variant) return null;
+    // Padding kept small: these grounds are chosen by the exporter, and a
+    // logo that arrives pre-padded is padded twice.
+    return rasterizeLogo(variant.url, { size: 1024, padding: 0.04 });
+  })();
+  LOGO_PNG_CACHE.set(brand, work);
+  return work;
+}
+
+/** The first design a card shows — the one the PNG was drawn from. */
+function firstTemplateFor(unit: KitExportUnit, input: KitExportInput) {
+  const all = variantsForCard(unit.entry.sectionKey, unit.entry.storageLabel, input.brand);
+  return featuredTemplates(unit.entry.storageLabel, all, input.featuredIdsByLabel)[0];
+}
+
+/**
+ * The structured content this unit's native file is written from.
+ *
+ * The user's saved Quick Edit when there is one for the design the picture
+ * came from, the brand's own defaults otherwise. `hydrateContent` refuses a
+ * record belonging to a different kind, so a person saved against a card
+ * can never end up as a deck.
+ */
+function nativeContent<T>(
+  kind: 'deck' | 'person',
+  unit: KitExportUnit,
+  input: KitExportInput,
+): T {
+  const template = firstTemplateFor(unit, input);
+  const stored = template ? input.saved?.[template.id]?.content : undefined;
+  return hydrateContent(kind, input.brand, stored) as unknown as T;
+}
+
+/** `deliverables/business-card.png` → `business-card`. */
+function stemOf(unit: KitExportUnit): string {
+  return unit.path.replace(/^deliverables\//, '').replace(/\.[a-z0-9]+$/i, '');
+}
+
+/**
+ * Write the family's native file(s) beside the picture.
+ *
+ * Single-file natives sit next to the PNG under the same stem; a native
+ * that is a SET (the favicon files, a size pack) gets a folder of its own
+ * named for the deliverable, so a zip listing never becomes a pile of
+ * loose files whose names only make sense together.
+ *
+ * A native that cannot be built is a SKIP with a reason, never a throw: the
+ * picture is already in the zip and a missing PPTX must not cost the user
+ * the export they were waiting for.
+ */
+async function writeNative(
+  unit: KitExportUnit,
+  root: ZipFolder,
+  input: KitExportInput,
+  skipped: ExportSkip[],
+  png: Blob | null,
+): Promise<void> {
+  const native = nativeFormatFor(unit.entry);
+  if (!native) return;
+  const { brand, signal } = input;
+  const stem = stemOf(unit);
+  const deliverables = () => lazyFolder(root, 'deliverables');
+  try {
+    throwIfAborted(signal);
+    switch (native) {
+      case 'pptx': {
+        const files = await buildDeckPptx(
+          nativeContent<DeckContent>('deck', unit, input),
+          brand,
+          { logo: await brandLogoPngUrl(brand), fileName: `${stem}.pptx` },
+        );
+        writeFiles(deliverables(), files);
+        break;
+      }
+      case 'html': {
+        const files = buildSignatureHtml(
+          nativeContent<PersonContent>('person', unit, input),
+          brand,
+          await brandLogoPngUrl(brand),
+        );
+        // `signature.html` → `email-signature.html`: the file is named for
+        // the deliverable it came from, like every other file in the zip.
+        writeFiles(
+          deliverables(),
+          files.map((f) => ({ ...f, path: f.path.replace(/^signature/, stem) })),
+        );
+        break;
+      }
+      case 'ico': {
+        const url = await brandLogoPngUrl(brand);
+        const logo = url ? dataUrlToBlob(url) : null;
+        if (!logo) {
+          skipped.push({
+            label: `${unit.label} (${NATIVE_FORMATS.ico.chip})`,
+            reason: 'this brand has no logo to build icons from',
+          });
+          break;
+        }
+        writeFiles(
+          lazyFolder(deliverables(), stem),
+          await buildFaviconSet(logo, {
+            brandColor: brandColors(brand).primary,
+            name: brand.name,
+          }),
+        );
+        break;
+      }
+      case 'sizes': {
+        if (!png) break;
+        const slots = SOCIAL_PACK_SLOTS[unit.entry.storageLabel] ?? [];
+        if (slots.length === 0) break;
+        writeFiles(lazyFolder(deliverables(), stem), await buildSocialSizePack(png, slots));
+        break;
+      }
+    }
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+    skipped.push({
+      label: `${unit.label} (${NATIVE_FORMATS[native].chip})`,
+      reason: err instanceof Error ? err.message : 'the native file could not be built',
+    });
+  }
+}
+
+/**
+ * The print sheet, for the families the Formats section asked for it.
+ *
+ * `pngToPdf` wraps the raster on the deliverable's real paper size — the
+ * honest meaning of "For print" until a family's vector exporter lands.
+ */
+async function writePrintPdf(
+  unit: KitExportUnit,
+  root: ZipFolder,
+  input: KitExportInput,
+  skipped: ExportSkip[],
+  png: Blob | null,
+): Promise<void> {
+  if (!png) return;
+  try {
+    throwIfAborted(input.signal);
+    const page = PRINT_PAGE_MM[unit.entry.storageLabel] ?? 'fit';
+    zipAdd(lazyFolder(root, 'deliverables'), `${stemOf(unit)}.pdf`, await pngToPdf(png, page));
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+    skipped.push({
+      label: `${unit.label} (PDF)`,
+      reason: err instanceof Error ? err.message : 'the print sheet could not be built',
+    });
+  }
 }
 
 /**
@@ -301,6 +558,10 @@ export async function writeUnit(
   const { brand, signal } = input;
   const slug = slugifyName(brand.name);
   let added = false;
+  // The picture this unit drew, kept so the native formats and the print
+  // sheet are made from the SAME raster the zip ships rather than from a
+  // second render that could differ.
+  let primary: Blob | null = null;
   const keep = () => {
     added = true;
   };
@@ -402,6 +663,7 @@ export async function writeUnit(
           } else {
             zipAdd(root, unit.path, blob);
           }
+          primary ??= blob;
           keep();
           if (designs.length > 1) await yieldToBrowser(signal);
         }
@@ -416,6 +678,7 @@ export async function writeUnit(
         const blob = await snapshotDocumentPng(element);
         if (blob) {
           zipAdd(root, unit.path, blob);
+          primary = blob;
           keep();
         } else {
           skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
@@ -434,6 +697,7 @@ export async function writeUnit(
         const blob = await snapshotTemplatePng(<BrandBoardCanvas />, 1600, 1.6, 1);
         if (blob) {
           zipAdd(root, unit.path, blob);
+          primary = blob;
           keep();
         } else {
           skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
@@ -447,8 +711,47 @@ export async function writeUnit(
       label: unit.label,
       reason: err instanceof Error ? err.message : 'it failed to export',
     });
-    }
+  }
+
+  // The native file comes AFTER the picture, and only when the picture
+  // arrived — a unit that produced nothing has nothing to be native about,
+  // and the raster is what half of these are built from.
+  if (added) {
+    const formats = input.formats ?? DEFAULT_FORMATS;
+    if (formats.native !== false) await writeNative(unit, root, input, skipped, primary);
+    if (formats.pdf) await writePrintPdf(unit, root, input, skipped, primary);
+  }
   return added;
+}
+
+/**
+ * Every file in the finished zip, told who it belongs to.
+ *
+ * Read back out of the ARCHIVE rather than assembled from the plan: a unit
+ * writes between zero and forty files depending on the brand, the depth and
+ * whether its native exporter worked, so a list built from intentions is a
+ * list that goes stale the first time anything is skipped. Ownership is by
+ * longest matching stem, which is what makes `deliverables/business-card`
+ * claim its `.png`, its `.pptx` and its variants folder while leaving
+ * `deliverables/business-card-stack.png` to the mockup that drew it.
+ */
+function manifestOf(
+  zip: { files: Record<string, { dir: boolean }> },
+  units: ReadonlyArray<KitExportUnit>,
+): KitManifestEntry[] {
+  const owners = units
+    .map((unit) => ({
+      unit,
+      stem: unit.path.endsWith('/') ? unit.path : unit.path.replace(/\.[a-z0-9]+$/i, ''),
+    }))
+    .sort((a, b) => b.stem.length - a.stem.length);
+  return Object.keys(zip.files)
+    .filter((path) => !zip.files[path].dir)
+    .sort()
+    .map((path) => {
+      const owner = owners.find((o) => path.startsWith(o.stem));
+      return owner ? { path, label: owner.unit.label, kind: owner.unit.kind } : { path };
+    });
 }
 
 /**
@@ -485,6 +788,22 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
     await yieldToBrowser(signal);
   }
 
+  // The README is written LAST and from the zip itself, so it cannot claim
+  // a file that is not there or miss one that is — which is exactly what a
+  // README assembled from the plan would do the moment a unit skipped, a
+  // native failed, or a card turned out to have three variants.
+  zipAdd(
+    root,
+    'README.md',
+    buildKitReadmeFile(brand, {
+      // Itself included: a table of contents that omits the one file the
+      // reader is holding is a table of contents with a hole in it.
+      files: [{ path: 'README.md', label: 'This file' }, ...manifestOf(zip, units)],
+      skipped,
+      generatedAt: new Date(),
+    }).blob,
+  );
+
   onProgress?.({
     phase: 'zipping',
     done: units.length,
@@ -508,6 +827,23 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
   throwIfAborted(signal);
   return { blob, added, skipped };
 }
+
+/**
+ * Which files in a unit's output ARE a given native format.
+ *
+ * Matched on the path rather than tracked as a second list, because the
+ * zip is the only record of what was actually written — a native that
+ * failed leaves no file and the download falls back to the raster instead
+ * of handing the user an empty archive.
+ */
+const NATIVE_PATTERN: Record<KitNativeFormat, RegExp> = {
+  pptx: /\.pptx$/i,
+  // The whole set: the container, the PNG ladder, the manifest, the
+  // snippet. An `.ico` on its own is not an answer to "add a favicon".
+  ico: /^deliverables\/[^/]+\/(favicon|apple-touch-icon|icon-|site\.webmanifest|snippet\.html)/i,
+  html: /\.(html|txt)$/i,
+  sizes: /^deliverables\/[^/]+\/[a-z0-9-]+-\d+x\d+\.png$/i,
+};
 
 /**
  * Download ONE catalog entry, through the same writer the kit uses.
@@ -538,35 +874,84 @@ export async function downloadEntry(
   const base = `${slugifyName(input.brand.name)}-${slugifyName(entry.label)}`;
   const paths = Object.keys(zip.files).filter((path) => !zip.files[path].dir);
   const format = choice.format ?? 'png';
-  const onlyPng = paths.length === 1 && paths[0].endsWith('.png');
-  if (onlyPng && format !== 'png') {
-    // The format menu, for a single raster deliverable. PDF wraps the
-    // raster on the family's real paper size; JPG flattens it; custom
-    // resizes it. Vector needs the per-kind exporter — the menu shows that
-    // option disabled until one exists, so it never reaches here.
-    const png = await zip.files[paths[0]].async('blob');
+
+  const send = async (picked: string[], keepName = false): Promise<void> => {
+    if (picked.length === 1) {
+      const only = picked[0];
+      // A native file is already named for what it IS — `pitch-deck.pptx`,
+      // `instagram-post-1080x1080.png` — and that name carries the size,
+      // which is the whole reason someone asked for a size pack. Renaming
+      // it to the generic base would throw that away.
+      if (keepName) {
+        const leaf = only.slice(only.lastIndexOf('/') + 1);
+        triggerBlobDownload(
+          await zip.files[only].async('blob'),
+          `${slugifyName(input.brand.name)}-${leaf}`,
+        );
+        return;
+      }
+      const ext = only.includes('.') ? only.slice(only.lastIndexOf('.') + 1) : 'png';
+      triggerBlobDownload(await zip.files[only].async('blob'), `${base}.${ext}`);
+      return;
+    }
+    // Several files are one deliverable in several parts, so they travel
+    // together. Wrapping a SINGLE file in a zip is a second step for
+    // nothing, which is why the branch above exists.
+    const out = new JSZip();
+    for (const path of picked) out.file(path, await zip.files[path].async('blob'));
+    triggerBlobDownload(await out.generateAsync({ type: 'blob', compression: 'DEFLATE' }), `${base}.zip`);
+  };
+
+  // A native format hands over exactly the files that format names — the
+  // deck itself, the icon set, the markup, the size pack. Nothing is
+  // derived here: `writeUnit` already built them, from the same content the
+  // picture was drawn from.
+  const wanted = NATIVE_PATTERN[format as KitNativeFormat];
+  if (wanted) {
+    const picked = paths.filter((path) => wanted.test(path));
+    if (picked.length > 0) {
+      await send(picked, true);
+      return { added: true, skipped };
+    }
+    // Nothing native was produced — fall through to the raster rather than
+    // handing the user an empty download.
+  }
+
+  // The format menu, for a rasterized deliverable. PDF wraps the raster on
+  // the family's real paper size; JPG flattens it; custom resizes it. An
+  // asset FOLDER (logos, colors, fonts) is exempt: it already contains its
+  // own PDFs and vectors, and converting one PNG out of it would be a
+  // worse answer than the folder.
+  const rasterUnit = unit.kind === 'card' || unit.kind === 'document' || unit.kind === 'board';
+  const png = paths.includes(unit.path) && unit.path.endsWith('.png')
+    ? unit.path
+    : paths.find((path) => path.endsWith('.png'));
+  if (rasterUnit && png && (format === 'pdf' || format === 'jpg' || format === 'custom')) {
+    const raster = await zip.files[png].async('blob');
     if (format === 'pdf') {
       const page = PRINT_PAGE_MM[entry.storageLabel] ?? 'fit';
-      triggerBlobDownload(await pngToPdf(png, page), `${base}.pdf`);
+      triggerBlobDownload(await pngToPdf(raster, page), `${base}.pdf`);
     } else if (format === 'jpg') {
-      triggerBlobDownload(await pngToJpg(png), `${base}.jpg`);
-    } else if (format === 'custom' && choice.size) {
-      triggerBlobDownload(await resizePng(png, choice.size), `${base}-${choice.size.width}px.png`);
+      triggerBlobDownload(await pngToJpg(raster), `${base}.jpg`);
+    } else if (choice.size) {
+      triggerBlobDownload(await resizePng(raster, choice.size), `${base}-${choice.size.width}px.png`);
     } else {
-      triggerBlobDownload(png, `${base}.png`);
+      triggerBlobDownload(raster, `${base}.png`);
     }
     return { added: true, skipped };
   }
-  if (paths.length === 1) {
-    const only = paths[0];
-    const ext = only.includes('.') ? only.slice(only.lastIndexOf('.') + 1) : 'png';
-    triggerBlobDownload(await zip.files[only].async('blob'), `${base}.${ext}`);
-  } else {
-    triggerBlobDownload(
-      await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
-      `${base}.zip`,
-    );
+  if (rasterUnit && png && format === 'png') {
+    triggerBlobDownload(await zip.files[png].async('blob'), `${base}.png`);
+    return { added: true, skipped };
   }
+  if (format === 'svg') {
+    const vectors = paths.filter((path) => path.endsWith('.svg'));
+    if (vectors.length > 0) {
+      await send(vectors);
+      return { added: true, skipped };
+    }
+  }
+  await send(paths);
   return { added: true, skipped };
 }
 

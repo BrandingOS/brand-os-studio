@@ -8,7 +8,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { planKitExport } from './exportEverything';
-import { visibleEntries, visibleGroups, KIT_CATALOG } from '../catalog/catalog';
+import { downloadOptionsFor, nativeFormatFor, SOCIAL_PACK_SLOTS } from './exportFormats';
+import { SOCIAL_SIZES } from '../exporters';
+import { getEntryFor, visibleEntries, visibleGroups, KIT_CATALOG } from '../catalog/catalog';
 
 const CUSTOMER = { isDev: false, isAdmin: false };
 const DEVELOPER = { isDev: true, isAdmin: false };
@@ -93,5 +95,103 @@ describe('planKitExport', () => {
     const units = planKitExport(visibleEntries(DEVELOPER));
     const files = units.filter((u) => !u.path.endsWith('/')).map((u) => u.path);
     expect(new Set(files).size).toBe(files.length);
+  });
+});
+
+/**
+ * What a family owes beyond a picture of itself.
+ *
+ * Decided from the catalog ENTRY, because both readers need the answer
+ * before anything is rendered: the menu has to be drawn on hover, and the
+ * zip walker has to plan before it rasterizes. One function, so the row the
+ * user clicks and the file the zip contains cannot name different formats.
+ */
+describe('nativeFormatFor', () => {
+  const entry = (section: string, label: string) => getEntryFor(section as never, label)!;
+
+  it.each([
+    ['web', 'Favicon', 'ico'],
+    ['web', 'Email Signature', 'html'],
+    ['social', 'Post', 'sizes'],
+    ['social', 'Story', 'sizes'],
+    ['social', 'Cover', 'sizes'],
+    ['social', 'Profile', 'sizes'],
+    ['presentations', 'Pitch Deck', 'pptx'],
+    ['presentations', 'Presentation System', 'pptx'],
+  ])('%s / %s owes a %s', (section, label, expected) => {
+    expect(nativeFormatFor(entry(section, label))).toBe(expected);
+  });
+
+  it('never asks the Brand Board for slides — it is a poster', () => {
+    // It lives in `presentations` and has no `slides` to carry. A rule
+    // written as "the presentations section" alone would have shipped an
+    // empty deck for it.
+    expect(nativeFormatFor(entry('presentations', 'Brand Board'))).toBeNull();
+  });
+
+  it('leaves a family with no native exporter alone', () => {
+    for (const label of ['Business Card', 'Letterhead', 'Invoice']) {
+      expect(nativeFormatFor(entry('stationery', label))).toBeNull();
+    }
+    expect(nativeFormatFor(entry('brand-assets', 'Logos'))).toBeNull();
+  });
+
+  it('names only slots the size table actually knows', () => {
+    // A typo here is a download that throws `Unknown social slot` in the
+    // middle of an export the user is watching.
+    const known = new Set(SOCIAL_SIZES.map((s) => s.id));
+    for (const [label, slots] of Object.entries(SOCIAL_PACK_SLOTS)) {
+      expect(slots.length, `${label} asks for no sizes`).toBeGreaterThan(0);
+      for (const id of slots) expect(known, `${label} → ${id}`).toContain(id);
+    }
+  });
+
+  it('never offers an Instagram POST as a profile picture', () => {
+    // `PROFILE_SLOTS` is "every square slot" and a post is square, so the
+    // obvious derivation put a 1080 feed design in the avatar pack.
+    expect(SOCIAL_PACK_SLOTS.Profile).not.toContain('instagram-post');
+  });
+});
+
+/**
+ * The menu is the same five rows everywhere.
+ *
+ * A menu that changes shape per card is a menu nobody learns, so the third
+ * row is always there: the family's own native format when it has one, the
+ * vector when the artwork is vector, and otherwise the vector row disabled
+ * with the reason. Never hidden.
+ */
+describe('downloadOptionsFor', () => {
+  const shape = (section: string, label: string) =>
+    downloadOptionsFor(getEntryFor(section as never, label)!).map((o) => `${o.label} (${o.chip})`);
+
+  it('opens with For web and For print, whatever the family', () => {
+    for (const entry of visibleEntries(DEVELOPER)) {
+      const options = downloadOptionsFor(entry);
+      expect(options).toHaveLength(5);
+      expect(options.slice(0, 2).map((o) => o.format)).toEqual(['png', 'pdf']);
+      expect(options.filter((o) => o.secondary)).toHaveLength(3);
+    }
+  });
+
+  it('offers the real format where one now exists', () => {
+    expect(shape('presentations', 'Pitch Deck')[2]).toBe('Editable deck (PPTX)');
+    expect(shape('web', 'Favicon')[2]).toBe('Favicon set (ICO)');
+    expect(shape('web', 'Email Signature')[2]).toBe('Signature (HTML)');
+    expect(shape('social', 'Story')[2]).toBe('Platform sizes (PNG)');
+    for (const label of ['Pitch Deck']) {
+      const option = downloadOptionsFor(getEntryFor('presentations', label)!)[2];
+      expect(option.disabledReason, 'a real format is never "coming soon"').toBeUndefined();
+    }
+  });
+
+  it('keeps the vector row honest where no exporter exists', () => {
+    const card = downloadOptionsFor(getEntryFor('stationery', 'Business Card')!)[2];
+    expect(card.format).toBe('svg');
+    expect(card.disabledReason).toBeTruthy();
+    // The brand's own assets ARE vector, so theirs is enabled.
+    const logos = downloadOptionsFor(getEntryFor('brand-assets', 'Logos')!)[2];
+    expect(logos.format).toBe('svg');
+    expect(logos.disabledReason).toBeUndefined();
   });
 });

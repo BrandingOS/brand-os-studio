@@ -13,7 +13,18 @@
  */
 import type { KitEntry } from '../catalog/catalog';
 
-export type DownloadFormat = 'png' | 'pdf' | 'svg' | 'jpg' | 'custom';
+/**
+ * The formats a native exporter produces, named the way the file is.
+ *
+ * A separate union from `DownloadFormat` because these are the ones a
+ * FAMILY owes rather than ones any raster can be turned into: a deck owes
+ * a real deck, a favicon owes an icon container, a signature owes markup,
+ * a social design owes the sizes each platform actually serves. Nothing
+ * here can be derived from a PNG by resizing it.
+ */
+export type KitNativeFormat = 'pptx' | 'ico' | 'html' | 'sizes';
+
+export type DownloadFormat = 'png' | 'pdf' | 'svg' | 'jpg' | 'custom' | KitNativeFormat;
 
 export type DownloadOption = {
   format: DownloadFormat;
@@ -42,23 +53,110 @@ export type CustomSize = {
 
 /**
  * Families whose artwork is pure vector today (the brand's own assets).
- * Everything else is a DOM renderer and its SVG/vector PDF arrives with the
- * per-kind exporters; until then those options are visible and disabled.
+ * Everything else is a DOM renderer, so its `svg` option stands for the
+ * vector files already inside that family's folder.
  */
 const VECTOR_NATIVE = new Set(['Logos', 'Colors', 'Icons']);
 
+/**
+ * The platform sizes a social slot is actually served at.
+ *
+ * Ids into `exporters/socialSizes.ts` `SOCIAL_SIZES`, which is where the
+ * numbers and the safe areas live. Named explicitly rather than derived
+ * from `PROFILE_SLOTS` — that set is "every square slot" and an Instagram
+ * POST is square, so a Profile download would have quietly shipped one.
+ */
+export const SOCIAL_PACK_SLOTS: Readonly<Record<string, ReadonlyArray<string>>> = {
+  Post: ['instagram-post'],
+  Story: ['instagram-story'],
+  Cover: [
+    'facebook-cover',
+    'facebook-cover-2x',
+    'linkedin-banner',
+    'linkedin-company',
+    'x-header',
+    'youtube-banner',
+  ],
+  Profile: ['instagram-profile', 'tiktok-profile', 'app-store-icon'],
+};
+
+/** What the menu calls a native format, and what the README says it is for. */
+export const NATIVE_FORMATS: Readonly<
+  Record<KitNativeFormat, { label: string; chip: string; what: string }>
+> = {
+  pptx: {
+    label: 'Editable deck',
+    chip: 'PPTX',
+    what: 'a real PowerPoint file — editable slides, not pictures of slides',
+  },
+  ico: {
+    label: 'Favicon set',
+    chip: 'ICO',
+    what: 'the icon container every browser asks for, with the PNG set and the manifest beside it',
+  },
+  html: {
+    label: 'Signature',
+    chip: 'HTML',
+    what: 'markup to paste into a mail client, and a plain-text twin for the ones that refuse it',
+  },
+  sizes: {
+    // Not `ZIP`: a slot with one size comes down as that one PNG, and a
+    // chip that promised an archive would be wrong half the time. The chip
+    // names what is INSIDE; the label says how many there are of it.
+    label: 'Platform sizes',
+    chip: 'PNG',
+    what: 'the design at the exact pixel size each platform serves',
+  },
+};
+
+/**
+ * The one native format a catalog entry owes beyond the universal PNG.
+ *
+ * Decided from the ENTRY rather than from the template it happens to
+ * render, because the menu has to be drawn before anything is rendered and
+ * the zip walker has to plan before it rasterizes. Both read this.
+ */
+export function nativeFormatFor(entry: KitEntry): KitNativeFormat | null {
+  if (entry.storageLabel === 'Favicon') return 'ico';
+  if (entry.storageLabel === 'Email Signature') return 'html';
+  if (entry.sectionKey === 'social' && SOCIAL_PACK_SLOTS[entry.storageLabel]) return 'sizes';
+  // Every presentation is a deck except the Brand Board, which is a poster
+  // and has no slides to carry.
+  if (entry.sectionKey === 'presentations' && entry.view !== 'brand-board') return 'pptx';
+  return null;
+}
+
+/**
+ * The menu, which is the SAME FIVE ROWS everywhere.
+ *
+ * *For web* and *For print* up front; then one row that is the family's own
+ * native format when it has one and the vector otherwise; then *Flattened*
+ * and *Custom size…*. A family with neither a native exporter nor vector
+ * artwork still shows the third row, disabled with the reason — a menu that
+ * changes shape per card is a menu nobody learns.
+ */
 export function downloadOptionsFor(entry: KitEntry): DownloadOption[] {
-  const vector = VECTOR_NATIVE.has(entry.storageLabel);
+  const native = nativeFormatFor(entry);
+  const third: DownloadOption = native
+    ? {
+        format: native,
+        label: NATIVE_FORMATS[native].label,
+        chip: NATIVE_FORMATS[native].chip,
+        secondary: true,
+      }
+    : {
+        format: 'svg',
+        label: 'Vector',
+        chip: 'SVG',
+        secondary: true,
+        ...(VECTOR_NATIVE.has(entry.storageLabel)
+          ? {}
+          : { disabledReason: 'This design is drawn in the browser — it has no vector to export' }),
+      };
   return [
     { format: 'png', label: 'For web', chip: 'PNG' },
     { format: 'pdf', label: 'For print', chip: 'PDF' },
-    {
-      format: 'svg',
-      label: 'Vector',
-      chip: 'SVG',
-      secondary: true,
-      ...(vector ? {} : { disabledReason: 'Vector export for this design is coming soon' }),
-    },
+    third,
     { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true },
     { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true },
   ];

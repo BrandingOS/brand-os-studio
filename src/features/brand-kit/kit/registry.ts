@@ -74,8 +74,24 @@ export type DeliverableDef = {
    *  or null when generation can proceed. */
   validate?: (brand: MockBrand) => string | null;
   exportFormats: ReadonlyArray<'png'>;
-  /** The Design content type this deliverable instantiates as. Absent
-   *  until the family has been promoted to a real Design type. */
+  /**
+   * The Design content type this deliverable instantiates as — what
+   * `Use Template` / `Edit Template` write into the document and what the
+   * shell resolves a renderer from.
+   *
+   * It must name a config in `editor/content-types` whose `renderer` is
+   * `'template-instance'`, or Design opens the handed-off document on
+   * Fabric and paints an empty canvas. The Brand Kit's own ids live in
+   * `content-types/brandKit.configs.ts`; `invoice` is the one that
+   * predates them.
+   *
+   * Absent is a real answer, not a gap: Brand Guides are drawn from the
+   * BRAND rather than from a deliverable's content, so there is nothing
+   * for Design's properties panel to edit and no content kind for them in
+   * `content/kinds.ts`. Several deliverables deliberately share an id —
+   * Profile and Favicon are both a square logo container, Website and
+   * Landing Page are both a web hero, the four decks are one presentation.
+   */
   contentTypeId?: string;
 };
 
@@ -306,16 +322,19 @@ export const DELIVERABLES: DeliverableDef[] = [
       label: 'Business Card',
       templateType: 'business-cards',
       featuredIds: ['business-cards-ext-3', 'business-cards-ext-4', 'business-cards-ext-113'],
+      contentTypeId: 'business-card-kit',
     },
     {
       label: 'Letterhead',
       templateType: 'letterhead',
       featuredIds: ['letterhead-ext-6', 'letterhead-ext-69', 'letterhead-ext-73'],
+      contentTypeId: 'letterhead-kit',
     },
     {
       label: 'Envelope',
       templateType: 'envelope',
       featuredIds: ['envelope-ext-30', 'envelope-ext-3', 'envelope-ext-127'],
+      contentTypeId: 'envelope-kit',
     },
     {
       label: 'Invoice',
@@ -325,16 +344,26 @@ export const DELIVERABLES: DeliverableDef[] = [
     },
   ]),
   ...makeDefs('social', [
-    { label: 'Profile', templateType: 'profile-icons', controlGroups: ['colors', 'logo'] },
-    { label: 'Cover', templateType: 'facebook-covers' },
-    { label: 'Post', templateType: 'instagram-posts' },
-    { label: 'Story', templateType: 'instagram-stories' },
+    {
+      label: 'Profile',
+      templateType: 'profile-icons',
+      controlGroups: ['colors', 'logo'],
+      contentTypeId: 'profile-icon-kit',
+    },
+    { label: 'Cover', templateType: 'facebook-covers', contentTypeId: 'social-cover-kit' },
+    { label: 'Post', templateType: 'instagram-posts', contentTypeId: 'social-post-kit' },
+    { label: 'Story', templateType: 'instagram-stories', contentTypeId: 'social-story-kit' },
   ]),
   ...makeDefs('web', [
-    { label: 'Favicon', templateType: 'favicon', controlGroups: ['colors', 'logo'] },
-    { label: 'Website', templateType: 'website' },
-    { label: 'Email Signature', templateType: 'email-sig' },
-    { label: 'Landing Page', templateType: 'landing' },
+    {
+      label: 'Favicon',
+      templateType: 'favicon',
+      controlGroups: ['colors', 'logo'],
+      contentTypeId: 'profile-icon-kit',
+    },
+    { label: 'Website', templateType: 'website', contentTypeId: 'web-page-kit' },
+    { label: 'Email Signature', templateType: 'email-sig', contentTypeId: 'email-signature-kit' },
+    { label: 'Landing Page', templateType: 'landing', contentTypeId: 'web-page-kit' },
   ]),
   ...makeDefs('brand-guides', [
     { label: 'Logo Guide', templateType: 'guide-logo' },
@@ -344,16 +373,36 @@ export const DELIVERABLES: DeliverableDef[] = [
     { label: 'Imagery Guide', templateType: 'guide-imagery' },
   ]),
   ...makeDefs('presentations', [
-    { label: 'Pitch Deck', templateType: 'pres-pitch' },
-    { label: 'Business Plan', templateType: 'pres-plan' },
-    { label: 'Proposal', templateType: 'pres-proposal' },
-    { label: 'Case Studies', templateType: 'pres-case' },
+    { label: 'Pitch Deck', templateType: 'pres-pitch', contentTypeId: 'presentation-kit' },
+    { label: 'Business Plan', templateType: 'pres-plan', contentTypeId: 'presentation-kit' },
+    { label: 'Proposal', templateType: 'pres-proposal', contentTypeId: 'presentation-kit' },
+    { label: 'Case Studies', templateType: 'pres-case', contentTypeId: 'presentation-kit' },
   ]),
   ...makeDefs('animations', [
-    { label: 'Logo Reveal', templateType: 'anim-reveal', controlGroups: ['colors', 'logo'] },
-    { label: 'Slide In', templateType: 'anim-slide', controlGroups: ['colors', 'logo'] },
-    { label: 'Fade', templateType: 'anim-fade', controlGroups: ['colors', 'logo'] },
-    { label: 'Rotate', templateType: 'anim-rotate', controlGroups: ['colors', 'logo'] },
+    {
+      label: 'Logo Reveal',
+      templateType: 'anim-reveal',
+      controlGroups: ['colors', 'logo'],
+      contentTypeId: 'animation-kit',
+    },
+    {
+      label: 'Slide In',
+      templateType: 'anim-slide',
+      controlGroups: ['colors', 'logo'],
+      contentTypeId: 'animation-kit',
+    },
+    {
+      label: 'Fade',
+      templateType: 'anim-fade',
+      controlGroups: ['colors', 'logo'],
+      contentTypeId: 'animation-kit',
+    },
+    {
+      label: 'Rotate',
+      templateType: 'anim-rotate',
+      controlGroups: ['colors', 'logo'],
+      contentTypeId: 'animation-kit',
+    },
   ]),
 ];
 

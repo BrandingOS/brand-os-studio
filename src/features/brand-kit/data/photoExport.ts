@@ -90,6 +90,12 @@ export function nameFromSource(src: string, index: number): string {
   if (!last) return fallback;
   const bare = last.replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[-_]+/g, ' ').trim();
   if (!bare) return fallback;
+  // A storage key is not a caption. A CDN path ends in a hash or an id far
+  // more often than in a name, and "Photo 1503023345310 bd7c1de61c7d" printed
+  // across a photograph is worse than no caption at all — so anything that
+  // reads as machinery goes back to the index.
+  const digits = (bare.match(/\d/g) ?? []).length;
+  if (bare.length > 32 || digits / bare.length > 0.4) return fallback;
   return bare.charAt(0).toUpperCase() + bare.slice(1);
 }
 
@@ -129,10 +135,18 @@ function currentBrandFor(brand: MockBrand) {
  * Empty sources and sources already measured as broken are not photographs,
  * and an empty slot is not one either — that is the whole of D14/D46.
  */
-export function realPhotos(brand: MockBrand | null | undefined): KitPhoto[] {
+export function realPhotos(
+  brand: MockBrand | null | undefined,
+  direction?: PhotoDirection,
+): KitPhoto[] {
   const photos = brand?.photos ?? [];
+  // Resolved here rather than demanded from the caller, so the tile, the
+  // sidebar and the export cannot answer "does this brand have photography?"
+  // three different ways — which is D46.
+  const rules = direction ?? directionForMock(brand);
+  const hidden = new Set(rules.hidden ?? []);
   return photos
-    .filter((p) => Boolean(p?.src) && !isPhotoSourceBroken(p.src))
+    .filter((p) => Boolean(p?.src) && !isPhotoSourceBroken(p.src) && !hidden.has(p.id))
     .map((p, i) => ({
       id: p.id,
       src: p.src,
@@ -148,8 +162,11 @@ export function realPhotos(brand: MockBrand | null | undefined): KitPhoto[] {
  * function the drilldown uses to decide between tiles and the empty state, so
  * the sidebar and the page can never disagree about whether Photos is done.
  */
-export function hasRealPhotos(brand: MockBrand | null | undefined): boolean {
-  return realPhotos(brand).length > 0;
+export function hasRealPhotos(
+  brand: MockBrand | null | undefined,
+  direction?: PhotoDirection,
+): boolean {
+  return realPhotos(brand, direction).length > 0;
 }
 
 /* ─── Art direction ────────────────────────────────────────────────── */
@@ -174,6 +191,17 @@ export type PhotoDirection = {
   treatments: Record<string, PhotoTreatmentId>;
   /** Library asset ids, in the order the kit shows them. */
   order: string[];
+  /**
+   * Library asset ids the kit does NOT show as brand photography.
+   *
+   * Removing a photograph from the kit must never remove it from the brand:
+   * the Library is where the file lives and the kit is one arrangement of it,
+   * exactly as a folder is an arrangement rather than a container (see the
+   * Folders rule, "deleting a folder never deletes what is in it"). A photo
+   * that is a texture, a screenshot or somebody's avatar belongs in the
+   * Library and not on this card, and saying so must cost the user nothing.
+   */
+  hidden: string[];
 };
 
 export const EMPTY_DIRECTION: PhotoDirection = {
@@ -181,6 +209,7 @@ export const EMPTY_DIRECTION: PhotoDirection = {
   defaultTreatment: 'original',
   treatments: {},
   order: [],
+  hidden: [],
 };
 
 const DIRECTION_KEY = 'brandos:brand-kit:photos';
@@ -207,6 +236,7 @@ export function readPhotoDirection(brandId: string | null | undefined): PhotoDir
     defaultTreatment: isTreatmentId(stored.defaultTreatment) ? stored.defaultTreatment : 'original',
     treatments: stored.treatments && typeof stored.treatments === 'object' ? stored.treatments : {},
     order: Array.isArray(stored.order) ? stored.order.filter((id) => typeof id === 'string') : [],
+    hidden: Array.isArray(stored.hidden) ? stored.hidden.filter((id) => typeof id === 'string') : [],
   };
 }
 
@@ -567,7 +597,11 @@ export async function buildPhotoFiles(
   const fetchImpl = options.fetchImpl ?? fetch;
   const files: PhotoExportFile[] = [];
   const skipped: ExportSkip[] = [];
-  const photos = orderedPhotos(realPhotos(brand), direction);
+  const photos = orderedPhotos(realPhotos(brand, direction), direction);
+  /** The photographs that were PROVEN to be photographs. The document lists
+   *  these, not the candidates — a picture that never made it into the zip
+   *  must not be named in the zip's own index of what is inside it. */
+  const exported: KitPhoto[] = [];
 
   for (let i = 0; i < photos.length; i += 1) {
     const photo = photos[i];
@@ -582,6 +616,7 @@ export async function buildPhotoFiles(
       continue;
     }
     files.push({ path: `originals/${stem}.${fetched.ext}`, blob: fetched.blob });
+    exported.push(photo);
 
     const wanted = options.treatments ?? [treatmentFor(photo.id, direction)];
     for (const treatment of wanted) {
@@ -601,7 +636,7 @@ export async function buildPhotoFiles(
     }
   }
 
-  const note = buildArtDirectionMarkdown(brand, direction, photos);
+  const note = buildArtDirectionMarkdown(brand, direction, exported, skipped);
   files.push({ path: 'art-direction.md', blob: new Blob([note], { type: 'text/markdown' }) });
   return { files, skipped };
 }
@@ -617,6 +652,15 @@ export function buildArtDirectionMarkdown(
   brand: MockBrand,
   direction: PhotoDirection,
   photos: KitPhoto[] = [],
+  /**
+   * What could not be included, and why.
+   *
+   * The document is the one thing in the zip that can SPEAK, so it is where a
+   * skip belongs: D1's failure was silent, and a download that quietly holds
+   * one fewer picture than the card showed is the same silence with better
+   * manners.
+   */
+  skipped: ExportSkip[] = [],
 ): string {
   const lines: string[] = [`# ${brand.name} — photography`, ''];
   lines.push('## Art direction', '');
@@ -633,6 +677,11 @@ export function buildArtDirectionMarkdown(
     for (const p of photos) {
       lines.push(`- ${p.name} — ${PHOTO_TREATMENTS.find((t) => t.id === treatmentFor(p.id, direction))?.label}`);
     }
+    lines.push('');
+  }
+  if (skipped.length > 0) {
+    lines.push('## Not included', '');
+    for (const s of skipped) lines.push(`- ${s.label} — ${s.reason}`);
     lines.push('');
   }
   return lines.join('\n');

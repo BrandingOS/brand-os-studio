@@ -1,4 +1,4 @@
-import type { Brand, BrandLogoAssets, BrandStrategy } from '@/shared/types/brand';
+import type { Brand, BrandLogoAssets, BrandStrategy, LogoUsagePolicy } from '@/shared/types/brand';
 import { fromLegacyBrand } from '@/domain/brand';
 import type { TypographySystem, LogoRole } from '@/shared/types/brandAssets';
 import { stageLogoAssignment } from '@/shared/assets/assetOperations';
@@ -238,6 +238,34 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
         ...(mock.iconPack ? { pack: mock.iconPack } : {}),
         ...(mock.iconTint ? { tint: mock.iconTint } : {}),
       },
+    };
+  }
+
+  /* ─────────────────────  logo usage policy  ───────────────────── */
+  //
+  // The two answers about the logo system that measurement cannot reach: the
+  // grounds the brand has ruled out, and a mono cut it does not publish.
+  // Everything else the kit shows is DERIVED from contrast and must stay
+  // derived — storing the pairings would let a saved list disagree with the
+  // palette that produced it the moment a colour changed.
+  //
+  // Absent stays absent. A brand that has never expressed a policy must not
+  // gain one because an unrelated save flushed the whole projection through
+  // here — that is how a brand ends up with a frozen copy of the grounds it
+  // happened to have on one afternoon.
+
+  const heldUsage = existing.guidelines?.logoUsage;
+  const nextUsage: LogoUsagePolicy = {
+    ...(mock.logoGrounds ? { grounds: [...mock.logoGrounds] } : {}),
+    ...(mock.logoTreatments ? { treatments: [...mock.logoTreatments] } : {}),
+  };
+  const usageChanged =
+    !arraysEqual(nextUsage.grounds ?? [], heldUsage?.grounds ?? []) ||
+    !arraysEqual(nextUsage.treatments ?? [], heldUsage?.treatments ?? []);
+  if (usageChanged) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      logoUsage: nextUsage,
     };
   }
 

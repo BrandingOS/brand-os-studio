@@ -20,9 +20,11 @@ import '../brand-kit.css';
 import { mockBrand, type MockBrand } from '@/features/setup/data/mockBrand';
 import { SEED_BRANDS } from '@/data/brands';
 import { getEntryFor, visibleEntries } from '../catalog/catalog';
+import { ExportKitDialog } from '../components/ExportKitDialog';
 import { buildKitZipBlob, downloadEntry } from '../data/exportEverything';
 import { resizePng } from '../data/exportFormats';
 import { isCancelled } from '../data/exportScheduler';
+import { isPng, readPngSize } from '../exporters';
 
 /** A tiny but genuine SVG, inlined so the export has real bytes to fetch. */
 const REAL_LOGO_SVG =
@@ -50,6 +52,14 @@ const LOGOS = getEntryFor('brand-assets', 'Logos')!;
 const COLORS = getEntryFor('brand-assets', 'Colors')!;
 const BUSINESS_CARD = getEntryFor('stationery', 'Business Card')!;
 const SOCIAL_SYSTEM = getEntryFor('social', 'Social Media System')!;
+// The four families that owe a native file. Three of them are still
+// `experimental`, so they are named rather than taken out of
+// `visibleEntries` — the format a family owes does not depend on who can
+// see it today.
+const PITCH_DECK = getEntryFor('presentations', 'Pitch Deck')!;
+const FAVICON = getEntryFor('web', 'Favicon')!;
+const SIGNATURE = getEntryFor('web', 'Email Signature')!;
+const POST = getEntryFor('social', 'Post')!;
 
 async function readZip(blob: Blob) {
   const { default: JSZip } = await import('jszip');
@@ -342,6 +352,37 @@ describe('Export kit, from the Brand Kit itself', () => {
     );
   }, 60_000);
 
+  it('carries the Formats choice out of the dialog', async () => {
+    // The section is the one control that changes what every row below is
+    // WORTH, so its value has to reach the walker. It used to stop at the
+    // dialog: `onExport` took the depth and nothing else.
+    const onExport = vi.fn();
+    render(
+      <MemoryRouter>
+        <ExportKitDialog
+          open
+          onClose={() => {}}
+          entries={visibleEntries({ isDev: false, isAdmin: false })}
+          onExport={onExport}
+        />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Formats');
+    // PNG is not a checkbox — it is always in the zip, and saying so is
+    // more honest than a control nobody may turn off.
+    expect(screen.getByText('PNG is always included')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Print sheets — PDF' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Native files —/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Export everything$/ }));
+
+    expect(onExport).toHaveBeenCalledTimes(1);
+    const [, allVariants, formats] = onExport.mock.calls[0];
+    expect(allVariants).toBe(false);
+    expect(formats).toEqual({ native: false, pdf: true });
+  }, 30_000);
+
   it('exports only what was ticked', async () => {
     render(
       <MemoryRouter>
@@ -362,6 +403,248 @@ describe('Export kit, from the Brand Kit itself', () => {
     // were asked for.
     await screen.findByText(/Logos — 1 of 6/, undefined, { timeout: 10_000 });
   }, 60_000);
+});
+
+/**
+ * The file the family actually owes.
+ *
+ * A PNG of a deck is a picture of a presentation: nobody can present it and
+ * nobody can fix a typo in it. A PNG of a favicon is not a favicon — a
+ * browser asks for `/favicon.ico` and gets a 404. So each of these opens
+ * the produced FILE and reads its own bytes back: a PPTX is a zip with a
+ * presentation part in it, an ICO carries a real directory pointing at real
+ * PNGs, a size pack's pixels have to agree with the size in its name.
+ * "The exporter returned something" is the assertion that let every one of
+ * these ship wrong the first time.
+ */
+describe('native formats, in the zip', () => {
+  it('writes a real deck beside the picture of one', async () => {
+    const { blob, skipped } = await buildKitZipBlob({ brand, sourceBrand, entries: [PITCH_DECK] });
+    const zip = await readZip(blob);
+    const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+    expect(paths, `natives were skipped: ${JSON.stringify(skipped)}`).toContain(
+      'deliverables/pitch-deck.pptx',
+    );
+    // The PNG is still there. Native formats are ADDITIVE — nothing that
+    // used to be in the zip leaves it.
+    expect(paths).toContain('deliverables/pitch-deck.png');
+
+    // A pptx is an OPC package: a zip carrying the presentation part and
+    // one slide part per slide. Read it back rather than trusting the
+    // extension, which is the only thing a broken writer gets right.
+    const deck = await readZip(await zip.file('deliverables/pitch-deck.pptx')!.async('blob'));
+    const inside = Object.keys(deck.files);
+    expect(inside).toContain('ppt/presentation.xml');
+    expect(inside.filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).length).toBeGreaterThan(1);
+  }, 90_000);
+
+  it('writes a favicon SET — the container, the ladder and the manifest', async () => {
+    const { blob, skipped } = await buildKitZipBlob({ brand, sourceBrand, entries: [FAVICON] });
+    const zip = await readZip(blob);
+    const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+    expect(paths, `natives were skipped: ${JSON.stringify(skipped)}`).toContain(
+      'deliverables/favicon/favicon.ico',
+    );
+    for (const name of ['favicon-16.png', 'favicon-32.png', 'apple-touch-icon.png', 'icon-512.png', 'site.webmanifest']) {
+      expect(paths).toContain(`deliverables/favicon/${name}`);
+    }
+
+    // The ICO's own directory: reserved 0, type 1 (icon), three entries,
+    // and every offset it declares landing on a PNG signature. A container
+    // whose offsets are wrong opens as a blank tab icon and nothing says so.
+    const ico = await zip.file('deliverables/favicon/favicon.ico')!.async('uint8array');
+    const view = new DataView(ico.buffer, ico.byteOffset, ico.byteLength);
+    expect(view.getUint16(0, true)).toBe(0);
+    expect(view.getUint16(2, true)).toBe(1);
+    const count = view.getUint16(4, true);
+    expect(count).toBe(3);
+    for (let i = 0; i < count; i += 1) {
+      const at = 6 + i * 16;
+      const offset = view.getUint32(at + 12, true);
+      expect(isPng(ico, offset), `entry ${i} does not point at a PNG`).toBe(true);
+    }
+
+    // And the large raster is the size its name promises, read from the
+    // IHDR — a resizer that ignored the request would still encode.
+    const large = await zip.file('deliverables/favicon/icon-512.png')!.async('uint8array');
+    expect(readPngSize(large)).toEqual({ width: 512, height: 512 });
+  }, 90_000);
+
+  it('writes an email signature as markup, and as text for the clients that refuse it', async () => {
+    const { blob, skipped } = await buildKitZipBlob({ brand, sourceBrand, entries: [SIGNATURE] });
+    const zip = await readZip(blob);
+    const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+    expect(paths, `natives were skipped: ${JSON.stringify(skipped)}`).toContain(
+      'deliverables/email-signature.html',
+    );
+    expect(paths).toContain('deliverables/email-signature.txt');
+
+    const html = await zip.file('deliverables/email-signature.html')!.async('string');
+    // Real markup a mail client can paste, carrying the brand's own words
+    // — not a wrapper around a picture of a signature.
+    expect(html).toContain('<table');
+    expect(html).toContain(brand.name);
+    const text = await zip.file('deliverables/email-signature.txt')!.async('string');
+    expect(text.trim().length).toBeGreaterThan(0);
+  }, 90_000);
+
+  it('writes each platform size a social design is actually served at', async () => {
+    const { blob, skipped } = await buildKitZipBlob({ brand, sourceBrand, entries: [POST] });
+    const zip = await readZip(blob);
+    const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+    expect(paths, `natives were skipped: ${JSON.stringify(skipped)}`).toContain(
+      'deliverables/post/instagram-post-1080x1080.png',
+    );
+    // The size is in the NAME, so the pixels have to agree with it — the
+    // whole value of a size pack is that nobody has to check.
+    const bytes = await zip
+      .file('deliverables/post/instagram-post-1080x1080.png')!
+      .async('uint8array');
+    expect(readPngSize(bytes)).toEqual({ width: 1080, height: 1080 });
+  }, 90_000);
+
+  it('leaves the zip exactly as it was when native formats are declined', async () => {
+    // The Formats section is a real choice, not a decoration.
+    const { blob } = await buildKitZipBlob({
+      brand,
+      sourceBrand,
+      entries: [FAVICON],
+      formats: { native: false },
+    });
+    const zip = await readZip(blob);
+    const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+    expect(paths.some((p) => p.endsWith('.ico'))).toBe(false);
+    expect(paths).toContain('deliverables/favicon.png');
+  }, 90_000);
+
+  it('adds a print sheet per deliverable only when asked', async () => {
+    const { blob } = await buildKitZipBlob({
+      brand,
+      sourceBrand,
+      entries: [BUSINESS_CARD],
+      formats: { pdf: true },
+    });
+    const zip = await readZip(blob);
+    const pdf = zip.file('deliverables/business-card.pdf');
+    expect(pdf, 'the print sheet the Formats section promised').toBeTruthy();
+    const head = String.fromCharCode(...(await pdf!.async('uint8array')).slice(0, 5));
+    expect(head).toBe('%PDF-');
+  }, 90_000);
+});
+
+/**
+ * The card's Download, when the family owes a real file.
+ *
+ * The menu row and the bytes have to name the same thing. Before the
+ * exporters landed the third row said "Vector — coming soon" for every one
+ * of these, which was true and useless; now it says PPTX, ICO, HTML or the
+ * size pack, and pressing it has to hand over exactly those files.
+ */
+describe('downloading a native format from a card', () => {
+  /** The last file `triggerBlobDownload` handed the browser. */
+  function captureDownload() {
+    const files: Array<{ name: string; blob: Blob }> = [];
+    const created = vi.spyOn(URL, 'createObjectURL');
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        const blob = created.mock.calls.at(-1)?.[0] as Blob;
+        files.push({ name: this.download, blob });
+      });
+    return { files, restore: () => { created.mockRestore(); click.mockRestore(); } };
+  }
+
+  it.each([
+    [PITCH_DECK, 'pptx' as const, /pitch-deck\.pptx$/, ['ppt/presentation.xml']],
+    [FAVICON, 'ico' as const, /\.zip$/, ['favicon.ico', 'site.webmanifest']],
+    [SIGNATURE, 'html' as const, /\.zip$/, ['signature.html', 'signature.txt']],
+    // One slot, so it comes down as that one file — and its name still
+    // carries the size, which is the only reason to ask for a size pack.
+    [POST, 'sizes' as const, /instagram-post-1080x1080\.png$/, []],
+  ])('$1 hands over the real file', async (entry, format, name, contains) => {
+    const capture = captureDownload();
+    try {
+      const result = await downloadEntry(entry, { brand, sourceBrand, entries: [entry] }, { format });
+      expect(result.added, `${entry.label} produced nothing`).toBe(true);
+      const file = capture.files.at(-1)!;
+      expect(file, 'nothing reached the browser').toBeTruthy();
+      expect(file.name).toMatch(name);
+      // One file comes down as that file; several come down as a zip. Read
+      // it back either way — a download named `.pptx` that is a PNG is the
+      // failure this asserts against.
+      if (contains.length === 0) {
+        // A lone raster: read its own IHDR rather than opening it as an
+        // archive, because it is not one.
+        expect(readPngSize(new Uint8Array(await file.blob.arrayBuffer()))).toEqual({
+          width: 1080,
+          height: 1080,
+        });
+      } else {
+        const inner = await readZip(file.blob);
+        const paths = Object.keys(inner.files);
+        for (const want of contains) {
+          expect(paths.some((p) => p.endsWith(want)), `${want} missing from ${file.name}`).toBe(true);
+        }
+      }
+    } finally {
+      capture.restore();
+    }
+  }, 120_000);
+
+  it('still gives the raster when the raster is what was asked for', async () => {
+    // The native row is an addition, not a replacement: "For web (PNG)" on
+    // a favicon is still one PNG, not the whole icon set.
+    const capture = captureDownload();
+    try {
+      await downloadEntry(FAVICON, { brand, sourceBrand, entries: [FAVICON] }, { format: 'png' });
+      const file = capture.files.at(-1)!;
+      expect(file.name).toMatch(/\.png$/);
+      expect(isPng(new Uint8Array(await file.blob.arrayBuffer()))).toBe(true);
+    } finally {
+      capture.restore();
+    }
+  }, 120_000);
+});
+
+/**
+ * The README, which is the only thing in the zip that explains the zip.
+ *
+ * Generated from the ARCHIVE rather than from the plan, so it cannot claim
+ * a file that is not there or miss one that is — `fontExport` learned that
+ * the hard way with a README naming four weights over a folder holding one.
+ */
+describe('the README that travels with the kit', () => {
+  it('names every file in the bundle, and the ones that were left out', async () => {
+    const broken: MockBrand = {
+      ...brand,
+      // One unit that cannot complete, so the skip list is not empty and
+      // the "left out" half of the document is exercised.
+      logos: [
+        { id: 'primary', label: 'Primary', variant: 'light', role: 'primary',
+          svg: previewWrapper('https://127.0.0.1:9/does-not-exist.svg') },
+      ],
+    };
+    const { blob, skipped } = await buildKitZipBlob({
+      brand: broken,
+      sourceBrand,
+      entries: [LOGOS, BUSINESS_CARD, FAVICON, SIGNATURE, PITCH_DECK, POST],
+    });
+    const zip = await readZip(blob);
+    const readme = zip.file('README.md');
+    expect(readme, 'every download carries one').toBeTruthy();
+    const text = await readme!.async('string');
+
+    const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+    expect(paths.length).toBeGreaterThan(10);
+    for (const path of paths) {
+      expect(text, `${path} is in the zip and not in the README`).toContain(path);
+    }
+    for (const skip of skipped) {
+      expect(text, `"${skip.label}" was left out and the README does not say so`).toContain(
+        skip.label,
+      );
+    }
+  }, 180_000);
 });
 
 /**
