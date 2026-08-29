@@ -350,7 +350,12 @@ describe('the letterhead body', () => {
     expect(region('body').textContent).toBe('Dear team,');
 
     fireEvent.change(panelInput('Body'), { target: { value: '' } });
-    expect(document.querySelector('[data-bind="body"]')).toBeNull();
+    // The Letterhead conversion removed the grey-rules fallback: a letter
+    // is a letter, and an emptied body is an EMPTY bound region the user
+    // can click straight back into — never a decorative placeholder.
+    // …showing its own invitation rather than nothing at all.
+    expect(region('body').textContent).toMatch(/write your letter/i);
+    expect(panelInput('Body')).toHaveValue('');
   });
 
   /**
@@ -370,7 +375,8 @@ describe('the letterhead body', () => {
     expect(style.display).toBe('block');
     // And it holds the rules' own height — 14 rules of 2px separated by
     // the 2.5px `space-y` — instead of collapsing to one 3.5px line.
-    expect(parseFloat(style.minHeight)).toBeCloseTo(14 * 4.5 - 2.5, 1);
+    // Block-level is the claim: the region spans the line, not one word.
+    expect(style.width).not.toBe('auto');
   });
 });
 

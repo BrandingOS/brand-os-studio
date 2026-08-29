@@ -181,6 +181,16 @@ export function BrandKitCosmosPage({
         : null,
     [editorTarget, customizationBrandId],
   );
+  // Every Quick Edit this brand has saved, read once. The covers paint from
+  // it, so a card's face says what the user wrote — `savedRevision` is
+  // bumped on save because the store is localStorage, which nothing
+  // subscribes to.
+  const [savedRevision, setSavedRevision] = useState(0);
+  const savedContent = useMemo(
+    () => loadBrandCustomizations(customizationBrandId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customizationBrandId, savedRevision],
+  );
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   // Which template-picker is open (by card label), or null when none.
   // A single state replaces the per-label `*PickerOpen` flags.
@@ -362,11 +372,73 @@ export function BrandKitCosmosPage({
     }
   }, []);
 
+  /**
+   * Download one card — or, when `templateId` is given, ONE VARIANT of it.
+   *
+   * A tile's ⬇ has to download the design under the cursor, not the card's
+   * first featured one (`.audit/OURS.md` D53). Rather than a second export
+   * path, the variant is expressed as a one-entry featured list: the shared
+   * writer already ships "the variants the card SHOWS", so narrowing that
+   * list to a single id makes the bundle exactly this design, through the
+   * same code the card, the group and Export Kit all use.
+   *
+   * Brand-asset cards are the exception, and deliberately: Logos, Colors,
+   * Fonts, Icons and Photos export as BUNDLES of the brand's own files, not
+   * as rasterised template variants. A tile there rasterises itself.
+   */
   const handleDownloadCard = useCallback(
-    async (t: EditorTarget, choice: DownloadChoice = { format: 'png' }) => {
+    async (
+      t: EditorTarget,
+      choice: DownloadChoice = { format: 'png' },
+      templateId?: string,
+    ) => {
       const b = effectiveBrand;
       const slug = slugifyName(b.name);
+      const one = templateId
+        ? (t.templates ?? []).find((tpl) => tpl.id === templateId)
+        : undefined;
       try {
+        if (templateId && t.sectionKey === 'brand-assets') {
+          // A brand-asset tile is its own artifact — rasterise THIS tile.
+          if (!one || !sourceBrand) {
+            toast(`Nothing to export for ${t.displayLabel ?? t.label} yet`);
+            return;
+          }
+          const blob = await snapshotTemplatePng(
+            renderTemplateDesign(one, sourceBrand, b),
+            260,
+            aspectForLabel(t.label),
+          );
+          if (!blob) throw new Error('Rasterization produced no image');
+          triggerBlobDownload(blob, `${slug}-${slugifyName(one.name)}.png`);
+          return;
+        }
+        if (templateId) {
+          const entry = getEntryFor(t.sectionKey, t.label);
+          if (entry) {
+            const id = toast.loading(`Preparing ${one?.name ?? t.label}…`);
+            const result = await downloadEntry(
+              entry,
+              {
+                brand: b,
+                sourceBrand,
+                entries: [entry],
+                saved: loadBrandCustomizations(customizationBrandId),
+                // The whole point: this card shows exactly one design here.
+                featuredIdsByLabel: { ...featuredIdsByLabel, [t.label]: [templateId] },
+              },
+              choice,
+            );
+            if (result.added) toast.success(`${one?.name ?? t.label} downloaded`, { id });
+            else {
+              toast.error(`Couldn't download ${one?.name ?? t.label}`, {
+                id,
+                description: result.skipped[0]?.reason,
+              });
+            }
+            return;
+          }
+        }
         switch (t.label) {
           case 'Logos': {
             const count = await downloadLogosZip(b);
@@ -500,6 +572,66 @@ export function BrandKitCosmosPage({
       }
     },
     [effectiveBrand, sourceBrand, runColorsExport, customizationBrandId, featuredIdsByLabel],
+  );
+
+  /**
+   * Copy a tile's vector, from the tile.
+   *
+   * Read off the RENDERED tile rather than reconstructed from the model:
+   * what the user is looking at is the answer, and the brand-asset
+   * renderers are being reworked family by family — a copy that rebuilt the
+   * artwork itself would drift from the artwork on screen.
+   *
+   * A design that is not drawn as an SVG (a Flaticon glyph is a font, a
+   * recoloured logo is a CSS mask) says so rather than copying nothing.
+   */
+  const handleCopySvg = useCallback(async (templateId: string, name: string) => {
+    const tile = document.querySelector<HTMLElement>(
+      `.bk-stage-layer--page2 [data-template-id="${templateId}"]`,
+    );
+    const svg = tile?.querySelector('svg');
+    if (!svg) {
+      toast(`${name} has no vector artwork`, {
+        description: 'This design is drawn as a font glyph or a mask — download a PNG instead.',
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(svg.outerHTML);
+      toast.success('SVG copied to your clipboard');
+    } catch (err) {
+      toast.error("Couldn't copy the SVG", {
+        description: err instanceof Error ? err.message : 'Clipboard access was refused.',
+      });
+    }
+  }, []);
+
+  /**
+   * Promote a variant to the front of its card's featured list.
+   *
+   * "Featured" is one list with three readers — the card's cover, the
+   * drilldown's showcase, and what a download ships when nobody named a
+   * variant. Moving an id to the FRONT is therefore the visible act: the
+   * card's face changes, and so does what Export Kit puts in the zip. An id
+   * that is not in the list yet is added by the same move, which is what
+   * makes this work from the picker as well as from the showcase.
+   */
+  const handleSetFeatured = useCallback(
+    (label: string, templateId: string, templates?: ReadonlyArray<BrandKitTemplate>) => {
+      setFeaturedIdsByLabel((prev) => {
+        const current =
+          prev[label] ??
+          DEFAULT_FEATURED_IDS_BY_LABEL[label] ??
+          (templates ?? []).slice(0, 3).map((t) => t.id);
+        const next = [templateId, ...current.filter((id) => id !== templateId)];
+        saveFeaturedVariants(customizationBrandId, label, next);
+        return { ...prev, [label]: next };
+      });
+      toast.success('Set as featured', {
+        description: 'It is now this card’s cover and its default download.',
+      });
+    },
+    [customizationBrandId],
   );
 
   /**
@@ -1057,6 +1189,9 @@ export function BrandKitCosmosPage({
                   <EntryGrid
                     entries={group.entries}
                     brand={effectiveBrand}
+                    sourceBrand={sourceBrand}
+                    featuredIdsByLabel={featuredIdsByLabel}
+                    savedContent={savedContent}
                     onPickCard={handlePickCard}
                     onEditCard={(t) => setEditorTarget(t)}
                     onDownloadCard={handleDownloadCard}

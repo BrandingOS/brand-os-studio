@@ -277,7 +277,8 @@ export const CONTENT_KINDS: ReadonlyArray<ContentKind> = [
  * kit ended up able to lose half of it. Optional throughout — an
  * unanswered pick means "use the brand's own".
  */
-type WithPicks = { picks?: TemplateDesignPicks };
+export type { TemplateDesignPicks };
+export type WithPicks = { picks?: TemplateDesignPicks };
 
 export type DeliverableContent =
   | ({ kind: 'person' } & PersonContent & WithPicks)
@@ -294,13 +295,13 @@ export type DeliverableContent =
   | ({ kind: 'qr' } & QrContent & WithPicks);
 
 /** Narrowing helpers — cheaper to read than repeating the discriminant. */
-export const isPerson = (c: DeliverableContent): c is { kind: 'person' } & PersonContent =>
+export const isPerson = (c: DeliverableContent): c is { kind: 'person' } & PersonContent & WithPicks =>
   c.kind === 'person';
-export const isLetter = (c: DeliverableContent): c is { kind: 'letter' } & LetterContent =>
+export const isLetter = (c: DeliverableContent): c is { kind: 'letter' } & LetterContent & WithPicks =>
   c.kind === 'letter';
-export const isInvoice = (c: DeliverableContent): c is { kind: 'invoice' } & InvoiceContent =>
+export const isInvoice = (c: DeliverableContent): c is { kind: 'invoice' } & InvoiceContent & WithPicks =>
   c.kind === 'invoice';
-export const isDeck = (c: DeliverableContent): c is { kind: 'deck' } & DeckContent =>
+export const isDeck = (c: DeliverableContent): c is { kind: 'deck' } & DeckContent & WithPicks =>
   c.kind === 'deck';
 
 /* ── Which deliverables have a content kind ───────────────────────── */

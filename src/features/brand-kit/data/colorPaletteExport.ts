@@ -1,4 +1,6 @@
 import { hexToName } from '@/features/setup/data/colorNames';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
+import type { Brand } from '@/shared/types/brand';
 
 /**
  * Color-asset export pipeline shared by:
@@ -11,6 +13,24 @@ import { hexToName } from '@/features/setup/data/colorNames';
  * PDF-derived .ai natively since CS2). Lives outside the React tree
  * so the typecheck is simple and the editor module stays smaller.
  */
+
+/**
+ * The five roles a brand colour can hold.
+ *
+ * There is no "Core 4". A role is what the colour DOES — it is never the
+ * index it happens to sit at in the Setup projection. Tiles, the editor,
+ * `brand.json` and every token export read this one vocabulary, so a
+ * colour called Background in the kit is called Background everywhere.
+ */
+export type PaletteRole = 'Primary' | 'Secondary' | 'Accent' | 'Background' | 'Neutral';
+
+export const PALETTE_ROLES: readonly PaletteRole[] = [
+  'Primary',
+  'Secondary',
+  'Accent',
+  'Background',
+  'Neutral',
+];
 
 export type PaletteColor = {
   hex: string;
@@ -174,33 +194,77 @@ function drawSvgAsVectors(pdf: any, svgEl: Element): boolean {
   return true;
 }
 
-/** Build the 9-shade list for a base color. Lightest → darkest by
- *  sweeping the L channel of HSL. Pairs each shade with a hex-derived
- *  display name so the artwork matches what the editor renders. */
-export function buildShadeRows(baseHex: string, count = 9): { hex: string; name: string }[] {
-  const [h, s] = hexToHsl(baseHex);
-  const top = 92;
-  const bottom = 12;
-  const shades: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const t = i / (count - 1);
-    shades.push(hslToHex(h, s, top - t * (top - bottom)));
-  }
-  const used = new Set<string>();
-  return shades.map((hex) => {
-    const base = hexToName(hex);
-    let name = base;
-    let n = 2;
-    while (used.has(name)) {
-      name = `${base} ${n}`;
-      n += 1;
+/**
+ * The step ladder every shade scale is drawn on — the familiar 50…900
+ * design-token rungs, with the lightness each rung targets.
+ */
+export const SHADE_STEPS: readonly { step: number; l: number }[] = [
+  { step: 50, l: 95 },
+  { step: 100, l: 90 },
+  { step: 200, l: 81 },
+  { step: 300, l: 71 },
+  { step: 400, l: 61 },
+  { step: 500, l: 50 },
+  { step: 600, l: 42 },
+  { step: 700, l: 33 },
+  { step: 800, l: 24 },
+  { step: 900, l: 14 },
+];
+
+export type ShadeRow = { hex: string; name: string; step: number; isBase: boolean };
+
+/**
+ * Build the shade ladder for a brand colour.
+ *
+ * Two rules, and both were defects (D39):
+ *
+ *  • **The ladder must ROUND-TRIP.** The old sweep ran L from 92 to 12 in
+ *    even steps, so the brand's own hex was never on it — Raqm's Iris
+ *    `#7231FF` came back as `#7A3DFF`, a colour the brand does not own,
+ *    printed under the brand's own name. Here the brand hex CLAIMS the
+ *    rung nearest its own lightness, verbatim; the other rungs are drawn
+ *    around it.
+ *  • **A shade name may never collide with a neutral's name.** The old
+ *    path named each rung with `hexToName`, which returns the same
+ *    dictionary the Neutral ladder uses — so the darkest step of Iris was
+ *    called "Jet", which is also the name of a grey in every brand. Every
+ *    rung is now `<Name> <step>`, which carries a digit and therefore
+ *    cannot equal any entry in that dictionary.
+ */
+export function buildShadeRows(baseHex: string, name?: string): ShadeRow[] {
+  const norm = normalizeHex(baseHex);
+  const [h, s, l] = hexToHsl(norm);
+  const label = (name ?? hexToName(norm)).trim() || 'Shade';
+  // Whichever rung this colour is closest to becomes the colour itself.
+  let baseIdx = 0;
+  let bestDelta = Infinity;
+  SHADE_STEPS.forEach(({ l: target }, i) => {
+    const delta = Math.abs(target - l);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      baseIdx = i;
     }
-    used.add(name);
-    return { hex, name };
   });
+  return SHADE_STEPS.map(({ step, l: target }, i) => ({
+    hex: i === baseIdx ? norm : hslToHex(h, s, target),
+    name: `${label} ${step}`,
+    step,
+    isBase: i === baseIdx,
+  }));
 }
 
-/** Add a single-color bundle to a JSZip folder: svg, png, jpg, ai. */
+/**
+ * How much of a colour bundle to write.
+ *
+ * `lean` (the default) is SVG + PNG: the two formats every tool on earth
+ * opens. `full` re-adds the JPG and the PDF-shaped `.ai`, which is the
+ * only reason the old Colors download was 12–13 MB across 300+ files
+ * (D37/D38) — a flat colour needs neither a lossy raster nor an
+ * Illustrator container to be useful.
+ */
+export type BundleDepth = 'lean' | 'full';
+
+/** Add a single-color bundle to a JSZip folder: svg + png, plus jpg/ai when full. */
 export async function addColorBundleToZip(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   folder: any,
@@ -208,13 +272,16 @@ export async function addColorBundleToZip(
   svg: string,
   width: number,
   height: number,
+  depth: BundleDepth = 'lean',
 ) {
   folder.file(`${baseName}.svg`, svg);
   const { png, jpg } = await rasterizeSvg(svg, width, height);
   if (png) folder.file(`${baseName}.png`, png);
-  if (jpg) folder.file(`${baseName}.jpg`, jpg);
-  const ai = await buildAiBlob(svg, width, height);
-  if (ai) folder.file(`${baseName}.ai`, ai);
+  if (depth === 'full') {
+    if (jpg) folder.file(`${baseName}.jpg`, jpg);
+    const ai = await buildAiBlob(svg, width, height);
+    if (ai) folder.file(`${baseName}.ai`, ai);
+  }
 }
 
 /** Trigger a browser download for an in-memory blob. */
@@ -231,21 +298,29 @@ export function triggerBlobDownload(blob: Blob, filename: string) {
 
 /** Build a complete ZIP for one color: a single folder containing the
  *  base block and a Shades subfolder, each with svg/png/jpg/ai. */
-export async function buildSingleColorZip(color: PaletteColor): Promise<Blob> {
+export async function buildSingleColorZip(
+  color: PaletteColor,
+  depth: BundleDepth = 'lean',
+): Promise<Blob> {
   const safe = slugify(color.name);
   const baseSvg = buildBaseColorSvg(color);
-  const shades = buildShadeRows(color.hex);
+  const shades = buildShadeRows(color.hex, color.name);
   const shadesSvg = buildShadesSvg(shades);
   const shadesH = SHADES_ROW_H * shades.length;
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   const root = zip.folder(color.name);
   if (root) {
-    await addColorBundleToZip(root, safe, baseSvg, BASE_W, BASE_H);
+    await addColorBundleToZip(root, safe, baseSvg, BASE_W, BASE_H, depth);
     const shadesDir = root.folder('Shades');
     if (shadesDir) {
-      await addColorBundleToZip(shadesDir, `${safe}-shades`, shadesSvg, SHADES_W, shadesH);
+      await addColorBundleToZip(shadesDir, `${safe}-shades`, shadesSvg, SHADES_W, shadesH, depth);
     }
+    // Dynamic so `tokensExport` can import the colour math from HERE
+    // without the two modules forming a cycle.
+    const { buildCssVariables, buildDesignTokensJson } = await import('./tokensExport');
+    root.file('tokens.css', buildCssVariables([color], color.name));
+    root.file('tokens.json', buildDesignTokensJson([color], color.name));
   }
   return zip.generateAsync({ type: 'blob' });
 }
@@ -258,6 +333,7 @@ export async function buildAllColorsZip(
   colors: PaletteColor[],
   brandName: string,
   onProgress?: (done: number, total: number, name: string) => void,
+  depth: BundleDepth = 'lean',
 ): Promise<Blob> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
@@ -277,20 +353,214 @@ export async function buildAllColorsZip(
     if (!root) continue;
     const safe = slugify(folderName);
     const baseSvg = buildBaseColorSvg(color);
-    const shades = buildShadeRows(color.hex);
+    const shades = buildShadeRows(color.hex, color.name);
     const shadesSvg = buildShadesSvg(shades);
     const shadesH = SHADES_ROW_H * shades.length;
-    await addColorBundleToZip(root, safe, baseSvg, BASE_W, BASE_H);
+    await addColorBundleToZip(root, safe, baseSvg, BASE_W, BASE_H, depth);
     const shadesDir = root.folder('Shades');
     if (shadesDir) {
-      await addColorBundleToZip(shadesDir, `${safe}-shades`, shadesSvg, SHADES_W, shadesH);
+      await addColorBundleToZip(shadesDir, `${safe}-shades`, shadesSvg, SHADES_W, shadesH, depth);
     }
     onProgress?.(used.size, colors.length, folderName);
   }
-  // Touch brandName so future iterations can use it for a top-level
-  // README — kept in the API now so callers don't have to update.
-  void brandName;
+  // Developer handoff travels with the artwork — a palette nobody can
+  // paste into a stylesheet is a palette that gets re-typed by hand.
+  const tokens = zip.folder('tokens');
+  const { buildTokenFiles, buildAseBlob, buildColorsReadme } = await import('./tokensExport');
+  if (tokens) {
+    for (const { path, text } of buildTokenFiles(colors, brandName)) {
+      tokens.file(path, text);
+    }
+    const ase = buildAseBlob(colors);
+    if (ase) tokens.file('palette.ase', ase);
+  }
+  zip.file('README.md', buildColorsReadme(colors, brandName, depth));
   return zip.generateAsync({ type: 'blob' });
+}
+
+/* ─── Roles: what a colour DOES ───────────────────────────── */
+
+/**
+ * The Setup projection stores the palette POSITIONALLY —
+ * `core = [primary, secondary, background?, …the rest]`, `accent`,
+ * `grey` — and the kit used to print that position as the role, so a
+ * brand with seven colours advertised "CORE 4", "CORE 5", "CORE 6"
+ * (D40). Position answers the first two slots and nothing after them.
+ *
+ * Past `secondary` the colour itself is the evidence:
+ *  • near-white → a **Background**, the ground a page is laid on;
+ *  • greyscale  → a **Neutral**, text and rules;
+ *  • anything with real chroma → an **Accent**.
+ *
+ * When the canonical `Brand` is available (the editor has it) the
+ * hexes are matched against `colorSystem` first, so a background the
+ * user actually assigned is named Background even if it is dark.
+ */
+export function roleForColor(
+  hex: string,
+  index: number,
+  bucket: 'core' | 'accent' | 'grey',
+  source?: Brand | null,
+): PaletteRole {
+  if (bucket === 'grey') return 'Neutral';
+  if (bucket === 'accent') return 'Accent';
+  if (index === 0) return 'Primary';
+  if (index === 1) return 'Secondary';
+  const cs = source?.colorSystem;
+  const same = (other?: string) => !!other && normalizeHex(other) === normalizeHex(hex);
+  if (same(cs?.primary?.hex ?? source?.primaryColor)) return 'Primary';
+  if (same(cs?.secondary?.hex ?? source?.secondaryColor)) return 'Secondary';
+  if (same(cs?.accent?.hex ?? source?.accentColor)) return 'Accent';
+  if (isNearWhite(hex)) return 'Background';
+  if (isGreyscale(hex)) return 'Neutral';
+  return 'Accent';
+}
+
+/**
+ * The brand's palette as roles, names and hexes — the one list the
+ * tiles, the editor, the token exports and `brand.json` all read.
+ *
+ * Neutrals are the generated 32-step grey ladder and are OFF by
+ * default: they belong to no brand, they are not what a designer means
+ * by "the palette", and shipping them as first-class colours is what
+ * made the Colors download 300+ files (D37).
+ */
+export function paletteFromMockBrand(
+  brand: Pick<MockBrand, 'colors'>,
+  opts?: { includeNeutrals?: boolean; source?: Brand | null },
+): PaletteColor[] {
+  const source = opts?.source ?? null;
+  const out: PaletteColor[] = [
+    ...brand.colors.core.map((c, i) => ({
+      hex: c.hex,
+      name: c.name,
+      role: roleForColor(c.hex, i, 'core', source) as string,
+    })),
+    ...brand.colors.accent.map((c, i) => ({
+      hex: c.hex,
+      name: c.name,
+      role: roleForColor(c.hex, i, 'accent', source) as string,
+    })),
+  ];
+  if (opts?.includeNeutrals) {
+    out.push(
+      ...brand.colors.grey.map((c) => ({ hex: c.hex, name: c.name, role: 'Neutral' as string })),
+    );
+  }
+  return out;
+}
+
+/* ─── Colour spaces + WCAG ────────────────────────────────── */
+
+export function normalizeHex(hex: string): string {
+  const m = (hex ?? '').trim().replace(/^#/, '');
+  const expanded = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
+  if (!/^[0-9a-fA-F]{6}$/.test(expanded)) return '#000000';
+  return `#${expanded.toUpperCase()}`;
+}
+
+export function hexToRgb(hex: string): [number, number, number] {
+  const v = normalizeHex(hex).slice(1);
+  return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+/** Naive (device-independent) CMYK — the conversion print shops expect
+ *  from an RGB source without an ICC profile in play. */
+export function rgbToCmyk(r: number, g: number, b: number): [number, number, number, number] {
+  const rf = r / 255;
+  const gf = g / 255;
+  const bf = b / 255;
+  const k = 1 - Math.max(rf, gf, bf);
+  if (k === 1) return [0, 0, 0, 100];
+  const c = (1 - rf - k) / (1 - k);
+  const m = (1 - gf - k) / (1 - k);
+  const y = (1 - bf - k) / (1 - k);
+  return [c, m, y, k].map((n) => Math.round(n * 100)) as [number, number, number, number];
+}
+
+export function formatRgb(hex: string): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `${r} ${g} ${b}`;
+}
+
+export function formatCmyk(hex: string): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToCmyk(r, g, b).join(' ');
+}
+
+export function formatHsl(hex: string): string {
+  const [h, s, l] = hexToHsl(hex);
+  return `${Math.round(h)}° ${Math.round(s)}% ${Math.round(l)}%`;
+}
+
+/** WCAG relative luminance. */
+export function relativeLuminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two hexes (1 … 21). */
+export function contrast(a: string, b: string): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+export type WcagLevel = 'AAA' | 'AA' | 'AA Large' | 'Fail';
+
+export function wcagLevel(ratio: number): WcagLevel {
+  if (ratio >= 7) return 'AAA';
+  if (ratio >= 4.5) return 'AA';
+  if (ratio >= 3) return 'AA Large';
+  return 'Fail';
+}
+
+/** How a colour behaves against the two grounds every deliverable has. */
+export function contrastReport(hex: string): {
+  onWhite: { ratio: number; level: WcagLevel };
+  onBlack: { ratio: number; level: WcagLevel };
+} {
+  const white = contrast(hex, '#FFFFFF');
+  const black = contrast(hex, '#000000');
+  return {
+    onWhite: { ratio: white, level: wcagLevel(white) },
+    onBlack: { ratio: black, level: wcagLevel(black) },
+  };
+}
+
+/** Highest-contrast text colour for a ground — measured, not guessed. */
+export function bestTextOn(hex: string): '#FFFFFF' | '#111113' {
+  return contrast(hex, '#FFFFFF') >= contrast(hex, '#111113') ? '#FFFFFF' : '#111113';
+}
+
+export function isGreyscale(hex: string): boolean {
+  const [r, g, b] = hexToRgb(hex);
+  return Math.max(r, g, b) - Math.min(r, g, b) < 16;
+}
+
+export function isNearWhite(hex: string): boolean {
+  return relativeLuminance(hex) > 0.7;
+}
+
+/**
+ * The 60 / 30 / 10 usage split, extended to however many colours the
+ * brand actually has. Deterministic, so the bar reads the same on
+ * every surface that draws it.
+ */
+export function usageProportions(colors: PaletteColor[]): { color: PaletteColor; pct: number }[] {
+  const WEIGHTS: Record<number, number[]> = {
+    1: [100],
+    2: [70, 30],
+    3: [60, 30, 10],
+    4: [55, 25, 12, 8],
+    5: [50, 25, 12, 8, 5],
+  };
+  const shown = colors.slice(0, 5);
+  const weights = WEIGHTS[shown.length] ?? [];
+  return shown.map((color, i) => ({ color, pct: weights[i] ?? 0 }));
 }
 
 /* ─── Helpers ─────────────────────────────────────────────── */
@@ -320,7 +590,7 @@ function escapeXml(value: string): string {
 
 /* ─── Color math (HSL ↔ HEX) ──────────────────────────────── */
 
-function hexToHsl(hex: string): [number, number, number] {
+export function hexToHsl(hex: string): [number, number, number] {
   const m = hex.replace('#', '');
   const expanded = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
   if (expanded.length !== 6) return [0, 0, 50];
@@ -343,7 +613,7 @@ function hexToHsl(hex: string): [number, number, number] {
   return [h, s * 100, l * 100];
 }
 
-function hslToHex(h: number, s: number, l: number): string {
+export function hslToHex(h: number, s: number, l: number): string {
   const sNorm = Math.max(0, Math.min(100, s)) / 100;
   const lNorm = Math.max(0, Math.min(100, l)) / 100;
   const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;

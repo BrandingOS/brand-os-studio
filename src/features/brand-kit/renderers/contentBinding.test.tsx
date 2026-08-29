@@ -71,8 +71,9 @@ describe('rendererBindsContent', () => {
       expect(disagreements).toEqual([]);
       // A family where nothing binds would make the comparison vacuous.
       expect(bound).toBeGreaterThan(0);
-      // …and one where everything binds would make the gate pointless.
-      expect(bound).toBeLessThan(variants.length);
+      // Everything binding is the SUCCESS state now: curation archives the
+      // designs that do not, so the gate's job is to stay in agreement with
+      // the renderers, not to find stragglers.
     });
   }
 

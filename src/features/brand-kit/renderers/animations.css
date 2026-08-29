@@ -1,0 +1,417 @@
+/**
+ * The Animations family — real CSS keyframe animations, and the two
+ * rules that decide when they run.
+ *
+ * Before this file existed the four animation cards were STATIC STILLS:
+ * `AnimationsExtended.tsx` declared no `@keyframes` at all and its one
+ * `transitionDelay` sat on an element with no transition (`.audit/CODE.md`
+ * §7). Ten designs were tripled to thirty by `[...x, ...x, ...x]`, so a
+ * customer browsing "Logo Reveal" chose between the same picture three
+ * times.
+ *
+ * ## When an animation plays
+ *
+ * Three states, and the DEFAULT is the last frame:
+ *
+ *   • **At rest** — every animation is paused with a huge negative delay,
+ *     one iteration and `fill-mode: both`, so the browser computes it as
+ *     FINISHED. The tile shows the completed lockup, which is the only
+ *     honest thumbnail for a motion piece and the only safe frame for an
+ *     export: `templateSnapshot` mounts the renderer in `.bk-snapshot-host`
+ *     and rasterises whatever it finds, so a running animation would ship
+ *     a half-wipe.
+ *   • **On hover** — the drilldown grid. Hovering the stage restarts every
+ *     layer from time 0 with its own stagger.
+ *   • **Always** — inside `.bk-preview-host`, which is the Brand Kit card
+ *     editor's preview and the Design editor's template-instance canvas.
+ *     A motion deliverable being edited should be moving.
+ *
+ * `data-anim-frame="end"` on a stage forces the rest state back, whatever
+ * else applies — that is what `pauseAtEnd()` sets before a live-DOM
+ * snapshot, and why it is the one rule in this file carrying `!important`.
+ *
+ * `prefers-reduced-motion: reduce` pins the rest state everywhere. It is
+ * declared last so it wins on equal specificity.
+ *
+ * ## The three custom properties
+ *
+ *   --bka-dur    the motion kind's `durationMs`
+ *   --bka-iter   `infinite` or `1`, from the motion kind's `loop`
+ *   --bka-delay  a per-layer stagger, always a fraction of --bka-dur
+ *
+ * Nothing here is random. Every delay is derived from the duration and
+ * the layer's index, so two runs of the same design are the same film —
+ * which is what a later GIF/MP4 frame-capture exporter needs.
+ *
+ * ## Colour
+ *
+ * Nothing in this file names a colour. Grounds, ink and the brand hues
+ * are computed in `AnimationsExtended.tsx` through `renderers/brandStyle`
+ * and arrive as inline custom properties. Chrome-ish values (the slate's
+ * radius) use `--ds-*`.
+ */
+
+/* ── Stage ────────────────────────────────────────────────────────── */
+
+.bka-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: block;
+  isolation: isolate;
+}
+
+/* Every design's artwork lives in here, so a design can be described as
+   layers without each one repeating the fill. */
+.bka-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The lockup: the mark over the bound word. */
+.bka-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 78%;
+  text-align: center;
+}
+.bka-lockup--row {
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+.bka-mark {
+  display: block;
+  height: 34%;
+  max-height: 46px;
+  max-width: 62%;
+  object-fit: contain;
+}
+.bka-lockup--row .bka-mark {
+  height: 26px;
+  max-height: none;
+}
+.bka-word {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.bka-word--lg {
+  font-size: 22px;
+}
+.bka-word--sm {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* The timing slate. It carries its own opaque ground so the duration and
+   loop readings are measurable against a known colour whatever a design
+   animates underneath them. */
+.bka-slate {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: var(--ds-radius-sm, 6px);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.bka-slate-unit {
+  opacity: 1;
+}
+
+/* Geometry primitives the designs compose. None of them paint a colour. */
+.bka-panel {
+  position: absolute;
+  inset: 0;
+}
+.bka-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+}
+.bka-rule {
+  position: absolute;
+  height: 2px;
+}
+.bka-disc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 62%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+.bka-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 74%;
+  aspect-ratio: 1;
+  margin: -37% 0 0 -37%;
+  border-radius: 50%;
+  border-width: 2px;
+  border-style: dashed;
+}
+.bka-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  aspect-ratio: 1;
+  margin: -35% 0 0 -35%;
+}
+.bka-orbit-dot {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 8%;
+  aspect-ratio: 1;
+  margin-left: -4%;
+  border-radius: 50%;
+}
+.bka-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+}
+.bka-stack {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.bka-stack-bar {
+  height: 6px;
+  transform-origin: left center;
+}
+.bka-clipper {
+  overflow: hidden;
+  display: block;
+}
+.bka-svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 76%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+.bka-draw-path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.bka-3d {
+  perspective: 420px;
+}
+
+/* ── Play state ───────────────────────────────────────────────────── */
+
+/**
+ * At rest: computed as FINISHED.
+ *
+ * `-9999s` rather than `calc(-1 * var(--bka-dur))` on purpose — the delay
+ * has to outrun the animation AND every stagger, and a single constant
+ * that outruns all of them cannot be got wrong by a design that adds one.
+ * `iteration-count: 1` matters just as much: with `infinite`, a delay of
+ * exactly one duration lands on the START of the next iteration.
+ */
+.bka-anim {
+  animation-duration: var(--bka-dur, 1600ms);
+  animation-timing-function: var(--bka-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+  animation-delay: -9999s;
+  animation-play-state: paused;
+}
+
+.bka-stage:hover .bka-anim,
+.bka-stage:focus-within .bka-anim,
+.bk-preview-host .bka-stage .bka-anim {
+  animation-delay: var(--bka-delay, 0s);
+  animation-iteration-count: var(--bka-iter, 1);
+  animation-play-state: running;
+}
+
+/* The export frame. Set by `pauseAtEnd()` on a live host before it is
+   rasterised; it must beat the preview-host rule above. */
+.bka-stage[data-anim-frame='end'] .bka-anim {
+  animation-delay: -9999s !important;
+  animation-iteration-count: 1 !important;
+  animation-play-state: paused !important;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+/* Every one of these ENDS on the finished artwork. A looping design
+   returns to identity at 100%, so the rest frame and the loop seam are
+   the same picture. */
+
+@keyframes bka-wipe-right {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes bka-mask-up {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes bka-iris {
+  from { clip-path: circle(0% at 50% 50%); }
+  to { clip-path: circle(78% at 50% 50%); }
+}
+@keyframes bka-scale-in {
+  from { opacity: 0; transform: scale(0.62); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes bka-focus-in {
+  from { opacity: 0; filter: blur(9px); transform: scale(1.1); }
+  to { opacity: 1; filter: blur(0); transform: scale(1); }
+}
+@keyframes bka-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes bka-split-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-102%); }
+}
+@keyframes bka-split-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(102%); }
+}
+@keyframes bka-rise {
+  from { transform: translateY(115%); }
+  to { transform: translateY(0); }
+}
+@keyframes bka-sweep-across {
+  from { transform: translateX(-180%); }
+  to { transform: translateX(320%); }
+}
+@keyframes bka-build-bar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes bka-in-left {
+  from { transform: translateX(-135%); }
+  to { transform: translateX(0); }
+}
+@keyframes bka-in-right {
+  from { transform: translateX(135%); }
+  to { transform: translateX(0); }
+}
+@keyframes bka-in-top {
+  from { transform: translateY(-135%); }
+  to { transform: translateY(0); }
+}
+@keyframes bka-in-bottom {
+  from { transform: translateY(135%); }
+  to { transform: translateY(0); }
+}
+@keyframes bka-in-diagonal {
+  from { transform: translate(-80%, 80%); }
+  to { transform: translate(0, 0); }
+}
+@keyframes bka-push-panel {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes bka-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bka-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes bka-fade-up {
+  from { opacity: 0; transform: translateY(26%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bka-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.38; }
+  100% { opacity: 1; }
+}
+@keyframes bka-breathe {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+@keyframes bka-halo {
+  0% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.72); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+}
+@keyframes bka-through {
+  0% { opacity: 1; }
+  45% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes bka-spin-in {
+  from { opacity: 0; transform: rotate(-200deg) scale(0.7); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+@keyframes bka-flip-x {
+  from { opacity: 0; transform: rotateX(90deg); }
+  to { opacity: 1; transform: rotateX(0deg); }
+}
+@keyframes bka-flip-y {
+  from { opacity: 0; transform: rotateY(90deg); }
+  to { opacity: 1; transform: rotateY(0deg); }
+}
+@keyframes bka-tilt {
+  from { transform: rotate(-11deg) scale(0.92); }
+  to { transform: rotate(0deg) scale(1); }
+}
+@keyframes bka-turn {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes bka-swing {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-7deg); }
+  75% { transform: rotate(7deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes bka-turn-reveal {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+/* Declared last so it wins on equal specificity: the end frame, always. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bka-stage .bka-anim,
+  .bka-stage:hover .bka-anim,
+  .bka-stage:focus-within .bka-anim,
+  .bk-preview-host .bka-stage .bka-anim {
+    animation-delay: -9999s;
+    animation-iteration-count: 1;
+    animation-play-state: paused;
+  }
+}

@@ -23,19 +23,37 @@ export const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
     'business-cards-ext-113', // Wave 2 · 95
   ],
   Letterhead: [
+    // `letterhead-ext-69` and `-ext-73` ("Wave 2 · 39" / "Wave 2 · 43")
+    // stood in the two slots below until the letterhead curation archived
+    // the whole of wave 2 — a featured design named by its generator was
+    // the clearest sign this shelf had never been curated at all.
+    'letterhead-ext-1',  // Header Bar
     'letterhead-ext-6',  // Bottom Block
-    'letterhead-ext-69', // Wave 2 · 39
-    'letterhead-ext-73', // Wave 2 · 43
+    'letterhead-ext-19', // Editorial Masthead
   ],
   Envelope: [
+    // `envelope-ext-127` ("Wave 2 · 97") stood here until the envelope
+    // curation archived the whole of wave 2. `featuredTemplates` drops an
+    // id that no longer resolves, so leaving it would have silently shown
+    // two tiles where the card promises three.
     'envelope-ext-30',  // Subtle Lux
     'envelope-ext-3',   // Top Flap
-    'envelope-ext-127', // Wave 2 · 97
+    'envelope-ext-12',  // Half Colour
   ],
   Invoice: [
     'invoices-ext-4', // Brute Force
     'invoices-ext-3', // Editorial Header
     'invoices-ext-8', // Receipt Roll
+  ],
+  // Three readings of the same signature rather than three variations of
+  // one: a quiet rule, a colour band, and a reversed panel. Without an
+  // entry here `featuredTemplates` falls back to the WHOLE library, which
+  // for a card whose pattern is "three featured + picker" means sixteen
+  // tiles where three were promised.
+  'Email Signature': [
+    'email-sig-ext-1',  // Brand Rule
+    'email-sig-ext-5',  // Brand Header
+    'email-sig-ext-12', // Reverse Panel
   ],
 };
 

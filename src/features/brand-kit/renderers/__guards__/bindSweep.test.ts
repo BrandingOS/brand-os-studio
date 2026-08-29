@@ -20,18 +20,22 @@ import {
 
 afterEach(cleanup);
 
-/** Measured 2026-08-29 on `feat/brand-kit-strongest`. */
-const INVOICE_BOUND_TODAY = 8;
+/** Measured 2026-08-29 on `feat/brand-kit-strongest` — after the Invoice family conversion. */
+const INVOICE_BOUND_TODAY = 20;
 
 describe('bind sweep — invoices', () => {
   const results = renderAllVariants('stationery', 'Invoice');
 
   it('renders every variant the card offers', () => {
-    expect(results.length).toBeGreaterThan(20);
+    // Twenty curated designs after the conversion — the hundred "wave-2"
+    // generations are archived, not shown.
+    expect(results.length).toBeGreaterThanOrEqual(20);
   });
 
   it('finds exactly the designs that bind today', () => {
     expect(boundVariantCount(results)).toBe(INVOICE_BOUND_TODAY);
+    // And that is EVERY kept design — the unbound ones are archived.
+    expect(boundVariantCount(results)).toBe(results.length);
   });
 
   it('reports the paths a bound design declared', () => {
@@ -65,8 +69,9 @@ describe('bind sweep — invoices', () => {
 
   it('sweeps a family with no content kind without throwing', () => {
     // The honest answer for an unwired family is "no paths anywhere".
-    const envelope = renderAllVariants('stationery', 'Envelope');
-    expect(envelope.length).toBeGreaterThan(0);
-    expect(boundVariantCount(envelope)).toBe(0);
+    // Brand assets have no content kind by design — they ARE the brand.
+    const logos = renderAllVariants('brand-assets', 'Logos');
+    expect(logos.length).toBeGreaterThan(0);
+    expect(boundVariantCount(logos)).toBe(0);
   });
 });

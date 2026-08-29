@@ -27,10 +27,12 @@ import {
   buildBaseColorSvg,
   buildShadeRows,
   buildShadesSvg,
+  paletteFromMockBrand,
   rasterizeSvg,
   triggerBlobDownload,
   type PaletteColor,
 } from './colorPaletteExport';
+import { buildAseBlob, buildColorsReadme, buildTokenFiles } from './tokensExport';
 import { addFontFamiliesToZip } from './fontExport';
 import { lazyFolder, zipAdd, type ExportSkip, type ZipFolder } from './zipFile';
 import { yieldToBrowser, throwIfAborted } from './exportScheduler';
@@ -43,18 +45,25 @@ export function slugifyName(name: string): string {
   return /[a-z0-9]/.test(slug) ? slug : 'brand';
 }
 
-/** Flatten the mock brand's palette into the exporter's shape. */
-export function paletteOf(brand: MockBrand): PaletteColor[] {
-  const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
-  return [
-    ...brand.colors.core.map((c, i) => ({
-      hex: c.hex,
-      name: c.name,
-      role: CORE_ROLES[i] ?? `Core ${i + 1}`,
-    })),
-    ...brand.colors.accent.map((c) => ({ hex: c.hex, name: c.name, role: 'Accent' })),
-    ...brand.colors.grey.map((c) => ({ hex: c.hex, name: c.name, role: 'Neutral' })),
-  ];
+/**
+ * Flatten the mock brand's palette into the exporter's shape.
+ *
+ * Two things changed here and both were defects the audit measured:
+ *
+ *  • Roles came from the POSITION in `colors.core`, so a brand with
+ *    seven colours exported "Core 4 … Core 7" into every tile and into
+ *    `brand.json` (D40). `paletteFromMockBrand` names what a colour
+ *    does instead.
+ *  • The 32-step generated grey ladder was flattened in as first-class
+ *    brand colours, which is most of why the Colors download was 320
+ *    files and 13 MB (D37). It is opt-in now — a bundle that claims to
+ *    be the brand's palette should contain the brand's palette.
+ */
+export function paletteOf(
+  brand: MockBrand,
+  opts?: { includeNeutrals?: boolean },
+): PaletteColor[] {
+  return paletteFromMockBrand(brand, { includeNeutrals: opts?.includeNeutrals ?? false });
 }
 
 export {
@@ -169,27 +178,25 @@ export async function addLogosToZip(
 /* ─── Colors ──────────────────────────────────────────────────────── */
 
 /**
- * The kit's colour folder: core + accent, each as swatch SVG, swatch PNG
- * and a shade ladder.
+ * The kit's `colors/` folder — the LEAN set plus the developer handoff.
  *
- * Deliberately slim. The dedicated Colors download is the full-fidelity
- * bundle — every neutral, jpg and .ai — and the per-colour `.ai` files run
- * to megabytes each, which once made this zip 590 MB.
+ * Per colour: the swatch as SVG + PNG and its shade ladder as SVG.
+ * Alongside them: `tokens.css` / `tokens.scss` / `tokens.json`
+ * (and the Tailwind, Figma and ASE forms, because a palette a designer
+ * cannot load into Illustrator is a palette they re-type), plus a
+ * README that names every colour's role, its RGB/CMYK/HSL and how it
+ * behaves on white and on black.
+ *
+ * No JPG, no `.ai`, no generated greys — that combination is what made
+ * this folder 12–13 MB across 300+ files (D37/D38).
  */
 export async function addColorsToZip(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
 ): Promise<number> {
-  const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
-  const kitColors: PaletteColor[] = [
-    ...brand.colors.core.map((c, i) => ({
-      hex: c.hex,
-      name: c.name,
-      role: CORE_ROLES[i] ?? `Core ${i + 1}`,
-    })),
-    ...brand.colors.accent.map((c) => ({ hex: c.hex, name: c.name, role: 'Accent' })),
-  ];
+  const kitColors: PaletteColor[] = paletteFromMockBrand(brand);
+  if (kitColors.length === 0) return 0;
   const used = new Set<string>();
   let added = 0;
   for (const color of kitColors) {
@@ -208,22 +215,30 @@ export async function addColorsToZip(
     zipAdd(dir, `${safe}.svg`, baseSvg);
     const { png } = await rasterizeSvg(baseSvg, 600, 400);
     if (png) zipAdd(dir, `${safe}.png`, png);
-    zipAdd(dir, `${safe}-shades.svg`, buildShadesSvg(buildShadeRows(color.hex)));
+    zipAdd(dir, `${safe}-shades.svg`, buildShadesSvg(buildShadeRows(color.hex, color.name)));
     added += 1;
     await yieldToBrowser(signal);
   }
+  for (const { path, text } of buildTokenFiles(kitColors, brand.name)) {
+    zipAdd(folder, path, text);
+  }
+  const ase = buildAseBlob(kitColors);
+  if (ase) zipAdd(folder, 'palette.ase', ase);
+  zipAdd(folder, 'README.md', buildColorsReadme(kitColors, brand.name));
   return added;
 }
 
 /* ─── Fonts ───────────────────────────────────────────────────────── */
 
 /**
- * The kit's font folder: the files the user actually uploaded, plus a
- * manifest naming every family.
+ * The kit's font folder: one folder per family holding the real files —
+ * uploaded bytes where the user gave us any, every declared weight fetched
+ * from Google otherwise — each with a `fonts.css` and a licence note, and a
+ * `README.md` naming what shipped and what did not.
  *
- * Google-hosted families are documented rather than fetched — the
- * dedicated Fonts download owns the remote-bundle path, and a kit export
- * that reaches the network per family is an export that can hang.
+ * `lean: true` drops only the per-family `embed.html` specimen page; the
+ * files, the CSS and the licence note are the point of the folder and a kit
+ * export that thins them out has not exported the typography.
  */
 export async function addFontsToZip(
   folder: ZipFolder,
@@ -239,7 +254,10 @@ export async function addFontsToZip(
   // typography folder than the Typography card does.
   const result = await addFontFamiliesToZip(
     folder,
-    brand.fonts.map((f) => ({ name: f.family, files: f.files })),
+    // The DECLARED weights travel with the family. Without them the
+    // exporter could only guess, and the guess is what made the kit's old
+    // manifest claim four weights over a folder holding Regular.
+    brand.fonts.map((f) => ({ name: f.family, files: f.files, weights: f.weights })),
     { signal, lean: true },
   );
   for (const name of result.missing) {
@@ -250,16 +268,11 @@ export async function addFontsToZip(
   }
   throwIfAborted(signal);
 
-  zipAdd(
-    folder,
-    'fonts.txt',
-    brand.fonts
-      .map(
-        (f) =>
-          `${f.family} — ${f.weights || 'Regular'}${f.files?.length ? ' (uploaded)' : ''}`,
-      )
-      .join('\n'),
-  );
+  // No `fonts.txt`. It restated the brand's weight string next to a folder
+  // that did not contain those weights — a manifest that disagrees with the
+  // files beside it is worse than no manifest. `addFontFamiliesToZip` writes
+  // a README.md naming what actually shipped, per family, and why anything
+  // is missing.
   return { added: result.ok.length, skipped };
 }
 

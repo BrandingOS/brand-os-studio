@@ -38,7 +38,8 @@ const BINDS_CONTENT_BY_TYPE: Record<string, (extIndex: number) => boolean> = {
   // eight designs were retrofitted onto it. Designs 9-22 (and every Wave 2
   // design, which routes to `InvoicesExtended2Renderer` — no content prop
   // at all) still paint their own figures.
-  invoices: (i) => i < 8,
+  // Every KEPT invoice binds; the unbound ones are archived in curation.
+  invoices: () => true,
 };
 
 /** `<type>-ext-N` → the zero-based index the dispatcher uses, or null. */

@@ -1,614 +1,1218 @@
+import type { CSSProperties, ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 import { Bind } from '@/features/brandkit/content/Bind';
-import { defaultInvoiceContent, type InvoiceContent } from '@/features/brandkit/content/kinds';
-import { formatMoney, formatPercent, invoiceTotals, lineItemTotal } from '@/features/brandkit/content/compute';
+import { defaultInvoiceContent, type InvoiceContent, type WithPicks } from '@/features/brandkit/content/kinds';
+import {
+  formatMoney,
+  formatPercent,
+  invoiceTotals,
+  lineItemTotal,
+  type InvoiceTotals,
+} from '@/features/brandkit/content/compute';
+import {
+  brandColors,
+  contrastOf,
+  fgOn,
+  fontStack,
+  normalizeHex,
+  surface,
+} from './brandStyle';
 
 /**
- * Invoice designs — portrait business document with header,
- * line-items, totals, footer. 22 designs here join the 8 legacy
- * invoices to bring the cosmos drilldown to 30. Each leans into
- * a different bookkeeping/document tradition: classic, modern,
- * editorial, brutalist, hand-stamped, etc.
+ * Invoice designs — A4 portrait, one sheet per design.
+ *
+ * Three things changed here in the W1 conversion, and each was a defect:
+ *
+ *   1. **The sheet is the artwork.** These designs used to draw a 46%-wide
+ *      page floating on a hardcoded `#E5E0D2` desk, so a card whose whole
+ *      job is to show an invoice showed a ~120px document inside a 260px
+ *      beige tile with 3px type in it (`.audit/OURS.md` D24). The card's
+ *      aspect is ALREADY A4 portrait — `aspectForLabel('Invoice')` is
+ *      1/1.414 — so the page fills the tile and the type is sized for the
+ *      260 × 368 stage `ScalingStage` renders at.
+ *   2. **Every figure is derived.** Designs 9-22 printed `$8,300` and a
+ *      four-item array as literals, so an edited price left the total
+ *      saying what it had always said. Every design now maps
+ *      `content.lineItems` and takes its numbers from `invoiceTotals`.
+ *   3. **Colour and type are the brand's.** No `#E5E0D2`, no
+ *      `text-gray-500`, no `font-serif`, no welded `'Caveat, cursive'`.
+ *      Surfaces come from `surface()`, typefaces from `fontStack()`, and
+ *      every brand-coloured piece of text is checked against the ground it
+ *      sits on before it is painted (`onGround`).
+ *
+ * Layout is in FLOW, not absolute percentages. The designs that collided
+ * with themselves did so because a header's real height and the offset the
+ * block below it assumed were two independent guesses; a column cannot
+ * disagree with itself.
  */
 interface Props {
   brand: Brand;
   templateIndex: number;
   /**
    * Structured invoice content. Absent (the drilldown grid, an offscreen
-   * export, a design not yet retrofitted) the renderer paints the
-   * brand-derived defaults — which are the same figures these designs
-   * were authored with, so nothing changes visually until someone edits.
+   * export) the renderer paints the brand-derived defaults, which is what
+   * `hydrateContent` would have produced anyway.
    */
-  content?: InvoiceContent;
+  content?: InvoiceContent & WithPicks;
+}
+
+/* ── Colour plumbing ──────────────────────────────────────────────── */
+
+function channels(hex: string): [number, number, number] {
+  const h = normalizeHex(hex) ?? '#000000';
+  return [
+    Number.parseInt(h.slice(1, 3), 16),
+    Number.parseInt(h.slice(3, 5), 16),
+    Number.parseInt(h.slice(5, 7), 16),
+  ];
+}
+
+/** `t` of `a` over `b`. Both normalised on the way in and out. */
+function mix(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = channels(a);
+  const [br, bg, bb] = channels(b);
+  const c = (x: number, y: number) =>
+    Math.round(x * t + y * (1 - t))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${c(ar, br)}${c(ag, bg)}${c(ab, bb)}`;
 }
 
 /**
- * Line items, at a fixed count.
+ * A quieter ink that still READS.
  *
- * The designs place their totals absolutely, so an invoice with nine
- * items would run its rows underneath them. Rows are capped at what each
- * design has room for and the remainder is summarised — the totals stay
- * correct either way, because they are computed from ALL items, not from
- * the rows on screen.
+ * `palette.text.muted` is not safe to print at 7px: in light mode it is
+ * an L51 grey, which is ~4:1 on white and fails AA for body copy. So the
+ * secondary ink is BLENDED from the surface's own guaranteed heading ink
+ * towards its background, and the blend stops at the first step that
+ * clears 4.5:1 — the lightest grey this surface can actually carry.
  */
-function useRows(content: InvoiceContent, max: number) {
-  const shown = content.lineItems.slice(0, max);
-  const hidden = content.lineItems.length - shown.length;
-  return { shown, hidden };
+function quietInk(ink: string, bg: string): string {
+  for (const t of [0.55, 0.65, 0.75, 0.85]) {
+    const candidate = mix(ink, bg, t);
+    if (contrastOf(candidate, bg) >= 4.5) return candidate;
+  }
+  return ink;
 }
 
-function InvoiceFrame({ children }: { children: React.ReactNode }) {
-  // Invoice paper centered in a soft slate background. Portrait
-  // ratio so it reads as a document, not a card.
+/**
+ * A brand colour used as INK, or the readable fallback.
+ *
+ * A brand whose primary is pale yellow cannot letter its total in it, and
+ * the answer is not "print it anyway" — it is black or white, chosen by
+ * `fgOn`. `large` relaxes the threshold to WCAG's 3:1 for text ≥ 24px,
+ * which is the only place these designs use it.
+ */
+function onGround(color: string, bg: string, large = false): string {
+  return contrastOf(color, bg) >= (large ? 3 : 4.5) ? color : fgOn(bg);
+}
+
+/** One ground and everything that may be printed on it. */
+type Sheet = {
+  bg: string;
+  ink: string;
+  quiet: string;
+  line: string;
+  /** The brand colour, if it reads here; the readable foreground if not. */
+  accent: string;
+};
+
+type Ink = {
+  paper: Sheet;
+  /** The brand's primary as a filled band. */
+  band: Sheet;
+  /** The brand's secondary as a filled band. */
+  alt: Sheet;
+  /** A pale brand-tinted panel on the paper. */
+  tint: Sheet;
+  /** The brand's near-black. */
+  dark: Sheet;
+  head: string;
+  body: string;
+  mono: string;
+  /** `picks.showLogo === false` removes every logo from the artwork. */
+  showLogo: boolean;
+  /** `picks.logoColor`, or the brand colour that reads on paper. */
+  logoInk: string;
+};
+
+function sheetOn(bg: string, ink: string, brandColor: string, line?: string): Sheet {
+  return {
+    bg,
+    ink,
+    quiet: quietInk(ink, bg),
+    line: line ?? mix(ink, bg, 0.16),
+    accent: onGround(brandColor, bg),
+  };
+}
+
+/**
+ * Every colour and typeface this family paints with, decided once.
+ *
+ * `content.picks` wins where it answers: a customer who chose a colour for
+ * THIS invoice gets it, and the contrast rules are then applied to their
+ * choice exactly as they are to the brand's own. `picks.fontId` is
+ * deliberately not read — it names a font on the Setup-shaped `MockBrand`,
+ * and a renderer is handed the canonical `Brand`, which has no such id to
+ * resolve it against.
+ */
+function invoiceInk(brand: Brand, content: InvoiceContent & WithPicks): Ink {
+  const picks = content.picks;
+  const colors = brandColors(brand);
+  const primary = normalizeHex(picks?.primaryColor) ?? colors.primary;
+  const secondary = normalizeHex(picks?.secondaryColor) ?? colors.secondary;
+
+  const card = surface(brand, 'card');
+  const subtle = surface(brand, 'subtle');
+  const inverted = surface(brand, 'inverted');
+
+  const paper = sheetOn(card.bg, card.text, primary, card.border);
+  const tint = sheetOn(subtle.bg, subtle.text, primary, subtle.border);
+  const dark = sheetOn(inverted.bg, inverted.text, primary);
+  const band = sheetOn(primary, fgOn(primary), fgOn(primary));
+  const alt = sheetOn(secondary, fgOn(secondary), fgOn(secondary));
+
+  return {
+    paper,
+    band,
+    alt,
+    tint,
+    dark,
+    head: fontStack(brand, 'heading'),
+    body: fontStack(brand, 'body'),
+    mono: fontStack(brand, 'mono'),
+    showLogo: picks?.showLogo !== false,
+    logoInk: normalizeHex(picks?.logoColor) ?? paper.accent,
+  };
+}
+
+/* ── The parts every design is built from ─────────────────────────── */
+
+/** What a design body is handed. */
+type Ctx = {
+  brand: Brand;
+  c: InvoiceContent;
+  t: InvoiceTotals;
+  k: Ink;
+  money: (amount: number) => string;
+};
+
+const MICRO: CSSProperties = {
+  fontSize: 6,
+  lineHeight: 1.35,
+  letterSpacing: '0.22em',
+  textTransform: 'uppercase',
+};
+
+const BODY_PX = 7;
+
+function Micro({
+  children,
+  color,
+  style,
+  className,
+}: {
+  children: ReactNode;
+  color: string;
+  style?: CSSProperties;
+  className?: string;
+}) {
   return (
-    <div className="w-full h-full bg-[#E5E0D2] flex items-center justify-center p-[3%]">
-      <div className="bg-white shadow-md relative overflow-hidden" style={{ width: '46%', aspectRatio: '8.5 / 11' }}>
+    <div className={className} style={{ ...MICRO, color, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+/** The logo, or the space it would have taken. */
+function Logo({
+  brand,
+  k,
+  color,
+  size = 'sm',
+}: {
+  brand: Brand;
+  k: Ink;
+  color: string;
+  size?: 'xs' | 'sm' | 'md';
+}) {
+  if (!k.showLogo) return <span />;
+  return <BrandLogo brand={brand} size={size} color={color} />;
+}
+
+/** A micro caption over one value. */
+function Field({
+  s,
+  label,
+  children,
+  className,
+  align = 'left',
+}: {
+  s: Sheet;
+  label: string;
+  children: ReactNode;
+  className?: string;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''} ${className ?? ''}`}>
+      <Micro color={s.quiet}>{label}</Micro>
+      <div
+        className="truncate"
+        style={{ fontSize: BODY_PX, lineHeight: 1.5, color: s.ink, marginTop: 1 }}
+      >
         {children}
       </div>
     </div>
   );
 }
 
-function ItemRow({ label, qty, price, color = '#444' }: { label: React.ReactNode; qty: React.ReactNode; price: React.ReactNode; color?: string }) {
+/** Bill from · Bill to. Both parties, both addresses. */
+function Parties({
+  c,
+  s,
+  stacked = false,
+}: {
+  c: InvoiceContent;
+  s: Sheet;
+  stacked?: boolean;
+}) {
+  const block = (
+    label: string,
+    name: string,
+    namePath: string,
+    address: string,
+    addressPath: string,
+  ) => (
+    <div className="min-w-0 flex-1">
+      <Micro color={s.quiet}>{label}</Micro>
+      <div style={{ fontSize: BODY_PX, lineHeight: 1.5, color: s.ink, marginTop: 1, fontWeight: 600 }}>
+        <Bind path={namePath} value={name} />
+      </div>
+      <div style={{ fontSize: BODY_PX, lineHeight: 1.45, color: s.quiet }}>
+        <Bind path={addressPath} value={address} fit="wrap" />
+      </div>
+    </div>
+  );
   return (
-    <div className="flex justify-between text-[3px] py-[2px] border-b border-gray-100" style={{ color }}>
-      {/* min-w-0 so a long description ellipsises inside its own cell
-          instead of pushing the price out of the row. */}
-      <span className="flex-1 min-w-0 truncate pr-2">{label}</span>
-      <span className="w-[8%] text-right">{qty}</span>
-      <span className="w-[14%] text-right">{price}</span>
+    <div className={stacked ? 'flex flex-col gap-[6px]' : 'flex gap-3'}>
+      {block('From', c.issuerName, 'issuerName', c.issuerAddress, 'issuerAddress')}
+      {block('Bill to', c.clientName, 'clientName', c.clientAddress, 'clientAddress')}
     </div>
   );
 }
 
+/** № · issued · due. */
+function RefRow({
+  c,
+  s,
+  className,
+}: {
+  c: InvoiceContent;
+  s: Sheet;
+  className?: string;
+}) {
+  return (
+    <div className={`flex gap-3 ${className ?? ''}`}>
+      <Field s={s} label="Invoice">
+        <Bind path="number" value={c.number} />
+      </Field>
+      <Field s={s} label="Issued">
+        <Bind path="issueDate" value={c.issueDate} />
+      </Field>
+      <Field s={s} label="Due">
+        <Bind path="dueDate" value={c.dueDate} />
+      </Field>
+    </div>
+  );
+}
+
+/**
+ * The line items.
+ *
+ * Description, quantity and rate are all bound; the amount is DERIVED
+ * (`qty × unitPrice`) and deliberately is not — a figure a customer could
+ * type over is a figure that can disagree with the two numbers above it.
+ * Rows are capped at what the design has room for and the remainder is
+ * counted, while the totals below stay computed from ALL items.
+ */
+function Items({
+  c,
+  s,
+  money,
+  max,
+  header = true,
+  rule = true,
+}: {
+  c: InvoiceContent;
+  s: Sheet;
+  money: (n: number) => string;
+  max: number;
+  header?: boolean;
+  rule?: boolean;
+}) {
+  const shown = c.lineItems.slice(0, max);
+  const hidden = c.lineItems.length - shown.length;
+  const border = rule ? `1px solid ${s.line}` : undefined;
+  return (
+    <div style={{ fontSize: BODY_PX, lineHeight: 1.5, color: s.ink }}>
+      {header && (
+        <div className="flex gap-2" style={{ ...MICRO, color: s.quiet, borderBottom: `1px solid ${s.line}`, paddingBottom: 3 }}>
+          <span className="flex-1">Description</span>
+          <span className="w-[12%] text-right">Qty</span>
+          <span className="w-[24%] text-right">Rate</span>
+          <span className="w-[26%] text-right">Amount</span>
+        </div>
+      )}
+      {shown.map((item, i) => (
+        <div key={item.id} className="flex gap-2 items-baseline" style={{ borderBottom: border, paddingTop: 3, paddingBottom: 3 }}>
+          <span className="flex-1 min-w-0 truncate">
+            <Bind path={`lineItems.${i}.label`} value={item.label} />
+          </span>
+          <span className="w-[12%] text-right">
+            <Bind path={`lineItems.${i}.qty`} value={String(item.qty)} />
+          </span>
+          <span className="w-[24%] text-right" style={{ color: s.quiet }}>
+            <Bind path={`lineItems.${i}.unitPrice`} value={money(item.unitPrice)} />
+          </span>
+          <span className="w-[26%] text-right" style={{ fontWeight: 600 }}>
+            {money(lineItemTotal(item))}
+          </span>
+        </div>
+      ))}
+      {hidden > 0 && (
+        <div style={{ ...MICRO, color: s.quiet, paddingTop: 3 }}>+ {hidden} more</div>
+      )}
+    </div>
+  );
+}
+
+/** Subtotal · discount · tax · total. Every figure from `invoiceTotals`. */
+function Totals({
+  ctx,
+  s,
+  align = 'right',
+  size = 15,
+  font,
+  label = 'Total due',
+}: {
+  ctx: Ctx;
+  s: Sheet;
+  align?: 'left' | 'right';
+  size?: number;
+  font?: string;
+  label?: string;
+}) {
+  const { c, t, k, money } = ctx;
+  return (
+    <div className={align === 'right' ? 'text-right' : ''} style={{ fontSize: BODY_PX, lineHeight: 1.6, color: s.quiet }}>
+      <div>Subtotal · {money(t.subtotal)}</div>
+      {t.discount > 0 && (
+        <div>
+          Discount {formatPercent(c.discountRate)} · −{money(t.discount)}
+        </div>
+      )}
+      {t.tax > 0 && (
+        <div>
+          Tax {formatPercent(c.taxRate)} · {money(t.tax)}
+        </div>
+      )}
+      <Micro color={s.quiet} style={{ marginTop: 3 }}>
+        {label}
+      </Micro>
+      <div
+        style={{
+          fontFamily: font ?? k.head,
+          fontSize: size,
+          lineHeight: 1.1,
+          fontWeight: 700,
+          color: size >= 24 ? onGround(s.accent, s.bg, true) : s.accent,
+        }}
+      >
+        {money(t.total)}
+      </div>
+    </div>
+  );
+}
+
+/** The footer note — the one piece of prose an invoice carries. */
+function Notes({
+  c,
+  s,
+  align = 'left',
+  className,
+}: {
+  c: InvoiceContent;
+  s: Sheet;
+  align?: 'left' | 'center';
+  className?: string;
+}) {
+  return (
+    <div
+      className={`${align === 'center' ? 'text-center' : ''} ${className ?? ''}`}
+      style={{ fontSize: 6.5, lineHeight: 1.5, color: s.quiet }}
+    >
+      <Bind path="notes" value={c.notes} fit="wrap" />
+    </div>
+  );
+}
+
+/** The sheet itself: full bleed, in flow, its own ground. */
+function Page({
+  s,
+  k,
+  children,
+  style,
+  className,
+}: {
+  s: Sheet;
+  k: Ink;
+  children: ReactNode;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`w-full h-full relative overflow-hidden flex flex-col ${className ?? ''}`}
+      style={{ background: s.bg, color: s.ink, fontFamily: k.body, ...style }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The word every one of these documents carries, in the brand's display face. */
+function Title({
+  k,
+  color,
+  size = 15,
+  weight = 700,
+  children = 'Invoice',
+  style,
+}: {
+  k: Ink;
+  color: string;
+  size?: number;
+  weight?: number;
+  children?: ReactNode;
+  style?: CSSProperties;
+}) {
+  return (
+    <div style={{ fontFamily: k.head, fontSize: size, lineHeight: 1.05, fontWeight: weight, color, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+/* ── The designs ──────────────────────────────────────────────────── */
+
 export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Props) {
-  const p = brand.primaryColor;
   const c = content ?? defaultInvoiceContent(brand);
   const t = invoiceTotals(c);
-  const money = (n: number) => formatMoney(n, c.currency);
-  const rows5 = useRows(c, 5);
-  const rows4 = useRows(c, 4);
+  const k = invoiceInk(brand, c);
+  const money = (amount: number) => formatMoney(amount, c.currency);
+  const ctx: Ctx = { brand, c, t, k, money };
+  const { paper, band, alt, tint, dark } = k;
 
-  const designs = [
-    // 0 — Classic Pro. Clean header band, items, totals at bottom.
+  const designs: ReactNode[] = [
+    // 0 — Classic Pro. Brand header band, then the document in flow.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-x-0 top-0 h-[14%] flex items-center justify-between px-[6%]" style={{ backgroundColor: p, color: '#fff' }}>
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
+      <Page s={paper} k={k}>
+        <div className="flex items-center justify-between px-[7%] py-[4%]" style={{ background: band.bg, color: band.ink }}>
+          <Logo brand={brand} k={k} color={band.ink} />
           <div className="text-right">
-            <div className="text-[7px] font-bold leading-none">INVOICE</div>
-            <div className="text-[3px] uppercase tracking-[0.22em] mt-0.5 opacity-90">№ <Bind path="number" value={c.number} /></div>
+            <Title k={k} color={band.ink}>Invoice</Title>
+            <Micro color={band.quiet} style={{ marginTop: 2 }}>
+              № <Bind path="number" value={c.number} />
+            </Micro>
           </div>
         </div>
-        <div className="absolute inset-x-[6%] top-[18%] flex justify-between text-[3px] text-gray-700 gap-2">
-          <div className="min-w-0 flex-1"><div className="uppercase tracking-[0.22em] text-gray-400">From</div><div className="font-semibold mt-0.5"><Bind path="issuerName" value={c.issuerName} /></div></div>
-          <div className="text-right min-w-0 flex-1"><div className="uppercase tracking-[0.22em] text-gray-400">To</div><div className="font-semibold mt-0.5"><Bind path="clientName" value={c.clientName} /></div></div>
+        <div className="flex-1 flex flex-col gap-[10px] px-[7%] pt-[5%] pb-[4%]">
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={5} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
         </div>
-        <div className="absolute inset-x-[6%] top-[32%]">
-          <div className="flex text-[3px] uppercase tracking-[0.22em] text-gray-400 border-b border-gray-300 pb-1"><span className="flex-1">Item</span><span className="w-[8%] text-right">Qty</span><span className="w-[14%] text-right">Total</span></div>
-          {rows4.shown.map((item, i) => (
-            <ItemRow
-              key={item.id}
-              label={<Bind path={`lineItems.${i}.label`} value={item.label} />}
-              qty={<Bind path={`lineItems.${i}.qty`} value={String(item.qty)} />}
-              price={money(lineItemTotal(item))}
-            />
-          ))}
-          {rows4.hidden > 0 && <div className="text-[2.5px] text-gray-400 pt-1">+ {rows4.hidden} more</div>}
-        </div>
-        <div className="absolute right-[6%] bottom-[14%] text-right text-[3px]">
-          <div className="text-gray-500">Subtotal · {money(t.subtotal)}</div>
-          {t.discount > 0 && <div className="text-gray-500">Discount ({formatPercent(c.discountRate)}) · −{money(t.discount)}</div>}
-          <div className="text-gray-500">Tax ({formatPercent(c.taxRate)}) · {money(t.tax)}</div>
-          <div className="text-[6px] font-bold mt-1" style={{ color: p }}>Total · {money(t.total)}</div>
-        </div>
-        <div className="absolute inset-x-[6%] bottom-[3%] text-[2.5px] text-center text-gray-400 uppercase tracking-[0.22em]"><Bind path="notes" value={c.notes} fit="clamp" /></div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 1 — Side Stripe. Brand color stripe down left, items right.
+    // 1 — Side Stripe. A full-height brand column carries the identity.
     (
-      <InvoiceFrame>
-        <div className="absolute left-0 top-0 bottom-0 w-[14%] flex flex-col justify-between items-start px-[3%] py-[6%]" style={{ backgroundColor: p }}>
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-white text-[3px] uppercase tracking-[0.32em] [writing-mode:vertical-rl] rotate-180">{brand.name} · Invoice</div>
+      <Page s={paper} k={k} style={{ flexDirection: 'row' }}>
+        <div className="w-[16%] flex flex-col items-center justify-between py-[6%]" style={{ background: band.bg, color: band.ink }}>
+          <Logo brand={brand} k={k} color={band.ink} size="xs" />
+          <div style={{ ...MICRO, color: band.ink, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+            <Bind path="issuerName" value={c.issuerName} />
+          </div>
         </div>
-        <div className="absolute left-[20%] right-[6%] top-[6%]">
-          <div className="text-[8px] font-bold text-gray-900">Invoice <Bind path="number" value={c.number} fit="shrink" /></div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-0.5">due <Bind path="dueDate" value={c.dueDate} placeholder="27 · 04 · 2026" /></div>
+        <div className="flex-1 flex flex-col gap-[9px] px-[8%] py-[6%]">
+          <Title k={k} color={paper.ink} size={17}>Invoice</Title>
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto">
+            <Totals ctx={ctx} s={paper} />
+            <Notes c={c} s={paper} className="mt-[6px]" />
+          </div>
         </div>
-        <div className="absolute left-[20%] right-[6%] top-[24%]">
-          {rows5.shown.map((item, i) => (
-            <div key={item.id} className="flex justify-between text-[3px] py-[2px] border-b border-gray-100 gap-2">
-              <span className="min-w-0 flex-1 truncate"><Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-              <span className="shrink-0">{money(lineItemTotal(item))}</span>
+      </Page>
+    ),
+
+    // 2 — Editorial Header. A magazine masthead over a plain document.
+    (
+      <Page s={paper} k={k}>
+        <div className="px-[7%] pt-[6%]">
+          <Title k={k} color={paper.ink} size={30} weight={800} style={{ letterSpacing: '-0.03em' }}>
+            Invoice
+          </Title>
+          <div style={{ height: 2, background: paper.accent, marginTop: 4 }} />
+          <div className="flex justify-between gap-2 mt-[4px]" style={{ ...MICRO, color: paper.quiet }}>
+            <span className="min-w-0 truncate">
+              <Bind path="issuerName" value={c.issuerName} />
+            </span>
+            <span className="shrink-0">
+              № <Bind path="number" value={c.number} /> · <Bind path="issueDate" value={c.issueDate} />
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col gap-[10px] px-[7%] pt-[5%] pb-[5%]">
+          <Parties c={c} s={paper} />
+          <Field s={paper} label="Payment due">
+            <Bind path="dueDate" value={c.dueDate} />
+          </Field>
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} size={17} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 3 — Brute Force. The brand's near-black, set in its mono face.
+    (
+      <Page s={dark} k={k} style={{ fontFamily: k.mono }}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="flex items-center justify-between gap-2">
+            <Title k={k} color={dark.accent} size={13} style={{ fontFamily: k.mono, letterSpacing: '0.04em' }}>
+              <Bind path="issuerName" value={c.issuerName} fit="shrink" />
+            </Title>
+            <div style={{ ...MICRO, color: dark.quiet }}>
+              Invoice <Bind path="number" value={c.number} />
             </div>
-          ))}
-          {rows5.hidden > 0 && <div className="text-[2.5px] text-gray-400 pt-1">+ {rows5.hidden} more</div>}
+          </div>
+          <div style={{ height: 1, background: dark.line }} />
+          <Parties c={c} s={dark} />
+          <RefRow c={c} s={dark} />
+          <Items c={c} s={dark} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={dark} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={dark} font={k.mono} />
+          </div>
         </div>
-        <div className="absolute right-[6%] bottom-[8%] text-right text-[3px] text-gray-700">
-          <div>Subtotal · {money(t.subtotal)}</div>
-          <div className="text-[5px] font-bold mt-0.5" style={{ color: p }}>Total · {money(t.total)}</div>
-        </div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 2 — Editorial Header. Magazine-style INVOICE wordmark.
+    // 4 — Stamped Due. The rotated stamp carries the due date, not a claim.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <div className="text-[14px] font-serif font-black tracking-tight text-gray-900">Invoice</div>
-          <div className="w-full h-[1px] mt-1" style={{ backgroundColor: p }} />
-          <div className="flex justify-between text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-1 gap-2">
-            <span className="min-w-0 truncate"><Bind path="issuerName" value={c.issuerName} /></span>
-            <span className="shrink-0">№ <Bind path="number" value={c.number} /> · <Bind path="issueDate" value={c.issueDate} placeholder="27 / 04 / 26" /></span>
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <Logo brand={brand} k={k} color={k.logoInk} />
+              <Title k={k} color={paper.ink} size={15} style={{ marginTop: 6 }}>
+                Invoice № <Bind path="number" value={c.number} fit="shrink" />
+              </Title>
+            </div>
+            <div
+              className="shrink-0 text-center"
+              style={{
+                transform: 'rotate(-11deg)',
+                border: `2px solid ${paper.accent}`,
+                color: paper.accent,
+                padding: '3px 6px',
+                borderRadius: 3,
+              }}
+            >
+              <div style={{ ...MICRO, color: paper.accent }}>Due</div>
+              <div style={{ fontSize: 7, fontWeight: 700, lineHeight: 1.3 }}>
+                <Bind path="dueDate" value={c.dueDate} fit="shrink" />
+              </div>
+            </div>
           </div>
-          {/* IN FLOW under the header, not another absolutely-positioned
-              block at a guessed offset.
-              The header's height comes from its content — a 14px serif
-              wordmark, a rule and a meta row — and at the page's real size
-              that is taller than the 14% of page height the addressing
-              block assumed. So the two ran through each other before
-              anyone had edited anything, and every fix that moved the
-              offset was a guess that a longer brand name would undo.
-              Stacked in flow they cannot collide at all.
+          <Parties c={c} s={paper} />
+          <Field s={paper} label="Issued">
+            <Bind path="issueDate" value={c.issueDate} />
+          </Field>
+          <Items c={c} s={paper} money={money} max={4} rule={false} />
+          <div style={{ borderTop: `1px dashed ${paper.line}` }} />
+          <div className="mt-auto">
+            <Totals ctx={ctx} s={paper} />
+            <Notes c={c} s={paper} align="center" className="mt-[6px]" />
+          </div>
+        </div>
+      </Page>
+    ),
 
-              Each address owns half the width and clips its own overflow,
-              so a long name shortens itself rather than reaching its
-              neighbour. */}
-          <div className="flex text-[3px] gap-3 mt-2">
-            <div className="flex-1 min-w-0"><div className="uppercase tracking-[0.22em] text-gray-400">Bill From</div><div className="text-gray-800 mt-0.5"><Bind path="issuerName" value={c.issuerName} /><br/><Bind path="issuerAddress" value={c.issuerAddress} fit="wrap" /></div></div>
-            <div className="flex-1 min-w-0 text-right"><div className="uppercase tracking-[0.22em] text-gray-400">Bill To</div><div className="text-gray-800 mt-0.5"><Bind path="clientName" value={c.clientName} /><br/><Bind path="clientAddress" value={c.clientAddress} fit="wrap" /></div></div>
-          </div>
-          {/* In flow as well, for the same reason. The row count is capped
-              (`rows4`) so this block's height is bounded and cannot reach
-              the total anchored at the foot of the page. */}
-          {/* The rhythm is tight on purpose: the page is ~155px tall at the
-              260px canonical width these renderers are drawn for, so a
-              Tailwind `mt-4` is a tenth of the sheet. */}
-          <div className="mt-2">
-            {rows4.shown.map((item, i) => (
-              <div key={item.id} className="flex justify-between text-[3px] py-[3px] border-b border-gray-100 gap-2">
-                <span className="font-serif italic text-gray-700 min-w-0 flex-1 truncate">— <Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-                <span className="font-bold text-gray-900 shrink-0">{money(lineItemTotal(item))}</span>
+    // 5 — Two-Colour Bands. The brand's two colours as alternating rules.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex items-center justify-between px-[7%] py-[4%]" style={{ background: alt.bg, color: alt.ink }}>
+          <Title k={k} color={alt.ink} size={13}>Invoice</Title>
+          <Logo brand={brand} k={k} color={alt.ink} size="xs" />
+        </div>
+        <div style={{ height: 4, background: band.bg }} />
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] pt-[5%] pb-[5%]">
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <div>
+            {c.lineItems.slice(0, 5).map((item, i) => (
+              <div
+                key={item.id}
+                className="flex gap-2 items-baseline px-[3px]"
+                style={{
+                  background: i % 2 === 0 ? tint.bg : 'transparent',
+                  color: i % 2 === 0 ? tint.ink : paper.ink,
+                  fontSize: BODY_PX,
+                  lineHeight: 1.5,
+                  paddingTop: 3,
+                  paddingBottom: 3,
+                }}
+              >
+                <span className="flex-1 min-w-0 truncate">
+                  <Bind path={`lineItems.${i}.label`} value={item.label} />
+                </span>
+                <span className="w-[12%] text-right">
+                  <Bind path={`lineItems.${i}.qty`} value={String(item.qty)} />
+                </span>
+                <span className="w-[24%] text-right">
+                  <Bind path={`lineItems.${i}.unitPrice`} value={money(item.unitPrice)} />
+                </span>
+                <span className="w-[26%] text-right" style={{ fontWeight: 600 }}>
+                  {money(lineItemTotal(item))}
+                </span>
               </div>
             ))}
-            {rows4.hidden > 0 && <div className="text-[2.5px] text-gray-400 pt-1">+ {rows4.hidden} more</div>}
+          </div>
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
           </div>
         </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-serif font-bold" style={{ color: p }}>Total · {money(t.total)}</div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 3 — Brute Force. Mono-spaced, dense black & white grid with brand-color accent.
+    // 6 — Bottom Heavy. A deep brand footer carries the amount due.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-0 bg-[#0F1216] text-white p-[5%] font-mono text-[3px]">
-          <div className="flex justify-between items-center">
-            <span className="font-bold text-[8px]" style={{ color: p }}>{brand.name.toUpperCase()}</span>
-            <span className="uppercase tracking-[0.22em] opacity-70">INVOICE <Bind path="number" value={c.number} /></span>
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] pt-[6%] pb-[4%]">
+          <div className="flex items-start justify-between gap-2">
+            <Logo brand={brand} k={k} color={k.logoInk} />
+            <Field s={paper} label="Due" align="right" className="shrink-0">
+              <Bind path="dueDate" value={c.dueDate} />
+            </Field>
           </div>
-          <div className="border-t border-white/30 my-2" />
-          <div className="flex justify-between mb-2 gap-2">
-            <span className="min-w-0 truncate">BILL TO · <Bind path="clientName" value={c.clientName} /></span>
-            <span className="shrink-0">DUE · <Bind path="dueDate" value={c.dueDate} placeholder="2026-04-27" /></span>
-          </div>
-          {rows4.shown.map((item, i) => (
-            <div key={item.id} className="flex justify-between py-[1px] border-b border-white/10 gap-2">
-              <span className="min-w-0 flex-1 truncate uppercase"><Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-              <span className="shrink-0">{money(lineItemTotal(item))}</span>
+          <Title k={k} color={paper.ink} size={15}>
+            Invoice <Bind path="number" value={c.number} fit="shrink" />
+          </Title>
+          <Parties c={c} s={paper} />
+          <Field s={paper} label="Issued">
+            <Bind path="issueDate" value={c.issueDate} />
+          </Field>
+          <Items c={c} s={paper} money={money} max={4} />
+          <Notes c={c} s={paper} className="mt-auto" />
+        </div>
+        <div className="flex items-end justify-between gap-3 px-[7%] py-[5%]" style={{ background: band.bg, color: band.ink }}>
+          <div className="min-w-0">
+            <Micro color={band.quiet}>From</Micro>
+            <div style={{ fontSize: BODY_PX, lineHeight: 1.4, fontWeight: 600 }}>
+              <Bind path="issuerName" value={c.issuerName} />
             </div>
-          ))}
-          <div className="absolute right-[5%] bottom-[6%] text-right">
-            <div className="text-[3px] opacity-70">SUBTOTAL · {money(t.subtotal)}</div>
-            {t.discount > 0 && <div className="text-[3px] opacity-70">DISCOUNT {formatPercent(c.discountRate)} · −{money(t.discount)}</div>}
-            <div className="text-[3px] opacity-70">TAX {formatPercent(c.taxRate)} · {money(t.tax)}</div>
-            <div className="text-[6px] font-bold mt-1" style={{ color: p }}>TOTAL · {money(t.total)}</div>
           </div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 4 — Stamped Paid. PAID stamp tilted in upper-right corner.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[8px] font-serif font-bold mt-2 text-gray-900">Invoice № <Bind path="number" value={c.number} fit="shrink" /></div>
-        </div>
-        <div className="absolute right-[6%] top-[8%] -rotate-12 border-2 px-1 py-0.5 text-[5px] uppercase tracking-[0.22em] font-bold" style={{ borderColor: p, color: p }}>PAID</div>
-        <div className="absolute inset-x-[6%] top-[28%]">
-          {rows4.shown.map((item, i) => (
-            <div key={item.id} className="flex justify-between text-[3px] py-1 border-b border-dashed border-gray-200 gap-2">
-              <span className="min-w-0 flex-1 truncate"><Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-              <span className="shrink-0">{money(lineItemTotal(item))}</span>
+          <div className="text-right shrink-0">
+            <Micro color={band.quiet}>Total due</Micro>
+            <div style={{ fontFamily: k.head, fontSize: 22, lineHeight: 1.05, fontWeight: 700 }}>
+              {money(t.total)}
             </div>
-          ))}
-          {rows4.hidden > 0 && <div className="text-[2.5px] text-gray-400 pt-1">+ {rows4.hidden} more</div>}
+          </div>
         </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-bold" style={{ color: p }}>Total · {money(t.total)}</div>
-        <div className="absolute inset-x-[6%] bottom-[3%] text-[2.5px] uppercase tracking-[0.22em] text-gray-400 text-center">— thank you —</div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 5 — Two-Color Bands. Alternating brand & cream bands.
+    // 7 — Receipt Roll. A narrow till roll on a brand-tinted counter.
     (
-      <InvoiceFrame>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="absolute inset-x-0 h-[10%]" style={{ top: `${10 + i * 10}%`, background: i % 2 === 0 ? `${p}11` : 'transparent' }} />
-        ))}
-        <div className="absolute inset-x-[6%] top-[6%] flex justify-between items-center">
-          <div className="text-[8px] font-bold" style={{ color: p }}>INVOICE</div>
-          <BrandLogo brand={brand} size="xs" />
-        </div>
-        <div className="absolute inset-x-[6%] top-[22%]">
-          {rows5.shown.map((item, i) => (
-            <div key={item.id} className="flex justify-between text-[3px] py-[3px] px-1 gap-2">
-              <span className="text-gray-700 min-w-0 flex-1 truncate"><Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-              <span className="font-bold shrink-0">{money(lineItemTotal(item))}</span>
+      <Page s={tint} k={k} className="items-center justify-center px-[10%] py-[5%]">
+        <div
+          className="w-full h-full flex flex-col"
+          style={{ background: paper.bg, color: paper.ink, border: `1px solid ${paper.line}`, fontFamily: k.mono }}
+        >
+          <div className="text-center px-[6%] py-[4%]" style={{ borderBottom: `1px dashed ${paper.line}` }}>
+            <div style={{ ...MICRO, color: paper.accent, fontSize: 8, fontWeight: 700 }}>
+              <Bind path="issuerName" value={c.issuerName} fit="shrink" />
             </div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[8%] text-right text-[6px] font-bold text-gray-900">Total · {money(t.total)}</div>
-      </InvoiceFrame>
-    ),
-
-    // 6 — Bottom Heavy Footer. Big colored footer carries totals.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[8px] font-bold text-gray-900 mt-2">Invoice <Bind path="number" value={c.number} fit="shrink" /></div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">due <Bind path="dueDate" value={c.dueDate} placeholder="27 / 04 / 2026" /></div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[28%]">
-          {rows4.shown.map((item, i) => (
-            <div key={item.id} className="flex justify-between text-[3px] py-[2px] border-b border-gray-100 gap-2">
-              <span className="min-w-0 flex-1 truncate"><Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-              <span className="shrink-0">{money(lineItemTotal(item))}</span>
+            <div style={{ fontSize: 6.5, lineHeight: 1.5, color: paper.quiet, marginTop: 2 }}>
+              <Bind path="issuerAddress" value={c.issuerAddress} fit="wrap" />
             </div>
-          ))}
-          {rows4.hidden > 0 && <div className="text-[2.5px] text-gray-400 pt-1">+ {rows4.hidden} more</div>}
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-[24%] flex items-center justify-between px-[6%] text-white" style={{ backgroundColor: p }}>
-          <div>
-            <div className="text-[3px] uppercase tracking-[0.22em] opacity-80">{brand.name}</div>
-            <div className="text-[3px] opacity-80 mt-0.5">{brand.name.toLowerCase()}.com</div>
+            <Micro color={paper.quiet} style={{ marginTop: 3 }}>
+              № <Bind path="number" value={c.number} /> · <Bind path="issueDate" value={c.issueDate} />
+            </Micro>
           </div>
-          <div className="text-right">
-            <div className="text-[3px] uppercase tracking-[0.22em] opacity-80">Total Due</div>
-            <div className="text-[12px] font-bold leading-none mt-0.5">{money(t.total)}</div>
+          <div className="flex-1 flex flex-col gap-[7px] px-[6%] py-[5%]">
+            <div className="flex gap-2" style={{ fontSize: BODY_PX, lineHeight: 1.5 }}>
+              <span style={{ ...MICRO, color: paper.quiet }}>To</span>
+              <span className="flex-1 min-w-0 truncate">
+                <Bind path="clientName" value={c.clientName} />
+              </span>
+            </div>
+            <div style={{ fontSize: 6.5, lineHeight: 1.45, color: paper.quiet }}>
+              <Bind path="clientAddress" value={c.clientAddress} fit="wrap" />
+            </div>
+            <Items c={c} s={paper} money={money} max={5} header={false} rule={false} />
+            <div style={{ borderTop: `1px dashed ${paper.line}`, paddingTop: 5 }}>
+              <Totals ctx={ctx} s={paper} align="left" size={13} font={k.mono} />
+            </div>
+            <div className="mt-auto flex gap-2" style={{ fontSize: BODY_PX, color: paper.quiet }}>
+              <span style={{ ...MICRO, color: paper.quiet }}>Due</span>
+              <span><Bind path="dueDate" value={c.dueDate} /></span>
+            </div>
           </div>
+          <Notes c={c} s={paper} align="center" className="px-[6%] py-[3%]" />
         </div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 7 — Receipt Roll. Long thin receipt feel with dashed cuts.
+    // 8 — Index Card. The invoice number as the artwork.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[12%] top-[5%] bottom-[5%] bg-[#FBF8EE] shadow-inner flex flex-col">
-          <div className="text-center py-2 border-b border-dashed border-gray-300">
-            <div className="text-[5px] uppercase tracking-[0.32em] font-bold" style={{ color: p }}>{brand.name.toUpperCase()}</div>
-            <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-0.5">receipt <Bind path="number" value={c.number} /> · <Bind path="issueDate" value={c.issueDate} placeholder="27 · 04 · 26" /></div>
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Micro color={paper.quiet}>Invoice №</Micro>
+              <div style={{ fontFamily: k.head, fontSize: 40, lineHeight: 0.95, fontWeight: 800, color: onGround(paper.accent, paper.bg, true), fontVariantNumeric: 'tabular-nums' }}>
+                <Bind path="number" value={c.number} fit="shrink" />
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <Logo brand={brand} k={k} color={k.logoInk} />
+              <Field s={paper} label="Due" align="right" className="mt-[6px]">
+                <Bind path="dueDate" value={c.dueDate} />
+              </Field>
+              <Field s={paper} label="Issued" align="right">
+                <Bind path="issueDate" value={c.issueDate} />
+              </Field>
+            </div>
           </div>
-          <div className="flex-1 px-3 py-2 font-mono text-[3px]">
-            {rows5.shown.map((item, i) => (
-              <div key={item.id} className="flex justify-between py-[1px] gap-2">
-                <span className="min-w-0 flex-1 truncate uppercase"><Bind path={`lineItems.${i}.label`} value={item.label} /></span>
-                <span className="shrink-0">{money(lineItemTotal(item))}</span>
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 9 — Colour Wash. The brand fading out of the head of the page.
+    (
+      <Page s={paper} k={k}>
+        <div
+          className="px-[7%] pt-[6%] pb-[5%]"
+          style={{ background: `linear-gradient(180deg, ${band.bg} 0%, ${tint.bg} 100%)`, color: band.ink }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <Logo brand={brand} k={k} color={band.ink} />
+            <div className="text-right">
+              <Title k={k} color={band.ink} size={15}>Invoice</Title>
+              <Micro color={band.ink} style={{ marginTop: 2 }}>
+                № <Bind path="number" value={c.number} />
+              </Micro>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] pt-[5%] pb-[5%]">
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 10 — Numbered Items. Each line counted in a brand disc.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="flex items-start justify-between gap-2">
+            <Title k={k} color={paper.ink} size={15}>
+              Invoice <Bind path="number" value={c.number} fit="shrink" />
+            </Title>
+            <Logo brand={brand} k={k} color={k.logoInk} size="xs" />
+          </div>
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <div className="flex flex-col gap-[5px]">
+            {c.lineItems.slice(0, 4).map((item, i) => (
+              <div key={item.id} className="flex items-center gap-2" style={{ fontSize: BODY_PX, lineHeight: 1.4 }}>
+                <span
+                  className="shrink-0 flex items-center justify-center"
+                  style={{ width: 13, height: 13, borderRadius: 999, background: band.bg, color: band.ink, fontSize: 7, fontWeight: 700 }}
+                >
+                  {i + 1}
+                </span>
+                <span className="flex-1 min-w-0 truncate">
+                  <Bind path={`lineItems.${i}.label`} value={item.label} />
+                </span>
+                <span className="shrink-0" style={{ color: paper.quiet }}>
+                  <Bind path={`lineItems.${i}.qty`} value={String(item.qty)} /> ×{' '}
+                  <Bind path={`lineItems.${i}.unitPrice`} value={money(item.unitPrice)} />
+                </span>
+                <span className="shrink-0" style={{ fontWeight: 600 }}>{money(lineItemTotal(item))}</span>
               </div>
             ))}
-            {rows5.hidden > 0 && <div className="text-[2.5px] text-gray-400 pt-1">+ {rows5.hidden} more</div>}
-            <div className="border-t border-dashed border-gray-300 mt-2 pt-2">
-              {t.discount > 0 && <div className="flex justify-between opacity-70"><span>DISCOUNT</span><span>−{money(t.discount)}</span></div>}
-              {t.tax > 0 && <div className="flex justify-between opacity-70"><span>TAX</span><span>{money(t.tax)}</span></div>}
-              <div className="flex justify-between font-bold"><span>TOTAL</span><span>{money(t.total)}</span></div>
+          </div>
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 11 — Architectural. A drawing sheet: faint brand grid, tabular figures.
+    (
+      <Page s={paper} k={k}>
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(${tint.bg} 1px, transparent 1px), linear-gradient(90deg, ${tint.bg} 1px, transparent 1px)`,
+            backgroundSize: '18px 18px',
+          }}
+        />
+        <div className="relative flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <Title k={k} color={paper.ink} size={13}>
+                Invoice / <Bind path="number" value={c.number} fit="shrink" />
+              </Title>
+              <Micro color={paper.quiet} style={{ marginTop: 2 }}>
+                <Bind path="issuerName" value={c.issuerName} />
+              </Micro>
+            </div>
+            <Logo brand={brand} k={k} color={k.logoInk} size="xs" />
+          </div>
+          <div style={{ height: 1, background: paper.accent }} />
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 12 — Big Title Light. One enormous, quiet word.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <Title k={k} color={paper.ink} size={44} weight={300} style={{ letterSpacing: '-0.04em' }}>
+            invoice.
+          </Title>
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} size={26} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 13 — Brand Border. The document inside a brand frame.
+    (
+      <Page s={paper} k={k} className="p-[4%]">
+        <div className="w-full h-full flex flex-col gap-[9px] px-[6%] py-[5%]" style={{ border: `3px solid ${band.bg}` }}>
+          <div className="flex items-center justify-between gap-2">
+            <Logo brand={brand} k={k} color={k.logoInk} size="xs" />
+            <Title k={k} color={paper.accent} size={11}>
+              Invoice <Bind path="number" value={c.number} fit="shrink" />
+            </Title>
+          </div>
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} size={13} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 14 — Thank You Note. The note leads; the ledger follows.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <Title k={k} color={paper.accent} size={20} weight={400} style={{ fontStyle: 'italic' }}>
+            Thank you
+          </Title>
+          <div style={{ fontSize: BODY_PX, lineHeight: 1.6, color: paper.ink }}>
+            <Bind path="notes" value={c.notes} fit="wrap" />
+          </div>
+          <div style={{ height: 1, background: paper.line }} />
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Logo brand={brand} k={k} color={k.logoInk} size="xs" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 15 — Side Totals. The ledger left, the arithmetic in its own panel.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex items-start justify-between gap-2 px-[7%] pt-[6%]">
+          <Logo brand={brand} k={k} color={k.logoInk} />
+          <Field s={paper} label="Invoice" align="right" className="shrink-0">
+            <Bind path="number" value={c.number} />
+          </Field>
+        </div>
+        <div className="flex-1 flex gap-3 px-[7%] pt-[5%] pb-[5%]">
+          <div className="flex-1 min-w-0 flex flex-col gap-[8px]">
+            <Parties c={c} s={paper} stacked />
+            <Items c={c} s={paper} money={money} max={5} header={false} />
+            <Notes c={c} s={paper} className="mt-auto" />
+          </div>
+          <div className="w-[38%] shrink-0 p-[8px] flex flex-col gap-[4px]" style={{ background: tint.bg, color: tint.ink }}>
+            <Field s={tint} label="Issued">
+              <Bind path="issueDate" value={c.issueDate} />
+            </Field>
+            <Field s={tint} label="Due">
+              <Bind path="dueDate" value={c.dueDate} />
+            </Field>
+            <div style={{ height: 1, background: tint.line, margin: '3px 0' }} />
+            <Totals ctx={ctx} s={tint} align="left" size={15} />
+          </div>
+        </div>
+      </Page>
+    ),
+
+    // 16 — Mono Document. Rules and restraint; one accent line.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="text-center py-[4px]" style={{ borderTop: `2px solid ${paper.ink}`, borderBottom: `2px solid ${paper.ink}` }}>
+            <div style={{ ...MICRO, fontSize: 8, fontWeight: 700, color: paper.ink }}>
+              Invoice · <Bind path="number" value={c.number} />
             </div>
           </div>
-          <div className="text-center py-1 text-[2.5px] uppercase tracking-[0.22em] text-gray-400 border-t border-dashed border-gray-300">— thank you —</div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 8 — Index Card. N° style badge, editorial.
-    (
-      <InvoiceFrame>
-        <div className="absolute left-[6%] top-[6%]">
-          <div className="text-[18px] leading-none font-bold tabular-nums" style={{ color: p }}>N°<br/>014</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name} · Invoice</div>
-        </div>
-        <div className="absolute right-[6%] top-[6%] text-right text-[3px] uppercase tracking-[0.22em] text-gray-500">due · 27 / 04 / 2026</div>
-        <div className="absolute inset-x-[6%] top-[34%]">
-          {['Strategy Workshop', 'Identity System', 'Guidelines Doc', 'Asset Library'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[3px] border-b border-gray-100"><span className="font-serif italic">— {l}</span><span className="font-bold">${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[8%] text-right">
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">Total Due</div>
-          <div className="text-[14px] font-serif font-bold" style={{ color: p }}>$8,300</div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 9 — Color Wash Top. Pastel header with body clean below.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-0 top-0 h-[26%]" style={{ background: `linear-gradient(180deg, ${p}DD 0%, ${p}33 100%)` }} />
-        <div className="absolute inset-x-[6%] top-[6%] flex justify-between text-white items-start">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-right text-white">
-            <div className="text-[7px] font-bold">INVOICE</div>
-            <div className="text-[3px] uppercase tracking-[0.22em] mt-0.5 opacity-90">№ 0014</div>
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={5} />
+          <Notes c={c} s={paper} className="mt-auto" />
+          <div style={{ borderTop: `2px solid ${paper.ink}`, paddingTop: 4 }}>
+            <Totals ctx={ctx} s={paper} />
           </div>
         </div>
-        <div className="absolute inset-x-[6%] top-[32%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets', 'Workshop'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[2px] border-b border-gray-100"><span>{l}</span><span>${[2400, 3800, 1200, 900, 700][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-bold" style={{ color: p }}>Total · $9,000</div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 10 — Numbered Items. Big circled numbers next to items.
+    // 17 — Stamp Header. A round office stamp beside the identity.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <div className="text-[8px] font-bold text-gray-900">Invoice 0014</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">{brand.name} · 27 · 04 · 26</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[20%] space-y-2">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets', 'Workshop'].map((l, i) => (
-            <div key={i} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-[12px] h-[12px] rounded-full flex items-center justify-center text-[5px] font-bold" style={{ backgroundColor: p, color: '#fff' }}>{i+1}</div>
-                <span className="text-[3.5px] text-gray-800">{l}</span>
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="flex items-start justify-between gap-3">
+            <div
+              className="shrink-0 flex flex-col items-center justify-center text-center"
+              style={{ width: 54, height: 54, borderRadius: 999, border: `2px solid ${paper.accent}`, color: paper.accent }}
+            >
+              <div style={{ ...MICRO, color: paper.accent, fontSize: 5 }}>Invoice</div>
+              <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>
+                <Bind path="number" value={c.number} fit="shrink" />
               </div>
-              <span className="text-[3.5px] font-bold">${[2400, 3800, 1200, 900, 700][i]}</span>
-            </div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-bold" style={{ color: p }}>Total · $9,000</div>
-      </InvoiceFrame>
-    ),
-
-    // 11 — Architectural Grid. Faint grid backdrop, blueprint look.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-0 opacity-50" style={{ backgroundImage: `linear-gradient(${p}22 1px, transparent 1px), linear-gradient(90deg, ${p}22 1px, transparent 1px)`, backgroundSize: '12px 12px' }} />
-        <div className="absolute inset-x-[6%] top-[6%] flex justify-between items-start">
-          <div>
-            <div className="text-[7px] font-bold text-gray-900">INVOICE / 0014</div>
-            <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">{brand.name}</div>
-          </div>
-          <div className="text-right text-[3px] uppercase tracking-[0.22em]" style={{ color: p }}>SCALE 1:1</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[26%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[3px] border-b border-dashed border-gray-300"><span>{l}</span><span className="tabular-nums">${[2400, 3800, 1200, 900][i]}.00</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right">
-          <div className="text-[6px] font-bold tabular-nums" style={{ color: p }}>TOTAL · $8,300.00</div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 12 — Big Title Light. Massive thin display title.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[8%]">
-          <div className="text-[18px] font-serif font-light tracking-tight text-gray-900">invoice.</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name} · 27 / 04 / 2026 · № 0014</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[32%]">
-          {['Strategy Workshop', 'Identity System', 'Guidelines Document', 'Asset Library'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[3px] border-b border-gray-100"><span>{l}</span><span className="font-bold">${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right">
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">amount due</div>
-          <div className="text-[16px] font-serif font-light" style={{ color: p }}>$8,300</div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 13 — Brand Bordered. Thick brand-color border frame.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-[5%] border-[3px]" style={{ borderColor: p }} />
-        <div className="absolute inset-x-[10%] top-[10%] flex justify-between items-center">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[6px] font-bold" style={{ color: p }}>INVOICE 0014</div>
-        </div>
-        <div className="absolute inset-x-[10%] top-[24%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-1 border-b border-gray-200"><span>{l}</span><span>${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[10%] bottom-[12%] text-right text-[6px] font-bold" style={{ color: p }}>Total · $8,300</div>
-      </InvoiceFrame>
-    ),
-
-    // 14 — Thank You Card. Personal note style.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <div className="text-[10px] font-serif italic text-gray-900">Thank you,</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-1">— {brand.name} · Invoice 0014</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[24%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-1 border-b border-gray-100"><span>— {l}</span><span>${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute inset-x-[6%] bottom-[8%]">
-          <div className="text-[5px] font-serif italic" style={{ color: p }}>— with gratitude</div>
-          <div className="text-[6px] font-bold mt-1 text-gray-900">Total · $8,300</div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 15 — Side Totals. Items left, totals stacked right.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%] flex justify-between items-start">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 text-right">№ 0014 · 27.04.26</div>
-        </div>
-        <div className="absolute left-[6%] right-[36%] top-[20%]">
-          <div className="text-[5px] font-bold text-gray-900 mb-1">Items</div>
-          {['Strategy', 'Identity', 'Guidelines', 'Assets', 'Workshop'].map((l, i) => (
-            <div key={i} className="text-[3px] py-[2px] flex justify-between border-b border-gray-100"><span>{l}</span><span>${[2400, 3800, 1200, 900, 700][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] top-[20%] w-[26%] p-2" style={{ backgroundColor: `${p}15` }}>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">Subtotal</div>
-          <div className="text-[5px] font-bold">$9,000</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-1">Tax 5%</div>
-          <div className="text-[5px] font-bold">$450</div>
-          <div className="border-t mt-2 pt-1" style={{ borderColor: p }}>
-            <div className="text-[3px] uppercase tracking-[0.22em]" style={{ color: p }}>Total</div>
-            <div className="text-[8px] font-bold" style={{ color: p }}>$9,450</div>
-          </div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 16 — Mono Document. Black & white, restrained editorial.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[8%] border-y-2 border-black py-1 text-center">
-          <div className="text-[5px] uppercase tracking-[0.32em] font-bold">Invoice · 0014</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[20%]">
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mb-1">{brand.name} · 27 · 04 · 2026</div>
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[2px] border-b border-gray-200"><span>{l}</span><span>${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right border-t-2 border-black pt-1">
-          <div className="text-[6px] font-bold">Total · $8,300</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] mt-0.5" style={{ color: p }}>net 30</div>
-        </div>
-      </InvoiceFrame>
-    ),
-
-    // 17 — Stamp Header. Round stamp + serif title.
-    (
-      <InvoiceFrame>
-        <div className="absolute left-[6%] top-[6%] w-[20%] aspect-square rounded-full border-2 flex flex-col items-center justify-center text-[3px] uppercase tracking-[0.18em]" style={{ borderColor: p, color: p }}>
-          <div>Invoice</div>
-          <div className="font-bold text-[6px]">№ 014</div>
-          <div>27.04.26</div>
-        </div>
-        <div className="absolute right-[6%] top-[6%] text-right">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[34%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[3px] border-b border-gray-100"><span className="font-serif italic">{l}</span><span className="font-bold">${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-bold" style={{ color: p }}>Total · $8,300</div>
-      </InvoiceFrame>
-    ),
-
-    // 18 — Diagonal Header. Brand-color diagonal corner.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-0 top-0 h-[24%]" style={{ background: p, clipPath: 'polygon(0 0, 100% 0, 100% 60%, 0 100%)' }} />
-        <div className="absolute right-[6%] top-[6%] text-right text-white">
-          <div className="text-[7px] font-bold">INVOICE</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] mt-0.5 opacity-90">№ 0014</div>
-        </div>
-        <div className="absolute left-[6%] top-[6%]"><BrandLogo brand={brand} size="xs" color="#ffffff" /></div>
-        <div className="absolute inset-x-[6%] top-[30%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[2px] border-b border-gray-100"><span>{l}</span><span>${[2400, 3800, 1200, 900][i]}</span></div>
-          ))}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-bold" style={{ color: p }}>Total · $8,300</div>
-      </InvoiceFrame>
-    ),
-
-    // 19 — Itemized Cards. Each line item is a small card.
-    (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <div className="text-[7px] font-bold text-gray-900">Invoice 0014</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">{brand.name}</div>
-        </div>
-        <div className="absolute inset-x-[6%] top-[20%] space-y-1">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets'].map((l, i) => (
-            <div key={i} className="bg-[#FBF8EE] rounded p-1.5 flex justify-between items-center">
-              <div>
-                <div className="text-[4px] font-bold text-gray-900">{l}</div>
-                <div className="text-[2.5px] uppercase tracking-[0.22em] text-gray-500">qty 1</div>
+              <div style={{ fontSize: 5.5, lineHeight: 1.2 }}>
+                <Bind path="issueDate" value={c.issueDate} fit="shrink" />
               </div>
-              <span className="text-[5px] font-bold" style={{ color: p }}>${[2400, 3800, 1200, 900][i]}</span>
             </div>
-          ))}
+            <div className="text-right min-w-0">
+              <Logo brand={brand} k={k} color={k.logoInk} />
+              <Field s={paper} label="Due" align="right" className="mt-[6px]">
+                <Bind path="dueDate" value={c.dueDate} />
+              </Field>
+            </div>
+          </div>
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
         </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right text-[6px] font-bold" style={{ color: p }}>Total · $8,300</div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 20 — Centered Total. Total dominates center, items in margin.
+    // 18 — Diagonal Header. The brand cut across the top corner.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%] text-center">
-          <div className="text-[3px] uppercase tracking-[0.32em] text-gray-500">{brand.name} · invoice 0014</div>
+      <Page s={paper} k={k}>
+        <div
+          className="px-[7%] pt-[6%] pb-[9%] flex items-start justify-between gap-2"
+          style={{ background: band.bg, color: band.ink, clipPath: 'polygon(0 0, 100% 0, 100% 66%, 0 100%)' }}
+        >
+          <Logo brand={brand} k={k} color={band.ink} />
+          <div className="text-right">
+            <Title k={k} color={band.ink} size={15}>Invoice</Title>
+            <Micro color={band.ink} style={{ marginTop: 2 }}>
+              № <Bind path="number" value={c.number} />
+            </Micro>
+          </div>
         </div>
-        <div className="absolute inset-x-[6%] top-[18%] grid grid-cols-2 gap-2 text-[3px] text-gray-700">
-          {['Strategy · $2,400', 'Identity · $3,800', 'Guidelines · $1,200', 'Assets · $900'].map((s, i) => (
-            <div key={i} className="border-b border-gray-100 py-1">{s}</div>
-          ))}
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] pt-[3%] pb-[5%]">
+          <RefRow c={c} s={paper} />
+          <Parties c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={4} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
         </div>
-        <div className="absolute inset-x-0 top-[55%] text-center">
-          <div className="text-[3px] uppercase tracking-[0.32em] text-gray-500">total amount due</div>
-          <div className="text-[24px] font-serif font-black mt-1" style={{ color: p }}>$8,300</div>
-        </div>
-        <div className="absolute inset-x-[6%] bottom-[8%] text-center text-[3px] uppercase tracking-[0.22em] text-gray-500">payable in 30 days · {brand.name.toLowerCase()}.com</div>
-      </InvoiceFrame>
+      </Page>
     ),
 
-    // 21 — Calligraphic Header. Hand-script "Invoice" big.
+    // 19 — Itemised Cards. Every line its own tile.
     (
-      <InvoiceFrame>
-        <div className="absolute inset-x-[6%] top-[6%]">
-          <div className="text-[20px] italic font-serif" style={{ color: p, fontFamily: 'Caveat, cursive' }}>Invoice</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] text-gray-500">{brand.name} · № 0014 · 27 · 04 · 26</div>
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[8px] px-[7%] py-[6%]">
+          <div className="flex items-start justify-between gap-2">
+            <Title k={k} color={paper.ink} size={13}>
+              Invoice <Bind path="number" value={c.number} fit="shrink" />
+            </Title>
+            <Logo brand={brand} k={k} color={k.logoInk} size="xs" />
+          </div>
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <div className="flex flex-col gap-[4px]">
+            {c.lineItems.slice(0, 4).map((item, i) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-2 px-[6px] py-[4px]"
+                style={{ background: tint.bg, color: tint.ink, borderRadius: 4 }}
+              >
+                <div className="min-w-0">
+                  <div className="truncate" style={{ fontSize: BODY_PX, lineHeight: 1.4, fontWeight: 600 }}>
+                    <Bind path={`lineItems.${i}.label`} value={item.label} />
+                  </div>
+                  <Micro color={tint.quiet}>
+                    <Bind path={`lineItems.${i}.qty`} value={String(item.qty)} /> ×{' '}
+                    <Bind path={`lineItems.${i}.unitPrice`} value={money(item.unitPrice)} />
+                  </Micro>
+                </div>
+                <span className="shrink-0" style={{ fontSize: 10, fontWeight: 700, color: tint.accent }}>
+                  {money(lineItemTotal(item))}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
         </div>
-        <div className="absolute inset-x-[6%] top-[26%]">
-          {['Strategy', 'Identity', 'Guidelines', 'Assets', 'Workshop'].map((l, i) => (
-            <div key={i} className="flex justify-between text-[3px] py-[2px] border-b border-gray-100"><span className="font-serif italic">{l}</span><span className="font-bold">${[2400, 3800, 1200, 900, 700][i]}</span></div>
-          ))}
+      </Page>
+    ),
+
+    // 20 — Centred Total. The amount due is the page.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]">
+          <div className="text-center">
+            <Micro color={paper.quiet}>
+              <Bind path="issuerName" value={c.issuerName} /> · Invoice{' '}
+              <Bind path="number" value={c.number} />
+            </Micro>
+          </div>
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <div className="text-center">
+            <Micro color={paper.quiet}>Total amount due</Micro>
+            <div
+              style={{
+                fontFamily: k.head,
+                fontSize: 34,
+                lineHeight: 1.1,
+                fontWeight: 800,
+                color: onGround(paper.accent, paper.bg, true),
+                marginTop: 2,
+              }}
+            >
+              {money(t.total)}
+            </div>
+          </div>
+          <Items c={c} s={paper} money={money} max={4} header={false} />
+          <Notes c={c} s={paper} align="center" className="mt-auto" />
         </div>
-        <div className="absolute right-[6%] bottom-[10%] text-right">
-          <div className="text-[6px] font-bold" style={{ color: p }}>Total · $9,000</div>
-          <div className="text-[3px] uppercase tracking-[0.22em] mt-0.5 italic text-gray-500">— with care</div>
+      </Page>
+    ),
+
+    // 21 — Ledger Lines. Ruled book-keeping paper, figures aligned.
+    (
+      <Page s={paper} k={k}>
+        <div className="flex-1 flex flex-col gap-[9px] px-[7%] py-[6%]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <div className="flex items-end justify-between gap-2" style={{ borderBottom: `2px solid ${paper.accent}`, paddingBottom: 3 }}>
+            <Title k={k} color={paper.ink} size={17} weight={400} style={{ fontStyle: 'italic' }}>
+              Invoice
+            </Title>
+            <Micro color={paper.quiet}>
+              № <Bind path="number" value={c.number} />
+            </Micro>
+          </div>
+          <Parties c={c} s={paper} />
+          <RefRow c={c} s={paper} />
+          <Items c={c} s={paper} money={money} max={5} />
+          <div className="mt-auto flex items-end justify-between gap-3">
+            <Notes c={c} s={paper} className="flex-1 min-w-0" />
+            <Totals ctx={ctx} s={paper} />
+          </div>
         </div>
-      </InvoiceFrame>
+      </Page>
     ),
   ];
 
   return designs[templateIndex] ?? designs[0];
 }
 
+/**
+ * The 22 wave-1 invoice designs.
+ *
+ * The array's LENGTH and ORDER are a persistence contract: `invoices-ext-N`
+ * resolves to `designs[N - 1]`, so an entry is never removed and never
+ * reordered. Two of them (`ext-18`, `ext-22`) are culled in
+ * `renderers/curation/invoices.ts` — archiving is how a design stops being
+ * offered, because it leaves the id valid for anything already saved
+ * against it. Human names and filter tags live there too.
+ */
 export const INVOICES_EXTENDED = [
   { idSuffix: 'ext-1', name: 'Classic Pro', category: 'Modern' },
   { idSuffix: 'ext-2', name: 'Side Stripe', category: 'Modern' },
   { idSuffix: 'ext-3', name: 'Editorial Header', category: 'Editorial' },
   { idSuffix: 'ext-4', name: 'Brute Force', category: 'Bold' },
-  { idSuffix: 'ext-5', name: 'Stamped Paid', category: 'Vintage' },
-  { idSuffix: 'ext-6', name: 'Two-Color Bands', category: 'Modern' },
+  { idSuffix: 'ext-5', name: 'Stamped Due', category: 'Vintage' },
+  { idSuffix: 'ext-6', name: 'Two-Colour Bands', category: 'Modern' },
   { idSuffix: 'ext-7', name: 'Bottom Heavy', category: 'Bold' },
   { idSuffix: 'ext-8', name: 'Receipt Roll', category: 'Vintage' },
   { idSuffix: 'ext-9', name: 'Index Card', category: 'Editorial' },
-  { idSuffix: 'ext-10', name: 'Color Wash', category: 'Modern' },
+  { idSuffix: 'ext-10', name: 'Colour Wash', category: 'Modern' },
   { idSuffix: 'ext-11', name: 'Numbered Items', category: 'Modern' },
   { idSuffix: 'ext-12', name: 'Architectural', category: 'Modern' },
   { idSuffix: 'ext-13', name: 'Big Title Light', category: 'Editorial' },
@@ -618,7 +1222,7 @@ export const INVOICES_EXTENDED = [
   { idSuffix: 'ext-17', name: 'Mono Document', category: 'Minimalist' },
   { idSuffix: 'ext-18', name: 'Stamp Header', category: 'Vintage' },
   { idSuffix: 'ext-19', name: 'Diagonal Header', category: 'Bold' },
-  { idSuffix: 'ext-20', name: 'Itemized Cards', category: 'Modern' },
-  { idSuffix: 'ext-21', name: 'Centered Total', category: 'Editorial' },
-  { idSuffix: 'ext-22', name: 'Calligraphic', category: 'Vintage' },
+  { idSuffix: 'ext-20', name: 'Itemised Cards', category: 'Modern' },
+  { idSuffix: 'ext-21', name: 'Centred Total', category: 'Editorial' },
+  { idSuffix: 'ext-22', name: 'Ledger Lines', category: 'Vintage' },
 ] as const;

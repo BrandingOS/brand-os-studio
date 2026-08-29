@@ -18,7 +18,7 @@
 import type { Brand } from '@/shared/types/brand';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { STRATEGY_CARDS, contentOf } from '@/features/setup/data/strategyCards';
-import { buildBrandPalette, pickSurfaceTokens } from '@/shared/brand/brandPalette';
+import { buildBrandPalette, pickSurfaceTokens, type BrandPalette } from '@/shared/brand/brandPalette';
 import { pickLogoOnBackground, pickFgOnBackground, contrastRatio } from '@/shared/brand/logoOnBackground';
 import { rasterizeLogo } from '@/shared/brand/rasterizeLogo';
 import { gatherFamilyFiles } from './fontExport';
@@ -50,15 +50,59 @@ export function buildStrategyMarkdown(brand: MockBrand): string {
   return lines.join('\n');
 }
 
+/**
+ * The same strategy, as data.
+ *
+ * `strategy.md` is for a person and `strategy.pdf` is for sending; this is
+ * for a machine — a repo, a CMS seed, an LLM given the brand as context.
+ * It carries the vocabulary IDS as stored AND the label a person reads,
+ * because a consumer that only got `"b2b-saas"` would have to own a copy
+ * of our vocabulary to render it, and a consumer that only got the label
+ * could never write it back.
+ */
+export function buildStrategyJson(brand: MockBrand): string {
+  const answers = STRATEGY_CARDS.map((card) => ({
+    key: card.key,
+    label: card.name,
+    /** Raw as stored: a vocabulary id, a list of them, or the user's prose. */
+    value: brand.strategy ? brand.strategy[card.key] ?? '' : '',
+    /** The same answer as a person reads it. Empty means unanswered. */
+    text: brand.strategy ? contentOf(card, brand.strategy) : '',
+  }));
+  return JSON.stringify(
+    {
+      name: brand.name,
+      strategy: answers,
+      notes: (brand.about ?? [])
+        .filter((s) => s.content.trim())
+        .map((s) => ({ title: s.title, content: s.content.trim() })),
+      voice: {
+        essay: brand.voice?.essay?.trim() ?? '',
+        pillars: brand.voice?.pillars ?? [],
+      },
+    },
+    null,
+    2,
+  );
+}
+
 /* ─── PDF ─────────────────────────────────────────────────────────── */
 
-const A4 = { w: 595.28, h: 841.89 };
-const MARGIN = 56;
+/**
+ * A4 in points, and the margin every page in the kit's documents keeps.
+ *
+ * Exported because the brand book (`brandBook.ts`) is the same document
+ * family — same paper, same margin, same cover — and two modules that
+ * disagree about the page size produce two documents that cannot be
+ * bound together.
+ */
+export const A4 = { w: 595.28, h: 841.89 };
+export const MARGIN = 56;
 
-type Ink = { heading: string; body: string; muted: string; rule: string };
+export type Ink = { heading: string; body: string; muted: string; rule: string };
 
 /** jsPDF wants `[r,g,b]`; the brand speaks hex. */
-function rgb(hex: string): [number, number, number] {
+export function rgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
   const n = parseInt(full.slice(0, 6) || '000000', 16);
@@ -85,7 +129,7 @@ function bytesToBase64(bytes: Uint8Array): string {
  *
  * Parses the table directory only — 12 bytes of header, 16 per record.
  */
-function isVariableFont(bytes: Uint8Array): boolean {
+export function isVariableFont(bytes: Uint8Array): boolean {
   try {
     if (bytes.length < 12) return false;
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -129,12 +173,14 @@ function pickWeight<T extends { baseName: string }>(files: T[], want: 'regular' 
  * Falls back to Helvetica without complaint — a strategy PDF in the wrong
  * typeface is worth having; no PDF at all is not.
  */
-async function embedBrandFonts(
+export type BrandFontNames = { heading: string; body: string };
+
+export async function embedBrandFonts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdf: any,
   brand: MockBrand,
   signal?: AbortSignal,
-): Promise<{ heading: string; body: string }> {
+): Promise<BrandFontNames> {
   const fallback = { heading: 'helvetica', body: 'helvetica' };
   const families = (brand.fonts ?? []).slice(0, 2);
   if (families.length === 0) return fallback;
@@ -171,7 +217,7 @@ async function embedBrandFonts(
 }
 
 /** The logo, as PNG bytes that read on the given ground. */
-async function logoForGround(
+export async function logoForGround(
   sourceBrand: Brand | undefined,
   ground: string,
 ): Promise<string | null> {
@@ -185,42 +231,35 @@ async function logoForGround(
   }
 }
 
-export type StrategyPdfOptions = { signal?: AbortSignal };
-
 /**
- * A designed brand-strategy document.
+ * The cover every kit document shares.
  *
- * Cover on the brand's own colour, a palette page with real hex codes, a
- * typography specimen, then the eleven answers as a reading document. The
- * text is VECTOR, not a screenshot of a web page: it selects, searches,
- * prints and survives being zoomed, which is most of what makes a PDF
- * worth having over a PNG.
+ * A brand-coloured field, the mark that reads on it, the slogan, and a
+ * band of the brand's own colours along the foot — the cover says what
+ * the document is about before a word of it is read. It is shared rather
+ * than copied because the strategy PDF and the brand book are the same
+ * document family; two covers that drift apart read as two products.
  *
  * Every colour decision goes through `brandPalette` / `logoOnBackground`
  * rather than reaching for `primaryColor` — this is exactly the case
  * those modules exist for, a mark on a brand-coloured ground.
  */
-export async function buildStrategyPdf(
-  brand: MockBrand,
-  sourceBrand?: Brand,
-  opts: StrategyPdfOptions = {},
-): Promise<Blob> {
-  const { default: jsPDF } = await import('jspdf');
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-  const fonts = await embedBrandFonts(pdf, brand, opts.signal);
-
-  const palette = buildBrandPalette(sourceBrand, 'light');
-  const page = pickSurfaceTokens(palette, 'page');
-  const ink: Ink = {
-    heading: page.text,
-    body: page.text,
-    muted: page.textMuted,
-    rule: page.border,
-  };
+export async function paintCover(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pdf: any,
+  opts: {
+    brand: MockBrand;
+    sourceBrand?: Brand;
+    fonts: BrandFontNames;
+    palette: BrandPalette;
+    /** The line along the foot. What this document IS. */
+    kicker: string;
+  },
+): Promise<void> {
+  const { brand, sourceBrand, fonts, palette, kicker } = opts;
   const coverGround = palette.brand.primary || brand.colors.core[0]?.hex || '#111113';
   const coverInk = pickFgOnBackground(coverGround, ['#FFFFFF', '#111113']);
 
-  /* ── Cover ──────────────────────────────────────────────────────── */
   pdf.setFillColor(...rgb(coverGround));
   pdf.rect(0, 0, A4.w, A4.h, 'F');
 
@@ -255,8 +294,6 @@ export async function buildStrategyPdf(
     pdf.text(slogan, A4.w / 2, cursor, { align: 'center', maxWidth: A4.w - MARGIN * 2 });
   }
 
-  // A band of the brand's own colours along the foot — the cover says what
-  // the document is about before a word of it is read.
   const band = [...(brand.colors.core ?? []), ...(brand.colors.accent ?? [])]
     .map((c) => c.hex)
     .filter(Boolean)
@@ -277,7 +314,48 @@ export async function buildStrategyPdf(
   pdf.setTextColor(...rgb(coverInk));
   pdf.setFont(fonts.body, 'normal');
   pdf.setFontSize(9);
-  pdf.text('BRAND STRATEGY', A4.w / 2, A4.h - MARGIN, { align: 'center', charSpace: 2 });
+  pdf.text(kicker, A4.w / 2, A4.h - MARGIN, { align: 'center', charSpace: 2 });
+}
+
+export type StrategyPdfOptions = { signal?: AbortSignal };
+
+/**
+ * A designed brand-strategy document.
+ *
+ * Cover on the brand's own colour, a palette page with real hex codes, a
+ * typography specimen, then the eleven answers as a reading document. The
+ * text is VECTOR, not a screenshot of a web page: it selects, searches,
+ * prints and survives being zoomed, which is most of what makes a PDF
+ * worth having over a PNG.
+ *
+ * Every colour decision goes through `brandPalette` / `logoOnBackground`
+ * rather than reaching for `primaryColor` — this is exactly the case
+ * those modules exist for, a mark on a brand-coloured ground.
+ */
+export async function buildStrategyPdf(
+  brand: MockBrand,
+  sourceBrand?: Brand,
+  opts: StrategyPdfOptions = {},
+): Promise<Blob> {
+  const { default: jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const fonts = await embedBrandFonts(pdf, brand, opts.signal);
+
+  const palette = buildBrandPalette(sourceBrand, 'light');
+  const page = pickSurfaceTokens(palette, 'page');
+  const ink: Ink = {
+    heading: page.text,
+    body: page.text,
+    muted: page.textMuted,
+    rule: page.border,
+  };
+  await paintCover(pdf, {
+    brand,
+    sourceBrand,
+    fonts,
+    palette,
+    kicker: 'BRAND STRATEGY',
+  });
 
   /* ── The answers ────────────────────────────────────────────────── */
   pdf.addPage();

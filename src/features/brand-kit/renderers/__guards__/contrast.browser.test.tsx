@@ -37,7 +37,9 @@ import { assertReadable, formatViolations, measureContrast } from './contrast';
  * The Business Card agent fixes it by asking `brandStyle.surface(...)` for
  * the panel's own `textMuted` instead of reaching for the brand colour.
  */
-const BUSINESS_CARD_VIOLATION_BUDGET = 1;
+// 2026-08-29: the Business Card conversion fixed the one violation (the
+// job title in brand violet on the dark panel). Zero is the bar now.
+const BUSINESS_CARD_VIOLATION_BUDGET = 0;
 
 const brand = SEED_BRANDS[0]!;
 

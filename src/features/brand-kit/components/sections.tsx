@@ -11,8 +11,10 @@ import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
 import { getEntryFor, type KitEntry } from '../catalog/catalog';
 import { downloadOptionsFor } from '../data/exportFormats';
+import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
 import { DeliverableCard } from './DeliverableCard';
+import { CardCover } from './CardCover';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -215,10 +217,6 @@ export function coversFor(sectionKey: KitSectionKey, label: string): string[] {
   return [override, ...pooled.slice(1)];
 }
 
-function coverFor(sectionKey: KitSectionKey, label: string): string {
-  return coversFor(sectionKey, label)[0];
-}
-
 function EditIcon() {
   return (
     <svg
@@ -323,25 +321,42 @@ type CardProps = {
   onEditAction?: (item: GridItem) => void;
   onDownload?: (item: GridItem, choice: DownloadChoice) => void;
   onOpenMenu: (e: React.MouseEvent, item: GridItem) => void;
+  /** Everything the cover needs to paint the brand's own artwork. */
+  cover: React.ReactNode;
 };
 
-function BrandKitCard({ item, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
+function BrandKitCard({
+  item,
+  onEdit,
+  onEditAction,
+  onDownload,
+  onOpenMenu,
+  cover,
+}: CardProps) {
   // The ⬇ button opens the shared Download menu rather than firing a
   // download: For web · For print · Vector · Flattened · Custom size, the
   // same five words on every surface of the kit.
   const [menuOpen, setMenuOpen] = useState(false);
   const entry = getEntryFor(item.sectionKey, item.storageLabel);
   return (
+    // A card is a control, so it says so and can be reached with Tab. It is
+    // NOT a <button>: it contains buttons (edit · download), and a button
+    // inside a button is not a button.
     <figure
       className="bk-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${item.displayLabel}`}
       onContextMenu={(e) => onOpenMenu(e, item)}
       onClick={(e) => onEdit(item, rectCenter(e.currentTarget as HTMLElement))}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        onEdit(item, rectCenter(e.currentTarget as HTMLElement));
+      }}
     >
       <div className="bk-card-cover">
-        <div
-          className="bk-card-cover-image"
-          style={{ backgroundImage: `url(${coverFor(item.sectionKey, item.storageLabel)})` }}
-        />
+        {cover}
         <div className="bk-card-actions">
           <button
             type="button"
@@ -420,6 +435,15 @@ type CardGridProps = {
   /** MockBrand from the page — required for brand-assets cards so
    *  variantsForCard can emit one template per real asset. */
   brand?: MockBrand;
+  /** Canonical brand — what lets a cover paint the REAL renderer rather
+   *  than the brand's identity mark. Absent (the standalone Setup mock,
+   *  a test) every cover falls back to the identity composition. */
+  sourceBrand?: Brand;
+  /** The user's own featured picks, so a card's face is the variant they
+   *  chose rather than the library's first. */
+  featuredIdsByLabel?: Record<string, string[]>;
+  /** The user's saved Quick Edits, so a cover says what they wrote. */
+  savedContent?: Record<string, SavedCardCustomization>;
   kit?: KitGridProps;
 };
 
@@ -437,6 +461,9 @@ export function CardGrid({
   onEditCard,
   onDownloadCard,
   brand,
+  sourceBrand,
+  featuredIdsByLabel,
+  savedContent,
   kit,
 }: CardGridProps) {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
@@ -537,6 +564,19 @@ export function CardGrid({
                 onDownloadCard ? (it, choice) => onDownloadCard(targetFor(it), choice) : undefined
               }
               onOpenMenu={openMenu}
+              cover={
+                brand ? (
+                  <CardCover
+                    sectionKey={item.sectionKey}
+                    storageLabel={item.storageLabel}
+                    brand={brand}
+                    sourceBrand={sourceBrand}
+                    templates={variantsForCard(item.sectionKey, item.storageLabel, brand)}
+                    featuredIdsByLabel={featuredIdsByLabel}
+                    saved={savedContent}
+                  />
+                ) : null
+              }
             />
           );
         })}

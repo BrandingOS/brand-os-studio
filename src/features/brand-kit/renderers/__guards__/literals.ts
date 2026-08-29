@@ -69,6 +69,18 @@ export const BANNED_STRINGS = [
  * `brandStyle.fontStack`. `fontFamily: 'Caveat, cursive'` is another
  * brand's typeface, welded into ours.
  */
+
+/**
+ * Comments are not artwork. A renderer's doc comment that says "this used
+ * to print Jane Smith" is the record of the fix, not a regression — so the
+ * scan reads the code with block and line comments removed.
+ */
+export function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
+}
+
 const HARDCODED_FONT_FAMILY = /fontFamily:\s*['"`]/g;
 
 /**
@@ -118,7 +130,7 @@ export function rendererFiles(): string[] {
 
 /** Scan one file. `total` is 0 for a clean one. */
 export function scanFile(file: string): FileScan {
-  const source = readFileSync(join(ROOT, file), 'utf8');
+  const source = stripComments(readFileSync(join(ROOT, file), 'utf8'));
   const hits: LiteralHit[] = [];
   for (const banned of BANNED_STRINGS) {
     const count = countOccurrences(source, banned);
@@ -167,20 +179,14 @@ export const KNOWN_DIRTY_FILES: ReadonlySet<string> = new Set([
   'src/features/brand-kit/renderers/BrandGuidesExtended.tsx',
   'src/features/brand-kit/renderers/BusinessCardsExtended.tsx',
   'src/features/brand-kit/renderers/BusinessCardsExtended2.tsx',
-  'src/features/brand-kit/renderers/EnvelopeExtended.tsx',
-  'src/features/brand-kit/renderers/EnvelopeExtended2.tsx',
   'src/features/brand-kit/renderers/InvoicesExtended.tsx',
   'src/features/brand-kit/renderers/InvoicesExtended2.tsx',
-  'src/features/brand-kit/renderers/LetterheadExtended.tsx',
-  'src/features/brand-kit/renderers/LetterheadExtended2.tsx',
   'src/features/brand-kit/renderers/MockupBillboardExtended.tsx',
   'src/features/brand-kit/renderers/MockupMugExtended.tsx',
   'src/features/brand-kit/renderers/MockupStickerExtended.tsx',
   'src/features/brand-kit/renderers/MockupTShirtExtended.tsx',
   'src/features/brand-kit/renderers/MockupToteExtended.tsx',
   'src/features/brand-kit/renderers/MockupsExtended.tsx',
-  'src/features/brand-kit/renderers/NotecardExtended.tsx',
-  'src/features/brand-kit/renderers/NotecardExtended2.tsx',
   'src/features/brand-kit/renderers/PresentationsExtended.tsx',
   'src/features/brand-kit/renderers/QrCodeExtended.tsx',
   'src/features/brand-kit/renderers/SocialCoverExtended.tsx',
@@ -188,7 +194,6 @@ export const KNOWN_DIRTY_FILES: ReadonlySet<string> = new Set([
   'src/features/brand-kit/renderers/SocialProfileExtended.tsx',
   'src/features/brand-kit/renderers/SocialProfileExtended2.tsx',
   'src/features/brand-kit/renderers/SocialStoryExtended.tsx',
-  'src/features/brand-kit/renderers/WebEmailSignatureExtended.tsx',
   'src/features/brand-kit/renderers/WebFaviconExtended.tsx',
   'src/features/brand-kit/renderers/WebLandingPageExtended.tsx',
   'src/features/brand-kit/renderers/WebWebsiteExtended.tsx',

@@ -139,6 +139,17 @@ function describe(el: Element): string {
 /* ── The sweep ────────────────────────────────────────────────────── */
 
 /** Measure every readable text node under `container`. */
+/**
+ * A run of separator punctuation is a divider, not reading text.
+ *
+ * Email signatures draw " · " between phone and website in a light grey
+ * on purpose; a divider at 1.5:1 is a divider doing its job. Letters and
+ * digits are what must clear the floor.
+ */
+export function isDecorativeText(text: string): boolean {
+  return /^[\s·•|—–\-_/\\*~.,:;]+$/.test(text);
+}
+
 export function measureContrast(container: HTMLElement): ContrastReport {
   const report: ContrastReport = {
     violations: [],
@@ -150,7 +161,7 @@ export function measureContrast(container: HTMLElement): ContrastReport {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const text = (node.textContent ?? '').trim();
-    if (!text) continue;
+    if (!text || isDecorativeText(text)) continue;
     const el = node.parentElement;
     if (!el) continue;
     if (isInvisible(el)) {

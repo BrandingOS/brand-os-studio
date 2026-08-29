@@ -82,6 +82,7 @@ describe('Brand Kit — one continuous workspace', () => {
     expect(groupLabels).toEqual([
       'Brand Assets',
       'Brand Applications',
+      'Mockups',
       'Social Media',
       'Presentations',
     ]);

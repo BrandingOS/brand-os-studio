@@ -1,599 +1,1058 @@
+import type { CSSProperties, ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 import { Bind } from '@/features/brandkit/content/Bind';
 import { defaultLetterContent, type LetterContent } from '@/features/brandkit/content/kinds';
+import type { TemplateDesignPicks } from '@/features/brandkit/content/schema';
+import {
+  brandColors,
+  contrastOf,
+  fgOn,
+  fontStack,
+  normalizeHex,
+  surface,
+} from './brandStyle';
 
 /**
- * Letterhead designs — distinct from business cards. Shows a
- * portrait page (A4-ish) centered inside the cosmos landscape tile,
- * with an editorial header / body / footer rhythm. Brand color
- * accents the header band, dividers, or footer signature.
+ * Letterhead — twenty letters, not a hundred and thirty pages.
  *
- * 10 designs in this first batch. We'll extend up to 30 in
- * subsequent passes, mirroring the business-cards approach.
+ * What this family used to be: 130 variants of an A4 page floating at 46%
+ * width inside a beige tile, whose "body" was a stack of grey rules, whose
+ * sender was "Jane Smith · Vice President", whose memo header said
+ * "RE · Quarterly Brief / DATE 27 · 04 · 2026", and two of whose designs
+ * (wave 1 · 11, wave 2 · 39) rendered a page with nothing on it at all.
+ * Of the eight fields a letter has, 128 of the 130 bound exactly one.
  *
- *   0 Header Bar         5 Bottom Block
- *   1 Side Stripe        6 Centered Mark
- *   2 Editorial Index    7 Diagonal Header
- *   3 Minimalist Rule    8 Watermark
- *   4 Stamped Memo       9 Two-Column Modern
+ * What it is now: twenty designs, each of which is a REAL LETTER. Every one
+ * of them carries all eight fields of the `letter` content kind —
+ *
+ *     senderName · senderAddress · website · phone
+ *     date · recipient · subject · body
+ *
+ * — through `<Bind>`, so every one of them repaints when a field is edited
+ * and ships the customer's own words in an export. The body is set as type,
+ * always: a letterhead whose letter is a row of grey bars is a picture of a
+ * document rather than a document.
+ *
+ * ## The three rules the rewrite is built on
+ *
+ * 1. **The page IS the tile.** `PICKER_ASPECT_BY_LABEL.Letterhead` and
+ *    `aspectForType('letterhead')` both say 1 : 1.414, so the frame this
+ *    renderer is handed is already A4 portrait. Drawing a second, smaller
+ *    page inside it — which is what `PageFrame` did — is what produced a
+ *    140px sheet adrift in a beige field, and a 1040×3600 letterboxed PNG.
+ *    Every design here fills its box edge to edge.
+ *
+ * 2. **Nothing is hand-paired.** Grounds come from `surface(brand, kind)`,
+ *    ink from `fgOn` or from the surface's own tokens, type from
+ *    `fontStack`. `readable()` below is the one extra guard: a token that
+ *    does not clear WCAG AA on the ground it lands on is replaced by one
+ *    that does, so the family is contrast-clean for ANY brand rather than
+ *    for the two we happened to look at.
+ *
+ * 3. **Variety is chrome, not content.** All twenty share one letter core
+ *    (date · recipient · subject · body) and one contact vocabulary; what
+ *    differs is the masthead, the field the brand colour occupies, and the
+ *    footer. That is also what a real stationery system looks like.
+ *
+ * Ids `letterhead-ext-1` … `letterhead-ext-20` are the kept designs.
+ * `ext-21` … `ext-30` here, and all 100 of wave 2, are archived in
+ * `renderers/curation/letterhead.ts` — the ids stay reserved so a saved
+ * customization keyed to one is never orphaned.
  */
 interface Props {
   brand: Brand;
   templateIndex: number;
-  /** Structured letter content. Absent → the brand-derived defaults. */
-  content?: LetterContent;
+  /**
+   * Structured letter content. Absent → the brand-derived defaults.
+   *
+   * `picks` rides on the same saved object (see `kinds.ts` — content and
+   * picks are one artifact), so it is read here rather than being a second
+   * prop that could arrive without its content.
+   */
+  content?: LetterContent & { picks?: TemplateDesignPicks };
 }
 
-function PageFrame({ children }: { children: React.ReactNode }) {
-  // Page-shaped white sheet centered in a soft beige background
-  // so each letterhead reads as a printed document, not a card.
-  return (
-    <div className="w-full h-full bg-[#E8E4D8] flex items-center justify-center p-[3%]">
-      <div
-        className="bg-white shadow-lg relative overflow-hidden"
-        style={{ width: '46%', aspectRatio: '8.5 / 11' }}
-      >
-        {children}
-      </div>
-    </div>
-  );
+/* ── Reading the picks ────────────────────────────────────────────── */
+
+/**
+ * The brand this design should actually paint with.
+ *
+ * A colour pick has to reach `surface()` and `logoOn()`, not just the two
+ * places a renderer happens to spell `brand.primaryColor` — otherwise a
+ * recoloured letterhead keeps its old header band and only its accent rule
+ * moves. So the pick is applied to the BRAND and every derived surface
+ * follows from it.
+ */
+function withPicks(brand: Brand, picks?: TemplateDesignPicks): Brand {
+  const primary = normalizeHex(picks?.primaryColor);
+  const secondary = normalizeHex(picks?.secondaryColor);
+  if (!primary && !secondary) return brand;
+  const cs = brand.colorSystem;
+  return {
+    ...brand,
+    primaryColor: primary ?? brand.primaryColor,
+    secondaryColor: secondary ?? brand.secondaryColor,
+    colorSystem: {
+      ...cs,
+      ...(primary ? { primary: { ...(cs?.primary ?? {}), hex: primary } } : {}),
+      ...(secondary ? { secondary: { ...(cs?.secondary ?? {}), hex: secondary } } : {}),
+    },
+  } as Brand;
 }
 
-function bodyLines(rows: number, color = '#D4D2CB', startW = 85) {
-  return Array.from({ length: rows }).map((_, i) => (
-    <div
-      key={i}
-      className="rounded-sm"
-      style={{
-        height: '2px',
-        background: color,
-        width: `${startW - (i % 4) * 8}%`,
-      }}
-    />
-  ));
+/* ── Ink that is guaranteed to read ───────────────────────────────── */
+
+/** WCAG AA. Large is ≥ 24px at the size the design is finally shown. */
+const AA_NORMAL = 4.5;
+
+/**
+ * `preferred` if it clears AA on `bg`, otherwise `fallback`.
+ *
+ * The palette guarantees `text` on every surface; it does NOT guarantee
+ * `textMuted`, and on the 'brand' surface `textMuted` is a 35% mix toward
+ * the brand colour, which fails outright for a mid-tone brand. Rather than
+ * avoid muted ink — a letter needs a quiet register for its date and its
+ * footer — the muted token is offered and checked, and the strong one is
+ * used when it does not hold up.
+ */
+function readable(preferred: string | undefined, bg: string, fallback: string): string {
+  const hex = normalizeHex(preferred);
+  if (hex && contrastOf(hex, bg) >= AA_NORMAL) return hex;
+  return fallback;
 }
 
 export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Props) {
-  const p = brand.primaryColor;
   const c = content ?? defaultLetterContent(brand);
+  const picks = content?.picks;
+  const b = withPicks(brand, picks);
+  const showLogo = picks?.showLogo !== false;
+
+  const colors = brandColors(b);
+  const sheetT = surface(b, 'card');
+  const bandT = surface(b, 'brand');
+  const band2T = surface(b, 'brand-secondary');
+  const darkT = surface(b, 'inverted');
+  const tintT = surface(b, 'subtle');
+
+  const headingFont = fontStack(b, 'heading');
+  const bodyFont = fontStack(b, 'body');
+  const monoFont = fontStack(b, 'mono');
+
+  /* The paper, and the three inks that read on it. */
+  const paper = sheetT.bg;
+  const ink = sheetT.text;
+  const inkQuiet = readable(sheetT.textMuted, paper, ink);
+  const inkBrand = readable(colors.primary, paper, ink);
+  const rule = sheetT.border;
+
+  /* A band of the brand's own colour, and the inks that read on THAT. */
+  const bandBg = bandT.bg;
+  const bandInk = fgOn(bandBg);
+  const bandQuiet = readable(bandT.textMuted, bandBg, bandInk);
+
+  /* The secondary band, for the designs that need a second temperature. */
+  const band2Bg = band2T.bg;
+  const band2Ink = fgOn(band2Bg);
+
+  /* A near-black (brand-tinted) page, for the one reversed-out design. */
+  const darkBg = darkT.bg;
+  const darkInk = fgOn(darkBg);
+  const darkQuiet = readable(darkT.textMuted, darkBg, darkInk);
+  const darkBrand = readable(colors.primary, darkBg, darkInk);
+
+  /* A pale brand-tinted panel, for rails and header wells. */
+  const tintBg = tintT.bg;
+  const tintInk = readable(tintT.text, tintBg, fgOn(tintBg));
+  const tintQuiet = readable(tintT.textMuted, tintBg, tintInk);
+  const tintBrand = readable(colors.primary, tintBg, tintInk);
+
+  /** The logo's colour on a ground, honouring a pick when it reads there. */
+  const markColor = (bg: string, fallback: string) =>
+    readable(picks?.logoColor, bg, fallback);
+
+  /* ── The page ───────────────────────────────────────────────────── */
 
   /**
-   * The body of the letter.
+   * The sheet — full bleed, because the frame is already A4.
    *
-   * Every design in this family draws grey rules where copy goes, and
-   * they all reach them through one function — so binding THAT gives the
-   * whole family a real, editable body in one move rather than a hundred.
-   * An empty body keeps the rules, because a blank letterhead should look
-   * like a blank letterhead and not like a hole.
+   * A flex column rather than the absolute positioning this family used
+   * to be built from: a letter whose body is real type has a body of
+   * unknown height, and absolutely-placed blocks either overlap it or
+   * leave a hole above the footer depending on how much the customer
+   * wrote. In a column the footer is simply last.
    */
-  const body = (rows: number, color?: string, startW?: number) =>
-    c.body.trim().length > 0 ? (
-      <Bind
-        path="body"
-        value={c.body}
-        fit="wrap"
-        multiline
-        className="text-[3.5px] leading-[1.7] whitespace-pre-wrap"
+  const Sheet = ({
+    children,
+    bg = paper,
+    color = ink,
+    style,
+  }: {
+    children: ReactNode;
+    bg?: string;
+    color?: string;
+    style?: CSSProperties;
+  }) => (
+    <div
+      className="w-full h-full relative overflow-hidden flex flex-col"
+      style={{ background: bg, color, fontFamily: bodyFont, ...style }}
+    >
+      {children}
+    </div>
+  );
+
+  /* ── Atoms. Each one owns exactly one content path. ─────────────── */
+
+  const microStyle: CSSProperties = {
+    fontSize: 3.9,
+    lineHeight: 1.5,
+    letterSpacing: '0.16em',
+    textTransform: 'uppercase',
+  };
+
+  const Mark = ({ color, size = 'xs' }: { color: string; size?: 'xs' | 'sm' | 'md' }) =>
+    showLogo ? (
+      <div style={{ fontFamily: headingFont, lineHeight: 1 }}>
+        <BrandLogo brand={b} size={size} color={color} />
+      </div>
+    ) : null;
+
+  const Sender = ({
+    size = 6.5,
+    color = ink,
+    weight = 600,
+    font = headingFont,
+    tracking,
+    upper = false,
+    align,
+    style,
+  }: {
+    size?: number;
+    color?: string;
+    weight?: number;
+    font?: string;
+    tracking?: string;
+    upper?: boolean;
+    align?: CSSProperties['textAlign'];
+    style?: CSSProperties;
+  }) => (
+    <div
+      style={{
+        fontFamily: font,
+        fontSize: size,
+        fontWeight: weight,
+        color,
+        letterSpacing: tracking,
+        textTransform: upper ? 'uppercase' : undefined,
+        textAlign: align,
+        minWidth: 0,
+        ...style,
+      }}
+    >
+      <Bind path="senderName" value={c.senderName} fit="shrink" />
+    </div>
+  );
+
+  const Address = ({
+    color = inkQuiet,
+    size = 3.9,
+    align,
+    style,
+  }: {
+    color?: string;
+    size?: number;
+    align?: CSSProperties['textAlign'];
+    style?: CSSProperties;
+  }) => (
+    <div style={{ fontSize: size, lineHeight: 1.5, color, textAlign: align, minWidth: 0, ...style }}>
+      <Bind path="senderAddress" value={c.senderAddress} fit="wrap" />
+    </div>
+  );
+
+  const Web = ({ color = inkQuiet, size = 3.9, style }: { color?: string; size?: number; style?: CSSProperties }) => (
+    <div style={{ fontSize: size, lineHeight: 1.5, color, minWidth: 0, ...style }}>
+      <Bind path="website" value={c.website} />
+    </div>
+  );
+
+  const Tel = ({ color = inkQuiet, size = 3.9, style }: { color?: string; size?: number; style?: CSSProperties }) => (
+    <div style={{ fontSize: size, lineHeight: 1.5, color, minWidth: 0, ...style }}>
+      <Bind path="phone" value={c.phone} />
+    </div>
+  );
+
+  /** Website · phone · address on one line — the ordinary letter footer. */
+  const ContactRow = ({
+    color = inkQuiet,
+    size = 3.6,
+    align = 'space-between',
+    upper = true,
+  }: {
+    color?: string;
+    size?: number;
+    align?: CSSProperties['justifyContent'];
+    upper?: boolean;
+  }) => (
+    <div
+      style={{
+        display: 'flex',
+        gap: 8,
+        justifyContent: align,
+        alignItems: 'baseline',
+        fontSize: size,
+        lineHeight: 1.5,
+        letterSpacing: upper ? '0.14em' : undefined,
+        textTransform: upper ? 'uppercase' : undefined,
+        color,
+        minWidth: 0,
+      }}
+    >
+      <span style={{ minWidth: 0, flex: '0 1 auto' }}>
+        <Bind path="website" value={c.website} />
+      </span>
+      <span style={{ minWidth: 0, flex: '0 1 auto' }}>
+        <Bind path="phone" value={c.phone} />
+      </span>
+      <span style={{ minWidth: 0, flex: '0 1 auto', maxWidth: '46%' }}>
+        <Bind path="senderAddress" value={c.senderAddress} />
+      </span>
+    </div>
+  );
+
+  /**
+   * The letter itself: date, recipient, subject, body — in that order,
+   * which is the order a letter is read in.
+   *
+   * The body is ONE bound region, set `pre-wrap`, so a blank line in the
+   * content is a paragraph break on the page. Splitting it into a Bind per
+   * paragraph would mean an edit to the second paragraph committing itself
+   * as the whole body, which is worse than losing the indent.
+   */
+  const LetterCore = ({
+    color = ink,
+    quiet = inkQuiet,
+    accent = inkBrand,
+    dateAlign = 'left',
+    subject: subjectStyle = 'accent',
+    bodySize = 4.8,
+    align,
+  }: {
+    color?: string;
+    quiet?: string;
+    accent?: string;
+    dateAlign?: CSSProperties['textAlign'];
+    subject?: 'accent' | 'rule' | 'display' | 'quiet';
+    bodySize?: number;
+    align?: CSSProperties['textAlign'];
+  }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: align }}>
+      <div style={{ ...microStyle, color: quiet, textAlign: dateAlign }}>
+        <Bind path="date" value={c.date} />
+      </div>
+      <div
         style={{
-          color: color ?? '#4B5563',
-          // A Bind is an inline-block, so it hugs its text — and the
-          // display comes from `.bk-bind`, which a utility class cannot
-          // outrank. So it is set HERE, where an inline style can.
-          display: 'block',
-          // ...and it keeps the space the rules occupied: `rows` rules of
-          // 2px, separated by the 2.5px `space-y` every call site sets.
-          // Without it a letter with one typed line collapsed to a chip
-          // adrift in a blank page, while the SAME design with no body
-          // looked full — the body has to be the same region of the page
-          // either way, and the editor needs something letter-sized to
-          // click into.
-          minHeight: `${(rows * 4.5 - 2.5).toFixed(1)}px`,
+          marginTop: 9,
+          fontFamily: headingFont,
+          fontSize: 5.2,
+          fontWeight: 500,
+          color,
+          minWidth: 0,
+        }}
+      >
+        <Bind path="recipient" value={c.recipient} fit="shrink" />
+      </div>
+      <div
+        style={{
+          marginTop: 5,
+          paddingBottom: subjectStyle === 'rule' ? 4 : 0,
+          borderBottom: subjectStyle === 'rule' ? `0.5px solid ${rule}` : undefined,
+          fontFamily: headingFont,
+          fontSize: subjectStyle === 'display' ? 8.5 : 6,
+          fontWeight: 700,
+          letterSpacing: subjectStyle === 'display' ? '-0.015em' : undefined,
+          lineHeight: 1.25,
+          color: subjectStyle === 'quiet' ? color : accent,
+          minWidth: 0,
+        }}
+      >
+        <Bind path="subject" value={c.subject} fit="wrap" />
+      </div>
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: bodySize,
+          lineHeight: 1.75,
+          color,
+          minWidth: 0,
+        }}
+      >
+        <Bind
+          path="body"
+          value={c.body}
+          fit="wrap"
+          multiline
+          placeholder="Write your letter here."
+          style={{ display: 'block' }}
+        />
+      </div>
+    </div>
+  );
+
+  /** The letter, padded and given the room the design left it. */
+  const Body = (props: Parameters<typeof LetterCore>[0] & { pad?: string; style?: CSSProperties }) => {
+    const { pad = '9%', style, ...core } = props;
+    return (
+      <div style={{ flex: 1, minHeight: 0, paddingLeft: pad, paddingRight: pad, ...style }}>
+        <LetterCore {...core} />
+      </div>
+    );
+  };
+
+  /** Logo left, sender right — the masthead most of these share. */
+  const Masthead = ({
+    color,
+    markOn,
+    size = 6.5,
+    upper = false,
+    tracking,
+  }: {
+    color: string;
+    markOn: string;
+    size?: number;
+    upper?: boolean;
+    tracking?: string;
+  }) => (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        minWidth: 0,
+      }}
+    >
+      <Mark color={markColor(markOn, color)} />
+      <div style={{ minWidth: 0, flex: '0 1 auto' }}>
+        <Sender size={size} color={color} upper={upper} tracking={tracking} align="right" />
+      </div>
+    </div>
+  );
+
+  const designs: ReactNode[] = [
+    /* 0 · ext-1 — Header Bar.
+       A solid band of the brand's colour carries the masthead; the letter
+       sits on clean paper below it and the contacts close the page. */
+    <Sheet key="header-bar">
+      <div
+        style={{
+          background: bandBg,
+          color: bandInk,
+          padding: '6% 9%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+      >
+        <Masthead color={bandInk} markOn={bandBg} />
+        <Address color={bandQuiet} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} />
+      <div style={{ padding: '0 9% 7%' }}>
+        <div style={{ borderTop: `0.5px solid ${rule}`, paddingTop: 5 }}>
+          <ContactRow />
+        </div>
+      </div>
+    </Sheet>,
+
+    /* 1 · ext-2 — Side Stripe.
+       A full-height brand stripe down the binding edge, logo at its head. */
+    <Sheet key="side-stripe">
+      <div
+        className="absolute inset-y-0 left-0"
+        style={{
+          width: '11%',
+          background: bandBg,
+          display: 'flex',
+          justifyContent: 'center',
+          paddingTop: '7%',
+        }}
+      >
+        <Mark color={markColor(bandBg, bandInk)} />
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          marginLeft: '11%',
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          paddingTop: '8%',
+        }}
+      >
+        <div style={{ padding: '0 8%' }}>
+          <Sender size={7} />
+          <Address style={{ marginTop: 2 }} />
+        </div>
+        <Body pad="8%" style={{ paddingTop: '7%' }} />
+        <div style={{ padding: '0 8% 7%' }}>
+          <ContactRow />
+        </div>
+      </div>
+    </Sheet>,
+
+    /* 2 · ext-3 — Right Rail.
+       The stripe on the outer edge instead of the binding edge, with the
+       contacts running up it. */
+    <Sheet key="right-rail">
+      <div
+        className="absolute inset-y-0 right-0"
+        style={{
+          width: '13%',
+          background: bandBg,
+          color: bandInk,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '7% 0',
+        }}
+      >
+        <Mark color={markColor(bandBg, bandInk)} />
+        <div
+          style={{
+            ...microStyle,
+            color: bandInk,
+            writingMode: 'vertical-rl',
+            transform: 'rotate(180deg)',
+            maxHeight: '60%',
+            overflow: 'hidden',
+          }}
+        >
+          <Bind path="website" value={c.website} />
+        </div>
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          marginRight: '13%',
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          paddingTop: '8%',
+        }}
+      >
+        <div style={{ padding: '0 8% 0 9%' }}>
+          <Sender size={7} />
+          <Address style={{ marginTop: 2 }} />
+        </div>
+        <div style={{ flex: 1, minHeight: 0, padding: '7% 8% 0 9%' }}>
+          <LetterCore />
+        </div>
+        <div style={{ padding: '0 8% 8% 9%' }}>
+          <Tel />
+        </div>
+      </div>
+    </Sheet>,
+
+    /* 3 · ext-4 — Rule Under.
+       Nothing but a heavy brand rule under the masthead. The restrained
+       one — it has to hold up on its typography alone. */
+    <Sheet key="rule-under">
+      <div style={{ padding: '9% 9% 0' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ minWidth: 0 }}>
+            <Mark color={markColor(paper, inkBrand)} />
+            <Sender size={7} style={{ marginTop: 3 }} />
+          </div>
+          <Address align="right" style={{ maxWidth: '50%' }} />
+        </div>
+        <div style={{ height: 2.5, background: inkBrand, marginTop: '4%' }} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} subject="quiet" />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+          <Web />
+          <Tel />
+        </div>
+      </div>
+    </Sheet>,
+
+    /* 4 · ext-5 — Typewriter.
+       Meta in the brand's mono face between dashed brand rules. The
+       internal-memo register, without inventing a memo's content. */
+    <Sheet key="typewriter">
+      <div style={{ padding: '8% 9% 0', fontFamily: monoFont }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <Sender size={5.4} font={monoFont} upper tracking="0.18em" />
+          <Mark color={markColor(paper, inkBrand)} />
+        </div>
+        <div style={{ borderTop: `1px dashed ${inkBrand}`, marginTop: '4%' }} />
+      </div>
+      <div style={{ flex: 1, minHeight: 0, padding: '6% 9% 0', fontFamily: monoFont }}>
+        <LetterCore subject="quiet" bodySize={4.5} />
+      </div>
+      <div style={{ padding: '0 9% 8%', fontFamily: monoFont }}>
+        <div style={{ borderTop: `1px dashed ${inkBrand}`, paddingTop: 5 }}>
+          <ContactRow upper={false} size={3.8} />
+        </div>
+      </div>
+    </Sheet>,
+
+    /* 5 · ext-6 — Bottom Block.
+       Paper at the top, a deep brand footer that carries every contact —
+       the letter reads first and the identity signs off. */
+    <Sheet key="bottom-block">
+      <div style={{ padding: '9% 9% 0' }}>
+        <Masthead color={ink} markOn={paper} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} />
+      <div
+        style={{
+          background: bandBg,
+          color: bandInk,
+          padding: '6% 9%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+        }}
+      >
+        <Sender size={5.6} color={bandInk} upper tracking="0.16em" />
+        <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
+          <Web color={bandQuiet} />
+          <Tel color={bandQuiet} />
+        </div>
+        <Address color={bandQuiet} />
+      </div>
+    </Sheet>,
+
+    /* 6 · ext-7 — Ring Mark.
+       A large open brand ring bled off the corner. Drawn, never typed —
+       a giant pale INITIAL is text nobody can read, which is a contrast
+       failure wearing a watermark's clothes. */
+    <Sheet key="ring-mark">
+      <div
+        className="absolute"
+        style={{
+          right: '-18%',
+          top: '-12%',
+          width: '62%',
+          aspectRatio: '1 / 1',
+          borderRadius: '50%',
+          border: `10px solid ${bandBg}`,
+          opacity: 0.14,
         }}
       />
-    ) : (
-      bodyLines(rows, color, startW)
-    );
+      <div style={{ position: 'relative', zIndex: 1, padding: '8% 9% 0' }}>
+        <Masthead color={ink} markOn={paper} />
+      </div>
+      <Body style={{ paddingTop: '8%', position: 'relative', zIndex: 1 }} />
+      <div style={{ position: 'relative', zIndex: 1, padding: '0 9% 8%' }}>
+        <ContactRow />
+      </div>
+    </Sheet>,
 
-  const designs = [
-    // 0 — Header Bar. Solid brand-color header band; logo + brand
-    // name on top, body text below, contact footer.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-0 top-0 h-[14%] flex items-center justify-between px-[6%]" style={{ backgroundColor: p }}>
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <span className="text-white text-[4.5px] uppercase tracking-[0.22em] max-w-[60%]"><Bind path="senderName" value={c.senderName} /></span>
+    /* 7 · ext-8 — Diagonal Header.
+       One angled cut of brand colour. The masthead reverses out of it. */
+    <Sheet key="diagonal-header">
+      <div
+        className="absolute inset-x-0 top-0"
+        style={{
+          height: '26%',
+          background: bandBg,
+          clipPath: 'polygon(0 0, 100% 0, 100% 62%, 0 100%)',
+        }}
+      />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          padding: '7% 9% 0',
+          color: bandInk,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+        }}
+      >
+        <Masthead color={bandInk} markOn={bandBg} />
+        <Web color={bandQuiet} />
+      </div>
+      <Body style={{ paddingTop: '13%' }} />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+          <Tel />
+          <Address align="right" style={{ maxWidth: '60%' }} />
         </div>
-        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px]">
-          {body(14)}
-        </div>
-        <div className="absolute inset-x-[8%] bottom-[5%] flex justify-between gap-2 text-[3.5px] uppercase tracking-[0.18em] text-gray-500">
-          <span className="min-w-0"><Bind path="website" value={c.website} /></span>
-          <span className="min-w-0"><Bind path="phone" value={c.phone} /></span>
-        </div>
-      </PageFrame>
-    ),
+      </div>
+    </Sheet>,
 
-    // 1 — Side Stripe. Vertical brand-color stripe down the left;
-    // logo top-left in the stripe, contact rotated up the side.
-    (
-      <PageFrame>
-        <div className="absolute left-0 top-0 bottom-0 w-[10%] flex flex-col justify-between items-center py-[6%]" style={{ backgroundColor: p }}>
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <span className="text-white text-[3.5px] uppercase tracking-[0.4em] origin-center [writing-mode:vertical-rl] rotate-180">{brand.name.toLowerCase()}.com</span>
+    /* 8 · ext-9 — Tinted Well.
+       A pale brand-tinted well at the head — softer than a full band and
+       the one that suits a brand whose colour is loud. */
+    <Sheet key="tinted-well">
+      <div
+        style={{
+          background: tintBg,
+          color: tintInk,
+          padding: '8% 9%',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <Mark color={markColor(tintBg, tintBrand)} />
+          <Sender size={6.5} color={tintInk} style={{ marginTop: 3 }} />
         </div>
-        <div className="absolute left-[16%] right-[6%] top-[10%]">
-          <div className="text-[6px] font-serif font-semibold text-gray-900">Dear {brand.name},</div>
-          <div className="space-y-[2.5px] mt-[6%]">{body(16)}</div>
+        <div style={{ minWidth: 0, textAlign: 'right' }}>
+          <Web color={tintQuiet} />
+          <Tel color={tintQuiet} />
+          <Address color={tintQuiet} align="right" />
         </div>
-      </PageFrame>
-    ),
+      </div>
+      <Body style={{ paddingTop: '7%' }} />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ height: 1.5, width: '18%', background: inkBrand }} />
+      </div>
+    </Sheet>,
 
-    // 2 — Editorial Index. N° corner badge, body lines, signature.
-    (
-      <PageFrame>
-        <div className="absolute left-[6%] top-[6%]">
-          <div className="text-[18px] leading-none font-bold tabular-nums" style={{ color: p }}>N°<br/>014</div>
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">Memo · 2026</div>
+    /* 9 · ext-10 — Left Rail.
+       A pale brand-tinted rail holds the whole identity so the letter
+       column is nothing but the letter. */
+    <Sheet key="left-rail">
+      <div className="absolute inset-y-0 left-0" style={{ width: '30%', background: tintBg }} />
+      <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex' }}>
+        <div
+          style={{
+            width: '30%',
+            padding: '9% 5%',
+            color: tintInk,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 5,
+          }}
+        >
+          <Mark color={markColor(tintBg, tintBrand)} />
+          <Sender size={5.6} color={tintInk} />
+          <Address color={tintQuiet} />
+          <Web color={tintQuiet} />
+          <Tel color={tintQuiet} />
         </div>
-        <div className="absolute right-[6%] top-[6%] text-right">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
+        <div style={{ flex: 1, minWidth: 0, padding: '9% 8% 9% 6%' }}>
+          <LetterCore />
         </div>
-        <div className="absolute inset-x-[8%] top-[34%] space-y-[2.5px]">{body(14)}</div>
-        <div className="absolute right-[8%] bottom-[8%] text-right">
-          <div className="text-[5px] font-serif italic text-gray-700">— Jane Smith</div>
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-0.5" style={{ color: p }}>Vice President</div>
-        </div>
-      </PageFrame>
-    ),
+      </div>
+    </Sheet>,
 
-    // 3 — Minimalist Rule. Tiny logo top-center, single brand-color
-    // hairline divides header from body. Restrained, very swiss.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[8%] flex flex-col items-center">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="w-full h-[1.5px] mt-[4%]" style={{ backgroundColor: p }} />
+    /* 10 · ext-11 — Two-Tone.
+       A quarter of brand colour at the head, paper beneath. The plainest
+       way to make a page unmistakably one brand's. */
+    <Sheet key="two-tone">
+      <div
+        style={{
+          background: bandBg,
+          color: bandInk,
+          padding: '8% 9% 6%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+      >
+        <Mark color={markColor(bandBg, bandInk)} />
+        <Sender size={9} color={bandInk} weight={600} tracking="-0.015em" />
+        <Address color={bandQuiet} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} subject="rule" />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+          <Web />
+          <Tel />
         </div>
-        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px]">{body(18)}</div>
-        <div className="absolute inset-x-[8%] bottom-[6%] flex items-center gap-[6px] text-[3px] uppercase tracking-[0.22em] text-gray-500">
-          <span>{brand.name}</span><span style={{ color: p }}>·</span><span>{brand.name.toLowerCase()}.com</span>
-        </div>
-      </PageFrame>
-    ),
+      </div>
+    </Sheet>,
 
-    // 4 — Stamped Memo. Tilted "MEMO" stamp + ringed badge
-    // in upper area. Body text wraps under.
-    (
-      <PageFrame>
-        <div className="absolute -left-[2%] -top-[2%] w-[28%] aspect-square rounded-full border-2" style={{ borderColor: p }} />
-        <div className="absolute right-[6%] top-[6%] -rotate-6 border-2 px-1 text-[5px] uppercase tracking-[0.22em] font-bold" style={{ borderColor: p, color: p }}>MEMO</div>
-        <div className="absolute left-[12%] top-[10%]">
-          <div className="text-[8px] font-serif font-semibold text-gray-900">{brand.name}</div>
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">Internal · 2026</div>
+    /* 11 · ext-12 — Framed.
+       A single brand hairline around the whole page. Everything the
+       letter needs sits inside it. */
+    <Sheet key="framed">
+      <div className="absolute" style={{ inset: '5%', border: `0.75px solid ${inkBrand}` }} />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '9%',
+        }}
+      >
+        <Masthead color={ink} markOn={paper} />
+        <div style={{ flex: 1, minHeight: 0, paddingTop: '7%' }}>
+          <LetterCore />
         </div>
-        <div className="absolute inset-x-[8%] top-[32%] space-y-[2.5px]">{body(15)}</div>
-        <div className="absolute inset-x-[8%] bottom-[6%] text-[3.5px] text-gray-500">cc: jane@{brand.name.toLowerCase()}.com</div>
-      </PageFrame>
-    ),
+        <ContactRow />
+      </div>
+    </Sheet>,
 
-    // 5 — Bottom Block. Body lives at top; brand-color footer band
-    // anchors the contact.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[10%]">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[5px] font-serif font-semibold text-gray-900 mt-[2%]"><Bind path="recipient" value={c.recipient} placeholder="Hello," fit="shrink" /></div>
-          <div className="space-y-[2.5px] mt-[4%]">{body(14)}</div>
+    /* 12 · ext-13 — Footer Column.
+       The contacts set as three labelled columns over a brand rule —
+       the layout a company with a real address actually needs. */
+    <Sheet key="footer-column">
+      <div style={{ padding: '9% 9% 0' }}>
+        <Masthead color={ink} markOn={paper} size={7} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ height: 1.5, background: inkBrand, marginBottom: 5 }} />
+        <div style={{ display: 'flex', gap: 8, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Address />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Web />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Tel />
+          </div>
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-[18%] flex flex-col justify-center px-[6%] text-white" style={{ backgroundColor: p }}>
-          <div className="text-[4.5px] uppercase tracking-[0.22em]"><Bind path="senderName" value={c.senderName} /></div>
-          <div className="text-[3.5px] mt-1 opacity-90 flex gap-1 min-w-0">
-            <Bind path="phone" value={c.phone} />
-            <span>·</span>
+      </div>
+    </Sheet>,
+
+    /* 13 · ext-14 — Display Subject.
+       The subject set large, the way a proposal or an offer wants to be
+       read: the first thing on the page after the name. */
+    <Sheet key="display-subject">
+      <div style={{ padding: '8% 9% 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <Mark color={markColor(paper, inkBrand)} />
+          <div style={{ ...microStyle, color: inkQuiet, minWidth: 0 }}>
             <Bind path="website" value={c.website} />
           </div>
         </div>
-      </PageFrame>
-    ),
+        <Sender size={5.4} upper tracking="0.2em" color={inkQuiet} style={{ marginTop: 4 }} />
+      </div>
+      <Body style={{ paddingTop: '6%' }} subject="display" />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ borderTop: `0.5px solid ${rule}`, paddingTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+          <Tel />
+          <Address align="right" style={{ maxWidth: '60%' }} />
+        </div>
+      </div>
+    </Sheet>,
 
-    // 6 — Centered Mark. Big brand-mark watermark centered behind
-    // body type. Subtle but heroic.
-    (
-      <PageFrame>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-[64px] font-serif font-black opacity-10" style={{ color: p }}>{brand.name.charAt(0).toUpperCase()}</div>
+    /* 14 · ext-15 — Swiss Grid.
+       Everything on a rule: mark and sender left, contacts right, one
+       hairline across the page, the letter squared under it. */
+    <Sheet key="swiss-grid">
+      <div
+        style={{
+          padding: '8% 9% 0',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <Mark color={markColor(paper, inkBrand)} />
+          <Sender size={6} style={{ marginTop: 3 }} />
         </div>
-        <div className="absolute inset-x-[8%] top-[8%] flex justify-between items-center text-[3.5px] uppercase tracking-[0.22em] text-gray-500">
-          <span>{brand.name}</span>
-          <span>{brand.name.toLowerCase()}.com</span>
+        <div style={{ minWidth: 0, textAlign: 'right' }}>
+          <Web />
+          <Tel />
+          <Address align="right" />
         </div>
-        <div className="absolute inset-x-[10%] top-[20%] space-y-[2.5px] z-10 relative">{body(16)}</div>
-      </PageFrame>
-    ),
+      </div>
+      <div style={{ margin: '4% 9% 0', height: 1, background: inkBrand }} />
+      <Body style={{ paddingTop: '6%' }} subject="quiet" />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ ...microStyle, color: inkBrand }}>
+          <Bind path="senderName" value={c.senderName} />
+        </div>
+      </div>
+    </Sheet>,
 
-    // 7 — Diagonal Header. Brand-color triangle slices the upper
-    // corner; text content sits clean below.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-0 top-0 h-[24%]" style={{ background: p, clipPath: 'polygon(0 0, 100% 0, 100% 60%, 0 100%)' }} />
-        <div className="absolute right-[6%] top-[6%] text-right">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-white text-[3.5px] uppercase tracking-[0.22em] mt-0.5">{brand.name}</div>
+    /* 15 · ext-16 — Corner Block.
+       A filled brand square at the corner holds the mark; the identity
+       lines up opposite it. */
+    <Sheet key="corner-block">
+      <div
+        className="absolute left-0 top-0"
+        style={{
+          width: '24%',
+          height: '15%',
+          background: bandBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Mark color={markColor(bandBg, bandInk)} />
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          padding: '7% 9% 0 28%',
+          textAlign: 'right',
+        }}
+      >
+        <Sender size={6.5} align="right" />
+        <Address align="right" style={{ marginTop: 2 }} />
+      </div>
+      <Body style={{ paddingTop: '9%' }} />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
+          <Web />
+          <Tel />
         </div>
-        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px]">{body(15)}</div>
-        <div className="absolute right-[8%] bottom-[6%] text-right text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— jane@{brand.name.toLowerCase()}.com</div>
-      </PageFrame>
-    ),
+      </div>
+    </Sheet>,
 
-    // 8 — Watermark. Pale body text fades down with a faint diagonal
-    // brand-color watermark. Editorial / archival feel.
-    (
-      <PageFrame>
-        <div className="absolute inset-0 flex items-center justify-center -rotate-12">
-          <div className="text-[14px] font-serif uppercase tracking-[0.6em] opacity-15" style={{ color: p }}>{brand.name}</div>
+    /* 16 · ext-17 — Reversed.
+       The whole page in the brand's own near-black, letter reversed out,
+       subject in brand colour. For the letters that are announcements. */
+    <Sheet key="reversed" bg={darkBg} color={darkInk}>
+      <div style={{ padding: '9% 9% 0' }}>
+        <Masthead color={darkInk} markOn={darkBg} />
+        <Address color={darkQuiet} style={{ marginTop: 3 }} />
+      </div>
+      <Body
+        style={{ paddingTop: '8%' }}
+        color={darkInk}
+        quiet={darkQuiet}
+        accent={darkBrand}
+      />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ borderTop: `0.5px solid ${darkQuiet}`, paddingTop: 5 }}>
+          <ContactRow color={darkQuiet} />
         </div>
-        <div className="absolute inset-x-[8%] top-[8%] flex justify-between items-center">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">Archive · 2026</div>
-        </div>
-        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px] relative z-10">{body(14)}</div>
-      </PageFrame>
-    ),
+      </div>
+    </Sheet>,
 
-    // 9 — Two-Column Modern. Narrow left column with title/contact,
-    // body in the wider right column. Magazine-style.
-    (
-      <PageFrame>
-        <div className="absolute left-[6%] top-[8%] w-[24%] flex flex-col justify-between h-[84%]">
-          <div>
-            <BrandLogo brand={brand} size="xs" />
-            <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
-          </div>
-          <div className="text-[3.5px] text-gray-700 leading-[1.6]">
-            <div className="font-semibold" style={{ color: p }}>From</div>
-            <div>Jane Smith</div>
-            <div>Vice President</div>
-            <div className="mt-1">jane@{brand.name.toLowerCase()}.com</div>
-          </div>
+    /* 17 · ext-18 — Duo Band.
+       Two bands — the secondary colour over the primary — so a brand with
+       a real second colour has somewhere to spend it. */
+    <Sheet key="duo-band">
+      <div style={{ background: band2Bg, color: band2Ink, padding: '3% 9%' }}>
+        <div style={{ ...microStyle, color: band2Ink, textAlign: 'right' }}>
+          <Bind path="website" value={c.website} />
         </div>
-        <div className="absolute right-[6%] top-[8%] w-[58%]">
-          <div className="text-[6px] font-serif font-semibold text-gray-900">Quarterly Update</div>
-          <div className="space-y-[2.5px] mt-[4%]">{body(18)}</div>
+      </div>
+      <div
+        style={{
+          background: bandBg,
+          color: bandInk,
+          padding: '6% 9%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+      >
+        <Mark color={markColor(bandBg, bandInk)} />
+        <div style={{ minWidth: 0, textAlign: 'right' }}>
+          <Sender size={6.5} color={bandInk} align="right" />
+          <Address color={bandQuiet} align="right" />
         </div>
-      </PageFrame>
-    ),
+      </div>
+      <Body style={{ paddingTop: '7%' }} />
+      <div style={{ padding: '0 9% 8%' }}>
+        <Tel />
+      </div>
+    </Sheet>,
 
-    // 10 — Color Wash Top. Full-width pastel brand wash bands the
-    // upper third; type sits clean below.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-0 top-0 h-[36%]" style={{ background: `linear-gradient(180deg, ${p}DD 0%, ${p}66 100%)` }} />
-        <div className="absolute inset-x-[8%] top-[8%] flex justify-between items-start text-white">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em]">Memo · 2026</div>
+    /* 18 · ext-19 — Editorial Masthead.
+       The sender set as a centred display line between two rules — the
+       classic printed letterhead, and the one that most needs the brand's
+       heading face rather than a generic serif. */
+    <Sheet key="editorial-masthead">
+      <div style={{ padding: '9% 9% 0', textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Mark color={markColor(paper, inkBrand)} />
         </div>
-        <div className="absolute inset-x-[8%] top-[40%] space-y-[2.5px]">{body(15)}</div>
-        <div className="absolute inset-x-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 flex justify-between">
-          <span>{brand.name}</span><span>{brand.name.toLowerCase()}.com</span>
-        </div>
-      </PageFrame>
-    ),
+        <Sender size={13} weight={600} align="center" tracking="-0.02em" />
+        <div style={{ height: 1, background: inkBrand, margin: '4% 0 2px' }} />
+        <div style={{ height: 0.5, background: rule }} />
+        <Address align="center" style={{ marginTop: 4 }} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} subject="quiet" />
+      <div style={{ padding: '0 9% 8%' }}>
+        <ContactRow align="center" />
+      </div>
+    </Sheet>,
 
-    // 11 — Bracketed Frame. Small brand-color L-brackets at each
-    // corner frame an otherwise empty page.
-    (
-      <PageFrame>
-        {[['top-[6%] left-[6%] border-t-2 border-l-2', ''], ['top-[6%] right-[6%] border-t-2 border-r-2', ''], ['bottom-[6%] left-[6%] border-b-2 border-l-2', ''], ['bottom-[6%] right-[6%] border-b-2 border-r-2', '']].map(([cls], i) => (
-          <div key={i} className={`absolute w-[10%] h-[10%] ${cls}`} style={{ borderColor: p }} />
-        ))}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <BrandLogo brand={brand} size="sm" />
-          <div className="text-[5px] uppercase tracking-[0.32em] text-gray-600 mt-3">{brand.name}</div>
+    /* 19 · ext-20 — Stacked Masthead.
+       Mark, name and contacts stacked and centred, then a rule. Reads
+       like an announcement rather than a memo. */
+    <Sheet key="stacked-masthead">
+      <div
+        style={{
+          padding: '10% 9% 0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <Mark color={markColor(paper, inkBrand)} size="sm" />
+        <Sender size={8} align="center" weight={600} />
+        <ContactRow align="center" size={3.5} />
+        <div style={{ width: '22%', height: 1.5, background: inkBrand, marginTop: 4 }} />
+      </div>
+      <Body style={{ paddingTop: '7%' }} />
+      <div style={{ padding: '0 9% 8%' }}>
+        <div style={{ ...microStyle, color: inkQuiet, textAlign: 'center' }}>
+          <Bind path="senderName" value={c.senderName} />
         </div>
-      </PageFrame>
-    ),
-
-    // 12 — Numbered Sections. Sidebar of section numbers in brand
-    // color; body text sits in the main column.
-    (
-      <PageFrame>
-        <div className="absolute left-[4%] top-[10%] flex flex-col gap-2 text-[8px] font-bold tabular-nums" style={{ color: p }}>
-          {['01', '02', '03', '04', '05'].map((n) => <span key={n}>{n}</span>)}
-        </div>
-        <div className="absolute left-[18%] right-[8%] top-[10%]">
-          <div className="text-[5px] uppercase tracking-[0.22em] text-gray-500">{brand.name} · Memo</div>
-          <div className="space-y-[2.5px] mt-[6%]">{body(16)}</div>
-        </div>
-        <div className="absolute right-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— Jane Smith</div>
-      </PageFrame>
-    ),
-
-    // 13 — Quote Frame. A stylised pull quote with brand-color
-    // open-quote glyph dominates the upper third.
-    (
-      <PageFrame>
-        <div className="absolute left-[6%] top-[6%] text-[40px] font-serif leading-none" style={{ color: p }}>"</div>
-        <div className="absolute left-[20%] right-[8%] top-[14%]">
-          <div className="text-[6px] font-serif italic text-gray-800 leading-[1.4]">A short, quiet message that sets the tone for everything that follows.</div>
-          <div className="text-[3.5px] uppercase tracking-[0.22em] mt-2 text-gray-500" style={{ color: p }}>— {brand.name}</div>
-        </div>
-        <div className="absolute inset-x-[8%] top-[44%] space-y-[2.5px]">{body(13)}</div>
-        <div className="absolute inset-x-[8%] bottom-[5%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 flex justify-between">
-          <span>{brand.name.toLowerCase()}.com</span><span>+1 234 56789</span>
-        </div>
-      </PageFrame>
-    ),
-
-    // 14 — Grid Header. Tiny modular grid of brand-color squares
-    // forms the masthead; body text follows below.
-    (
-      <PageFrame>
-        <div className="absolute left-[6%] top-[6%] grid grid-cols-6 gap-[2px]">
-          {Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} className="w-[6px] h-[6px]" style={{ backgroundColor: i % 3 === 0 ? p : `${p}33` }} />
-          ))}
-        </div>
-        <div className="absolute right-[6%] top-[6%] text-right">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
-        </div>
-        <div className="absolute inset-x-[8%] top-[26%] space-y-[2.5px]">{body(17)}</div>
-      </PageFrame>
-    ),
-
-    // 15 — Spotlight. A single brand-color circular spotlight in
-    // the corner casts a soft gradient over the page.
-    (
-      <PageFrame>
-        <div className="absolute -right-[10%] -top-[10%] w-[60%] aspect-square rounded-full" style={{ background: `radial-gradient(circle, ${p}AA 0%, transparent 70%)` }} />
-        <div className="absolute left-[6%] top-[8%]">
-          <BrandLogo brand={brand} size="xs" />
-        </div>
-        <div className="absolute inset-x-[8%] top-[28%] space-y-[2.5px]">{body(16)}</div>
-        <div className="absolute right-[8%] bottom-[6%] text-right text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— jane@{brand.name.toLowerCase()}.com</div>
-      </PageFrame>
-    ),
-
-    // 16 — Mono Block. Heavy black header band with a small
-    // brand-color accent line; body in clean serif.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-0 top-0 h-[12%] bg-[#0F1216] flex items-center justify-between px-[6%]">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <span className="text-white text-[3.5px] uppercase tracking-[0.22em]">{brand.name}</span>
-        </div>
-        <div className="absolute inset-x-0 top-[12%] h-[1px]" style={{ backgroundColor: p }} />
-        <div className="absolute inset-x-[8%] top-[18%]">
-          <div className="text-[6px] font-serif font-semibold text-gray-900">Letter of Introduction</div>
-          <div className="space-y-[2.5px] mt-[4%]">{body(15)}</div>
-        </div>
-      </PageFrame>
-    ),
-
-    // 17 — Asymmetric Split. Page is split — upper-left filled
-    // brand color, lower-right white. Type wraps on the diagonal.
-    (
-      <PageFrame>
-        <div className="absolute inset-0" style={{ background: p, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
-        <div className="absolute left-[8%] top-[8%] text-white">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em] mt-1">{brand.name}</div>
-        </div>
-        <div className="absolute right-[8%] bottom-[18%] text-right">
-          <div className="text-[6px] font-serif font-semibold text-gray-900">Greetings,</div>
-          <div className="space-y-[2.5px] mt-[4%] text-right" style={{ width: '60%', marginLeft: 'auto' }}>{body(8)}</div>
-        </div>
-        <div className="absolute inset-x-[8%] bottom-[5%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 flex justify-between">
-          <span>— Jane Smith</span><span>{brand.name.toLowerCase()}.com</span>
-        </div>
-      </PageFrame>
-    ),
-
-    // 18 — Stationery Header. Classic "letterhead" header — large
-    // serif brand name, address line, hairline rule.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[8%] text-center">
-          <div className="text-[14px] font-serif font-bold tracking-tight" style={{ color: p }}>{brand.name}</div>
-          <div className="text-[3.5px] uppercase tracking-[0.32em] mt-1 text-gray-500">a brand · est. 2026</div>
-          <div className="w-full h-[1px] mt-2" style={{ backgroundColor: p }} />
-        </div>
-        <div className="absolute inset-x-[8%] top-[26%] space-y-[2.5px]">{body(16)}</div>
-        <div className="absolute inset-x-[8%] bottom-[5%] text-center text-[3.5px] uppercase tracking-[0.22em] text-gray-500">+1 234 56789 · jane@{brand.name.toLowerCase()}.com · {brand.name.toLowerCase()}.com</div>
-      </PageFrame>
-    ),
-
-    // 19 — Big Number Foreground. Massive faint brand-color "01"
-    // sits behind body — like a chapter opening.
-    (
-      <PageFrame>
-        <div className="absolute right-[2%] top-[2%] text-[80px] font-serif font-black leading-none opacity-15" style={{ color: p }}>01</div>
-        <div className="absolute left-[6%] top-[10%]">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">Chapter</div>
-        </div>
-        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px] z-10 relative">{body(15)}</div>
-      </PageFrame>
-    ),
-
-    // 20 — Footer Heavy. Large brand-color footer block carries
-    // the contact info; body lives clean above.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[8%]">
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">{brand.name} Studio</div>
-          <div className="text-[6px] font-serif font-semibold text-gray-900 mt-1">A Note,</div>
-          <div className="space-y-[2.5px] mt-[4%]">{body(13)}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-[28%] flex flex-col justify-center px-[8%] text-white" style={{ backgroundColor: p }}>
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-[5px] uppercase tracking-[0.22em] mt-2 opacity-90">Jane Smith · Vice President</div>
-          <div className="text-[3.5px] mt-1 opacity-80">jane@{brand.name.toLowerCase()}.com · +1 234 56789 · {brand.name.toLowerCase()}.com</div>
-        </div>
-      </PageFrame>
-    ),
-
-    // 21 — Typewriter Memo. Mono-spaced "TO/FROM/RE" memo header.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[8%] font-mono text-[4px] leading-[1.6] text-gray-700">
-          <div><span style={{ color: p }}>TO</span>     · {brand.name} Team</div>
-          <div><span style={{ color: p }}>FROM</span>   · Jane Smith</div>
-          <div><span style={{ color: p }}>RE</span>     · Quarterly Brief</div>
-          <div><span style={{ color: p }}>DATE</span>   · 27 · 04 · 2026</div>
-          <div className="w-full border-t border-dashed mt-2" style={{ borderColor: p }} />
-        </div>
-        <div className="absolute inset-x-[8%] top-[28%] space-y-[2.5px] font-mono">{body(15, '#C8C5BA')}</div>
-        <div className="absolute right-[8%] bottom-[6%] text-[3.5px] font-mono text-gray-500">— END OF MEMO —</div>
-      </PageFrame>
-    ),
-
-    // 22 — Color Bar Right. Vertical brand stripe down the right
-    // edge with logo embedded vertically.
-    (
-      <PageFrame>
-        <div className="absolute right-0 top-0 bottom-0 w-[8%] flex flex-col items-center justify-between py-[6%]" style={{ backgroundColor: p }}>
-          <div className="text-white text-[3.5px] uppercase tracking-[0.4em] [writing-mode:vertical-rl]">Memo · 2026</div>
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-        </div>
-        <div className="absolute left-[6%] top-[8%]">
-          <div className="text-[6px] font-serif font-semibold text-gray-900">Hello {brand.name}</div>
-        </div>
-        <div className="absolute inset-x-[6%] right-[14%] top-[20%] space-y-[2.5px]">{body(17)}</div>
-      </PageFrame>
-    ),
-
-    // 23 — Stamped Date. A circular "date stamp" in brand color.
-    (
-      <PageFrame>
-        <div className="absolute right-[6%] top-[6%] w-[20%] aspect-square rounded-full border-2 flex flex-col items-center justify-center -rotate-6" style={{ borderColor: p }}>
-          <div className="text-[3.5px] uppercase tracking-[0.18em]" style={{ color: p }}>{brand.name}</div>
-          <div className="text-[6px] font-bold tabular-nums" style={{ color: p }}>27 · 04 · 26</div>
-          <div className="text-[3.5px] uppercase tracking-[0.18em]" style={{ color: p }}>memo</div>
-        </div>
-        <div className="absolute left-[6%] top-[8%]">
-          <BrandLogo brand={brand} size="xs" />
-        </div>
-        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px]">{body(15)}</div>
-      </PageFrame>
-    ),
-
-    // 24 — Three-Dot Header. Three brand-color dots in a row above
-    // the brand name — restrained signal of voice.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[10%] flex flex-col items-center">
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => <div key={i} className="w-[6px] h-[6px] rounded-full" style={{ backgroundColor: p, opacity: 0.4 + i * 0.3 }} />)}
-          </div>
-          <div className="text-[10px] font-serif font-semibold text-gray-900 mt-2">{brand.name}</div>
-        </div>
-        <div className="absolute inset-x-[10%] top-[30%] space-y-[2.5px]">{body(16)}</div>
-        <div className="absolute inset-x-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 text-center">{brand.name.toLowerCase()}.com</div>
-      </PageFrame>
-    ),
-
-    // 25 — Side Folio. Slim folio tab on the left — like a folder
-    // file label.
-    (
-      <PageFrame>
-        <div className="absolute left-0 top-[20%] bottom-[20%] w-[14%] rounded-r-md flex flex-col items-start justify-end p-1.5" style={{ backgroundColor: p }}>
-          <div className="text-white text-[3.5px] uppercase tracking-[0.32em] [writing-mode:vertical-rl] rotate-180 leading-tight">{brand.name} · folio</div>
-        </div>
-        <div className="absolute left-[20%] right-[8%] top-[10%]">
-          <div className="text-[5px] uppercase tracking-[0.22em] text-gray-500">Folio · 014</div>
-          <div className="text-[6px] font-serif font-semibold text-gray-900 mt-0.5">An open letter</div>
-          <div className="space-y-[2.5px] mt-[4%]">{body(15)}</div>
-        </div>
-      </PageFrame>
-    ),
-
-    // 26 — Brand Strip Footer. Footer is a thin brand-color strip
-    // with all contact info on one line.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-[8%] top-[8%]">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[6px] font-serif font-semibold text-gray-900 mt-2">A Quick Note</div>
-          <div className="space-y-[2.5px] mt-[4%]">{body(16)}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-[6%] flex items-center justify-between px-[8%] text-white text-[3px] uppercase tracking-[0.32em]" style={{ backgroundColor: p }}>
-          <span>{brand.name}</span><span>jane@{brand.name.toLowerCase()}.com</span><span>+1 234 56789</span>
-        </div>
-      </PageFrame>
-    ),
-
-    // 27 — Half-Half. Page split horizontally — top half white with
-    // logo + title, bottom half brand color with body text in white.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-0 top-0 h-1/2 flex flex-col items-center justify-center">
-          <BrandLogo brand={brand} size="md" />
-          <div className="text-[5px] uppercase tracking-[0.32em] mt-2" style={{ color: p }}>{brand.name}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-1/2 flex flex-col justify-center px-[8%]" style={{ backgroundColor: p }}>
-          <div className="space-y-[2.5px]">{body(12, 'rgba(255,255,255,0.4)')}</div>
-          <div className="text-white text-[3.5px] uppercase tracking-[0.22em] mt-2 opacity-90">— jane@{brand.name.toLowerCase()}.com</div>
-        </div>
-      </PageFrame>
-    ),
-
-    // 28 — Ledger Lines. Faint ruled lines fill the page — like a
-    // paper ledger; brand-color heading row at top.
-    (
-      <PageFrame>
-        <div className="absolute inset-x-0 top-[8%] h-[5%] flex items-center px-[6%]" style={{ backgroundColor: p, color: '#fff' }}>
-          <span className="text-[3.5px] uppercase tracking-[0.32em]">{brand.name} · Ledger · 2026</span>
-        </div>
-        {Array.from({ length: 22 }).map((_, i) => (
-          <div key={i} className="absolute left-[6%] right-[6%] h-[1px] bg-[#E2DFD2]" style={{ top: `${18 + i * 3.5}%` }} />
-        ))}
-        <div className="absolute right-[6%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— page 01 / 12</div>
-      </PageFrame>
-    ),
-
-    // 29 — Initial Drop Cap. Big serif drop-cap brand-color initial
-    // anchors body. Editorial / book-chapter feel.
-    (
-      <PageFrame>
-        <div className="absolute left-[8%] top-[10%] text-[64px] font-serif font-black leading-[0.8]" style={{ color: p }}>{brand.name.charAt(0).toUpperCase()}</div>
-        <div className="absolute right-[8%] top-[10%] text-right">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
-        </div>
-        <div className="absolute left-[28%] top-[18%] right-[8%] space-y-[2.5px]">{body(8)}</div>
-        <div className="absolute inset-x-[8%] top-[44%] space-y-[2.5px]">{body(12)}</div>
-        <div className="absolute right-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— Jane Smith</div>
-      </PageFrame>
-    ),
+      </div>
+    </Sheet>,
   ];
 
-  return designs[templateIndex] ?? designs[0];
+  return <>{designs[templateIndex] ?? designs[templateIndex % designs.length] ?? designs[0]}</>;
 }
 
+/**
+ * The family's variants, in display order.
+ *
+ * Twenty kept designs (`ext-1` … `ext-20`) and ten reserved ids
+ * (`ext-21` … `ext-30`) that no longer show anywhere. The reserved ten
+ * stay in this list rather than being deleted from it so that
+ * `curation/letterhead.ts` archives ids that really exist — an id nobody
+ * emits cannot be un-archived by a dev Archive toggle, and cannot be
+ * proved reserved by a test either. Their `name` is the one they shipped
+ * with; nothing renders it.
+ *
+ * NEVER renumber. Each id is the persistence key a saved customization
+ * and a Design snapshot are filed under.
+ */
 export const LETTERHEAD_EXTENDED = [
-  { idSuffix: 'ext-1', name: 'Header Bar', category: 'Modern' },
-  { idSuffix: 'ext-2', name: 'Side Stripe', category: 'Modern' },
-  { idSuffix: 'ext-3', name: 'Editorial Index', category: 'Editorial' },
-  { idSuffix: 'ext-4', name: 'Minimalist Rule', category: 'Minimalist' },
-  { idSuffix: 'ext-5', name: 'Stamped Memo', category: 'Vintage' },
-  { idSuffix: 'ext-6', name: 'Bottom Block', category: 'Modern' },
-  { idSuffix: 'ext-7', name: 'Centered Mark', category: 'Lux' },
-  { idSuffix: 'ext-8', name: 'Diagonal Header', category: 'Bold' },
-  { idSuffix: 'ext-9', name: 'Watermark', category: 'Editorial' },
-  { idSuffix: 'ext-10', name: 'Two-Column', category: 'Editorial' },
-  { idSuffix: 'ext-11', name: 'Color Wash', category: 'Modern' },
-  { idSuffix: 'ext-12', name: 'Bracket Frame', category: 'Minimalist' },
-  { idSuffix: 'ext-13', name: 'Numbered Sections', category: 'Editorial' },
-  { idSuffix: 'ext-14', name: 'Quote Frame', category: 'Editorial' },
-  { idSuffix: 'ext-15', name: 'Grid Header', category: 'Modern' },
-  { idSuffix: 'ext-16', name: 'Spotlight', category: 'Modern' },
-  { idSuffix: 'ext-17', name: 'Mono Block', category: 'Bold' },
-  { idSuffix: 'ext-18', name: 'Asymmetric Split', category: 'Bold' },
-  { idSuffix: 'ext-19', name: 'Stationery Header', category: 'Lux' },
-  { idSuffix: 'ext-20', name: 'Drop Number', category: 'Editorial' },
+  { idSuffix: 'ext-1', name: 'Header Bar', category: 'Modern' }, // was Header Bar
+  { idSuffix: 'ext-2', name: 'Side Stripe', category: 'Modern' }, // was Side Stripe
+  { idSuffix: 'ext-3', name: 'Right Rail', category: 'Modern' }, // was Editorial Index
+  { idSuffix: 'ext-4', name: 'Rule Under', category: 'Minimalist' }, // was Minimalist Rule
+  { idSuffix: 'ext-5', name: 'Typewriter', category: 'Vintage' }, // was Stamped Memo
+  { idSuffix: 'ext-6', name: 'Bottom Block', category: 'Bold' }, // was Bottom Block
+  { idSuffix: 'ext-7', name: 'Ring Mark', category: 'Modern' }, // was Centered Mark
+  { idSuffix: 'ext-8', name: 'Diagonal Header', category: 'Bold' }, // was Diagonal Header
+  { idSuffix: 'ext-9', name: 'Tinted Well', category: 'Minimalist' }, // was Watermark
+  { idSuffix: 'ext-10', name: 'Left Rail', category: 'Editorial' }, // was Two-Column
+  { idSuffix: 'ext-11', name: 'Two-Tone', category: 'Bold' }, // was Color Wash
+  { idSuffix: 'ext-12', name: 'Framed', category: 'Lux' }, // was Bracket Frame
+  { idSuffix: 'ext-13', name: 'Footer Column', category: 'Modern' }, // was Numbered Sections
+  { idSuffix: 'ext-14', name: 'Display Subject', category: 'Editorial' }, // was Quote Frame
+  { idSuffix: 'ext-15', name: 'Swiss Grid', category: 'Minimalist' }, // was Grid Header
+  { idSuffix: 'ext-16', name: 'Corner Block', category: 'Modern' }, // was Spotlight
+  { idSuffix: 'ext-17', name: 'Reversed', category: 'Bold' }, // was Mono Block
+  { idSuffix: 'ext-18', name: 'Duo Band', category: 'Bold' }, // was Asymmetric Split
+  { idSuffix: 'ext-19', name: 'Editorial Masthead', category: 'Editorial' }, // was Stationery Header
+  { idSuffix: 'ext-20', name: 'Stacked Masthead', category: 'Lux' }, // was Drop Number
+  // ── Reserved. Archived in `curation/letterhead.ts`. ──
   { idSuffix: 'ext-21', name: 'Footer Heavy', category: 'Bold' },
   { idSuffix: 'ext-22', name: 'Typewriter Memo', category: 'Vintage' },
   { idSuffix: 'ext-23', name: 'Color Bar Right', category: 'Modern' },

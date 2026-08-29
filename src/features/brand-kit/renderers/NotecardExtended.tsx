@@ -1,436 +1,635 @@
+import type { CSSProperties, ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import { Bind } from '@/features/brandkit/content/Bind';
+import {
+  defaultNoteContent,
+  type DeliverableContent,
+  type NoteContent,
+} from '@/features/brandkit/content/kinds';
+import type { TemplateDesignPicks } from '@/features/brandkit/content/schema';
+import {
+  contrastOf,
+  fgOn,
+  fontStack,
+  logoOn,
+  normalizeHex,
+  surface,
+  type SurfaceKind,
+} from './brandStyle';
 
 /**
- * Notecard designs — folded greeting / thank-you card. Each design
- * shows the front face of a folded card (roughly 5.5" × 4.25") with
- * a small mono message on the inside hinted at the side fold edge.
+ * Notecards — the `note` kind, drawn twelve ways.
  *
- *   0 Centered Mark      5 Brand Glow
- *   1 Type Splash        6 Half Tone
- *   2 Color Block        7 Folded Edge
- *   3 Floral Frame       8 Hand-Drawn
- *   4 Embossed Initial   9 Postcard Stripe
+ * ## What this file used to be
+ *
+ * 130 variants across two waves. The card was drawn as a folded spread
+ * whose right half said "— inside —" in grey italic, so half of every
+ * tile was a caption about the tile. The left half carried invented
+ * greetings ("Hi.", "thank you.", "Hello, Jane."), a signature reading
+ * "Jane", an issue number, a season, and `fontFamily: 'Caveat, cursive'`
+ * — a typeface belonging to nobody's brand — while the actual note, the
+ * words a customer would send, existed nowhere and could not be typed.
+ *
+ * ## What it is now
+ *
+ * Twelve card faces. A notecard's content is three things — a greeting,
+ * a message and a sign-off — and every design paints all three from
+ * `NoteContent` through `<Bind>`, so each is a live field. The fold is
+ * gone: what is drawn is the face that carries the writing, because that
+ * is the face the content describes. The other eighteen wave-1 ids and
+ * all hundred wave-2 ids are archived in `curation/notecard.ts` with
+ * their ids reserved.
+ *
+ * ## Notecard is not in the catalog — yet
+ *
+ * `legacy-mapping.ts`'s `MAP` has no Notecard card, so `variantsForCard`
+ * returns nothing for it and nothing here is reachable from the Brand Kit
+ * page today. It is converted anyway, and deliberately: the family is
+ * wired into the renderer dispatch and the template list, so adding the
+ * card is a one-line `MAP.stationery` entry rather than a conversion.
+ * That is also why this family's bind test builds its own template list
+ * from `NOTECARD_EXTENDED` instead of going through `variantsForCard` —
+ * see `__tests__/notecard.bind.test.tsx`.
+ *
+ * Sizing and colour follow the same two rules as the envelope family: the
+ * card is laid out at its real proportion (A6, ~1.41) inside the 1.6 tile
+ * on the brand's own subtle ground, and no ground, ink or typeface is
+ * named here — they come from `surface`, `fgOn`/measured tokens, and
+ * `fontStack`.
  */
+
 interface Props {
   brand: Brand;
   templateIndex: number;
+  /** The deliverable's content; anything that is not a note is ignored. */
+  content?: DeliverableContent;
 }
 
-function CardFrame({ children, accent }: { children: React.ReactNode; accent?: string }) {
-  // Folded card: front face on the left half, inside hint on the
-  // right (lighter background to suggest the card is opened in
-  // preview). Aspect ~5.5/4.25 → 1.3 (squarer than business cards).
+/* ── Ink ──────────────────────────────────────────────────────────── */
+
+type Ink = { bg: string; text: string; muted: string; border: string };
+
+/**
+ * A surface's ink, with the muted tone measured against its own ground.
+ *
+ * `pickSurfaceTokens` only guarantees `text` against `bg`; on the brand
+ * surfaces `textMuted` is mixed 35% toward the ground and can land under
+ * AA. Where it does, it collapses to the full-strength tone — a note's
+ * sign-off is short, and a short line that cannot be read is worse than
+ * one that is not quieter than the message above it.
+ */
+function inkFor(brand: Brand, kind: SurfaceKind): Ink {
+  const t = surface(brand, kind);
+  return {
+    bg: t.bg,
+    text: t.text,
+    muted: contrastOf(t.textMuted, t.bg) >= 4.5 ? t.textMuted : t.text,
+    border: t.border,
+  };
+}
+
+/** Brand colour as ink, but only where it reads on this ground. */
+function accentInk(accent: string, ink: Ink, large = false): string {
+  return contrastOf(accent, ink.bg) >= (large ? 3 : 4.5) ? accent : ink.text;
+}
+
+/**
+ * The brand a design paints with, after the customer's own picks.
+ *
+ * See `EnvelopeExtended.tsx` for why the colour system is rewritten and
+ * not just the legacy scalar, and why `fontId` is applied at the stage
+ * rather than here.
+ */
+function brandWithPicks(brand: Brand, picks?: TemplateDesignPicks): Brand {
+  const primary = normalizeHex(picks?.primaryColor);
+  const secondary = normalizeHex(picks?.secondaryColor);
+  if (!primary && !secondary) return brand;
+  const cs = brand.colorSystem;
+  const next = {
+    ...brand,
+    primaryColor: primary ?? brand.primaryColor,
+    secondaryColor: secondary ?? brand.secondaryColor,
+  } as Brand;
+  if (cs) {
+    next.colorSystem = {
+      ...cs,
+      primary: primary ? { ...cs.primary, hex: primary } : cs.primary,
+      secondary:
+        secondary && cs.secondary ? { ...cs.secondary, hex: secondary } : cs.secondary,
+    };
+  }
+  return next;
+}
+
+/* ── Bound text ───────────────────────────────────────────────────── */
+
+type Fonts = { heading: string; body: string; mono: string };
+
+/**
+ * The greeting. One line, so it clamps rather than wraps: a greeting that
+ * ran onto a second line would push the message off the card.
+ */
+function Greeting({
+  c,
+  ink,
+  fonts,
+  size = 9,
+  color,
+  align,
+  weight = 600,
+  tracking,
+  upper,
+}: {
+  c: NoteContent;
+  ink: Ink;
+  fonts: Fonts;
+  size?: number;
+  color?: string;
+  align?: CSSProperties['textAlign'];
+  weight?: number;
+  tracking?: string;
+  upper?: boolean;
+}) {
   return (
-    <div className="w-full h-full bg-[#EFE9DA] flex items-center justify-center p-[6%]">
-      <div className="flex shadow-md" style={{ width: '78%', aspectRatio: '1.6 / 1' }}>
-        <div className="w-1/2 h-full relative overflow-hidden bg-white">
-          {children}
-        </div>
-        <div className="w-1/2 h-full relative bg-[#FBF8EE] flex items-center justify-center overflow-hidden">
-          <div className="text-[5px] italic text-gray-400 -rotate-3" style={{ color: accent }}>— inside —</div>
-        </div>
+    <Bind
+      path="greeting"
+      value={c.greeting}
+      fit="clamp"
+      placeholder="Hello,"
+      style={{
+        display: 'block',
+        maxWidth: '100%',
+        fontSize: `${size}px`,
+        lineHeight: 1.2,
+        fontFamily: fonts.heading,
+        fontWeight: weight,
+        letterSpacing: tracking,
+        textTransform: upper ? 'uppercase' : undefined,
+        color: color ?? ink.text,
+        textAlign: align,
+      }}
+    />
+  );
+}
+
+/**
+ * The note itself. Wraps, and is multiline — Enter inside it inserts a
+ * paragraph break rather than committing, because that is what writing a
+ * note is.
+ */
+function Message({
+  c,
+  ink,
+  fonts,
+  size = 4.2,
+  color,
+  align,
+  lines = 5,
+}: {
+  c: NoteContent;
+  ink: Ink;
+  fonts: Fonts;
+  size?: number;
+  color?: string;
+  align?: CSSProperties['textAlign'];
+  /** Rows of space the design reserves, so an empty note is not a hole. */
+  lines?: number;
+}) {
+  return (
+    <Bind
+      path="message"
+      value={c.message}
+      fit="wrap"
+      multiline
+      placeholder="Write your note…"
+      style={{
+        display: 'block',
+        fontSize: `${size}px`,
+        lineHeight: 1.65,
+        fontFamily: fonts.body,
+        color: color ?? ink.muted,
+        textAlign: align,
+        minHeight: `${(size * 1.65 * lines).toFixed(1)}px`,
+      }}
+    />
+  );
+}
+
+function SignOff({
+  c,
+  ink,
+  fonts,
+  size = 4.4,
+  color,
+  align,
+  weight = 500,
+}: {
+  c: NoteContent;
+  ink: Ink;
+  fonts: Fonts;
+  size?: number;
+  color?: string;
+  align?: CSSProperties['textAlign'];
+  weight?: number;
+}) {
+  return (
+    <Bind
+      path="signOff"
+      value={c.signOff}
+      fit="clamp"
+      placeholder="— Your brand"
+      style={{
+        display: 'block',
+        maxWidth: '100%',
+        fontSize: `${size}px`,
+        lineHeight: 1.35,
+        fontFamily: fonts.heading,
+        fontWeight: weight,
+        color: color ?? ink.text,
+        textAlign: align,
+      }}
+    />
+  );
+}
+
+/** The mark, on a ground it was measured against. See the envelope file. */
+function Mark({
+  brand,
+  ground,
+  height = 9,
+  show = true,
+  tint,
+}: {
+  brand: Brand;
+  ground: string;
+  height?: number;
+  show?: boolean;
+  tint?: string;
+}) {
+  if (!show) return null;
+  const logo = logoOn(brand, ground);
+  if (logo) {
+    return (
+      <img
+        src={logo.url}
+        alt=""
+        style={{ height: `${height}px`, width: 'auto', maxWidth: '52%', objectFit: 'contain', display: 'block' }}
+      />
+    );
+  }
+  const color = tint && contrastOf(tint, ground) >= 3 ? tint : fgOn(ground);
+  return <BrandLogo brand={brand} size={height >= 14 ? 'sm' : 'xs'} color={color} />;
+}
+
+/* ── The stage ────────────────────────────────────────────────────── */
+
+/**
+ * An A6 card (~1.41) centred in the 1.6 tile.
+ *
+ * The width is 72% rather than the 92% the envelope uses because a card
+ * is nearly square: at any more, its height would exceed what the tile
+ * leaves once the stage's own padding is taken, and the card would be
+ * cropped by the tile rather than sitting in it.
+ */
+function CardStage({
+  stage,
+  paper,
+  border,
+  children,
+}: {
+  stage: string;
+  paper: string;
+  border: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="w-full h-full flex items-center justify-center"
+      style={{ background: stage, padding: '5%' }}
+    >
+      <div
+        className="relative overflow-hidden"
+        style={{
+          width: '72%',
+          aspectRatio: '1.41 / 1',
+          background: paper,
+          border: `0.5px solid ${border}`,
+          boxShadow: '0 3px 8px -3px rgba(0,0,0,0.25)',
+        }}
+      >
+        {children}
       </div>
     </div>
   );
 }
 
-export function NotecardExtendedRenderer({ brand, templateIndex }: Props) {
-  const p = brand.primaryColor;
-  const init = brand.name.charAt(0).toUpperCase();
+type Ctx = {
+  brand: Brand;
+  c: NoteContent;
+  fonts: Fonts;
+  stage: string;
+  paper: Ink;
+  elevated: Ink;
+  brandInk: Ink;
+  invInk: Ink;
+  primary: string;
+  showLogo: boolean;
+};
 
-  const designs = [
-    // 0 — Centered Mark. Big serif initial centered, tiny brand
-    // name underneath. Elegant.
-    (
-      <CardFrame>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-[44px] font-serif font-bold leading-none" style={{ color: p }}>{init}</div>
-          <div className="text-[4.5px] uppercase tracking-[0.3em] text-gray-500 mt-2">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
+type Design = (x: Ctx) => JSX.Element;
 
-    // 1 — Type Splash. Bold "thanks" or "hello" splashed across in
-    // brand color, with brand mark anchoring the bottom corner.
-    (
-      <CardFrame>
-        <div className="absolute inset-0 flex flex-col items-start justify-center px-[8%]">
-          <div className="text-[20px] font-serif italic font-bold leading-none" style={{ color: p }}>thank<br/>you.</div>
-        </div>
-        <div className="absolute right-[6%] bottom-[6%] flex items-center gap-1">
-          <BrandLogo brand={brand} size="xs" />
-          <span className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">{brand.name}</span>
-        </div>
-      </CardFrame>
-    ),
+/* ── The twelve ───────────────────────────────────────────────────── */
 
-    // 2 — Color Block. Front is split into two horizontal blocks —
-    // brand color on top, white below with a small mark.
-    (
-      <CardFrame>
-        <div className="absolute inset-x-0 top-0 h-[60%] flex items-end justify-center pb-3" style={{ backgroundColor: p }}>
-          <BrandLogo brand={brand} size="md" color="#ffffff" />
+/** Keyed by `templateIndex` (`<id> - 1`); the gaps are archived ids. */
+const DESIGNS: Record<number, Design> = {
+  // ext-1 · Centred Mark — everything on the centre line. The plain one.
+  0: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute inset-x-[12%] top-[10%] bottom-[10%] flex flex-col items-center justify-center gap-[4px] text-center">
+        <div className="flex justify-center w-full">
+          <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-[40%] flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-[5px] uppercase tracking-[0.3em] text-gray-500">— With —</div>
-            <div className="text-[8px] font-serif italic text-gray-900 mt-1">gratitude</div>
-          </div>
-        </div>
-      </CardFrame>
-    ),
+        <Greeting c={x.c} ink={x.paper} fonts={x.fonts} align="center" />
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} align="center" lines={4} />
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} align="center" />
+      </div>
+    </CardStage>
+  ),
 
-    // 3 — Floral Frame. Decorative scalloped border in brand color,
-    // small mark centered.
-    (
-      <CardFrame>
-        <div className="absolute inset-[6%] border-2 rounded-[40%/24%]" style={{ borderColor: p }} />
-        <div className="absolute inset-[10%] border rounded-[40%/24%]" style={{ borderColor: `${p}55` }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <BrandLogo brand={brand} size="sm" />
-          <div className="text-[5px] uppercase tracking-[0.3em] mt-2" style={{ color: p }}>{brand.name}</div>
-          <div className="text-[4px] italic text-gray-500 mt-0.5">est. 2026</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-2 · Open Greeting — the greeting set large in brand ink, the
+  // note beneath it in a narrow column.
+  1: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute left-[9%] right-[9%] top-[11%]">
+        <Greeting
+          c={x.c}
+          ink={x.paper}
+          fonts={x.fonts}
+          size={15}
+          weight={700}
+          color={accentInk(x.primary, x.paper, true)}
+        />
+      </div>
+      <div className="absolute left-[9%] right-[30%] top-[36%]">
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} lines={4} />
+      </div>
+      <div className="absolute left-[9%] bottom-[10%]">
+        <Mark brand={x.brand} ground={x.paper.bg} height={8} show={x.showLogo} tint={x.primary} />
+      </div>
+      <div className="absolute right-[9%] bottom-[10%] max-w-[52%]">
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+    </CardStage>
+  ),
 
-    // 4 — Embossed Initial. Pressed-in initial — soft inset shadow
-    // mimics deboss on cardstock.
-    (
-      <CardFrame>
-        <div className="absolute inset-0 flex items-center justify-center bg-[#FAF6EE]">
-          <div className="text-[60px] font-serif font-black leading-none" style={{ color: '#fff', textShadow: `inset 0 2px 0 rgba(0,0,0,0.05)`, WebkitTextStroke: `1.5px ${p}55`, filter: `drop-shadow(0 1px 0 ${p}33) drop-shadow(0 -1px 0 #fff)` }}>{init}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-[8%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-500">{brand.name}</div>
-      </CardFrame>
-    ),
+  // ext-3 · Colour Block — a brand panel down the left carrying the mark
+  // and the sign-off; the writing gets the clean side.
+  2: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[38%] flex flex-col justify-between p-[6%]"
+        style={{ background: x.brandInk.bg }}
+      >
+        <Mark brand={x.brand} ground={x.brandInk.bg} height={10} show={x.showLogo} />
+        <SignOff c={x.c} ink={x.brandInk} fonts={x.fonts} size={4} />
+      </div>
+      <div className="absolute left-[44%] right-[7%] top-[14%] bottom-[12%] flex flex-col gap-[5px]">
+        <Greeting c={x.c} ink={x.paper} fonts={x.fonts} size={8} />
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} size={3.9} lines={5} />
+      </div>
+    </CardStage>
+  ),
 
-    // 5 — Brand Glow. Soft radial brand-color glow with a small
-    // mark centered. Modern + dreamy.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ background: `radial-gradient(60% 60% at 50% 50%, ${p}66 0%, transparent 70%)` }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <BrandLogo brand={brand} size="md" />
-          <div className="text-[4px] uppercase tracking-[0.32em] text-gray-700 mt-2">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-5 · Embossed Initial — an outlined initial pressed into the
+  // stock behind the writing, in the elevated paper's own colour.
+  4: (x) => (
+    <CardStage stage={x.stage} paper={x.elevated.bg} border={x.elevated.border}>
+      <div
+        className="absolute right-[4%] bottom-[-6%] leading-none pointer-events-none"
+        style={{
+          fontSize: '58px',
+          fontFamily: x.fonts.heading,
+          fontWeight: 800,
+          color: 'transparent',
+          WebkitTextStroke: `1px ${x.elevated.border}`,
+        }}
+      >
+        {x.c.signOff.replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase() || '·'}
+      </div>
+      <div className="absolute left-[9%] right-[9%] top-[13%] flex flex-col gap-[5px]">
+        <Greeting c={x.c} ink={x.elevated} fonts={x.fonts} size={8.5} />
+        <Message c={x.c} ink={x.elevated} fonts={x.fonts} lines={4} />
+      </div>
+      <div className="absolute left-[9%] bottom-[11%]">
+        <SignOff c={x.c} ink={x.elevated} fonts={x.fonts} />
+      </div>
+    </CardStage>
+  ),
 
-    // 6 — Half Tone. Halftone-dot wash sets a textured warm
-    // backdrop; clean type sits on top.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, ${p}DD 0%, ${p}55 100%)` }} />
-        <div className="absolute inset-0 mix-blend-multiply opacity-60" style={{ backgroundImage: `radial-gradient(circle, #111 0.6px, transparent 0.7px)`, backgroundSize: '4px 4px' }} />
-        <div className="relative w-full h-full flex flex-col items-center justify-center text-white">
-          <div className="text-[4px] uppercase tracking-[0.3em] opacity-80">a card from</div>
-          <div className="text-[14px] font-serif font-bold mt-1">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-8 · Folded Edge — a narrow brand band down the binding edge,
+  // the way a folded card shows its spine.
+  7: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[7%]"
+        style={{ background: x.primary }}
+      />
+      <div className="absolute left-[15%] right-[9%] top-[13%] flex flex-col gap-[5px]">
+        <Greeting c={x.c} ink={x.paper} fonts={x.fonts} size={8.5} />
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} lines={4} />
+      </div>
+      <div className="absolute left-[15%] right-[9%] bottom-[11%] flex items-end justify-between gap-[6px]">
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} />
+        <Mark brand={x.brand} ground={x.paper.bg} height={8} show={x.showLogo} tint={x.primary} />
+      </div>
+    </CardStage>
+  ),
 
-    // 7 — Folded Edge. Visible "fold crease" line down the right
-    // edge with a small mark, evoking a folded card open just a
-    // bit.
-    (
-      <CardFrame accent={p}>
-        <div className="absolute inset-y-0 right-0 w-[3px]" style={{ background: `linear-gradient(180deg, ${p} 0%, ${p}66 100%)` }} />
-        <div className="absolute left-[8%] top-[10%]">
-          <BrandLogo brand={brand} size="xs" />
-          <div className="text-[3.5px] uppercase tracking-[0.3em] text-gray-500 mt-1">{brand.name}</div>
-        </div>
-        <div className="absolute left-[8%] bottom-[10%]">
-          <div className="text-[8px] font-serif text-gray-900">Hello,</div>
-          <div className="text-[3.5px] text-gray-600 mt-0.5">— a small note —</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-10 · Postcard Stripe — a brand header band with the mark in it;
+  // the note reads like the back of a postcard.
+  9: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute inset-x-0 top-0 h-[22%] flex items-center px-[7%]"
+        style={{ background: x.brandInk.bg }}
+      >
+        <Mark brand={x.brand} ground={x.brandInk.bg} height={9} show={x.showLogo} />
+      </div>
+      <div className="absolute left-[7%] right-[7%] top-[29%] flex flex-col gap-[4px]">
+        <Greeting c={x.c} ink={x.paper} fonts={x.fonts} size={8} />
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} size={3.9} lines={4} />
+      </div>
+      <div className="absolute right-[7%] bottom-[9%] max-w-[70%]">
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+    </CardStage>
+  ),
 
-    // 8 — Hand-Drawn. Sketched border + handwritten-style accent.
-    (
-      <CardFrame>
-        <div className="absolute inset-[6%] border-2 border-dashed rounded-md" style={{ borderColor: `${p}AA` }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-[14px] leading-none italic" style={{ color: p, fontFamily: 'Caveat, cursive' }}>hello,</div>
-          <div className="text-[5px] uppercase tracking-[0.3em] text-gray-500 mt-2">— from —</div>
-          <div className="text-[6px] font-serif italic text-gray-900 mt-0.5">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-15 · Window Cut — the writing sits inside a drawn frame, so the
+  // card has a margin the note cannot spill into.
+  14: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute left-[7%] top-[8%]">
+        <Mark brand={x.brand} ground={x.paper.bg} height={8} show={x.showLogo} tint={x.primary} />
+      </div>
+      <div
+        className="absolute left-[7%] right-[7%] top-[24%] bottom-[22%] flex flex-col justify-center gap-[4px] px-[6%]"
+        style={{ background: x.elevated.bg, border: `1px solid ${x.primary}` }}
+      >
+        <Greeting c={x.c} ink={x.elevated} fonts={x.fonts} size={7.5} />
+        <Message c={x.c} ink={x.elevated} fonts={x.fonts} size={3.8} lines={3} />
+      </div>
+      <div className="absolute left-[7%] right-[7%] bottom-[8%]">
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+    </CardStage>
+  ),
 
-    // 9 — Postcard Stripe. Horizontal address-style stripe in
-    // brand color cuts the bottom; logo top-left.
-    (
-      <CardFrame>
-        <div className="absolute left-[8%] top-[10%]">
-          <BrandLogo brand={brand} size="xs" />
-        </div>
-        <div className="absolute left-[8%] right-[8%] top-1/2 -translate-y-1/2">
-          <div className="text-[7px] font-serif text-gray-900 italic">a small thanks,</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-[18%] flex items-center px-[8%] text-white" style={{ backgroundColor: p }}>
-          <div className="text-[3.5px] uppercase tracking-[0.3em]">{brand.name.toLowerCase()}.com · est. 2026</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-18 · Pull Quote — the message IS the design, set large under a
+  // brand rule with the greeting as a small eyebrow.
+  17: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute left-[9%] right-[9%] top-[13%]">
+        <Greeting
+          c={x.c}
+          ink={x.paper}
+          fonts={x.fonts}
+          size={3.8}
+          weight={600}
+          tracking="0.26em"
+          upper
+          color={x.paper.muted}
+        />
+      </div>
+      <div
+        className="absolute left-[9%] top-[24%] w-[18%]"
+        style={{ height: '1.5px', background: x.primary }}
+      />
+      <div className="absolute left-[9%] right-[9%] top-[31%]">
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} size={6} color={x.paper.text} lines={3} />
+      </div>
+      <div className="absolute left-[9%] right-[9%] bottom-[10%] flex items-end justify-between gap-[6px]">
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} size={4} />
+        <Mark brand={x.brand} ground={x.paper.bg} height={8} show={x.showLogo} tint={x.primary} />
+      </div>
+    </CardStage>
+  ),
 
-    // 10 — Big Period. A single oversized brand-color dot acts as
-    // visual anchor; a quiet "."
-    (
-      <CardFrame>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%] aspect-square rounded-full" style={{ backgroundColor: p }} />
-        <div className="absolute inset-x-0 bottom-[12%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-600">{brand.name}</div>
-      </CardFrame>
-    ),
+  // ext-19 · Round Frame — a brand oval drawn around the greeting, the
+  // rest of the card left quiet.
+  18: (x) => (
+    <CardStage stage={x.stage} paper={x.elevated.bg} border={x.elevated.border}>
+      <div
+        className="absolute left-[22%] right-[22%] top-[11%] h-[24%] flex items-center justify-center px-[4%]"
+        style={{ border: `1px solid ${x.primary}`, borderRadius: '999px' }}
+      >
+        <Greeting c={x.c} ink={x.elevated} fonts={x.fonts} size={7} align="center" />
+      </div>
+      <div className="absolute left-[13%] right-[13%] top-[42%]">
+        <Message c={x.c} ink={x.elevated} fonts={x.fonts} align="center" lines={3} />
+      </div>
+      <div className="absolute left-[13%] right-[13%] bottom-[10%] flex flex-col items-center gap-[3px]">
+        <SignOff c={x.c} ink={x.elevated} fonts={x.fonts} align="center" />
+        <Mark brand={x.brand} ground={x.elevated.bg} height={7} show={x.showLogo} tint={x.primary} />
+      </div>
+    </CardStage>
+  ),
 
-    // 11 — Diagonal Stripe. Bold brand-color diagonal cuts across.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${p} 0%, ${p} 50%, transparent 50.5%, transparent 100%)` }} />
-        <div className="absolute left-[8%] top-[10%] text-white">
-          <div className="text-[5px] uppercase tracking-[0.3em]">{brand.name}</div>
-        </div>
-        <div className="absolute right-[8%] bottom-[10%] text-right text-gray-700">
-          <div className="text-[8px] font-serif italic">cheers,</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-23 · Card Wrap — a brand footer band carrying the sign-off, so
+  // the card closes on the brand rather than opening on it.
+  22: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute left-[8%] top-[10%]">
+        <Mark brand={x.brand} ground={x.paper.bg} height={8} show={x.showLogo} tint={x.primary} />
+      </div>
+      <div className="absolute left-[8%] right-[8%] top-[27%] flex flex-col gap-[4px]">
+        <Greeting c={x.c} ink={x.paper} fonts={x.fonts} size={8} />
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} size={3.9} lines={4} />
+      </div>
+      <div
+        className="absolute inset-x-0 bottom-0 h-[18%] flex items-center px-[8%]"
+        style={{ background: x.brandInk.bg }}
+      >
+        <SignOff c={x.c} ink={x.brandInk} fonts={x.fonts} size={4.2} />
+      </div>
+    </CardStage>
+  ),
 
-    // 12 — Stripes Pattern. Repeating brand stripes covering the
-    // full front; small label sticker on top.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ background: `repeating-linear-gradient(90deg, ${p} 0 8px, #fff 8px 16px)` }} />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 py-1 shadow-md">
-          <div className="text-[3.5px] uppercase tracking-[0.3em] text-center" style={{ color: p }}>{brand.name}</div>
-          <div className="text-[5px] font-serif text-gray-900">— a note —</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-25 · Colour Wedge — a brand corner cut across the top right,
+  // with the writing kept clear of it.
+  24: (x) => (
+    <CardStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute right-0 top-0 w-[52%] h-[46%]"
+        style={{ background: x.primary, clipPath: 'polygon(100% 0, 100% 100%, 0 0)' }}
+      />
+      <div className="absolute left-[8%] top-[12%]">
+        <Mark brand={x.brand} ground={x.paper.bg} height={8} show={x.showLogo} tint={x.primary} />
+      </div>
+      <div className="absolute left-[8%] right-[8%] top-[40%] flex flex-col gap-[4px]">
+        <Greeting c={x.c} ink={x.paper} fonts={x.fonts} size={8.5} />
+        <Message c={x.c} ink={x.paper} fonts={x.fonts} size={3.9} lines={3} />
+      </div>
+      <div className="absolute left-[8%] right-[8%] bottom-[9%]">
+        <SignOff c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </CardStage>
+  ),
 
-    // 13 — Confetti. Small dots scattered as confetti on cream.
-    (
-      <CardFrame>
-        {Array.from({ length: 24 }).map((_, i) => (
-          <div key={i} className="absolute rounded-full" style={{ width: '4px', height: '4px', backgroundColor: i % 3 === 0 ? p : i % 3 === 1 ? '#0F1216' : '#D4D2CB', left: `${(i * 17) % 90 + 5}%`, top: `${(i * 23) % 80 + 10}%` }} />
-        ))}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <BrandLogo brand={brand} size="sm" />
-          <div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{ color: p }}>celebrate</div>
-        </div>
-      </CardFrame>
-    ),
+  // ext-30 · Solid Brand — the whole card in the brand's colour, every
+  // word in the tone `pickSurfaceTokens` guarantees on it.
+  29: (x) => (
+    <CardStage stage={x.stage} paper={x.brandInk.bg} border={x.brandInk.bg}>
+      <div className="absolute left-[9%] top-[11%]">
+        <Mark brand={x.brand} ground={x.brandInk.bg} height={9} show={x.showLogo} />
+      </div>
+      <div className="absolute left-[9%] right-[9%] top-[32%] flex flex-col gap-[4px]">
+        <Greeting c={x.c} ink={x.brandInk} fonts={x.fonts} size={8.5} />
+        <Message c={x.c} ink={x.brandInk} fonts={x.fonts} size={3.9} lines={4} />
+      </div>
+      <div className="absolute left-[9%] right-[9%] bottom-[10%]">
+        <SignOff c={x.c} ink={x.brandInk} fonts={x.fonts} />
+      </div>
+    </CardStage>
+  ),
+};
 
-    // 14 — Window Cut. A circular brand-color "window" reveals
-    // initial; rest is white.
-    (
-      <CardFrame>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[55%] aspect-square rounded-full flex items-center justify-center" style={{ backgroundColor: p }}>
-          <div className="text-white text-[36px] font-serif font-black leading-none">{init}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-[8%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-600">— for you —</div>
-      </CardFrame>
-    ),
+const FALLBACK_INDEX = 0;
 
-    // 15 — Folded Banner. A "ribbon banner" carries a greeting.
-    (
-      <CardFrame>
-        <div className="absolute inset-x-[4%] top-[40%] h-[18%] flex items-center justify-center" style={{ backgroundColor: p, boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}>
-          <div className="text-white text-[8px] font-serif italic font-bold">— hello —</div>
-        </div>
-        <div className="absolute right-[10%] bottom-[10%] text-right text-[3.5px] uppercase tracking-[0.22em] text-gray-500">{brand.name}</div>
-      </CardFrame>
-    ),
+export function NotecardExtendedRenderer({ brand, templateIndex, content }: Props) {
+  const note = content && content.kind === 'note' ? content : undefined;
+  const picks = content?.picks;
+  const painted = brandWithPicks(brand, picks);
+  const c: NoteContent = note ?? defaultNoteContent(painted);
 
-    // 16 — Color Swatch Grid. 3×3 grid of brand color shades like
-    // a paint chip card.
-    (
-      <CardFrame>
-        <div className="absolute inset-[6%] grid grid-cols-3 grid-rows-3 gap-[2px]">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} style={{ backgroundColor: p, opacity: 0.3 + (i / 12) }} />
-          ))}
-        </div>
-        <div className="absolute inset-x-0 bottom-[6%] text-center text-[3.5px] uppercase tracking-[0.3em] text-gray-600">{brand.name} · palette</div>
-      </CardFrame>
-    ),
+  const x: Ctx = {
+    brand: painted,
+    c,
+    fonts: {
+      heading: fontStack(painted, 'heading'),
+      body: fontStack(painted, 'body'),
+      mono: fontStack(painted, 'mono'),
+    },
+    stage: surface(painted, 'subtle').bg,
+    paper: inkFor(painted, 'card'),
+    elevated: inkFor(painted, 'elevated'),
+    brandInk: inkFor(painted, 'brand'),
+    invInk: inkFor(painted, 'inverted'),
+    primary: surface(painted, 'brand').bg,
+    showLogo: picks?.showLogo !== false,
+  };
 
-    // 17 — Big Quote. A single oversized typographic quote mark.
-    (
-      <CardFrame>
-        <div className="absolute left-[5%] top-[2%] text-[60px] font-serif leading-none" style={{ color: p }}>"</div>
-        <div className="absolute right-[8%] bottom-[10%] text-right">
-          <div className="text-[6px] font-serif italic text-gray-900">— a small reminder</div>
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-0.5">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
-
-    // 18 — Round Frame. Soft round vignette in brand color
-    // surrounding small mark.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 50%, transparent 30%, ${p}AA 70%, ${p} 100%)` }} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-white rounded-full w-[60%] aspect-square flex items-center justify-center">
-            <div className="text-center">
-              <BrandLogo brand={brand} size="sm" />
-              <div className="text-[3.5px] uppercase tracking-[0.32em] mt-1" style={{ color: p }}>{brand.name}</div>
-            </div>
-          </div>
-        </div>
-      </CardFrame>
-    ),
-
-    // 19 — Letter Stack. Stacked letterforms that spell the brand
-    // initial in different weights.
-    (
-      <CardFrame>
-        <div className="absolute inset-0 flex items-center justify-center gap-1">
-          <div className="text-[36px] font-black leading-none" style={{ color: `${p}33` }}>{init}</div>
-          <div className="text-[36px] font-bold leading-none" style={{ color: `${p}66` }}>{init}</div>
-          <div className="text-[36px] font-medium leading-none" style={{ color: p }}>{init}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-[8%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-600">{brand.name}</div>
-      </CardFrame>
-    ),
-
-    // 20 — Calendar Day. Single big tear-off date with the brand name.
-    (
-      <CardFrame>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border-2 shadow-md p-2 text-center" style={{ borderColor: p }}>
-          <div className="text-[3.5px] uppercase tracking-[0.32em]" style={{ color: p }}>April</div>
-          <div className="text-[20px] font-serif font-black leading-none text-gray-900 my-1">27</div>
-          <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
-
-    // 21 — Brushstroke Mark. A thick painterly brushstroke arc in
-    // brand color across the front.
-    (
-      <CardFrame>
-        <div className="absolute left-[10%] right-[10%] top-1/2 -translate-y-1/2 h-[12%] rounded-full" style={{ background: `linear-gradient(90deg, transparent 0%, ${p} 20%, ${p} 80%, transparent 100%)` }} />
-        <div className="absolute inset-x-0 bottom-[8%] text-center">
-          <div className="text-[7px] font-serif italic text-gray-900">— with thanks</div>
-          <div className="text-[3.5px] uppercase tracking-[0.32em] mt-0.5" style={{ color: p }}>{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
-
-    // 22 — Card Wrap. Big logo wrapped in a vertical brand-color band.
-    (
-      <CardFrame>
-        <div className="absolute left-[35%] right-[35%] top-0 bottom-0" style={{ backgroundColor: p }} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-white p-1.5">
-            <BrandLogo brand={brand} size="md" />
-          </div>
-        </div>
-        <div className="absolute inset-x-0 bottom-[6%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-600">{brand.name}</div>
-      </CardFrame>
-    ),
-
-    // 23 — Open Frame. Dashed brand-color border with the brand
-    // initial centered like a monogram bookplate.
-    (
-      <CardFrame>
-        <div className="absolute inset-[8%] border border-dashed" style={{ borderColor: p }} />
-        <div className="absolute inset-[12%] border" style={{ borderColor: p }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-[3.5px] uppercase tracking-[0.32em]" style={{ color: p }}>ex libris</div>
-          <div className="text-[24px] font-serif font-bold mt-1 text-gray-900">{init}</div>
-          <div className="text-[3.5px] uppercase tracking-[0.32em] mt-1 text-gray-600">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
-
-    // 24 — Bottom Color Wedge. Triangular brand-color wedge at the
-    // bottom; clean type above.
-    (
-      <CardFrame>
-        <div className="absolute inset-x-0 bottom-0 h-[55%]" style={{ background: p, clipPath: 'polygon(0 100%, 100% 100%, 100% 0)' }} />
-        <div className="absolute left-[8%] top-[14%]">
-          <BrandLogo brand={brand} size="xs" />
-        </div>
-        <div className="absolute left-[8%] top-[40%]">
-          <div className="text-[10px] font-serif italic text-gray-900">hello,</div>
-        </div>
-        <div className="absolute right-[8%] bottom-[8%] text-right text-white text-[3.5px] uppercase tracking-[0.32em]">— {brand.name}</div>
-      </CardFrame>
-    ),
-
-    // 25 — Twin Initials. Two big initials offset — like a couple's
-    // monogram or partnership.
-    (
-      <CardFrame>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-[40px] font-serif font-black leading-none" style={{ color: `${p}55` }}>{init}</div>
-          <div className="text-[40px] font-serif font-black leading-none -ml-2" style={{ color: p }}>{init}</div>
-        </div>
-        <div className="absolute inset-x-0 bottom-[8%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-600">— {brand.name} · 2026 —</div>
-      </CardFrame>
-    ),
-
-    // 26 — Ticket. A small "ticket" feel with perforated edge and
-    // tear-off stub.
-    (
-      <CardFrame>
-        <div className="absolute inset-[8%] flex border-2 border-dashed" style={{ borderColor: p }}>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-[3.5px] uppercase tracking-[0.32em]" style={{ color: p }}>admit one</div>
-              <div className="text-[10px] font-serif font-bold text-gray-900 mt-1">{brand.name}</div>
-            </div>
-          </div>
-        </div>
-      </CardFrame>
-    ),
-
-    // 27 — Soft Gradient. Vertical brand-to-white gradient with
-    // serif greeting.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${p} 0%, ${p}66 50%, #fff 100%)` }} />
-        <div className="absolute inset-x-0 top-[14%] text-center text-white text-[3.5px] uppercase tracking-[0.32em]">— from —</div>
-        <div className="absolute inset-x-0 top-[38%] text-center text-white text-[14px] font-serif italic font-bold">{brand.name}</div>
-        <div className="absolute inset-x-0 bottom-[10%] text-center text-[3.5px] uppercase tracking-[0.32em] text-gray-600">est · 2026</div>
-      </CardFrame>
-    ),
-
-    // 28 — Pen-Nib Mark. Small stylised pen-nib glyph in brand
-    // color, anchored bottom-right.
-    (
-      <CardFrame>
-        <div className="absolute right-[10%] bottom-[14%]">
-          <div className="w-[10px] h-[14px] rounded-t-full" style={{ background: p, clipPath: 'polygon(50% 0, 100% 60%, 50% 100%, 0 60%)' }} />
-        </div>
-        <div className="absolute left-[8%] top-[14%]">
-          <div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— hand-written —</div>
-          <div className="text-[14px] font-serif italic font-bold text-gray-900 mt-1">a note,</div>
-        </div>
-        <div className="absolute left-[8%] bottom-[14%] text-[3.5px] uppercase tracking-[0.32em]" style={{ color: p }}>{brand.name}</div>
-      </CardFrame>
-    ),
-
-    // 29 — Solid Mono. Pure brand-color front with a tiny white
-    // mark in one corner — boldest possible note.
-    (
-      <CardFrame>
-        <div className="absolute inset-0" style={{ backgroundColor: p }} />
-        <div className="absolute right-[8%] bottom-[8%] text-right">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <div className="text-white text-[3.5px] uppercase tracking-[0.32em] mt-1 opacity-90">{brand.name}</div>
-        </div>
-      </CardFrame>
-    ),
-  ];
-
-  return designs[templateIndex] ?? designs[0];
+  const design = DESIGNS[templateIndex] ?? DESIGNS[FALLBACK_INDEX];
+  return design(x);
 }
 
+/**
+ * The family's template list. Ids are persistence keys and unchanged; the
+ * eighteen culled wave-1 ids are declared archived in
+ * `curation/notecard.ts` rather than removed from here, so the list and
+ * the archive cannot disagree about which ids exist.
+ */
 export const NOTECARD_EXTENDED = [
   { idSuffix: 'ext-1', name: 'Centered Mark', category: 'Minimalist' },
   { idSuffix: 'ext-2', name: 'Type Splash', category: 'Editorial' },

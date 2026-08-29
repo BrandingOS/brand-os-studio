@@ -33,7 +33,7 @@ import {
   createTemplateInstanceDocument,
   instantiateFromMaster,
 } from '@/features/editor/renderers/template-instance/createDocument';
-import { defaultContentFor, type InvoiceContent } from '@/features/brandkit/content';
+import { defaultContentFor, type InvoiceContent , type DeliverableContent } from '@/features/brandkit/content';
 import { saveFeaturedVariants } from '../data/cardCustomizations';
 
 /**
@@ -171,28 +171,33 @@ describe('Use Template — an independent copy, handed to Design', () => {
 });
 
 describe('the tile menu gates a design Design cannot actually edit', () => {
-  it('offers both actions, disabled and explained, on an unbound variant', async () => {
+  it('offers both actions ENABLED on every kept invoice — the unbound ones are archived', async () => {
+    // The gate consults `rendererBindsContent`; its refusal of a
+    // content-blind legacy id is pinned in `contentBinding.test.tsx`. In the
+    // drilldown there is nothing left to refuse: the Invoice conversion
+    // archived every design that did not bind, so the positive side of the
+    // gate is what a user can actually reach.
     const { storage } = statefulDesignStorage();
     container.register(SERVICE_KEYS.DESIGN_STORAGE, () => storage);
-    // `invoices-ext-12` is in the wired family but its renderer binds no
-    // content — every edit made in Design would be discarded, silently.
-    // Featured through the same store the "+" picker writes, so the
-    // drilldown shows it.
-    saveFeaturedVariants(sourceBrand.id, 'Invoice', ['invoices-ext-12']);
 
     renderKit();
     await openInvoice();
 
-    const tile = await screen.findByRole('button', { name: /^Open / });
-    fireEvent.contextMenu(tile);
-
-    const use = await screen.findByRole('menuitem', { name: /Use Template/ });
-    expect(use).toBeDisabled();
-    expect(use.textContent).toMatch(/can't be edited in Design yet/i);
-    const edit = screen.getByRole('menuitem', { name: /Edit Template/ });
-    expect(edit).toBeDisabled();
-
-    fireEvent.click(use);
+    const tiles = await screen.findAllByRole('button', { name: /^Open / });
+    expect(tiles.length).toBeGreaterThan(0);
+    let menus = 0;
+    for (const tile of tiles) {
+      fireEvent.contextMenu(tile);
+      // Not every "Open …" button is a variant tile (the card's own Open is
+      // one too); only tiles open the template menu.
+      const use = screen.queryByRole('menuitem', { name: /Use Template/ });
+      if (!use) continue;
+      menus += 1;
+      expect(use).not.toBeDisabled();
+      expect(screen.getByRole('menuitem', { name: /Edit Template/ })).not.toBeDisabled();
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+    }
+    expect(menus).toBeGreaterThan(0);
     expect(storage.saveDesign).not.toHaveBeenCalled();
   });
 });
@@ -287,7 +292,7 @@ describe('§7.2 invariant — editing a master leaves an existing instance untou
     // the defaults are facts about the brand (`brandFacts.ts`) and are
     // meant to move when the brand does. What must not move is that the
     // instance still holds them after the master was edited.
-    const seededInvoice = (): InvoiceContent => {
+    const seededInvoice = (): Extract<DeliverableContent, { kind: 'invoice' }> => {
       const content = defaultContentFor('invoice', { name: 'SKAM' });
       if (content.kind !== 'invoice') throw new Error('narrowing failed');
       return content;
