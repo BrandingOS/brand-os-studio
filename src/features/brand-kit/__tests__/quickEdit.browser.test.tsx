@@ -12,7 +12,7 @@
  *   5. Save / Cancel / Reset / Download still behave.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within, waitFor } from '@testing-library/react';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import { BrandKitCardEditor, type EditorTarget } from '../components/BrandKitCardEditor';
@@ -602,5 +602,38 @@ describe('the model is the source of truth', () => {
     const subtotal = base.lineItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
     expect(expected.total).toBe(Math.round(subtotal * 1.2 * 100) / 100);
     expect(totalRow('Total')).toBe(formatMoney(expected.total, base.currency));
+  });
+});
+
+describe('the preview shows the logo', () => {
+  // Setup hands the kit each variant as `<svg><image href="…"/></svg>`. The
+  // editor used to recolour that wrapper and re-encode it as a data URI —
+  // and an SVG loaded through <img> cannot resolve an external reference,
+  // so every family's preview drew a blank where the logo should be.
+  const ART = `data:image/svg+xml;base64,${btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#E8542F"/></svg>',
+  )}`;
+  const wrapper = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="#F5F4EF"/><image href="${ART}" x="20" y="20" width="160" height="160"/></svg>`;
+
+  it('uses the wrapped artwork itself, never a re-encoded wrapper', async () => {
+    cleanup();
+    const brand = { ...mockBrand, logos: [{ id: 'p', label: 'Primary', variant: 'light' as const, role: 'primary', svg: wrapper }] };
+    render(
+      <BrandKitCardEditor
+        brand={brand}
+        sourceBrand={{ ...sourceBrand, logo: ART }}
+        target={targetFor('stationery', 'Letterhead', 'letterhead-ext-6')}
+        initialCustomization={null}
+        onClose={() => {}}
+        onSave={() => {}}
+      />,
+    );
+    const img = await waitFor(() => {
+      const el = document.querySelector<HTMLImageElement>('.bk-preview-host img');
+      if (!el) throw new Error('no logo img in the preview');
+      return el;
+    });
+    expect(img.getAttribute('src')).toBe(ART);
+    await waitFor(() => expect(img.naturalWidth).toBeGreaterThan(0));
   });
 });
