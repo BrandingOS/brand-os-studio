@@ -307,10 +307,14 @@ describe('the letterhead body', () => {
     setBody('Dear team,');
     expect(region('body').textContent).toBe('Dear team,');
 
-    // Emptied on purpose — the design goes back to drawing its rules, so
-    // a blank letterhead still looks like a blank letterhead.
+    // Emptied on purpose. The Letterhead conversion replaced the grey
+    // rules with a real bound region carrying its own invitation, so the
+    // region STAYS — an empty letter is a letter you can click back into,
+    // not a decorative placeholder you cannot reach.
     setBody('');
-    expect(document.querySelector('.ti-canvas [data-bind="body"]')).toBeNull();
+    const emptied = document.querySelector('.ti-canvas [data-bind="body"]');
+    expect(emptied).not.toBeNull();
+    expect(emptied!.textContent).toMatch(/write your letter/i);
   });
 });
 
