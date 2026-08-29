@@ -31,7 +31,8 @@ export type KitSectionKey =
   | 'web'
   | 'brand-guides'
   | 'presentations'
-  | 'animations';
+  | 'animations'
+  | 'mockups';
 
 type OrganicIconComponent = ForwardRefExoticComponent<
   OrganicIconProps & RefAttributes<OrganicIconHandle>
@@ -92,6 +93,7 @@ function buildEntries(brand: MockBrand, progress?: SectionProgress): Entry[] {
     'brand-guides': true,
     presentations: true,
     animations: true,
+    mockups: logoCount > 0,
   };
   const created = (key: KitSectionKey) =>
     progress ? (progress[key]?.approved ?? 0) > 0 : legacyAdded[key];

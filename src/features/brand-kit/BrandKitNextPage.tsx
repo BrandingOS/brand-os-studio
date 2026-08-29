@@ -100,6 +100,7 @@ const SECTION_LABELS: Record<KitSectionKey, string> = {
   'brand-guides': 'Brand Guides',
   presentations: 'Presentations',
   animations: 'Animations',
+  mockups: 'Mockups',
 };
 
 /**

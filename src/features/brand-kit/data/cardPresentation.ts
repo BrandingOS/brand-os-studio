@@ -107,6 +107,18 @@ export const PICKER_ASPECT_BY_LABEL: Record<string, number> = {
   'Slide In': 1,
   Fade: 1,
   Rotate: 1,
+  // Mockups (spec §3). The ratio is the SCENE's, not the object's: a
+  // signage shot, a billboard, a device screen and a stack of cards are
+  // all photographed wide; a mug, a tote, a sticker and a tee are all
+  // photographed square, because the object fills the frame.
+  Signage: 1.6,
+  Billboard: 1.6,
+  'Device Screen': 1.6,
+  'Business Card Stack': 1.6,
+  Mug: 1,
+  Tote: 1,
+  Sticker: 1,
+  Apparel: 1,
 };
 
 /** The width-over-height ratio a card is drawn at. */
@@ -133,4 +145,26 @@ export function featuredTemplates(
     .map((id) => all.find((t) => t.id === id))
     .filter((t): t is BrandKitTemplate => Boolean(t));
   return picked.length > 0 ? picked : [...all];
+}
+
+/**
+ * Is this a machine's name for a design, rather than a designer's?
+ *
+ * The Brand Kit's Wave 2 template families were generated in bulk and
+ * named by their loop index — `Wave 2 · 95`, `Wave 2 · 43` — which is
+ * how a curated picker ends up telling a customer to choose between
+ * "Wave 2 · 43" and "Wave 2 · 44". Spec §1 ("Curated"): every variant
+ * shown is "named by a designer (never 'Wave 2 · 43')".
+ *
+ * This is the predicate the curation pass and its guards read, so the
+ * shape of the generated name is written down ONCE. It is deliberately
+ * narrow — it matches only the exact generated form, so a real design
+ * called "Wave" or "Second Wave" is never mistaken for one.
+ *
+ * The separator is U+00B7 MIDDLE DOT, the character the generator emits.
+ */
+const GENERATED_NAME = /^Wave \d+ · \d+$/;
+
+export function isGeneratedName(name: string | null | undefined): boolean {
+  return typeof name === 'string' && GENERATED_NAME.test(name.trim());
 }

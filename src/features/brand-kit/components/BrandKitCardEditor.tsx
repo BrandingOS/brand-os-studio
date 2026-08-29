@@ -1780,6 +1780,7 @@ function sectionLabel(key: KitSectionKey): string {
     'brand-guides': 'Brand Guides',
     presentations: 'Presentations',
     animations: 'Animations',
+    mockups: 'Mockups',
   };
   return map[key];
 }

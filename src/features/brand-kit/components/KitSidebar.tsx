@@ -77,6 +77,7 @@ const ICON_BY_GROUP: Record<KitGroup, OrganicIconComponent> = {
   applications: PaperStackOrganicIcon,
   social: ChatBubblesOrganicIcon,
   presentations: PlayOrganicIcon,
+  mockups: CubeOrganicIcon,
 };
 
 function iconFor(entry: KitEntry): OrganicIconComponent {

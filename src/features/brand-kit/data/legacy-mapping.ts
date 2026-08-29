@@ -7,6 +7,7 @@ import type { BrandKitTemplate } from '@/features/brandkit/types';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from '../components/BrandKitSidebar';
 import { logoCombosFor } from './recolorLogo';
+import { curatedName, isArchived } from '../renderers/curation';
 import { BUSINESS_CARDS_EXTENDED } from '../renderers/BusinessCardsExtended';
 import { BUSINESS_CARDS_EXTENDED_2 } from '../renderers/BusinessCardsExtended2';
 import { MOCKUPS_EXTENDED } from '../renderers/MockupsExtended';
@@ -107,6 +108,12 @@ const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
     'Fade': { moduleId: '__anim-fade__' },
     'Rotate': { moduleId: '__anim-rotate__' },
   },
+  // Mockups (spec §3, NEW). The catalog lists the eight labels and the
+  // renderers exist (MockupMug / TShirt / Billboard / Tote / Sticker); the
+  // Mockups family task wires each label to its synthetic moduleId here.
+  // Empty until then, so `variantsForCard` returns [] rather than a wrong
+  // family's designs.
+  mockups: {},
 };
 
 /** Returns the legacy data source for a cosmos card, or null if the
@@ -544,7 +551,7 @@ const EXTENDED_TEMPLATES: Record<string, BrandKitTemplate[]> = {
  *  template per real asset (logo combos, colors, fonts…). When
  *  omitted, brand-assets variants come back empty — callers in a
  *  brand-scoped page should always pass it. */
-export function variantsForCard(
+function variantsForCardRaw(
   sectionKey: KitSectionKey,
   label: string,
   brand?: MockBrand,
@@ -564,4 +571,24 @@ export function variantsForCard(
   // an extension's category may not match the card's filter, and
   // we'd rather show too few than show off-category designs.
   return src.category ? filtered : [...filtered, ...extensions];
+}
+
+/**
+ * The variants a card shows — after each family's own curation.
+ *
+ * Archived ids vanish from every surface (drilldown, picker, export) while
+ * staying valid persistence keys; curated names replace generator names
+ * like "Wave 2 · 43". This wrapper is the ONLY place curation is applied,
+ * so a family converting its renderers never edits this file or the
+ * dispatch — it edits `renderers/curation/<family>.ts`.
+ */
+export function variantsForCard(
+  ...args: Parameters<typeof variantsForCardRaw>
+): ReturnType<typeof variantsForCardRaw> {
+  return variantsForCardRaw(...args)
+    .filter((t) => !isArchived(t.id))
+    .map((t) => {
+      const name = curatedName(t.id);
+      return name ? { ...t, name } : t;
+    });
 }

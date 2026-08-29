@@ -122,6 +122,10 @@ const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
     { label: 'Fade' },
     { label: 'Rotate' },
   ],
+  // Mockups has no legacy section grid — it is reached through the
+  // catalog's own `EntryGrid`, never through `SECTION_ORDER`. Empty here
+  // so `Record<KitSectionKey, …>` stays total.
+  mockups: [],
 };
 
 /** Cap any section at 5 cards regardless of source data. */
@@ -481,7 +485,7 @@ export function CardGrid({
       if (onDownloadCard) {
         menuItems.push({
           label: 'Download',
-          onSelect: () => onDownloadCard(targetFor(item)),
+          onSelect: () => onDownloadCard(targetFor(item), { format: 'png' }),
           icon: <DownloadIcon />,
         });
       }
