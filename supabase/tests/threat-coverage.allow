@@ -1,15 +1,11 @@
 # Attack ids whose control ships in a later plan. This list must shrink to empty.
 A2   # check-plan-limit rewrite — Plan B (Edge Functions)
 A4   # storage object cross-brand via signed URL — Plan B (signed-URL TTL + function tests)
-A17  # concurrent credit reservation — Plan B (044 + integration tests)
-A18  # retry idempotency — Plan B (044)
-A19  # reservation expiry — Plan B (044)
 A21  # realtime subscription leak — Plan C (integration test with a live client)
 A26  # cleanup-onboarding-scratch cron secret — Plan B
 A27  # finalize-onboarding-assets session IDOR — Plan B
 A29  # text AI metering — Plan B
 A31  # text AI without a JWT — Plan B
-A32  # late settle after expiry — Plan B (044)
 A33  # projectId/designId IDOR — Plan B
 A36  # purge succession — Plan B (extends prepare_account_purge)
 A37  # guest-only workspace on purge — Plan B
