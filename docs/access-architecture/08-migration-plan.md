@@ -30,10 +30,18 @@ and is exercised by `supabase db reset` + the SQL test suite locally and in CI.
 - every existing member keeps at least the access they had: for each `(user, brand)` pair visible under the OLD `can_view_brand`, `has_capability('brand.view')` is true under the new model — computed as a set difference in the guard rail; any row → RAISE. **No one loses access in the migration**; new invites are what default to `selected`.
 - credits: `sum(credit_accounts.balance_credits)` before = after; ledger row count unchanged; every account reconciles.
 
-## 3. Data shape in production (checked read-only before writing the backfill)
-`09-runbook.md` §1 lists the queries the owner runs first (counts of workspace-less brands,
-members per role, `brand_members` rows, publications) and the expected results the guard
-rails assume. The backfill was authored against the local reset DB and against those counts.
+## 3. Data shape in production (read-only query via the Management API, 2026-08-29)
+| fact | value | consequence for the backfill |
+|---|---|---|
+| brands | 81, **44 with `workspace_id IS NULL`** | all 44 creators own a workspace (`ws_null_no_owned_ws = 0`) → every one moves to its creator's personal workspace |
+| workspaces / memberships | 29 / 29, all `role = owner`, one per workspace | no admin/editor/exporter/viewer rows exist → the role remap touches nothing in prod; only the enum swap matters |
+| auth.users | **13** | 16 workspaces (and their owner memberships) reference users that no longer exist — `owner_id`/`user_id` have no FK. 036 soft-deletes those workspaces (`deleted_at = now()`, audit `migration.orphan_workspace`) and removes the dangling member rows; the guard rail then asserts every non-deleted workspace has a live owner |
+| brand_members | 0 | `brand_access` starts empty; the remap code is still exercised by the SQL tests |
+| brand_identity_publications | 0 | share-link backfill is a no-op in prod, tested locally |
+| designs / assets | 8 / 315 | `workspace_id` denormalisation is trivial in size |
+| credits in circulation | 14,322 | before/after sum asserted by 044's guard rail |
+
+The same queries live in `09-runbook.md` §1 for the owner to re-run before applying.
 
 ## 4. Application cut-over (same release)
 - `Brand` type gains `workspaceId`, `archivedAt`, `version`, `updatedBy`; `mapFromDatabase` stops dropping them.
