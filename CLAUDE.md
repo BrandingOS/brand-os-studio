@@ -1840,12 +1840,6 @@ controls render Core values; every edit writes straight back through the bridge.
   pairings (`pairingsToOffer`: the brief's own `Fonts: Directions:` first, then
   the house list); a pairing exists only once the user picks it. Pinned by
   `onboarding-v4/__tests__/suggestedFonts.test.ts`.
-- **The brief answers every Brand Strategy card.** `Mission` was missing from
-  the prompt/parser (2026-08-29), and `Audience` / `Positioning` were asked as
-  sentences after Setup made them vocabularies — they are now `pick ONE from:`
-  lines normalised like industry and tone (honest `Other:` keeps the wording).
-  `brief/__tests__/strategyCoverage.test.ts` pins prompt → parser → `interpret`
-  → the Core path or business fact each of the eleven cards reads.
 - **Colours/fonts are two-mode.** Concrete values rank `brief`; offered
   `Directions:` rank `ai` and stay suggestions. An AI palette is never written
   as the brand's own.

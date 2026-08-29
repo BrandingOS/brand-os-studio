@@ -3313,3 +3313,10 @@
   font-size: 12px;
   color: var(--ds-text-muted);
 }
+
+/* The depth choice above the picker list. */
+.bk-export-depth {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 0 16px;
+}

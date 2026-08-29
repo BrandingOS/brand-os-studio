@@ -7,7 +7,7 @@
  * (ship the referenced bytes instead of the wrapper) is only provably
  * right if something reads the zip back and looks at what is inside it.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
@@ -20,7 +20,7 @@ import '../brand-kit.css';
 import { mockBrand, type MockBrand } from '@/features/setup/data/mockBrand';
 import { SEED_BRANDS } from '@/data/brands';
 import { getEntryFor, visibleEntries } from '../catalog/catalog';
-import { buildKitZipBlob } from '../data/exportEverything';
+import { buildKitZipBlob, downloadEntry } from '../data/exportEverything';
 import { isCancelled } from '../data/exportScheduler';
 
 /** A tiny but genuine SVG, inlined so the export has real bytes to fetch. */
@@ -190,6 +190,53 @@ describe('the kit export, end to end', () => {
     const pages = (text.match(/\/Type\s*\/Page[^s]/g) ?? []).length;
     expect(pages).toBeGreaterThan(1);
   }, 90_000);
+
+  it('downloads every card the kit shows — including the composed views', async () => {
+    // Social Media System, Presentation System and Brand Board have no
+    // template library, so the card's Download used to answer "Nothing to
+    // export" for three things the Export Kit shipped happily. A card and
+    // the kit now run the same writer, so they cannot disagree.
+    const saved: Blob[] = [];
+    const spy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {});
+    const created = vi.spyOn(URL, 'createObjectURL');
+    try {
+      for (const entry of visibleEntries({ isDev: false, isAdmin: false })) {
+        created.mockClear();
+        const result = await downloadEntry(entry, {
+          brand,
+          sourceBrand,
+          entries: [entry],
+        });
+        // Photos is the one honest empty: this brand has none.
+        if (entry.storageLabel === 'Photos') continue;
+        expect(result.added, `${entry.label} produced nothing to download`).toBe(true);
+        expect(created, `${entry.label} never handed the browser a file`).toHaveBeenCalled();
+        saved.push(new Blob());
+      }
+    } finally {
+      spy.mockRestore();
+      created.mockRestore();
+    }
+    expect(saved.length).toBeGreaterThan(8);
+  }, 180_000);
+
+  it('can ship EVERY variant a card shows, not one of them', async () => {
+    const CARD = getEntryFor('stationery', 'Business Card')!;
+    const one = await buildKitZipBlob({ brand, sourceBrand, entries: [CARD] });
+    const all = await buildKitZipBlob({ brand, sourceBrand, entries: [CARD], allVariants: true });
+    const paths = async (blob: Blob) => {
+      const zip = await readZip(blob);
+      return Object.keys(zip.files).filter((p) => !zip.files[p].dir && p.endsWith('.png'));
+    };
+    const onePaths = await paths(one.blob);
+    const allPaths = await paths(all.blob);
+    expect(onePaths).toEqual(['deliverables/business-card.png']);
+    // Three featured designs, filed under the card rather than loose.
+    expect(allPaths.length).toBeGreaterThan(1);
+    expect(allPaths.every((p) => p.startsWith('deliverables/business-card/'))).toBe(true);
+  }, 180_000);
 
   it('reports what it could not include instead of shipping a blank', async () => {
     const broken: MockBrand = {

@@ -32,7 +32,6 @@ export const BRIEF_LABELS = [
   'Products / Services',
   'Audience',
   'Positioning',
-  'Mission',
   'Slogan',
   'Personality',
   'Tone',
@@ -130,9 +129,8 @@ Use exactly these labels, one per line, in this order:
 Brand summary: 1–2 sentences on what the brand is and what it does.
 Industry: ${pick('industry')}
 Products / Services: comma-separated, 3–6 items.
-Audience: ${pick('audience')}
-Positioning: ${pick('positioning')}
-Mission: 1 sentence on what the brand sets out to do.
+Audience: 1 sentence on who it is for.
+Positioning: 1 sentence on where it sits in its market.
 Slogan: only if one is genuinely warranted, otherwise omit this line entirely.
 Personality: ${pick('personality')}
 Tone: ${pick('tone')}

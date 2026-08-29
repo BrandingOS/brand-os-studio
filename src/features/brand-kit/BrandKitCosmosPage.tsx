@@ -75,12 +75,11 @@ import {
   withOffscreenMounts,
 } from './data/templateSnapshot';
 import {
-  downloadAboutDoc,
   downloadLogosZip,
   paletteOf,
   slugifyName,
 } from './data/kitExport';
-import { downloadEverything } from './data/exportEverything';
+import { downloadEntry, downloadEverything } from './data/exportEverything';
 import { isCancelled } from './data/exportScheduler';
 
 // Rounded weight family from Flaticon UICONS — Regular drives the
@@ -410,11 +409,37 @@ export function BrandKitCosmosPage({
             triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${slug}-photos.zip`);
             return;
           }
-          case 'About': {
-            downloadAboutDoc(b);
-            return;
-          }
+          // 'About' (the Strategy card) is deliberately NOT special-cased
+          // any more: it used to ship about.md alone, which is the free-form
+          // sections and none of the eleven strategy answers. It falls
+          // through to the shared writer, which gives strategy.pdf +
+          // strategy.md + about.md — the same three files the kit ships.
           default: {
+            // Everything that is not one of the brand's own asset
+            // bundles goes through the SAME writer the Export Kit uses,
+            // so a card can never answer "Nothing to export" for
+            // something the kit ships. That is exactly what Social Media
+            // System, Presentation System and Brand Board did: the card
+            // path looked for a TEMPLATE, and a composed view has none.
+            const entry = getEntryFor(t.sectionKey, t.label);
+            if (entry && entry.view !== 'variants') {
+              const id = toast.loading(`Preparing ${t.displayLabel ?? t.label}…`);
+              const result = await downloadEntry(entry, {
+                brand: b,
+                sourceBrand,
+                entries: [entry],
+                saved: loadBrandCustomizations(customizationBrandId),
+                featuredIdsByLabel,
+              });
+              if (result.added) toast.success(`${t.displayLabel ?? t.label} downloaded`, { id });
+              else {
+                toast.error(`Couldn't download ${t.displayLabel ?? t.label}`, {
+                  id,
+                  description: result.skipped[0]?.reason,
+                });
+              }
+              return;
+            }
             // Template deliverable — rasterize the first variant.
             const tpl = t.template ?? t.templates?.[0];
             if (!tpl || !sourceBrand) {
@@ -446,7 +471,7 @@ export function BrandKitCosmosPage({
         });
       }
     },
-    [effectiveBrand, sourceBrand, runColorsExport],
+    [effectiveBrand, sourceBrand, runColorsExport, customizationBrandId, featuredIdsByLabel],
   );
 
   /**
@@ -462,7 +487,12 @@ export function BrandKitCosmosPage({
   const exportAbortRef = useRef<AbortController | null>(null);
 
   const runKitExport = useCallback(
-    async (entries: ReadonlyArray<KitEntry>, title: string, fileSuffix: string) => {
+    async (
+      entries: ReadonlyArray<KitEntry>,
+      title: string,
+      fileSuffix: string,
+      allVariants = false,
+    ) => {
       if (exportAbortRef.current) {
         toast('An export is already running');
         return;
@@ -479,6 +509,7 @@ export function BrandKitCosmosPage({
           entries,
           saved: loadBrandCustomizations(customizationBrandId),
           featuredIdsByLabel,
+          allVariants,
           signal: controller.signal,
           fileName: `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`,
           onProgress: (p) => {
@@ -535,10 +566,10 @@ export function BrandKitCosmosPage({
   const allEntries = useMemo(() => groups.flatMap((g) => g.entries), [groups]);
   const handleExportKit = useCallback(() => setExportPickerOpen(true), []);
   const handleExportChosen = useCallback(
-    (chosen: KitEntry[]) => {
+    (chosen: KitEntry[], allVariants: boolean) => {
       setExportPickerOpen(false);
       const whole = chosen.length === allEntries.length;
-      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit');
+      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit', allVariants);
     },
     [runKitExport, allEntries.length],
   );
@@ -995,6 +1026,33 @@ export function BrandKitCosmosPage({
                     // rasterized PNG of every visible variant.
                     {
                       const templates = drilldownTarget.templates ?? [];
+                      if (templates.length === 0) {
+                        // A composed view — Strategy, the two Systems, the
+                        // Board. No template library to bundle, but very
+                        // much something to download.
+                        const entry = getEntryFor(
+                          drilldownTarget.sectionKey,
+                          drilldownTarget.label,
+                        );
+                        if (entry) {
+                          const id = toast.loading(`Preparing ${entry.label}…`);
+                          const result = await downloadEntry(entry, {
+                            brand: effectiveBrand,
+                            sourceBrand,
+                            entries: [entry],
+                            saved: loadBrandCustomizations(customizationBrandId),
+                            featuredIdsByLabel,
+                          });
+                          if (result.added) toast.success(`${entry.label} downloaded`, { id });
+                          else {
+                            toast.error(`Couldn't download ${entry.label}`, {
+                              id,
+                              description: result.skipped[0]?.reason,
+                            });
+                          }
+                          return;
+                        }
+                      }
                       if (templates.length === 0 || !sourceBrand) {
                         toast(`Nothing to export for ${drilldownTarget.label} yet`);
                         return;

@@ -12,7 +12,7 @@
  * so what the sheet promises and what the zip contains cannot diverge.
  */
 import { useMemo, useState } from 'react';
-import { DsButton, DsCheckbox, DsModal } from '@/shared/ds';
+import { DsButton, DsCheckbox, DsModal, DsSegmented } from '@/shared/ds';
 import { KIT_GROUPS, type KitEntry, type KitGroup } from '../catalog/catalog';
 import { planKitExport, type KitExportUnit } from '../data/exportEverything';
 
@@ -61,15 +61,27 @@ export function ExportKitDialog({
   onClose: () => void;
   /** Every entry this viewer can see, in catalog order. */
   entries: ReadonlyArray<KitEntry>;
-  onExport: (chosen: KitEntry[]) => void;
+  onExport: (chosen: KitEntry[], allVariants: boolean) => void;
 }) {
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  // One design per item is the honest default: a kit is a document you
+  // hand someone. "Every variant" is here because a card showing thirty
+  // letterheads and a zip containing one of them is the other complaint.
+  const [depth, setDepth] = useState<'one' | 'all'>('one');
 
   const chosen = useMemo(
     () => entries.filter((e) => !excluded.has(e.key)),
     [entries, excluded],
   );
-  const cost = useMemo(() => estimate(planKitExport(chosen)), [chosen]);
+  const cost = useMemo(() => {
+    const base = estimate(planKitExport(chosen));
+    if (depth === 'one') return base;
+    // A rough multiplier rather than a real count: the variant list is
+    // per brand and per card, and pricing it exactly would mean building
+    // every template list just to draw a sentence.
+    const cards = planKitExport(chosen).filter((u) => u.kind === 'card').length;
+    return { mb: base.mb + cards * 0.4, sec: base.sec + cards * 6 };
+  }, [chosen, depth]);
 
   const groups = useMemo(
     () =>
@@ -116,7 +128,7 @@ export function ExportKitDialog({
           <DsButton
             tone="primary"
             disabled={chosen.length === 0}
-            onClick={() => onExport([...chosen])}
+            onClick={() => onExport([...chosen], depth === 'all')}
           >
             {chosen.length === entries.length
               ? 'Export everything'
@@ -125,6 +137,16 @@ export function ExportKitDialog({
         </>
       }
     >
+      <div className="bk-export-depth">
+        <DsSegmented
+          value={depth}
+          onChange={(v) => setDepth(v as 'one' | 'all')}
+          options={[
+            { value: 'one', label: 'One design each' },
+            { value: 'all', label: 'Every variant' },
+          ]}
+        />
+      </div>
       <div className="bk-export-picker">
         {groups.map((group) => {
           const state = groupState(group.entries);

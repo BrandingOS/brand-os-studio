@@ -156,6 +156,16 @@ export type KitExportInput = {
   saved?: Record<string, SavedCardCustomization>;
   /** The user's own featured picks, so the export ships what they see. */
   featuredIdsByLabel?: Record<string, string[]>;
+  /**
+   * Ship EVERY variant a card shows, not one representative.
+   *
+   * Off by default and deliberately so: a kit is a document you hand
+   * someone, and a card showing thirty letterhead designs turns that into
+   * three hundred PNGs and a minute of rendering. On, the deliverable
+   * becomes a folder — which is what "everything in the Brand Kit" means
+   * for anyone who actually wants all of it.
+   */
+  allVariants?: boolean;
   onProgress?: (progress: KitExportProgress) => void;
   signal?: AbortSignal;
 };
@@ -167,22 +177,32 @@ export type KitExportResult = {
   skipped: ExportSkip[];
 };
 
-/** The element a `card` unit rasterizes — the card's first featured variant. */
-function cardElement(
+/**
+ * The designs a `card` unit rasterizes — the variants the card SHOWS.
+ *
+ * One by default (the card's own first pick), or all of them when the
+ * user asked for every variant. Either way it is the same list the
+ * drilldown paints, so the zip cannot contain a design the Brand Kit
+ * does not, or miss one it does.
+ */
+function cardDesigns(
   unit: KitExportUnit,
   input: KitExportInput,
-): ReactElement | null {
-  const { brand, sourceBrand, saved, featuredIdsByLabel } = input;
-  if (!sourceBrand) return null;
+): Array<{ name: string; element: ReactElement }> {
+  const { brand, sourceBrand, saved, featuredIdsByLabel, allVariants } = input;
+  if (!sourceBrand) return [];
   const all = variantsForCard(unit.entry.sectionKey, unit.entry.storageLabel, brand);
-  const template = featuredTemplates(unit.entry.storageLabel, all, featuredIdsByLabel)[0];
-  if (!template) return null;
-  return renderCosmosTemplate(
-    template,
-    sourceBrand,
-    brand,
-    saved ? contentForTemplate(saved, template, brand) : undefined,
-  );
+  const shown = featuredTemplates(unit.entry.storageLabel, all, featuredIdsByLabel);
+  const chosen = allVariants ? shown : shown.slice(0, 1);
+  return chosen.map((template) => ({
+    name: template.name,
+    element: renderCosmosTemplate(
+      template,
+      sourceBrand,
+      brand,
+      saved ? contentForTemplate(saved, template, brand) : undefined,
+    ),
+  }));
 }
 
 /** The element a `document` unit rasterizes — a composed system view. */
@@ -254,6 +274,176 @@ async function writePhotos(
 }
 
 /**
+ * Write ONE catalog entry's files into a zip root.
+ *
+ * Extracted so the Export Kit and a single card's Download button run
+ * the very same code. Before this they were separate switches, and they
+ * disagreed: the kit shipped a Social Media System page and a Brand
+ * Board while the cards for both answered "Nothing to export".
+ *
+ * Returns whether the unit produced anything; anything it could not
+ * include is pushed onto `skipped` with a reason.
+ */
+export async function writeUnit(
+  unit: KitExportUnit,
+  root: ZipFolder,
+  input: KitExportInput,
+  skipped: ExportSkip[],
+): Promise<boolean> {
+  const { brand, signal } = input;
+  const slug = slugifyName(brand.name);
+  let added = false;
+  const keep = () => {
+    added = true;
+  };
+  try {
+    switch (unit.kind) {
+      case 'logos': {
+        const dir = lazyFolder(root, 'logos');
+        const result = await addLogosToZip(dir, brand, signal);
+        skipped.push(...result.skipped);
+        if (result.added > 0) keep();
+        else skipped.push({ label: unit.label, reason: 'this brand has no logo yet' });
+        break;
+      }
+      case 'colors': {
+        const dir = lazyFolder(root, 'colors');
+        if ((await addColorsToZip(dir, brand, signal)) > 0) keep();
+        else skipped.push({ label: unit.label, reason: 'this brand has no colours yet' });
+        break;
+      }
+      case 'fonts': {
+        const dir = lazyFolder(root, 'fonts');
+        const result = await addFontsToZip(dir, brand, signal);
+        skipped.push(...result.skipped);
+        if (result.added > 0) keep();
+        else if (result.skipped.length === 0) {
+          skipped.push({ label: unit.label, reason: 'this brand has no typefaces yet' });
+        }
+        break;
+      }
+      case 'icons': {
+        const dir = lazyFolder(root, 'icons');
+        if ((await writeIcons(dir, input, slug)) > 0) keep();
+        else skipped.push({ label: unit.label, reason: 'this brand has no icons yet' });
+        break;
+      }
+      case 'photos': {
+        const dir = lazyFolder(root, 'photos');
+        const result = await writePhotos(dir, brand, signal);
+        skipped.push(...result.skipped);
+        if (result.added > 0) keep();
+        else if (result.skipped.length === 0) {
+          skipped.push({ label: unit.label, reason: 'this brand has no photos yet' });
+        }
+        break;
+      }
+      case 'about': {
+        // Three files, because the strategy is read three ways: as
+        // notes, as a document you send someone, and as data.
+        zipAdd(root, 'strategy.md', buildStrategyMarkdown(brand));
+        zipAdd(root, 'about.md', buildAboutMarkdown(brand));
+        keep();
+      try {
+          const pdf = await buildStrategyPdf(brand, input.sourceBrand, { signal });
+          zipAdd(root, 'strategy.pdf', pdf);
+        } catch (err) {
+          if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+          // The markdown is already in — a PDF that would not build must
+          // not cost the user the strategy itself.
+          skipped.push({
+            label: 'Strategy (PDF)',
+            reason: err instanceof Error ? err.message : 'the document could not be built',
+          });
+        }
+        break;
+      }
+      case 'card': {
+        const designs = cardDesigns(unit, input);
+        if (designs.length === 0) {
+          skipped.push({
+            label: unit.label,
+            reason: input.sourceBrand ? 'it has no variant to render' : 'the export needs a saved brand',
+          });
+          break;
+        }
+        const aspect = aspectForLabel(unit.entry.storageLabel);
+        // One design lands as the file the plan named; several become a
+        // folder, so a card is never a pile of loose numbered PNGs at the
+        // root of `deliverables/`.
+        const folder =
+          designs.length > 1
+            ? lazyFolder(
+                lazyFolder(root, 'deliverables'),
+                unit.path.replace(/^deliverables\//, '').replace(/\.png$/, ''),
+              )
+            : null;
+        const used = new Set<string>();
+        for (let n = 0; n < designs.length; n += 1) {
+          throwIfAborted(signal);
+          const blob = await snapshotTemplatePng(designs[n].element, 260, aspect);
+          if (!blob) {
+            skipped.push({ label: `${unit.label} — ${designs[n].name}`, reason: "it couldn't be rasterized" });
+            continue;
+          }
+          if (folder) {
+            let name = `${String(n + 1).padStart(2, '0')}-${slugifyName(designs[n].name)}.png`;
+            while (used.has(name)) name = `x-${name}`;
+            used.add(name);
+            zipAdd(folder, name, blob);
+          } else {
+            zipAdd(root, unit.path, blob);
+          }
+          keep();
+          if (designs.length > 1) await yieldToBrowser(signal);
+        }
+        break;
+      }
+      case 'document': {
+        const element = documentElement(unit, input);
+        if (!element) {
+          skipped.push({ label: unit.label, reason: 'the export needs a saved brand' });
+          break;
+        }
+        const blob = await snapshotDocumentPng(element);
+        if (blob) {
+          zipAdd(root, unit.path, blob);
+          keep();
+        } else {
+          skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
+        }
+        break;
+      }
+      case 'board': {
+        if (!input.sourceBrand) {
+          skipped.push({ label: unit.label, reason: 'the export needs a saved brand' });
+          break;
+        }
+        // The board's draft is in-memory; `ensureInitFromBrand` no-ops
+        // when the store already holds this brand's, so exporting can
+        // never cost the user unsaved board work.
+        useBrandBoardStore.getState().ensureInitFromBrand(input.sourceBrand);
+        const blob = await snapshotTemplatePng(<BrandBoardCanvas />, 1600, 1.6, 1);
+        if (blob) {
+          zipAdd(root, unit.path, blob);
+          keep();
+        } else {
+          skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
+        }
+        break;
+      }
+    }
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+    skipped.push({
+      label: unit.label,
+      reason: err instanceof Error ? err.message : 'it failed to export',
+    });
+    }
+  return added;
+}
+
+/**
  * Build the zip.
  *
  * Throws `ExportCancelled` when the caller's signal aborts — checked
@@ -283,127 +473,7 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
     const unit = units[i];
     throwIfAborted(signal);
     onProgress?.({ phase: 'collecting', done: i, total: units.length, label: unit.label });
-    try {
-      switch (unit.kind) {
-        case 'logos': {
-          const dir = lazyFolder(root, 'logos');
-          const result = await addLogosToZip(dir, brand, signal);
-          skipped.push(...result.skipped);
-          if (result.added > 0) added += 1;
-          else skipped.push({ label: unit.label, reason: 'this brand has no logo yet' });
-          break;
-        }
-        case 'colors': {
-          const dir = lazyFolder(root, 'colors');
-          if ((await addColorsToZip(dir, brand, signal)) > 0) added += 1;
-          else skipped.push({ label: unit.label, reason: 'this brand has no colours yet' });
-          break;
-        }
-        case 'fonts': {
-          const dir = lazyFolder(root, 'fonts');
-          const result = await addFontsToZip(dir, brand, signal);
-          skipped.push(...result.skipped);
-          if (result.added > 0) added += 1;
-          else if (result.skipped.length === 0) {
-            skipped.push({ label: unit.label, reason: 'this brand has no typefaces yet' });
-          }
-          break;
-        }
-        case 'icons': {
-          const dir = lazyFolder(root, 'icons');
-          if ((await writeIcons(dir, input, slug)) > 0) added += 1;
-          else skipped.push({ label: unit.label, reason: 'this brand has no icons yet' });
-          break;
-        }
-        case 'photos': {
-          const dir = lazyFolder(root, 'photos');
-          const result = await writePhotos(dir, brand, signal);
-          skipped.push(...result.skipped);
-          if (result.added > 0) added += 1;
-          else if (result.skipped.length === 0) {
-            skipped.push({ label: unit.label, reason: 'this brand has no photos yet' });
-          }
-          break;
-        }
-        case 'about': {
-          // Three files, because the strategy is read three ways: as
-          // notes, as a document you send someone, and as data.
-          zipAdd(root, 'strategy.md', buildStrategyMarkdown(brand));
-          zipAdd(root, 'about.md', buildAboutMarkdown(brand));
-          added += 1;
-          try {
-            const pdf = await buildStrategyPdf(brand, input.sourceBrand, { signal });
-            zipAdd(root, 'strategy.pdf', pdf);
-          } catch (err) {
-            if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
-            // The markdown is already in — a PDF that would not build must
-            // not cost the user the strategy itself.
-            skipped.push({
-              label: 'Strategy (PDF)',
-              reason: err instanceof Error ? err.message : 'the document could not be built',
-            });
-          }
-          break;
-        }
-        case 'card': {
-          const element = cardElement(unit, input);
-          if (!element) {
-            skipped.push({
-              label: unit.label,
-              reason: input.sourceBrand ? 'it has no variant to render' : 'the export needs a saved brand',
-            });
-            break;
-          }
-          const blob = await snapshotTemplatePng(element, 260, aspectForLabel(unit.entry.storageLabel));
-          if (blob) {
-            zipAdd(root, unit.path, blob);
-            added += 1;
-          } else {
-            skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
-          }
-          break;
-        }
-        case 'document': {
-          const element = documentElement(unit, input);
-          if (!element) {
-            skipped.push({ label: unit.label, reason: 'the export needs a saved brand' });
-            break;
-          }
-          const blob = await snapshotDocumentPng(element);
-          if (blob) {
-            zipAdd(root, unit.path, blob);
-            added += 1;
-          } else {
-            skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
-          }
-          break;
-        }
-        case 'board': {
-          if (!input.sourceBrand) {
-            skipped.push({ label: unit.label, reason: 'the export needs a saved brand' });
-            break;
-          }
-          // The board's draft is in-memory; `ensureInitFromBrand` no-ops
-          // when the store already holds this brand's, so exporting can
-          // never cost the user unsaved board work.
-          useBrandBoardStore.getState().ensureInitFromBrand(input.sourceBrand);
-          const blob = await snapshotTemplatePng(<BrandBoardCanvas />, 1600, 1.6, 1);
-          if (blob) {
-            zipAdd(root, unit.path, blob);
-            added += 1;
-          } else {
-            skipped.push({ label: unit.label, reason: "it couldn't be rasterized" });
-          }
-          break;
-        }
-      }
-    } catch (err) {
-      if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
-      skipped.push({
-        label: unit.label,
-        reason: err instanceof Error ? err.message : 'it failed to export',
-      });
-    }
+    if (await writeUnit(unit, root, input, skipped)) added += 1;
     await yieldToBrowser(signal);
   }
 
@@ -429,6 +499,46 @@ export async function buildKitZipBlob(input: KitExportInput): Promise<KitExportR
   );
   throwIfAborted(signal);
   return { blob, added, skipped };
+}
+
+/**
+ * Download ONE catalog entry, through the same writer the kit uses.
+ *
+ * A card's Download and the Export Kit are now the same code, so a card
+ * can never answer "Nothing to export" for something the kit happily
+ * ships — which is exactly what Social Media System, Presentation System
+ * and Brand Board did, because the card path looked for a TEMPLATE and a
+ * composed view has none.
+ *
+ * One file comes down as that file; several come down as a zip. Wrapping
+ * a single PNG in a zip is a second step for no reason.
+ */
+export async function downloadEntry(
+  entry: KitEntry,
+  input: KitExportInput,
+): Promise<{ added: boolean; skipped: ExportSkip[] }> {
+  const [unit] = planKitExport([entry]);
+  if (!unit) return { added: false, skipped: [] };
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  const skipped: ExportSkip[] = [];
+  await primeRenderEnvironment();
+  const added = await writeUnit(unit, zip as unknown as ZipFolder, input, skipped);
+  if (!added) return { added: false, skipped };
+
+  const base = `${slugifyName(input.brand.name)}-${slugifyName(entry.label)}`;
+  const paths = Object.keys(zip.files).filter((path) => !zip.files[path].dir);
+  if (paths.length === 1) {
+    const only = paths[0];
+    const ext = only.includes('.') ? only.slice(only.lastIndexOf('.') + 1) : 'png';
+    triggerBlobDownload(await zip.files[only].async('blob'), `${base}.${ext}`);
+  } else {
+    triggerBlobDownload(
+      await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
+      `${base}.zip`,
+    );
+  }
+  return { added: true, skipped };
 }
 
 /** Build it and hand it to the browser. */
