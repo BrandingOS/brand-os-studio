@@ -4,6 +4,7 @@ import { fontStack, surface, type SurfaceTokens } from './brandStyle';
 import {
   Ctas,
   Eyebrow,
+  accentOn,
   Headline,
   Mark,
   Nav,
@@ -131,7 +132,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
       <Page bg={page.bg}>
         <TopBar brand={brand} c={c} t={page} brandT={brandT} cta={false} />
         <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ padding: 12, gap: 5 }}>
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Headline brand={brand} c={c} color={page.text} size={17} lines={2} align="center" />
           <div style={{ maxWidth: '80%' }}>
             <Subhead brand={brand} c={c} color={pageMuted} lines={2} align="center" />
@@ -155,17 +156,23 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
         <TopBar brand={brand} c={c} t={page} brandT={brandT} />
         <div className="flex-1 flex min-h-0">
           <div className="w-[56%] flex flex-col justify-center" style={{ padding: 12, gap: 4 }}>
-            <Eyebrow brand={brand} c={c} color={page.accent} />
-            <Headline brand={brand} c={c} color={page.text} size={15} lines={3} />
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} />
+            <Headline brand={brand} c={c} color={page.text} size={15} lines={4} />
             <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
             <div className="pt-1">
               <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} />
             </div>
           </div>
+          {/* The brand's own field. It carries the MARK first and the stats
+              second, because the stats are usually absent — a panel that is
+              only stats is a large empty rectangle on most brands' page,
+              which is the "finished without them" rule broken by the one
+              layout that leans on them hardest. */}
           <div
-            className="flex-1 flex flex-col justify-between"
+            className="flex-1 flex flex-col justify-between items-start"
             style={{ backgroundColor: brandT.bg, padding: 11 }}
           >
+            <Mark brand={brand} ground={brandT.bg} height={20} />
             <Stats brand={brand} c={c} color={brandT.text} mutedColor={brandMuted} size={13} />
             <Url brand={brand} c={c} color={brandT.text} size={5.5} />
           </div>
@@ -177,7 +184,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
       <Page bg={subtle.bg}>
         <TopBar brand={brand} c={c} t={subtle} brandT={brandT} />
         <div className="flex-1 flex flex-col justify-center" style={{ padding: 12, gap: 4 }}>
-          <Eyebrow brand={brand} c={c} color={subtle.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(subtle)} />
           <Headline brand={brand} c={c} color={subtle.text} size={16} lines={2} />
           <Subhead brand={brand} c={c} color={subtleMuted} lines={2} />
           <div className="pt-1">
@@ -198,7 +205,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
       <Page bg={page.bg}>
         <TopBar brand={brand} c={c} t={page} brandT={brandT} cta={false} />
         <div className="flex-1 flex flex-col justify-center" style={{ padding: 12, gap: 5 }}>
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Headline brand={brand} c={c} color={page.text} size={22} lines={3} />
         </div>
         <div
@@ -209,7 +216,10 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
             <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
             <Url brand={brand} c={c} color={pageMuted} size={5.5} />
           </div>
-          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} />
+          <div className="flex flex-col items-end" style={{ gap: 5 }}>
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={11} />
+            <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} />
+          </div>
         </div>
       </Page>
     ),
@@ -228,7 +238,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
             className="absolute left-0 bottom-0 flex flex-col"
             style={{ padding: 12, gap: 4, width: '64%' }}
           >
-            <Eyebrow brand={brand} c={c} color={page.accent} />
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} />
             <Headline brand={brand} c={c} color={page.text} size={15} lines={3} />
             <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
             <div className="pt-1">
@@ -247,7 +257,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
       <Page bg={inverted.bg}>
         <TopBar brand={brand} c={c} t={inverted} brandT={brandT} cta={false} />
         <div className="flex-1 flex flex-col justify-center" style={{ padding: 12, gap: 5 }}>
-          <Eyebrow brand={brand} c={c} color={inverted.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(inverted)} />
           <Headline brand={brand} c={c} color={inverted.text} size={18} lines={2} />
           <div style={{ maxWidth: '76%' }}>
             <Subhead brand={brand} c={c} color={invMuted} lines={2} />
@@ -266,7 +276,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
         <TopBar brand={brand} c={c} t={subtle} brandT={brandT} cta={false} />
         <div className="flex-1 flex gap-3 min-h-0" style={{ padding: 12 }}>
           <div className="flex-1 flex flex-col justify-center min-w-0" style={{ gap: 4 }}>
-            <Eyebrow brand={brand} c={c} color={subtle.accent} />
+            <Eyebrow brand={brand} c={c} color={accentOn(subtle)} />
             <Headline brand={brand} c={c} color={subtle.text} size={14} lines={3} />
             <Stats brand={brand} c={c} color={subtle.text} mutedColor={subtleMuted} size={11} />
           </div>
@@ -317,7 +327,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
       <Page bg={page.bg}>
         <TopBar brand={brand} c={c} t={page} brandT={brandT} cta={false} />
         <div className="flex-1 flex flex-col justify-center" style={{ padding: 12, gap: 4 }}>
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Headline brand={brand} c={c} color={page.text} size={15} lines={2} />
           <Subhead brand={brand} c={c} color={pageMuted} lines={3} />
           <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={11} />
@@ -352,7 +362,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
               <Nav brand={brand} c={c} color={page.text} size={5.5} gap={7} />
             </div>
             <div className="flex-1 flex flex-col justify-center" style={{ padding: 12, gap: 4 }}>
-              <Eyebrow brand={brand} c={c} color={page.accent} />
+              <Eyebrow brand={brand} c={c} color={accentOn(page)} />
               <Headline brand={brand} c={c} color={page.text} size={15} lines={2} />
               <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
               <div className="flex items-end justify-between gap-2 pt-1">
@@ -371,7 +381,7 @@ export function WebLandingPageExtendedRenderer({ brand, templateIndex, content }
           className="flex items-center justify-between gap-2 pb-2"
           style={{ borderBottom: `1px solid ${ruleOn(page)}` }}
         >
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Nav brand={brand} c={c} color={pageMuted} size={5} gap={6} />
         </div>
         <div className="flex-1 flex flex-col justify-center" style={{ gap: 5 }}>
@@ -451,3 +461,32 @@ export const WEB_LANDING_EXTENDED = Array.from({ length: 30 }, (_, i) => ({
   name: KEPT_NAMES[i] ?? `Landing ${i + 1}`,
   category: 'Modern',
 }));
+
+/**
+ * Curation, declared where the designs are. Names and tags live beside
+ * the artwork; `curation/web.ts` reads them, and `ext-13`…`ext-30` stay
+ * reserved rather than renumbered.
+ */
+export const LANDING_NAMES: Record<string, string> = Object.fromEntries(
+  KEPT_NAMES.map((name, i) => [`landing-ext-${i + 1}`, name]),
+);
+
+export const LANDING_TAGS: Record<string, string[]> = {
+  'landing-ext-1': ['SaaS', 'Conversion', 'Light'],
+  'landing-ext-2': ['SaaS', 'Split', 'Brand colour'],
+  'landing-ext-3': ['Startup', 'Conversion', 'Bold'],
+  'landing-ext-4': ['Studio', 'Typographic', 'Minimal'],
+  'landing-ext-5': ['Agency', 'Asymmetric', 'Modern'],
+  'landing-ext-6': ['Tech', 'Dark', 'Bold'],
+  'landing-ext-7': ['SaaS', 'Conversion', 'Card'],
+  'landing-ext-8': ['Launch', 'Centred', 'Light'],
+  'landing-ext-9': ['Startup', 'Conversion', 'Brand colour'],
+  'landing-ext-10': ['Product', 'Modern', 'Brand colour'],
+  'landing-ext-11': ['Consultancy', 'Editorial', 'Minimal'],
+  'landing-ext-12': ['Event', 'Bold', 'Brand colour'],
+};
+
+export const LANDING_ARCHIVED_IDS: string[] = Array.from(
+  { length: 30 - KEPT_NAMES.length },
+  (_, i) => `landing-ext-${KEPT_NAMES.length + i + 1}`,
+);

@@ -298,6 +298,10 @@ export function WebFaviconExtendedRenderer({ brand, templateIndex, content }: Pr
   const subtle = surface(brand, 'subtle');
   const inverted = surface(brand, 'inverted');
   const brandT = surface(brand, 'brand');
+  // Four GROUNDS means four different grounds: `subtle` and `card` are a
+  // shade apart on most brands, so the grid used to show the same near-white
+  // twice and claim it had proved something.
+  const secondaryT = surface(brand, 'brand-secondary');
   const heading = fontStack(brand, 'heading');
   const body = fontStack(brand, 'body');
 
@@ -416,7 +420,7 @@ export function WebFaviconExtendedRenderer({ brand, templateIndex, content }: Pr
     (
       <Sheet t={page} pad={14}>
         <div className="flex-1 grid grid-cols-2 gap-2">
-          {[brandT, inverted, subtle, page].map((t, i) => (
+          {[brandT, secondaryT, inverted, page].map((t, i) => (
             <div
               key={i}
               className="flex items-center justify-center"
@@ -540,3 +544,35 @@ export const WEB_FAVICON_EXTENDED = Array.from({ length: 30 }, (_, i) => ({
   name: KEPT_NAMES[i] ?? `Favicon ${i + 1}`,
   category: 'Modern',
 }));
+
+/**
+ * Curation, declared where the designs are.
+ *
+ * A design’s name and its intent belong beside the artwork that draws
+ * it; `curation/web.ts` reads these rather than keeping a second copy
+ * that drifts the first time one is renamed. `ext-13`…`ext-30` never
+ * had a design — they are archived, and their ids stay reserved.
+ */
+export const FAVICON_NAMES: Record<string, string> = Object.fromEntries(
+  KEPT_NAMES.map((name, i) => [`favicon-ext-${i + 1}`, name]),
+);
+
+export const FAVICON_TAGS: Record<string, string[]> = {
+  'favicon-ext-1': ['Preview', 'Light', 'Minimal'],
+  'favicon-ext-2': ['Preview', 'Dark', 'Minimal'],
+  'favicon-ext-3': ['Preview', 'Editorial', 'Light'],
+  'favicon-ext-4': ['App icon', 'Bold', 'Brand colour'],
+  'favicon-ext-5': ['App icon', 'In context', 'Light'],
+  'favicon-ext-6': ['Spec', 'Technical', 'Light'],
+  'favicon-ext-7': ['Spec', 'Technical', 'Minimal'],
+  'favicon-ext-8': ['Spec', 'Contrast', 'Grid'],
+  'favicon-ext-9': ['Avatar', 'Minimal', 'Light'],
+  'favicon-ext-10': ['App icon', 'Dark', 'Bold'],
+  'favicon-ext-11': ['Spec', 'Contrast', 'Split'],
+  'favicon-ext-12': ['Preview', 'Technical', 'Minimal'],
+};
+
+export const FAVICON_ARCHIVED_IDS: string[] = Array.from(
+  { length: 30 - KEPT_NAMES.length },
+  (_, i) => `favicon-ext-${KEPT_NAMES.length + i + 1}`,
+);

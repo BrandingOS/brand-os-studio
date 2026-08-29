@@ -68,6 +68,21 @@ export function ruleOn(t: SurfaceTokens): string {
   return t.border;
 }
 
+/**
+ * The surface's accent, but only where it really reads.
+ *
+ * An eyebrow is the one line a hero paints in the brand's own colour, and
+ * it is also the smallest — 5.5 to 6px, uppercase, letterspaced. SKAM's
+ * red on white measures 3.76:1, which is a perfectly good accent for a
+ * 40px headline and an unreadable one here. Below the floor the eyebrow
+ * takes the surface's muted ink instead: the brand keeps the headline, the
+ * ground and the button, and gives up the one place its colour cannot be
+ * read.
+ */
+export function accentOn(t: SurfaceTokens): string {
+  return contrastOf(t.accent, t.bg) >= 4.5 ? t.accent : mutedOn(t);
+}
+
 /* ── Bound fragments ──────────────────────────────────────────────── */
 
 export function Eyebrow({
@@ -481,7 +496,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           className="w-[58%] h-full flex flex-col justify-center"
           style={{ backgroundColor: page.bg, padding: 12, gap: 5 }}
         >
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Headline brand={brand} c={c} color={page.text} size={15} lines={3} />
           <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
           <div className="pt-1">
@@ -513,8 +528,8 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
         <div className="flex-1 flex gap-3 pt-2 min-h-0">
           <div className="flex-1 flex flex-col justify-between min-w-0">
             <div className="flex flex-col gap-1">
-              <Eyebrow brand={brand} c={c} color={page.accent} />
-              <Headline brand={brand} c={c} color={page.text} size={19} lines={3} />
+              <Eyebrow brand={brand} c={c} color={accentOn(page)} />
+              <Headline brand={brand} c={c} color={page.text} size={17} lines={4} />
             </div>
             <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} />
           </div>
@@ -543,7 +558,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           className="flex-1 h-full flex flex-col justify-center"
           style={{ backgroundColor: page.bg, padding: 12, gap: 5 }}
         >
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Headline brand={brand} c={c} color={page.text} size={16} lines={3} />
           <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
           <div className="pt-1">
@@ -561,7 +576,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           <Nav brand={brand} c={c} color={inverted.text} />
         </div>
         <div className="flex-1 flex flex-col justify-center gap-2">
-          <Eyebrow brand={brand} c={c} color={inverted.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(inverted)} />
           <Headline brand={brand} c={c} color={inverted.text} size={18} lines={3} />
           <div style={{ maxWidth: '72%' }}>
             <Subhead brand={brand} c={c} color={invMuted} lines={2} />
@@ -581,7 +596,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           <Nav brand={brand} c={c} color={page.text} />
         </div>
         <div className="flex-1 flex flex-col justify-center gap-2">
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <div className="flex flex-col" style={{ gap: 4 }}>
             <Headline brand={brand} c={c} color={page.text} size={18} lines={2} />
             <div style={{ height: 4, width: 64, backgroundColor: brandT.bg, borderRadius: 2 }} />
@@ -603,7 +618,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
             <Nav brand={brand} c={c} color={page.text} />
           </div>
           <div className="flex-1 flex flex-col justify-center gap-2">
-            <Eyebrow brand={brand} c={c} color={page.accent} />
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} />
             <Headline brand={brand} c={c} color={page.text} size={16} lines={2} />
             <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
           </div>
@@ -618,7 +633,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
     (
       <div className="w-full h-full flex flex-col" style={{ backgroundColor: subtle.bg, padding: 12 }}>
         <div className="flex items-baseline justify-between gap-2">
-          <Eyebrow brand={brand} c={c} color={subtle.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(subtle)} />
           <Url brand={brand} c={c} color={mutedOn(subtle)} size={5.5} />
         </div>
         <div className="flex-1 flex gap-3 pt-1.5 min-h-0">
@@ -666,7 +681,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           <Nav brand={brand} c={c} color={brandT.text} />
         </div>
         <div className="flex-1 flex flex-col justify-center" style={{ padding: 12, gap: 4 }}>
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Headline brand={brand} c={c} color={page.text} size={16} lines={2} />
           <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
           <div className="pt-1">
@@ -680,7 +695,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
     (
       <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg, padding: 12 }}>
         <div className="flex items-center justify-between gap-2">
-          <Eyebrow brand={brand} c={c} color={page.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
           <Nav brand={brand} c={c} color={pageMuted} size={5} gap={6} />
         </div>
         <div className="flex-1 flex items-center">
@@ -693,7 +708,10 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           <div className="flex-1 min-w-0">
             <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={2} />
           </div>
-          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} />
+          <div className="flex flex-col items-end" style={{ gap: 5 }}>
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={11} />
+            <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} />
+          </div>
         </div>
       </div>
     ),
@@ -709,7 +727,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
         </div>
         <div className="flex-1 grid grid-cols-3 gap-3 pt-2 min-h-0">
           <div className="flex flex-col gap-1 min-w-0">
-            <Eyebrow brand={brand} c={c} color={page.accent} size={5.5} />
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
             <Headline brand={brand} c={c} color={page.text} size={13} lines={4} />
           </div>
           <div className="flex flex-col justify-between min-w-0">
@@ -744,7 +762,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           className="absolute left-0 bottom-0 flex flex-col"
           style={{ padding: 11, gap: 4, width: '78%' }}
         >
-          <Eyebrow brand={brand} c={c} color={subtle.accent} />
+          <Eyebrow brand={brand} c={c} color={accentOn(subtle)} />
           <Headline brand={brand} c={c} color={subtle.text} size={16} lines={2} />
           <Subhead brand={brand} c={c} color={mutedOn(subtle)} lines={2} />
           <div className="flex items-end justify-between gap-2 pt-1">
@@ -790,3 +808,32 @@ export const WEB_WEBSITE_EXTENDED = Array.from({ length: 30 }, (_, i) => ({
   name: KEPT_NAMES[i] ?? `Website ${i + 1}`,
   category: 'Modern',
 }));
+
+/**
+ * Curation, declared where the designs are. See the Favicon renderer’s
+ * note: names and tags live beside the artwork, `curation/web.ts` reads
+ * them, and `ext-13`…`ext-30` stay reserved rather than renumbered.
+ */
+export const WEBSITE_NAMES: Record<string, string> = Object.fromEntries(
+  KEPT_NAMES.map((name, i) => [`website-ext-${i + 1}`, name]),
+);
+
+export const WEBSITE_TAGS: Record<string, string[]> = {
+  'website-ext-1': ['SaaS', 'Bold', 'Brand colour'],
+  'website-ext-2': ['Agency', 'Split', 'Modern'],
+  'website-ext-3': ['Publishing', 'Editorial', 'Light'],
+  'website-ext-4': ['Product', 'App-like', 'Modern'],
+  'website-ext-5': ['Tech', 'Dark', 'Modern'],
+  'website-ext-6': ['Studio', 'Minimal', 'Light'],
+  'website-ext-7': ['SaaS', 'Card', 'Brand colour'],
+  'website-ext-8': ['Consultancy', 'Editorial', 'Minimal'],
+  'website-ext-9': ['Retail', 'Bold', 'Light'],
+  'website-ext-10': ['Studio', 'Typographic', 'Minimal'],
+  'website-ext-11': ['Publishing', 'Grid', 'Light'],
+  'website-ext-12': ['Agency', 'Asymmetric', 'Modern'],
+};
+
+export const WEBSITE_ARCHIVED_IDS: string[] = Array.from(
+  { length: 30 - KEPT_NAMES.length },
+  (_, i) => `website-ext-${KEPT_NAMES.length + i + 1}`,
+);
