@@ -51,4 +51,24 @@ recorded.
 | F9 | MED | compromised admin mints admins unnoticed | **Accepted.** `member.invited_admin` audit + owner notification (05 §1.2). Owner co-sign deferred. |
 | F10 | LOW | role remap unexercised by prod data | **Accepted.** Caveat recorded in 08 §3 and the runbook. |
 
-### Database reviewer — pending (same)
+### Database reviewer (13 findings)
+| id | sev | finding | disposition |
+|---|---|---|---|
+| DB-B1 | BLOCKER | role column/enum rename in 037 breaks every RLS predicate until 039 | **Accepted.** Both columns coexist through 037/038; rename lands in 039 in the same transaction as every compiled reference (08 §1). |
+| DB-H1 | HIGH | reservation row not locked/transitioned by settle/release vs reaper | **Accepted.** Guarded `UPDATE … WHERE status='held' RETURNING` first; loser skips the balance (04 §2.1). |
+| DB-H2 | HIGH | `reserve_credits` signature insufficient for text AI | **Accepted.** Optional `_purpose/_brand_id/_user_id/_ref_kind/_ref_id`, defaults preserve the image path. |
+| DB-H3 | HIGH | last-owner guard races across rows | **Accepted.** Per-workspace advisory xact lock (02 §4). |
+| DB-H4 | HIGH | `transfer_ownership` trips `self_role_change` | **Accepted.** Transaction-local bypass GUC (02 §4). |
+| DB-H5 | HIGH | `search_path=''` + unqualified extension calls; extensions not created | **Accepted.** Schema-qualified calls; explicit `CREATE EXTENSION … WITH SCHEMA extensions` for citext/pg_cron; smoke test per function (08 §1.1). |
+| DB-M1 | MED | `has_capability` could sneak into list policies | **Accepted.** Hard rule + grep test (08 §1.1). |
+| DB-M2 | MED | composite FK ON DELETE unspecified; redundant single FK | **Accepted.** `ON DELETE CASCADE`; single-column FK dropped after validation. |
+| DB-M3 | MED | stale `brand_access` on promotion | **Accepted.** `set_member_role` deletes them. |
+| DB-M4 | MED | role+mode must be written atomically | **Accepted.** `set_member_role` contract. |
+| DB-M5 | MED | indexes not enumerated | **Accepted.** Listed for 038/044. |
+| DB-L1 | LOW | `auth.email()` vs `auth.users.email` | **Accepted.** |
+| DB-L2/L3 | LOW | BIGINT rewrite note; `assets(workspace_id)` index | **Accepted.** |
+
+### Round 1 outcome
+All BLOCKER/HIGH resolved in the design before implementation. Round 2 (implementation
+review) follows the build.
+

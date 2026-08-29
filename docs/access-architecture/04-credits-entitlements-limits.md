@@ -25,8 +25,14 @@ credit_reservations(
   idempotency_key text unique per workspace, ref_kind text, ref_id text,
   expires_at timestamptz not null, created_at, resolved_at)
 ```
-`reserve_credits` inserts it (status `held`, `expires_at = now() + ttl`, default 10 min,
-image jobs pass 4 min > provider deadline); `settle`/`release` resolve it. A pg_cron job
+`reserve_credits(_workspace_id, _job_id, _amount, _idem_key, _ttl, _purpose, _brand_id,
+_user_id, _ref_kind, _ref_id)` inserts it (status `held`); the new arguments default so the
+unchanged image function keeps working and the row is filled from the job; text AI passes
+them explicitly. `settle_credits` / `release_credits` first run
+`UPDATE credit_reservations SET status=… WHERE … AND status='held' RETURNING id` and touch
+`credit_accounts` **only if that row transition won**; the reaper uses the symmetric guarded
+UPDATE, so whichever writer transitions the row first is authoritative and the other skips
+the balance mutation. A pg_cron job
 `expire_stale_reservations()` every minute releases `held` rows past `expires_at` with
 idempotency key `release:<id>:expired` and writes an audit event. If a late settle arrives
 for an expired reservation, `settle_credits` finds status `expired`, charges nothing, and
