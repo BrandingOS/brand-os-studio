@@ -108,8 +108,12 @@ function fromBrief(b: ParsedBrief): Candidate[] {
   // Its own field. Filing it as the mission meant a brief that answered both
   // "what is this brand" and "what does it set out to do" kept only one.
   if (b.summary) add('strategy.summary', b.summary);
-  if (b.audience) add('strategy.targetAudience', b.audience);
-  if (b.positioning) add('strategy.positioning', b.positioning);
+  // Audience and positioning are vocabularies in Setup now (scalar ids, with
+  // an honest "Other" keeping the wording), so a brief answer is normalised
+  // the way industry and tone are — never coerced into the nearest member.
+  if (b.audience) add('strategy.targetAudience', storedValue(normalize(b.audience, VOCABULARIES.audience)));
+  if (b.positioning) add('strategy.positioning', storedValue(normalize(b.positioning, VOCABULARIES.positioning)));
+  if (b.mission) add('strategy.mission', b.mission);
   if (b.tone) add('voice.tone', storedValue(normalize(b.tone, VOCABULARIES.tone)));
   if (b.style?.length) {
     add(
