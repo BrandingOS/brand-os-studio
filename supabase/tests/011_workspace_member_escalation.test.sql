@@ -189,6 +189,8 @@ RESET ROLE;
 -- 039 removed the direct INSERT policy on workspaces: creation is create_workspace(),
 -- which is where the owned-workspace entitlement is enforced. The bootstrap it replaces
 -- must still work, and the two steps must still be atomic.
+-- A25 — the owned-workspace cap is what stops free credits being unbounded, so prove
+-- both halves: the free plan refuses a second workspace, and a paid one allows it.
 SELECT pg_temp.act_as('22222222-2222-2222-2222-222222222222');
 DO $$
 DECLARE ws uuid; ok boolean := false;
@@ -200,6 +202,22 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN ok := true; END;
   IF NOT ok THEN RAISE EXCEPTION 'REGRESSION FAILED: workspaces is still directly insertable'; END IF;
 
+  ok := false;
+  BEGIN ws := public.create_workspace('One Too Many');
+  EXCEPTION WHEN OTHERS THEN ok := (SQLERRM = 'workspace_limit_reached'); END;
+  IF NOT ok THEN RAISE EXCEPTION 'A25: the free plan allowed a second owned workspace'; END IF;
+  RAISE NOTICE 'A25 PASSED: the owned-workspace cap holds on the free plan';
+END $$;
+RESET ROLE;
+
+INSERT INTO public.subscriptions (workspace_id, stripe_customer_id, plan, status)
+VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'cus_test_011', 'pro', 'active')
+ON CONFLICT (workspace_id) DO UPDATE SET plan = 'pro';
+
+SELECT pg_temp.act_as('22222222-2222-2222-2222-222222222222');
+DO $$
+DECLARE ws uuid;
+BEGIN
   ws := public.create_workspace('B New WS', 'b-new-ws');
   IF NOT EXISTS (
     SELECT 1 FROM public.workspace_members

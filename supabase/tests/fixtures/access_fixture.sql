@@ -39,6 +39,13 @@ INSERT INTO public.workspace_members (workspace_id, user_id, role, status, brand
   ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000007','member','suspended','all',   'editor',  '{}'),
   ('aaaaaaaa-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000008','owner', 'active','all',      NULL,      '{}');
 
+-- plans: A is an agency, B is free (docs/access-architecture/09 §2). Without these both
+-- would fall back to `free`, whose single seat the fixture's own cast already exceeds.
+INSERT INTO public.subscriptions (workspace_id, stripe_customer_id, plan, status) VALUES
+  ('aaaaaaaa-0000-0000-0000-000000000001','cus_fixture_a','agency','active'),
+  ('aaaaaaaa-0000-0000-0000-000000000002','cus_fixture_b','free','active')
+ON CONFLICT (workspace_id) DO UPDATE SET plan = EXCLUDED.plan, status = EXCLUDED.status;
+
 -- brands (A3 archived)
 INSERT INTO public.brands (id, user_id, workspace_id, name, primary_color, slug, archived_at) VALUES
   ('bbbbbbbb-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001','A1','#111111','a1-fx', NULL),

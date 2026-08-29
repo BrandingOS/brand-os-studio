@@ -1,0 +1,11 @@
+DROP TRIGGER IF EXISTS trg_brands_limit_guard ON public.brands;
+DROP TRIGGER IF EXISTS trg_workspace_invitations_seat_guard ON public.workspace_invitations;
+DROP FUNCTION IF EXISTS public.brand_limit_guard();
+DROP FUNCTION IF EXISTS public.invitation_seat_guard();
+DROP FUNCTION IF EXISTS public.assert_limit(uuid, text, bigint);
+DROP FUNCTION IF EXISTS public.check_limit(uuid, text, bigint);
+DROP FUNCTION IF EXISTS public.entitlement_usage(uuid, text);
+DROP FUNCTION IF EXISTS public.entitlement(uuid, text);
+DROP FUNCTION IF EXISTS public.workspace_plan(uuid);
+DROP TABLE IF EXISTS public.workspace_entitlement_overrides;
+DROP TABLE IF EXISTS public.plan_entitlements;
