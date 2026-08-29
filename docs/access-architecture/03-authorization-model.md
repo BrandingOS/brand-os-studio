@@ -148,6 +148,12 @@ member sheet and the Brand Access tab — on every plan:
 | **Can use AI generation** | grant/deny `ai.generate` | on for Manager/Editor/Designer; **off for any Guest** and for Viewer |
 | **Can see billing** (workspace, Members only) | grant `workspace.billing.view` | off |
 
+**The guest default is applied by the server, not remembered by a UI.** `create_invitation`
+and `grant_brand_access` both apply the guest template when the workspace role is `guest`:
+`ai.generate` is denied unless the call explicitly passes `allow_ai = true` (owner decision
+#2). Every entry point — invite modal, member sheet, Brand Access tab "Add people" — goes
+through those two RPCs, so none can bypass it.
+
 They are stored as `capability_overrides` on `brand_access` / `workspace_members`, so the
 backend stays purely capability-based and a generic override editor (the Pro feature
 `advanced_access`, **deferred** from V1) reads and writes the same rows. Overridable-at-brand
@@ -165,7 +171,8 @@ effective_capabilities(user, workspace, brand?) → set<capability>
 3. WS := role_capabilities('workspace', m.role) ⊕ m.capability_overrides   (grant ∪, then deny −)
 4. if brand is null → return WS
 5. b := brands(brand); if b.workspace_id ≠ workspace or b is null → ∅ (cross-tenant guess = nothing)
-6. if b.archived_at not null and m.role ∉ {owner, admin} and brand role ≠ manager → {brand.view} only
+6. if b.archived_at not null → everyone is read-only: {brand.view}, plus {brand.archive}
+   for owner/admin/manager (to restore) — nobody edits an archived brand
 7. brand role r :=
      m.role ∈ {owner, admin}                 → manager
      m.brand_access_mode = all               → brand_access(brand,user).role ?? m.default_brand_role
@@ -179,7 +186,9 @@ effective_capabilities(user, workspace, brand?) → set<capability>
 
 Overrides can only add capabilities from the overridable set for that scope and can never
 add a capability the role's *ceiling* excludes: the trigger that validates
-`capability_overrides` rejects anything outside `overridable_capabilities(scope, role)`.
+`capability_overrides` fires `BEFORE INSERT OR UPDATE` **unconditionally** (not `OF
+capability_overrides`), so a role change re-validates and strips any override outside
+`overridable_capabilities(scope, NEW.role)` — a demotion can never leave stale grants behind.
 Invitations carry overrides through the same validator, so an invite cannot grant more than a
 member could hold (invariant "invitations cannot grant more permissions than intended").
 
@@ -202,7 +211,11 @@ can delete their own drafts and nobody else's. No other table has an ownership r
   with `WITH CHECK` on every INSERT/UPDATE, and the tenant columns (`workspace_id`,
   `brand_id`, `user_id` where it means ownership) are **immutable** via a generic
   `guard_immutable_columns` trigger — the re-parenting class of bug becomes impossible even
-  if a policy is later written badly.
+  if a policy is later written badly. The trigger exempts internal writes exactly as
+  `profiles_guard_privileged_columns` (029) does: `auth.uid() IS NULL` (SECURITY DEFINER
+  purge/migration context) or `is_super_admin()`. `prepare_account_purge` legitimately
+  reassigns `brands.user_id` on last-owner succession; a migration guard-rail runs it
+  end-to-end after 038.
 - Service-role code (Edge Functions) calls `has_capability` explicitly before touching tenant
   data — `requireCapability(client, cap, ctx)` in `_shared/authz.ts` — and never accepts a
   workspace id from the body without resolving it through membership.

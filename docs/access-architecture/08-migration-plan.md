@@ -37,6 +37,7 @@ and is exercised by `supabase db reset` + the SQL test suite locally and in CI.
 | workspaces / memberships | 29 / 29, all `role = owner`, one per workspace | no admin/editor/exporter/viewer rows exist → the role remap touches nothing in prod; only the enum swap matters |
 | auth.users | **13** | 16 workspaces (and their owner memberships) reference users that no longer exist — `owner_id`/`user_id` have no FK. 036 soft-deletes those workspaces (`deleted_at = now()`, audit `migration.orphan_workspace`) and removes the dangling member rows; the guard rail then asserts every non-deleted workspace has a live owner |
 | brand_members | 0 | `brand_access` starts empty; the remap code is still exercised by the SQL tests |
+| **caveat** | — | the five→four role remap and the exporter grant logic will pass production's guard rail trivially because no non-owner rows exist there; they are validated ONLY by the synthetic fixture (09 §2). The runbook says so, so "guard rail passed" is not read as "remap validated on real data". |
 | brand_identity_publications | 0 | share-link backfill is a no-op in prod, tested locally |
 | designs / assets | 8 / 315 | `workspace_id` denormalisation is trivial in size |
 | credits in circulation | 14,322 | before/after sum asserted by 044's guard rail |

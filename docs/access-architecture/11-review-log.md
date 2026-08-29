@@ -37,5 +37,18 @@ recorded.
 | AX-26 | LOW | pending invites absent from Access tab | **Accepted.** |
 | AX-27 | LOW | conflict vs undo stack | **Accepted.** |
 
-### Security reviewer — pending (re-run on Sonnet after an Opus rate limit)
+### Security reviewer (10 findings)
+| id | sev | finding | disposition |
+|---|---|---|---|
+| F1 | BLOCKER | text-AI metering bypassable by omitting the JWT | **Accepted.** `anthropic-proxy`/`ai-apply-command` require a JWT unconditionally; only `generate-description`/`fetch-url-preview` stay anon (04 §2.4, A31). |
+| F2 | HIGH | reservation expiry vs late settle → free output / burned cost | **Accepted.** Job follows the reservation (failed, outputs deleted, `expired_unbilled` telemetry); TTL = deadline + 60 s everywhere (04 §2.1, A32). |
+| F3 | HIGH | immutable-column trigger breaks `prepare_account_purge` | **Accepted.** `auth.uid() IS NULL` / super-admin carve-out mirroring 029; end-to-end purge guard-rail (03 §4.1, A36). |
+| F4 | HIGH | guest-only successor undefined | **Accepted.** Guests never succeed; workspace soft-deleted (02 §4, A37). |
+| F5 | MED | archived brand not read-only for managers | **Accepted.** Everyone read-only; managers keep `brand.archive` to restore (03 §3 step 6). |
+| F6 | MED | guest AI deny only applied by the invite modal | **Accepted.** Applied inside `create_invitation` and `grant_brand_access` (03 §2.3, A35). |
+| F7 | MED | overrides not revalidated on role change | **Accepted.** Validator fires on every INSERT/UPDATE (03 §3, A34). |
+| F8 | MED | `projectId`/`designId` cross-brand IDOR inherited | **Accepted.** Verified against the brand in `ai-generate-image` (A33). |
+| F9 | MED | compromised admin mints admins unnoticed | **Accepted.** `member.invited_admin` audit + owner notification (05 §1.2). Owner co-sign deferred. |
+| F10 | LOW | role remap unexercised by prod data | **Accepted.** Caveat recorded in 08 §3 and the runbook. |
+
 ### Database reviewer — pending (same)

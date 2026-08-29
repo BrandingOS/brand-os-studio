@@ -48,6 +48,13 @@ Assets: tenant data, credits, storage objects, tokens (invite/share), audit inte
 | A28 | Invite grants more than inviter could | overrides validated against role ceiling; inviter cannot invite above own role | `invite.escalation` |
 | A29 | Text AI unmetered / session-key rotation | metered + user-keyed rate limit | `edge.text_ai.metered` |
 | A30 | Anon enumerates identity publications | anon SELECT removed; RPC only | `share.enumerate` |
+| A31 | Signed-in client omits the JWT to reach the anon text-AI path | `anthropic-proxy`/`ai-apply-command` require a JWT unconditionally | `edge.text_ai.no_jwt` |
+| A32 | Late settle after reservation expiry yields free output | job follows the reservation: failed, outputs deleted, `expired_unbilled` telemetry | `credits.expired_settle` |
+| A33 | `projectId`/`designId` from another brand filed against a job | `ai-generate-image` verifies `image_projects.brand_id = brandId` and the design's brand | `edge.generate.project_idor` |
+| A34 | Role demotion leaves stale overrides | validator fires on every UPDATE | `rls.overrides.demotion` |
+| A35 | Guest gains `ai.generate` via a second grant path | server-side guest template in both RPCs | `rpc.guest_ai_default` |
+| A36 | Account purge breaks on the immutable-column trigger | `auth.uid() IS NULL` carve-out; end-to-end purge test | `invariant.purge_succession` |
+| A37 | Guest-only workspace inherits ownership on purge | guests never succeed; workspace soft-deleted | `invariant.purge_guest_only` |
 
 ## 3. Service-role inventory (post-change) — every path names its gate
 Documented in `08-migration-plan.md` §5 and enforced by a unit test
