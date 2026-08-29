@@ -196,21 +196,28 @@ export const ICON_PACKS: readonly IconPack[] = [
   },
   {
     id: 'creative',
-    label: 'Creative & Media',
-    description: 'Studios, agencies, film, music, games and entertainment.',
+    label: 'Creative, Media & Play',
+    description: 'Studios, agencies, film, music, publishing, games and events.',
     keywords: [
       'creative', 'design', 'studio', 'agency', 'branding', 'art', 'artist',
       'illustration', 'photography', 'photographer', 'film', 'video', 'cinema',
       'music', 'audio', 'podcast', 'media', 'production', 'content', 'marketing',
-      'advertising', 'campaign', 'game', 'games', 'gaming', 'play', 'player',
-      'players', 'entertainment', 'event', 'events', 'party', 'culture', 'social',
+      'advertising', 'campaign', 'game', 'games', 'gaming', 'play', 'playful',
+      'player', 'players', 'entertainment', 'event', 'events', 'party',
+      'culture', 'social', 'card', 'cards', 'toy', 'toys', 'puzzle',
     ],
+    // One pack, two neighbours: a studio and a games company both sell
+    // ATTENTION and CRAFT, and the vocabularies overlap far more than they
+    // differ — frame, story, stage, audience, applause. So the symbols an
+    // instrument-specific set would have spent on `guitar` and `drum` go to
+    // the things both halves reach for, and the ORDER (see `suggestIcons`)
+    // is what separates a card game from a film company.
     icons: [
-      'palette', 'paint-brush', 'paintbrush-pencil', 'pen-nib', 'draw-polygon',
-      'layers', 'picture', 'gallery', 'camera', 'video-camera-alt', 'clapperboard',
-      'film', 'music', 'headphones', 'microphone', 'guitar', 'drum', 'play',
-      'sparkles', 'magic-wand', 'scissors', 'eye', 'megaphone', 'share',
-      'ticket', 'dice', 'star', 'heart',
+      'palette', 'paint-brush', 'pen-nib', 'layers', 'picture', 'gallery',
+      'camera', 'video-camera-alt', 'film', 'music', 'headphones', 'microphone',
+      'play', 'sparkles', 'magic-wand', 'megaphone', 'eye', 'share',
+      'playing-cards', 'dice', 'gamepad', 'puzzle-pieces', 'confetti', 'trophy',
+      'crown', 'ticket', 'comments', 'users-alt', 'star', 'heart',
     ],
   },
   {
@@ -323,10 +330,26 @@ export function packForIndustry(industry: string | undefined | null): IconPack |
 /**
  * The pack a brand's own words point at, or null when nothing does.
  *
- * Counts DISTINCT keyword hits per pack, so a brand that says "payments" six
- * times does not out-vote one that spans four finance concepts. Ties resolve by
- * declaration order, which keeps the answer deterministic — a suggester whose
- * result depends on Map iteration order is a suggester nobody can test.
+ * ### Why the loose match runs in exactly one direction
+ *
+ * It used to run in both — a keyword matched a token if EITHER extended the
+ * other — and that is how a fintech came out a construction company. Raqm's
+ * mission says "Build a financial control layer … expose waste … real profit",
+ * and for "real estate" the reverse direction lit up three keywords off two
+ * innocent words: `builder` and `building` both start with "build", and
+ * `realty` starts with "real". Five loose hits beat four real ones and the
+ * brand was handed excavators and paint rollers.
+ *
+ * A token extending a keyword is a WORD FORM — "financial" really is
+ * "finance" inflected, "gaming" really is "game". A keyword extending a token
+ * is a different word that happens to share an opening, and it is worth
+ * nothing. So the direction is fixed, and an exact hit is worth twice a loose
+ * one, which is what settles a brand that genuinely spans two packs.
+ *
+ * DISTINCT keywords are counted, so a brand that says "payments" six times
+ * does not out-vote one that spans four finance concepts, and ties resolve by
+ * declaration order — a suggester whose answer depends on Map iteration order
+ * is a suggester nobody can test.
  */
 export function detectPackFromText(text: string): IconPack | null {
   const tokens = new Set(
@@ -339,32 +362,37 @@ export function detectPackFromText(text: string): IconPack | null {
   if (tokens.size === 0) return null;
 
   let best: IconPack | null = null;
-  let bestHits = 0;
+  let bestScore = 0;
   for (const pack of ICON_PACKS) {
     if (pack.keywords.length === 0) continue;
-    let hits = 0;
+    let score = 0;
+    let distinct = 0;
     for (const keyword of pack.keywords) {
       if (tokens.has(keyword)) {
-        hits += 1;
+        score += 2;
+        distinct += 1;
         continue;
       }
-      // A prefix match in ONE direction: "financial" reaches "finance" and
-      // "gaming" reaches "game", while a two-letter fragment reaches nothing.
       if (keyword.length < 4) continue;
+      let loose = false;
       for (const t of tokens) {
-        if (t.length >= 4 && (t.startsWith(keyword) || keyword.startsWith(t))) {
-          hits += 1;
+        if (t.length > keyword.length && t.startsWith(keyword)) {
+          loose = true;
           break;
         }
       }
+      if (loose) {
+        score += 1;
+        distinct += 1;
+      }
     }
-    if (hits > bestHits) {
+    // One stray word is a coincidence. Two is a signal.
+    if (distinct >= 2 && score > bestScore) {
       best = pack;
-      bestHits = hits;
+      bestScore = score;
     }
   }
-  // One stray word is a coincidence. Two is a signal.
-  return bestHits >= 2 ? best : null;
+  return best;
 }
 
 /** Prefix-free names → full `fi-rr-` class names. */
@@ -384,4 +412,33 @@ const CATALOG = new Set(FLATICON_RR_NAMES);
 /** True when a pack name really exists in the shipped catalogue. */
 export function isRealCatalogName(bareName: string): boolean {
   return CATALOG.has(`fi-rr-${bareName}`);
+}
+
+/**
+ * The name a person reads for one icon — the SAME name on the tile, in the
+ * editor's grid, in the export manifest and on the exported file.
+ *
+ * Three places used to answer this and they disagreed: the drilldown title
+ * came from `legacy-mapping`, the export filename from a slug of that title,
+ * and the editor had none at all. A symbol whose name changes between the
+ * screen and the zip is a symbol nobody can find again.
+ *
+ * A weight prefix is stripped first, because the weight is a property of the
+ * SET and not part of what the symbol is called.
+ */
+export function iconLabel(value: string, fallbackIndex?: number): string {
+  const fallback = typeof fallbackIndex === 'number' ? `Icon ${fallbackIndex + 1}` : 'Icon';
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return fallback;
+  // An inline SVG or a URL carries no name — it is artwork the user brought.
+  if (trimmed.startsWith('<svg') || /^https?:|^data:|^\//.test(trimmed)) return fallback;
+  const bare = trimmed.replace(/^fi-(rr|br|sr|rs|bs|ss|tr|ts|brands)-/i, '');
+  if (!bare) return fallback;
+  return (
+    bare
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ') || fallback
+  );
 }

@@ -18,6 +18,8 @@ import {
 } from './suggestIcons';
 import { ICON_PACKS, iconPack } from './iconPacks';
 import { FLATICON_RR_NAMES } from './flaticonNames';
+import { SEED_BRANDS } from '@/data/brands';
+import { suggestedIconsFor } from '@/features/setup/data/brandToMockBrand';
 
 const CATALOGUE = new Set<string>(FLATICON_RR_NAMES);
 
@@ -156,6 +158,18 @@ describe('what a brand is offered', () => {
     for (const name of picks) expect(name.startsWith('fi-br-')).toBe(true);
   });
 
+  it('gives a card game the play half of its pack near the top', () => {
+    // The pack is shared with studios and agencies on purpose; the ORDER is
+    // what separates a card game from a film company. `card` and `play` are
+    // the brand's own words, so the symbols spelled from them come first.
+    const picks = suggestIconsForBrand(
+      'The Ultimate Social Card Game — premium physical games engineered for playful social moments',
+      50,
+    );
+    expect(picks.indexOf('fi-rr-playing-cards')).toBeGreaterThanOrEqual(0);
+    expect(picks.indexOf('fi-rr-playing-cards')).toBeLessThan(4);
+  });
+
   it('no pack ever contributes the audit’s off-brand glyphs', () => {
     const offered = new Set(ICON_PACKS.flatMap((p) => [...p.icons].map((n) => `fi-rr-${n}`)));
     for (const bad of [
@@ -163,6 +177,63 @@ describe('what a brand is offered', () => {
       'fi-rr-anatomical-heart', 'fi-rr-blender-phone', 'fi-rr-cvv-card',
     ]) {
       expect(offered.has(bad), bad).toBe(false);
+    }
+  });
+});
+
+/**
+ * The two brands the audit was run against, end to end through the real
+ * production path (`suggestedIconsFor` reads the recorded industry AND the
+ * stored weight). D41 named ten specific glyphs these two brands were offered;
+ * the point of a pack is that none of them can be reached any more.
+ */
+describe('the seed brands, through the path the product uses', () => {
+  const bySlug = (slug: string) => {
+    const brand = SEED_BRANDS.find((b) => b.slug === slug);
+    if (!brand) throw new Error(`no seed brand ${slug}`);
+    return brand;
+  };
+
+  it('Raqm — a financial performance company — is offered finance symbols', () => {
+    const brand = bySlug('raqm');
+    const picks = suggestedIconsFor(brand);
+    const allowed = new Set(iconPack('finance').icons.map((n) => `fi-rr-${n}`));
+    for (const name of picks) expect(allowed.has(name), name).toBe(true);
+    // The exact glyphs the audit found on this brand's drilldown.
+    for (const bad of [
+      'fi-rr-waste', 'fi-rr-waste-pollution', 'fi-rr-building-ngo',
+      'fi-rr-broken-chain', 'fi-rr-assistive-listening-systems',
+    ]) {
+      expect(picks).not.toContain(bad);
+    }
+    // And the artwork it is missing without: money, measurement, trust.
+    for (const good of ['fi-rr-chart-line-up', 'fi-rr-coins', 'fi-rr-receipt']) {
+      expect(picks, good).toContain(good);
+    }
+  });
+
+  it('SKAM — a physical card game company — is offered play symbols', () => {
+    const brand = bySlug('skam');
+    const picks = suggestedIconsFor(brand);
+    const allowed = new Set(iconPack('creative').icons.map((n) => `fi-rr-${n}`));
+    for (const name of picks) expect(allowed.has(name), name).toBe(true);
+    for (const bad of [
+      'fi-rr-turkey', 'fi-rr-anatomical-heart', 'fi-rr-blender-phone',
+      'fi-rr-government-user', 'fi-rr-cvv-card',
+    ]) {
+      expect(picks).not.toContain(bad);
+    }
+    for (const good of ['fi-rr-playing-cards', 'fi-rr-dice', 'fi-rr-confetti']) {
+      expect(picks, good).toContain(good);
+    }
+  });
+
+  it('is a set someone would ship — 24 to 32, on every seed brand', () => {
+    for (const brand of SEED_BRANDS) {
+      const picks = suggestedIconsFor(brand);
+      expect(picks.length, brand.name).toBeGreaterThanOrEqual(24);
+      expect(picks.length, brand.name).toBeLessThanOrEqual(32);
+      expect(new Set(picks).size, brand.name).toBe(picks.length);
     }
   });
 });

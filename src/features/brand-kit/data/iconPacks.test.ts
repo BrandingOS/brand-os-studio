@@ -70,6 +70,17 @@ describe('icon packs', () => {
     expect(detectPackFromText('a bakery and coffee house serving pastry')?.id).toBe('food');
   });
 
+  it('a word form counts; a word that merely starts the same does not', () => {
+    // "financial" IS "finance" inflected.
+    expect(detectPackFromText('financial reporting and profit clarity')?.id).toBe('finance');
+    // "build" is not "builder", and "real" is not "realty". This is the exact
+    // shape that handed a fintech a set of excavators (audit D41).
+    expect(
+      detectPackFromText('we build a financial control layer that exposes real waste and profit')
+        ?.id,
+    ).toBe('finance');
+  });
+
   it('unknown ids fall back to the general pack rather than throwing', () => {
     expect(iconPack('nope').id).toBe('general');
     expect(iconPack(undefined).id).toBe('general');

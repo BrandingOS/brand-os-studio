@@ -28,6 +28,22 @@ import {
   type WcagLevel,
 } from '../data/colorPaletteExport';
 import { fgOn, fontStack, surface } from './brandStyle';
+// Typography only — its own statement, so the specimen work never has to
+// edit a line another family's agent is also holding. `normalizeHex` is
+// already in scope from `colorPaletteExport` above and is the same function.
+import { contrastOk } from './brandStyle';
+import {
+  PHOTO_TREATMENTS,
+  directionForMock,
+  hasRealPhotos,
+  isPhotoSourceBroken,
+  markPhotoSourceBroken,
+  photoName,
+  rampFor,
+  treatmentCss,
+  treatmentFor,
+  type PhotoTreatmentId,
+} from '../data/photoExport';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
 import {
   UPLOAD_HINT,
@@ -41,6 +57,11 @@ import {
   loadFontFamily,
   registerUploadedFontFamily,
 } from '@/shared/design-system/fonts';
+// Icons only — kept as their own statements so the Icons work never has to
+// edit a line another family's agent is also holding.
+import { contrastOf, normalizeHex as normalizeIconHex } from './brandStyle';
+import { ICON_WEIGHTS, detectIconWeight } from '../data/iconWeights';
+import { iconLabel } from '../data/iconPacks';
 
 /**
  * Renderers for the Brand Assets drilldown tiles.
@@ -1053,6 +1074,42 @@ function pairingLine(
   return `Pairs with ${other.family} for ${(other.role || 'the rest').toLowerCase()}.`;
 }
 
+/**
+ * The muted ink, darkened until it can be READ.
+ *
+ * `surface(brand,'card').textMuted` is a palette role, not a promise: on
+ * this brand's near-white card it lands at 3.99:1, and every label on this
+ * tile — the weight numbers, the step names, the pairing line, the "Not
+ * bundled" badge — is set in it at 5 to 7 pixels. A specimen whose
+ * annotations cannot be read is a specimen that only half works, so the
+ * ink is mixed toward the card's own body colour until it clears AA, and
+ * falls back to that colour rather than to a guess.
+ *
+ * The brand's hue is preserved for as long as it can be: the mix walks
+ * toward `text` in quarters and stops at the first step that passes.
+ */
+function mutedInk(tokens: { bg: string; text: string; textMuted: string }): string {
+  if (contrastOk(tokens.textMuted, tokens.bg)) return tokens.textMuted;
+  for (const t of [0.25, 0.5, 0.75]) {
+    const mixed = mixHex(tokens.textMuted, tokens.text, t);
+    if (mixed && contrastOk(mixed, tokens.bg)) return mixed;
+  }
+  return tokens.text;
+}
+
+/** `a` moved `t` of the way toward `b`, in sRGB. */
+function mixHex(a: string, b: string, t: number): string | undefined {
+  const pa = normalizeHex(a);
+  const pb = normalizeHex(b);
+  if (!pa || !pb) return undefined;
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  const out = [0, 1, 2]
+    .map((i) => Math.round(channel(pa, i) + (channel(pb, i) - channel(pa, i)) * t))
+    .map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0'))
+    .join('');
+  return `#${out}`;
+}
+
 /** What the download can actually ship for this family. */
 const SOURCE_BADGE: Record<FontSource, string> = {
   uploaded: 'Your files',
@@ -1085,13 +1142,17 @@ export function BrandAssetFontRenderer({ brand, templateIndex }: Props) {
   const stack = specimenStack(f);
   const label = canonicalGoogleFamily(family) ?? family;
 
+  // Every annotation on this tile is set in the muted ink at five to seven
+  // pixels, so the ink has to be one that can be read at that size.
+  const muted = mutedInk(tokens);
+
   const eyebrow: CSSProperties = {
-    fontSize: '2.5cqw',
+    fontSize: '2.8cqw',
     fontWeight: 600,
     letterSpacing: '0.14em',
     textTransform: 'uppercase',
     lineHeight: 1,
-    color: tokens.textMuted,
+    color: muted,
     whiteSpace: 'nowrap',
   };
 
@@ -1172,7 +1233,7 @@ export function BrandAssetFontRenderer({ brand, templateIndex }: Props) {
             >
               Aa
             </span>
-            <span style={{ ...eyebrow, fontSize: '1.9cqw', letterSpacing: '0.08em' }}>{w}</span>
+            <span style={{ ...eyebrow, fontSize: '2.3cqw', letterSpacing: '0.08em' }}>{w}</span>
           </span>
         ))}
       </div>
@@ -1213,7 +1274,7 @@ export function BrandAssetFontRenderer({ brand, templateIndex }: Props) {
             >
               {SPECIMEN_WORD}
             </span>
-            <span style={{ ...eyebrow, fontSize: '1.9cqw', letterSpacing: '0.06em', flex: '0 0 auto' }}>
+            <span style={{ ...eyebrow, fontSize: '2.3cqw', letterSpacing: '0.06em', flex: '0 0 auto' }}>
               {step.label} {step.px}
             </span>
           </span>
@@ -1222,10 +1283,10 @@ export function BrandAssetFontRenderer({ brand, templateIndex }: Props) {
 
       {/* The pairing rule, and — when we cannot get the files — why. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6cqw' }}>
-        <span style={{ fontSize: '2.3cqw', lineHeight: 1.35, color: tokens.textMuted }}>
+        <span style={{ fontSize: '2.5cqw', lineHeight: 1.35, color: muted }}>
           {pairingLine(brand.fonts, templateIndex)}
         </span>
-        <span style={{ fontSize: '2.3cqw', lineHeight: 1.35, color: tokens.textMuted }}>
+        <span style={{ fontSize: '2.5cqw', lineHeight: 1.35, color: muted }}>
           {source === 'unavailable' ? UPLOAD_HINT : usageLine(f.role)}
         </span>
         </div>
@@ -1254,56 +1315,423 @@ function bareNameToFlaticon(value: string): string | null {
   return FLATICON_RR_SET.has(candidate) ? candidate : null;
 }
 
+/**
+ * The specimen sizes, largest first.
+ *
+ * These are REAL pixels, not a proportion of the tile. An icon set is
+ * specified the way a typeface is — "does it survive at 24?" is the only
+ * question anyone actually asks of one — so a tile that showed a single
+ * 64px glyph answered nothing, and three glyphs whose captions said 24/32/48
+ * while measuring something else would answer it dishonestly. The drilldown
+ * lays these out at the 260px width every renderer here is drawn for, so the
+ * numbers on the tile are the numbers on the screen.
+ *
+ * Largest first so the export's `querySelector('i')` — which reads the
+ * codepoint and the resolved tint off the FIRST glyph it finds — lands on the
+ * one drawn at the size the artwork was designed against.
+ */
+const ICON_SPECIMEN_SIZES = [48, 32, 24] as const;
+
+/** The tint the brand has DECIDED on, or its primary colour. */
+function iconTintOf(brand: MockBrand): string {
+  return (
+    normalizeIconHex(brand.iconTint) ??
+    normalizeIconHex(brand.colors.core[0]?.hex) ??
+    '#111113'
+  );
+}
+
+/**
+ * One icon, specified.
+ *
+ * ### What this tile is for
+ *
+ * The Icons drilldown used to be fifty 335×238 tiles each holding one 64px
+ * glyph and nothing else (audit D59) — seventeen screens of scrolling that
+ * told you the brand owned a camera, and not what its icons LOOK like. It also
+ * showed the same glyph however the brand had been saved: the weight and the
+ * tint the user picked in the editor were applied live and then gone on the
+ * next paint (audit D11).
+ *
+ * So the tile is now a specimen and it reads the PERSISTED decision:
+ *
+ *  • **The weight is in the name.** `fi-br-camera` IS the bold camera — a
+ *    UICONS class name carries its own weight, which is why nothing here
+ *    stores one separately. `detectIconWeight` reads it back and the tile
+ *    says which one it is.
+ *  • **The tint is `brand.iconTint`**, which arrives from
+ *    `guidelines.iconography.tint` through the Setup projection, falling back
+ *    to the brand's primary. `--bk-icon-tint` still overrides it so the
+ *    drilldown's live preview keeps working while a tint is being chosen.
+ *  • **The well's ground is chosen so the tint can be SEEN.** A brand whose
+ *    primary is near-white had an invisible icon set on a white card; the well
+ *    flips to whichever of black/white the tint reads on, and only then. The
+ *    captions stay outside the well, on the card's own ground, so an override
+ *    of one can never make the other unreadable.
+ */
 export function BrandAssetIconRenderer({ brand, templateIndex }: Props) {
   const src = brand.icons[templateIndex];
   if (!src) return null;
   const trimmed = src.trim();
   const flaticonClass = isFlaticonClass(trimmed) ? trimmed : bareNameToFlaticon(trimmed);
-  // Paint the glyph in the brand's primary color so the Icons drilldown
-  // reads as part of the brand identity. We resolve color through the
-  // CSS custom property `--bk-icon-tint` first so an ancestor (the
-  // drilldown's global Edit popover) can swap the kit's tint without
-  // each renderer holding its own state.
-  const tintColor = brand.colors.core[0]?.hex;
-  const tintStyle: CSSProperties | undefined = tintColor
-    ? { color: `var(--bk-icon-tint, ${tintColor})` }
-    : { color: 'var(--bk-icon-tint, currentColor)' };
-  if (flaticonClass) {
-    return (
-      <div className="brand-asset-render brand-asset-render--icon" style={tintStyle}>
+
+  const tokens = surface(brand, 'card');
+  const tint = iconTintOf(brand);
+  // Symmetric by definition: whichever of black/white reads ON the tint is
+  // also the ground the tint reads on.
+  const wellBg = contrastOf(tint, tokens.bg) >= 3 ? tokens.bg : fgOn(tint);
+  const weight = flaticonClass ? detectIconWeight(flaticonClass) : null;
+  const weightLabel = weight
+    ? ICON_WEIGHTS.find((w) => w.id === weight)?.label ?? 'Regular'
+    : 'Artwork';
+  const name = iconLabel(trimmed, templateIndex);
+
+  const caption: CSSProperties = {
+    fontFamily: fontStack(brand, 'body'),
+    fontSize: '8px',
+    fontWeight: 600,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    lineHeight: 1,
+    // The card's own ink, not its muted twin. At 8px a muted grey measures
+    // ~4.0:1 on a white card — under AA, and the sweep is budget zero. A
+    // caption this small is already separated from the name by SIZE, WEIGHT
+    // and TRACKING; it does not also need to be paler.
+    color: tokens.text,
+    whiteSpace: 'nowrap',
+  };
+
+  /** One glyph at one size — the webfont, an inline vector or a raster. */
+  const glyph = (size: number, key: number) => {
+    if (flaticonClass) {
+      return (
         <i
-          className={`fi ${flaticonClass} brand-asset-render-icon-glyph`}
+          key={key}
+          className={`fi ${flaticonClass} bk-icon-specimen-glyph`}
+          style={{ fontSize: `${size}px`, lineHeight: 1, display: 'block' }}
           aria-hidden
         />
-      </div>
-    );
-  }
-  const isInlineSvg = trimmed.startsWith('<svg');
-  return (
-    <div className="brand-asset-render brand-asset-render--icon" style={tintStyle}>
-      {isInlineSvg ? (
+      );
+    }
+    if (trimmed.startsWith('<svg')) {
+      return (
         <span
-          className="brand-asset-render-icon-glyph"
+          key={key}
+          className="bk-icon-specimen-glyph"
+          style={{ width: size, height: size, display: 'block' }}
           dangerouslySetInnerHTML={{ __html: src }}
         />
-      ) : (
-        <img src={src} alt="" className="brand-asset-render-icon-img" />
-      )}
+      );
+    }
+    return (
+      <img
+        key={key}
+        src={src}
+        alt=""
+        className="bk-icon-specimen-glyph"
+        style={{ width: size, height: size, display: 'block', objectFit: 'contain' }}
+      />
+    );
+  };
+
+  return (
+    // The root class is load-bearing: the Icons download collects tiles by
+    // `.brand-asset-render--icon` and reads the glyph off the `<i>` inside.
+    // Every visual property is set INLINE so it beats the stylesheet's older
+    // one-glyph rules without editing a file three other families share.
+    <div
+      className="brand-asset-render brand-asset-render--icon"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        justifyContent: 'space-between',
+        gap: '8px',
+        padding: '12px 14px',
+        background: tokens.bg,
+        color: tokens.text,
+        borderRadius: 'inherit',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        <span style={caption}>{weightLabel}</span>
+        <span style={{ ...caption, letterSpacing: '0.06em' }}>{tint.toUpperCase()}</span>
+      </div>
+
+      {/* The specimen. The GROUP is centred in the well and the glyphs inside
+          it sit on one line — baseline alignment is what makes three sizes
+          read as one family rather than three unrelated drawings, but a group
+          pinned to the bottom of the well makes the tile look bottom-heavy. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: '1 1 auto',
+          minHeight: 0,
+          padding: '6px 10px',
+          borderRadius: '10px',
+          background: `var(--bk-icon-bg, ${wellBg})`,
+          color: `var(--bk-icon-tint, ${tint})`,
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'flex-end', gap: '14px' }}>
+          {ICON_SPECIMEN_SIZES.map((size, i) => glyph(size, i))}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        <span
+          style={{
+            fontFamily: fontStack(brand, 'heading'),
+            fontSize: '11px',
+            fontWeight: 600,
+            lineHeight: 1.2,
+            color: tokens.text,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+        >
+          {name}
+        </span>
+        <span style={caption}>{ICON_SPECIMEN_SIZES.join(' · ')} px</span>
+      </div>
     </div>
   );
 }
 
 /* ─── Photo ────────────────────────────────────────────────── */
 
+/**
+ * The brand's photography — the pictures it actually owns, and nothing else.
+ *
+ * Three defects met on this tile, and all three were the same lie told three
+ * ways: a placeholder shown as photography.
+ *
+ *  • **D14.** One brand showed twelve copies of a stock 3D render as "Photos
+ *    01–12"; the other showed an empty beige tile chipped "SLOT A". Neither
+ *    brand had a photograph. A photo tile now paints ONE thing — a file that
+ *    is in this brand's Library and that the browser could decode — and when
+ *    there is none it says so in words instead of drawing a slot.
+ *
+ *  • **D1.** The tile is also where a broken source is MEASURED. `/images/
+ *    grain.png` does not exist, and a dev server answers a missing path with
+ *    the SPA document at status 200, so it painted as a broken-image glyph and
+ *    was still counted, still exported, still zipped as `photo-1.html`. The
+ *    `<img>` error handler reports the url to `markPhotoSourceBroken`, which
+ *    is the same cache the exporter and the completion counter read.
+ *
+ *  • **D46.** So "is Photos done?" has exactly one answer — `hasRealPhotos` —
+ *    and the tile, the sidebar and the export cannot disagree about it.
+ *
+ * The treatment is the second half of a brand's photography: a picture is not
+ * on-brand because of what is in it, it is on-brand because of how it is
+ * always treated. The tile paints the treatment the art direction puts this
+ * photo in, and on hover offers the other three, so the choice is made while
+ * looking at the actual picture. The overlay pair below is the CSS spelling of
+ * the same shadow → highlight ramp the exported PNG is rendered through
+ * (`photoExport.treatmentCss` / `applyRamp`), so the preview is the file.
+ */
 export function BrandAssetPhotoRenderer({ brand, templateIndex }: Props) {
-  const p = brand.photos[templateIndex];
-  if (!p) return null;
+  // Indexed against the RAW list, because that is what the drilldown built its
+  // template ids from — filtering here would slide every tile up by one.
+  const p = brand.photos?.[templateIndex];
+  const direction = directionForMock(brand);
+  const [broken, setBroken] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [preview, setPreview] = useState<PhotoTreatmentId | null>(null);
+
+  // A different photo in the same slot is a different picture: forget what was
+  // measured and previewed about the last one.
+  useEffect(() => {
+    setBroken(false);
+    setPreview(null);
+  }, [p?.src]);
+
+  const hidden = Boolean(p?.id) && (direction.hidden ?? []).includes(p.id);
+  const unusable = !p?.src || hidden || broken || isPhotoSourceBroken(p.src);
+  if (unusable) {
+    // Only the FIRST tile explains itself, and only when the brand really has
+    // nothing to show. A grid of six identical "no photos yet" cards is the
+    // twelve-identical-tiles defect wearing an apology.
+    if (templateIndex > 0 || hasRealPhotos(brand, direction)) return null;
+    return <PhotoEmptyTile brand={brand} />;
+  }
+
+  const treatment = preview ?? treatmentFor(p.id, direction);
+  const css = treatmentCss(treatment, brand);
+  const caption = photoName(brand, p, templateIndex);
+
   return (
     <div
       className="brand-asset-render brand-asset-render--photo"
-      style={{ backgroundImage: `url(${p.src})` }}
+      style={{ overflow: 'hidden', background: '#0d0d10' }}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => {
+        setHovering(false);
+        setPreview(null);
+      }}
     >
-      <span className="brand-asset-render-photo-slot">Slot {p.slot}</span>
+      {/* The picture and its ramp are one stack: grayscale, then the shadow
+          colour as a floor (`lighten`) and the highlight as a ceiling
+          (`multiply`). Isolated so the blend modes cannot reach the caption. */}
+      <span style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>
+        <img
+          src={p.src}
+          alt=""
+          onError={() => {
+            markPhotoSourceBroken(p.src);
+            setBroken(true);
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+            filter: css.filter,
+          }}
+        />
+        {css.overlays.map((o) => (
+          <span
+            key={o.mixBlendMode}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: o.background,
+              mixBlendMode: o.mixBlendMode,
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+      </span>
+
+      {/* The caption is the asset's own name — what the user called the file
+          — on an opaque scrim, so it reads over any photograph. */}
+      <span
+        className="brand-asset-render-photo-slot"
+        style={{
+          position: 'relative',
+          maxWidth: '86%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          // The shared chip class is an EYEBROW — uppercase, wide-tracked. A
+          // caption is the picture's own name, in the brand's own text face,
+          // and the DS reserves uppercase for eyebrows.
+          fontFamily: fontStack(brand, 'body'),
+          textTransform: 'none',
+          letterSpacing: 0,
+          fontSize: 11,
+        }}
+      >
+        {caption}
+      </span>
+
+      {/* Hover only — an offscreen export never hovers, so the treatment
+          switcher can never end up rasterized into a deliverable. */}
+      {hovering ? (
+        <span
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            display: 'flex',
+            gap: 4,
+            padding: 3,
+            borderRadius: 8,
+            background: 'rgba(17, 17, 20, 0.72)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          {PHOTO_TREATMENTS.map((t) => {
+            const active = t.id === treatment;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                title={`${t.label} — ${t.hint}`}
+                aria-label={`Preview ${t.label}`}
+                aria-pressed={active}
+                onClick={(e) => {
+                  // The tile itself is the pick-this-variant control.
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setPreview(t.id);
+                }}
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 5,
+                  border: active ? '1.5px solid #ffffff' : '1.5px solid rgba(255,255,255,0.35)',
+                  background: treatmentChipBackground(t.id, brand),
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              />
+            );
+          })}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** The swatch that stands for a treatment: its own ramp, drawn as a gradient. */
+function treatmentChipBackground(id: PhotoTreatmentId, brand: MockBrand): string {
+  const ramp = rampFor(id, brand);
+  if (!ramp) return 'linear-gradient(135deg, #b8b8bc, #f2f2f4)';
+  return `linear-gradient(135deg, ${ramp.shadow}, ${ramp.highlight})`;
+}
+
+/**
+ * The honest empty state.
+ *
+ * One tile, never a row of them, and it says where photographs come from —
+ * the brand's Library — because that is the only place they can come from.
+ */
+function PhotoEmptyTile({ brand }: { brand: MockBrand }) {
+  const tokens = surface(brand, 'subtle');
+  const bg = tokens.bg;
+  const ink = tokens.text;
+  return (
+    <div
+      className="brand-asset-render"
+      data-testid="photos-empty"
+      style={{
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: '10% 12%',
+        textAlign: 'center',
+        background: bg,
+        color: ink,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: fontStack(brand, 'heading'),
+          fontSize: 13,
+          fontWeight: 600,
+          letterSpacing: '-0.01em',
+        }}
+      >
+        No photos yet
+      </span>
+      <span
+        style={{
+          fontFamily: fontStack(brand, 'body'),
+          fontSize: 11,
+          lineHeight: 1.45,
+          opacity: 0.85,
+        }}
+      >
+        Add photography from your Library and it appears here.
+      </span>
     </div>
   );
 }
