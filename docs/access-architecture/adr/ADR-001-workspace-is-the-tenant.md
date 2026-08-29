@@ -12,6 +12,11 @@ agency or a team; `is_personal` distinguishes only the auto-created one. Agencie
 many clients use one workspace with many brands and per-brand access — the case the brief
 describes — rather than a workspace per client.
 
+**Naming.** The customer-facing word is **Workspace** — it is already what the settings
+eyebrow, the dashboard and CLAUDE.md say, and renaming it would touch surfaces this
+initiative does not own. Guests never meet the word: their invite names the brands, their
+nav has no switcher, and a single-brand member lands inside the brand.
+
 **Consequences.** No new join layer; every RLS predicate resolves in one membership lookup.
 If a future customer needs "one company, several billing workspaces" that is a *billing
 group*, addable as `workspaces.parent_billing_workspace_id` without touching access.

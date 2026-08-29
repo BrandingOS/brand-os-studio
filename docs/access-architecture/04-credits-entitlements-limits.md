@@ -58,6 +58,12 @@ reserve `estimate = ceil(max_tokens × rate)` → call → settle on actual `usa
 stay on the anon rate limiter with no wallet. Pricing rules for text models join
 `_shared/pricing.ts` under the same `PRICING_VERSION`.
 
+### 2.5 Per-member monthly cap
+`workspace_members.credits_monthly_cap` (NULL = none). `reserve_credits` sums this month's
+`credit_reservations.amount` for `(workspace, user)` with status ≠ released/expired and refuses
+with `member_credit_cap_reached` when the new hold would exceed the cap. Set from the member
+sheet ("Monthly AI limit"); the Usage page shows each person's spend against it.
+
 ## 3. Plans and entitlements (owner decision #4)
 
 Existing: `subscriptions.plan ∈ free|pro|agency` (Stripe-driven), `PLAN_LIMITS` constant in
@@ -82,7 +88,7 @@ Seeded keys (−1 = unlimited; booleans as 0/1):
 | `share_links` | 3 | −1 | −1 |
 | `exports_month` | 20 | −1 | −1 |
 | `audit.retention_days` | 30 | 180 | 400 |
-| `advanced_access` (capability overrides UI) | 0 | 1 | 1 |
+| `advanced_access` (generic override editor — deferred; named switches are on every plan) | 0 | 1 | 1 |
 
 Numbers are placeholders the owner can change with an UPDATE — no schema change per
 repackaging. `entitlement(ws, key)` = override ?? plan value ?? free value. Enforced in the
@@ -103,7 +109,7 @@ so webhook retries cannot double-grant. Downgrade never claws back a balance.
 | HARD | blocked | `brand_limit_reached`, `seat_limit_reached`, `guest_seat_limit_reached`, `workspace_limit_reached`, `storage_limit_reached` |
 | SOFT | warning at 80 %, banner | same keys with `_warning` from the client, computed from `check_limit` |
 | RATE | 429 with `retry_after` | `rate_limited` |
-| CREDIT | 402 | `insufficient_credits` (+ `required`, `balance`) |
+| CREDIT | 402 | `insufficient_credits` (+ `required`, `balance`), `member_credit_cap_reached` (+ `cap`, `used`) |
 | ENTITLEMENT | 403 | `feature_not_in_plan` (+ `feature`) |
 | AUTHZ | 403 / 404-shaped | `permission_denied`, `brand_access_denied`, `not_authenticated` |
 | CONCURRENCY | 409 | `conflict` (+ `currentVersion`, `updatedBy`) |

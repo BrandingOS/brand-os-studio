@@ -10,5 +10,7 @@ approvals, content templates, bento, blocks, decks live in localStorage/IndexedD
 resources as per-device data, with a visible notice on the Guideline builder when the brand
 has other members. Moving each to a table is listed as the next phase, in order of user
 value: guideline docs → kit customisations → comments/approvals → the rest. The capability
-ids for them (`brand.guideline.edit`, `comments.create`, `approvals.review`) exist now so
-the UI and the future policies share a name.
+ids for them (`brand.guideline.edit`, `brand.guideline.export`, `comments.create`,
+`approvals.review`) exist as **reserved** entries — absent from every access UI and
+resolving to false for everyone — so nobody can be "granted" something the server cannot
+enforce, while the UI and the future policies already share a name.

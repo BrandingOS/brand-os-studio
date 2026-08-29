@@ -42,10 +42,11 @@ cannot be deleted while it is the user's last workspace, and it is the default l
 |---|---|
 | `workspace_id`, `user_id` | unique pair (existing) |
 | `role workspace_role_v2` | `owner · admin · member · guest` (ADR-002) |
-| `status member_status` | `active · suspended`. There is no `invited` status: an invitation is its own row; there are no placeholder members. `removed` = row deleted (audit event keeps the history). |
+| `status member_status` | `active · suspended`. There is no `invited` status: an invitation is its own row; there are no placeholder members. `removed` = row deleted (audit event keeps the history). Suspend has **no UI in V1** (Remove covers the product case); the column exists so account-deletion and future SSO deprovisioning can revoke without deleting history. |
 | `brand_access_mode brand_access_mode` | `all · selected`. Forced to `all` for owner/admin, forced to `selected` for guest (CHECK constraint). |
 | `default_brand_role brand_role` | the brand role applied to every brand when mode = `all`, and the default offered when granting selected brands. NULL for owner/admin (they are implicit managers). |
 | `capability_overrides jsonb` | `{ "grant": [...], "deny": [...] }` — workspace-scope capabilities only; validated by trigger against the overridable set (ADR-003) |
+| `credits_monthly_cap bigint` | NULL = no cap; a per-person ceiling on credits reserved in the calendar month (04 §3.1) |
 | `invited_by`, `joined_at`, `created_at`, `updated_at` | existing |
 | `suspended_at`, `suspended_by`, `suspend_reason` | new |
 
@@ -116,16 +117,16 @@ a nested loop, and the composite FK makes the copy impossible to get wrong.
 | Workspace role | Sees | Manages |
 |---|---|---|
 | **Owner** | everything | everything, incl. billing, ownership transfer, workspace deletion |
-| **Admin** | everything | members, invitations, brands, billing; not ownership transfer / delete workspace |
+| **Admin** | everything | members, invitations, brands (implicit Manager on every brand), billing; not ownership transfer / delete workspace |
 | **Member** | brands per access mode | only what the brand role allows; never members/billing/settings |
 | **Guest** | only selected brands | nothing at workspace level; cannot see the member directory; counted as a guest seat |
 
 | Brand role | Can |
 |---|---|
-| **Manager** | everything in the brand incl. brand settings, sharing, brand-level access list, archive |
-| **Editor** | edit all brand content (setup, strategy, kit, guideline, designs, library), AI, export |
-| **Designer** | Brand Kit/Guideline view; designs create/edit; library upload; AI; export; **not** Setup/Strategy edit |
-| **Viewer** | view everything; comment; no export by default (grantable) |
+| **Manager** | everything in the brand incl. brand settings, public publishing, brand-level access list, archive, community submission |
+| **Editor** | edit all brand content (setup, strategy, kit incl. approve, designs, library), AI, export, share links, card |
+| **Designer** | designs create/edit; kit generate/customise (not approve); library upload; AI; export; **not** Setup/Strategy edit, not approve, not delete others' work |
+| **Viewer** | view brand content (Setup, Strategy, Kit, Guideline, designs, library) read-only; no settings; no export by default (the *download* switch grants it) |
 
 Guest is a workspace role, not a flag (ADR-002): it changes what the workspace shows, not
 only which brands. A guest with brand role Editor on Brand A is exactly the freelancer case.
@@ -140,6 +141,6 @@ only which brands. A guest with brand role Editor on Brand A is exactly the free
 | remove | membership row deleted → brand_access cascades → audit event `member.removed` with a snapshot of what was removed |
 | leave | same as remove, self-initiated, guarded by last-owner rule |
 | archive brand | `archived_at`; read-only for managers, hidden for others; restorable |
-| delete brand | soft (`archived_at` + `deleted_at`)… **no** — brands already cascade hard-delete a large tree today and the dashboard deletes brands routinely; a soft delete here would double every brand query's filters. Decision: brand delete stays a hard delete gated by `brands.delete` (workspace admin+ or brand manager) with a confirmation naming the counts; audit event carries the brand snapshot summary. Archive is the recoverable path. (ADR-006) |
+| delete brand | soft (`archived_at` + `deleted_at`)… **no** — brands already cascade hard-delete a large tree today and the dashboard deletes brands routinely; a soft delete here would double every brand query's filters. Decision: brand delete stays a hard delete gated by `brands.delete` (workspace admin+), **offered only on an archived brand** (the live brand's menu has Archive; "Delete permanently" lives in the archived list), with a confirmation naming the counts per brand; audit event carries the brand snapshot summary. (ADR-006) |
 | delete workspace | soft, 30-day purge |
 | subscription cancelled | plan → free at period end (existing webhook); entitlements shrink; nothing is deleted; over-limit workspaces become read-only for *creating* (brands, invites) but never for reading or editing existing work |

@@ -20,7 +20,8 @@ stamps `updated_by = auth.uid()`. Writers send the version they loaded:
   and re-applying its **patch** (Setup already produces diffs, so a colour edit lands on top of
   a colleague's font edit); if the same keys collide, the store surfaces `ConflictNotice`
   ("Updated by Sarah 10s ago — reload to see her changes; your change to Primary colour was
-  not saved").
+  not saved"). A rejected patch is never pushed onto any `shared/history` scope — ⌘Z after a
+  conflict must not "undo" a change that never landed (one test pins it).
 - `designs`: same RPC shape; no auto-merge (a canvas document is one blob). On conflict the
   editor shows a blocking notice with **Reload** / **Save a copy** — never silently overwrites.
   The editor also subscribes to `postgres_changes` on its own design row and shows "Omar is
@@ -31,9 +32,11 @@ stamps `updated_by = auth.uid()`. Writers send the version they loaded:
 
 Local-only resources (guideline document, kit customisations, checkpoints, comments,
 approvals) are single-device by nature today; they are **not** made multi-user by this
-initiative (ADR-008 lists them as the next phase's migration set), and the Guideline page
-shows a one-line notice when the brand has other members ("Guidelines are saved on this
-device for now").
+initiative (ADR-008 lists them as the next phase's migration set), and the Guideline builder
+shows a non-dismissible `DsBanner` whenever the workspace has more than one active member:
+"This guideline lives only in this browser. Teammates can't see it and it won't appear on
+your other devices." The reserved capabilities for these resources are never shown in any
+access UI (03 §1).
 
 ## 2. Attribution
 - `updated_by` on brands/designs/brand_kit_state/workspaces (trigger-stamped, never client-set).

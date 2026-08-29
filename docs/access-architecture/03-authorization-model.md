@@ -5,6 +5,9 @@ _One vocabulary, one resolver, two enforcement points (Postgres for security, Re
 ## 1. Capabilities — derived from the real surfaces in 01 §4
 
 Naming: `<scope>.<area>.<verb>`. Workspace scope first, then brand scope.
+Capabilities marked **reserved** exist in the catalog (so UI and future policies share a
+name) but are shown nowhere and resolve to `false` for everyone: their resources are still
+per-device (ADR-008). Nothing may be "granted" for a thing the server cannot enforce.
 
 ### Workspace scope (context: `workspaceId`)
 ```
@@ -19,11 +22,11 @@ workspace.usage.view           credits balance, ledger, who consumed
 workspace.credits.manage       manual adjustments (platform admins only in V1; reserved)
 members.view                   the member directory
 members.invite
-members.manage                 change role, brand access, overrides, suspend
+members.manage                 change role, brand access, named access switches
 members.remove
-brands.view                    list brands the caller can reach (always implied by any brand access)
+brands.list                    list the brands the caller can reach (implied by any brand access)
 brands.create
-brands.delete                  hard delete a brand (also requires brand manager OR ws admin+)
+brands.delete                  permanently delete an ARCHIVED brand
 audit.view                     the security audit log
 activity.view                  the product activity feed (workspace-wide)
 ```
@@ -31,30 +34,34 @@ activity.view                  the product activity feed (workspace-wide)
 ### Brand scope (context: `brandId`)
 ```
 brand.view                     open the brand at all (implied by every other brand capability)
-brand.settings.view
-brand.settings.edit            name, slug, general, sharing tab
-brand.archive
+brand.settings.view            brand settings dialog (general/colors/typography/voice/strategy/sharing)
+brand.settings.edit            name, slug, general, sharing tab, custom domain
+brand.card.edit                dashboard project card: label, cover, shuffle, dashboard folder
+brand.archive                  archive / restore
 brand.access.view              who has access to this brand
-brand.access.manage            grant/revoke brand_access rows, change brand roles
+brand.access.manage            grant/revoke brand_access rows, change brand roles, named switches
 brand.setup.edit               Setup: colors, logos, fonts, icons, photos, websites, about
 brand.strategy.edit            Strategy cards, import from brief, rebrand with AI, checkpoints
-brand.kit.edit                 kit lifecycle (generate/approve/customise/upload deliverable)
+brand.kit.generate             generate / regenerate / customise / upload a deliverable
+brand.kit.approve              approve, set primary, dismiss, archive a deliverable (the brand-defining act)
 brand.kit.export               export kit / download cards & bundles
-brand.guideline.edit           build/rebuild/edit pages, write-back to brand (also needs setup/strategy edit for that)
-brand.guideline.export
+brand.guideline.edit           RESERVED (guideline documents are per-device today)
+brand.guideline.export         RESERVED until export exists
 designs.create
 designs.edit                   edit any design in the brand
 designs.delete                 delete any design (own designs: implied by designs.create — see §4)
 designs.export
-templates.publish              save-as-template (private or community submission)
+templates.save                 save a design as a PRIVATE template
+templates.submit_community     submit to the community queue (never a guest)
 library.upload
 library.edit                   rename, tags, category, move, folders
 library.delete
 ai.generate                    spend workspace credits on this brand
-share.view                     see existing links
-share.manage                   create/revoke share links, toggle public, publish identity
-comments.create
-approvals.review               approve/reject
+share.view                     see existing share links
+share.link                     create/revoke share links for a design or guideline
+share.publish_public           brands.is_public, identity publication, custom domain
+comments.create                RESERVED (comments are per-device today)
+approvals.review               RESERVED (approvals are per-device today)
 activity.view                  brand activity feed
 ```
 
@@ -81,56 +88,71 @@ Stored in `role_capabilities(scope, role, capability)` seeded by migration; mirr
 | members.invite | ✅ | ✅ | — | — |
 | members.manage | ✅ | ✅ | — | — |
 | members.remove | ✅ | ✅ | — | — |
-| brands.view | ✅ | ✅ | ✅ | ✅ |
+| brands.list | ✅ | ✅ | ✅ | ✅ |
 | brands.create | ✅ | ✅ | — | — |
 | brands.delete | ✅ | ✅ | — | — |
 | audit.view | ✅ | ✅ | — | — |
 | activity.view (ws) | ✅ | ✅ | ✅ | — |
 
-Overridable at workspace scope (`members.capability_overrides`): `brands.create`,
-`workspace.usage.view`, `workspace.billing.view`, `members.view`, `activity.view`. Everything
-else is role-bound — you cannot grant `members.manage` to a Member; make them an Admin.
-Denies may remove any overridable capability from Member/Guest; Owner/Admin accept no overrides.
+**Admin is an implicit Manager on every brand.** The Admin description says so plainly
+("Admins can do anything in every brand"); an ops manager who should manage people but not
+brands does not exist as a role in V1 — a Member with the *billing* switch covers the
+bookkeeper, and brand-level management stays with Managers.
+
+Overridable at workspace scope (`workspace_members.capability_overrides`): `brands.create`,
+`workspace.usage.view`, `workspace.billing.view`, `workspace.billing.manage`, `members.view`,
+`activity.view`. Everything else is role-bound — you cannot grant `members.manage` to a
+Member; make them an Admin. Owner/Admin accept no overrides.
 
 ### 2.2 Brand roles
 | capability | Manager | Editor | Designer | Viewer |
 |---|:-:|:-:|:-:|:-:|
 | brand.view | ✅ | ✅ | ✅ | ✅ |
-| brand.settings.view | ✅ | ✅ | ✅ | ✅ |
+| brand.settings.view | ✅ | ✅ | — | — |
 | brand.settings.edit | ✅ | — | — | — |
+| brand.card.edit | ✅ | ✅ | — | — |
 | brand.archive | ✅ | — | — | — |
 | brand.access.view | ✅ | ✅ | — | — |
 | brand.access.manage | ✅ | — | — | — |
 | brand.setup.edit | ✅ | ✅ | — | — |
 | brand.strategy.edit | ✅ | ✅ | — | — |
-| brand.kit.edit | ✅ | ✅ | — | — |
+| brand.kit.generate | ✅ | ✅ | ✅ | — |
+| brand.kit.approve | ✅ | ✅ | — | — |
 | brand.kit.export | ✅ | ✅ | ✅ | — |
-| brand.guideline.edit | ✅ | ✅ | — | — |
-| brand.guideline.export | ✅ | ✅ | ✅ | — |
 | designs.create | ✅ | ✅ | ✅ | — |
 | designs.edit | ✅ | ✅ | ✅ | — |
 | designs.delete | ✅ | ✅ | — | — |
 | designs.export | ✅ | ✅ | ✅ | — |
-| templates.publish | ✅ | ✅ | ✅ | — |
+| templates.save | ✅ | ✅ | ✅ | — |
+| templates.submit_community | ✅ | — | — | — |
 | library.upload | ✅ | ✅ | ✅ | — |
 | library.edit | ✅ | ✅ | ✅ | — |
 | library.delete | ✅ | ✅ | — | — |
 | ai.generate | ✅ | ✅ | ✅ | — |
 | share.view | ✅ | ✅ | — | — |
-| share.manage | ✅ | — | — | — |
-| comments.create | ✅ | ✅ | ✅ | ✅ |
-| approvals.review | ✅ | ✅ | — | — |
+| share.link | ✅ | ✅ | — | — |
+| share.publish_public | ✅ | — | — | — |
 | activity.view (brand) | ✅ | ✅ | ✅ | — |
 
-Overridable at brand scope (`brand_access.capability_overrides`): every brand capability
-except `brand.view`, `brand.settings.edit`, `brand.access.manage`, `brand.archive`, `share.manage`
-(manager-only, role-bound). So: a Viewer can be granted `designs.export` + `brand.guideline.export`
-(the "client with exports" case); a Designer can be denied `ai.generate`; an Editor can be
-granted `share.view`.
+Reserved (not in the matrix, resolve false): `brand.guideline.edit`, `brand.guideline.export`,
+`comments.create`, `approvals.review`. `templates.submit_community` is additionally
+hard-denied for `workspace role = guest` inside the resolver, whatever the brand role.
 
-**Guest defaults:** the invite UI applies a guest template on top of the chosen brand role:
-`ai.generate` denied unless the inviter ticks it (owner decision #2). Stored as a deny
-override, so the backend stays purely capability-based.
+### 2.3 Named access switches (every plan) and the override storage
+The three cases the brief actually lists are first-class switches in the invite modal, the
+member sheet and the Brand Access tab — on every plan:
+
+| switch | stores | default |
+|---|---|---|
+| **Can download and export** | grant/deny `designs.export`, `brand.kit.export` | on for Manager/Editor/Designer, off for Viewer |
+| **Can use AI generation** | grant/deny `ai.generate` | on for Manager/Editor/Designer; **off for any Guest** and for Viewer |
+| **Can see billing** (workspace, Members only) | grant `workspace.billing.view` | off |
+
+They are stored as `capability_overrides` on `brand_access` / `workspace_members`, so the
+backend stays purely capability-based and a generic override editor (the Pro feature
+`advanced_access`, **deferred** from V1) reads and writes the same rows. Overridable-at-brand
+set for that future editor: every brand capability except `brand.view`, `brand.settings.edit`,
+`brand.access.manage`, `brand.archive`, `share.publish_public`, `templates.submit_community`.
 
 ## 3. Resolution — deterministic, one function
 
@@ -139,6 +161,7 @@ effective_capabilities(user, workspace, brand?) → set<capability>
 
 1. platform super_admin        → all capabilities (admin surfaces only; never reached by product UI)
 2. m := workspace_members(workspace, user); if none or status ≠ active or workspace.deleted → ∅
+   (a membership row for a non-existent workspace or a deleted user never exists: FKs)
 3. WS := role_capabilities('workspace', m.role) ⊕ m.capability_overrides   (grant ∪, then deny −)
 4. if brand is null → return WS
 5. b := brands(brand); if b.workspace_id ≠ workspace or b is null → ∅ (cross-tenant guess = nothing)
@@ -149,6 +172,8 @@ effective_capabilities(user, workspace, brand?) → set<capability>
      m.brand_access_mode = selected          → brand_access(brand,user).role ?? NONE
    if r = NONE → return WS  (workspace caps only; the brand does not exist for them)
 8. BR := role_capabilities('brand', r) ⊕ brand_access.capability_overrides
+   if m.role = guest → BR := BR − {templates.submit_community}
+   BR := BR − RESERVED
 9. return WS ∪ BR
 ```
 
@@ -197,17 +222,23 @@ can delete their own drafts and nobody else's. No other table has an ownership r
 - Hooks: `useCan(capability, { workspaceId?, brandId? })`, `useBrandAccess(brandId)`,
   `useWorkspaceAccess()`, `useCurrentWorkspace()`.
 - Components: `<Can capability ctx fallback>`, `<AccessGate>` (route-level: renders
-  NotFoundPanel for no access — 403 and 404 look identical to the user, by design, and the
-  panel offers "Switch workspace" when the brand exists in another workspace the user can
-  reach), `<ReadOnlyNotice>` for view-only surfaces.
+  `AccessDeniedPanel`: when the caller is an ACTIVE MEMBER of the brand's workspace it is a
+  real 403 — "You don't have access to Kaafex. Ask Alice Hamza or Adam Ortiz." (owners/admins
+  are visible to members through `members.view`; guests get the 404 shape because they have
+  no directory); for non-members and cross-tenant guesses it is the 404 shape — one component,
+  two copy branches), `<ReadOnlyNotice reason>` with three reasons: `no_edit_access` (names
+  one or two managers, copy-email action), `archived` ("This brand is archived. A manager can
+  restore it."), `plan_readonly`.
 - Denied-reason vocabulary shared with the server (`AccessDenialReason`), see 04 §6.
 
 ### 4.3 UX policy — hidden / disabled / read-only / request
 | situation | treatment |
 |---|---|
 | a whole section the role never has (Guest → Members, Viewer → Setup edit) | **hidden** from nav |
-| a section the role can view but not edit | **read-only**: content renders, controls removed, one `ReadOnlyNotice` at the top ("You can view this brand. Ask a manager for edit access.") |
+| a section the role can view but not edit | **read-only**: content renders, controls removed, one `ReadOnlyNotice reason="no_edit_access"` at the top naming a manager |
+| a **Viewer** looking at a deliverable without export | **disabled with reason** ("Downloads are off for your access — ask Alice.") — the one place absence would read as a missing feature |
 | an action that exists on the page but the role lacks (Designer → delete another's design) | **hidden** (menu item absent) |
 | an action blocked by plan/limit/credits, not by role | **disabled with reason** (tooltip + the semantic reason: "Brand limit reached on Free" / "Needs 14 credits; you have 6") |
-| a brand the user cannot reach | **404-shaped** NotFoundPanel |
-"Request access" is deliberately not built in V1; the notice names who can grant it.
+| a brand the user cannot reach, same workspace | **403** naming who can grant access |
+| a brand the user cannot reach, other/no workspace, or a guest | **404-shaped** |
+"Request access" is deliberately not built in V1; the notices name who can grant it.
