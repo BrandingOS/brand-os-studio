@@ -38,8 +38,20 @@ const files = readdirSync(dir)
   .filter((f) => f.endsWith('.test.sql') && (!filter || f.includes(filter)))
   .sort();
 
+function waitForDb(maxMs = 30_000) {
+  const until = Date.now() + maxMs;
+  while (Date.now() < until) {
+    const r = spawnSync('docker', ['exec', container, 'psql', '-U', 'postgres', '-d', 'postgres', '-tAc', 'select 1'], { encoding: 'utf8' });
+    if (r.status === 0 && r.stdout.trim() === '1') return true;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+  }
+  return false;
+}
+
 let failed = 0;
+let crashed = 0;
 for (const f of files) {
+  if (!waitForDb()) { console.error('database did not come back within 30s'); process.exit(2); }
   const sql = readFileSync(join(dir, f));
   const r = spawnSync(
     'docker',
@@ -47,11 +59,15 @@ for (const f of files) {
     { input: sql, encoding: 'utf8' },
   );
   const ok = r.status === 0;
+  // A backend crash (signal 11 in the postgres log) shows up here as a lost connection.
+  // It is reported separately from an assertion failure so nobody reads it as a policy bug.
+  const crash = !ok && /connection to server was lost|server closed the connection/.test(r.stderr);
   if (!ok) failed += 1;
-  console.log(`${ok ? '✓' : '✗'} ${f}`);
+  if (crash) crashed += 1;
+  console.log(`${ok ? '✓' : '✗'} ${f}${crash ? '   (SERVER CRASHED — see docker logs; not an assertion failure)' : ''}`);
   if (!ok) {
     console.log(r.stderr.trim().split('\n').slice(-25).join('\n'));
   }
 }
-console.log(`\n${files.length - failed}/${files.length} SQL suites passed`);
+console.log(`\n${files.length - failed}/${files.length} SQL suites passed${crashed ? ` · ${crashed} crashed the server` : ''}`);
 process.exit(failed ? 1 : 0);

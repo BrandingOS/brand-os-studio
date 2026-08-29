@@ -68,3 +68,14 @@ the suite can be diffed (`scripts/threat-model-coverage.mjs` fails if an id has 
 `npm run lint`, `npm run typecheck:ci`, `npm run test` (unit + browser), `npm run test:db`,
 `npm run build`. Pre-existing failures are recorded in the final report separately from this
 initiative's results.
+
+## 8. Environment notes (local Supabase, 2026-08-29)
+- The local image `public.ecr.aws/supabase/postgres:17.6.1.104` (CLI 2.84–2.116 on this
+  machine, aarch64) **segfaults the backend on any "permission denied for function" raised
+  for the `authenticated` role** — reproduced with a trivial revoked SQL function outside any
+  test. `supabase/tests/025_image_generation_isolation.test.sql` provokes exactly that
+  (`C4`) and so crashes the server here; it is a pre-existing environment failure, not a
+  policy failure, and `scripts/db-test.mjs` labels crashes distinctly and waits for recovery
+  before the next suite. Rule for new tests until the image is fixed: assert EXECUTE
+  privileges with `has_function_privilege(role, fn, 'EXECUTE')` instead of calling the
+  function as `authenticated`. Retry a newer image when ECR stops rate-limiting pulls.
