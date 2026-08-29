@@ -66,14 +66,29 @@ describe('isGeneratedName', () => {
     expect(isGeneratedName('')).toBe(false);
   });
 
-  it('finds the generated names really in the shipped library', () => {
-    // The predicate is worthless if it matches nothing. Business Card is
-    // the worst family: 100 of its 118 designs are loop-named.
+  it('no longer finds a generated name in the business card library', () => {
+    // This assertion used to read `toBeGreaterThan(50)`: Business Card was
+    // the worst family in the kit, 100 of its 118 designs loop-named "Wave
+    // 2 · 43", and the predicate existed to count them. The family is now
+    // curated to 24 designs that each carry a name a designer gave them,
+    // so the honest assertion is the inverse — and it is the one that can
+    // only be satisfied by doing the work, not by weakening the predicate.
     const cards = variantsForCard('stationery', 'Business Card');
+    expect(cards.length).toBeGreaterThan(0);
     const generated = cards.filter((t) => isGeneratedName(t.name));
-    expect(generated.length).toBeGreaterThan(50);
-    // …and it must not be matching ALL of them, or it is matching on
-    // something other than the name.
-    expect(generated.length).toBeLessThan(cards.length);
+    expect(
+      generated.map((t) => `${t.id} — ${t.name}`),
+      'a generated name is back in the shipped Business Card library',
+    ).toEqual([]);
+  });
+
+  it('still matches the generator output it was written for', () => {
+    // The predicate is worthless if it matches nothing, and the check
+    // above can no longer prove it does. These are the exact strings the
+    // Wave 2 loop emitted, so the guard stays provably alive after the
+    // last family that shipped them has been curated away.
+    for (const n of [1, 43, 95, 100]) {
+      expect(isGeneratedName(`Wave 2 · ${String(n).padStart(2, '0')}`), String(n)).toBe(true);
+    }
   });
 });

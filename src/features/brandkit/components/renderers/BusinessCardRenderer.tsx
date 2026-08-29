@@ -1,173 +1,117 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from './BrandLogo';
+import { Bind } from '../../content/Bind';
+import { defaultPersonContent } from '../../content/kinds';
+import { contrastOf, fgOn, fontStack, surface } from '@/features/brand-kit/renderers/brandStyle';
 
 interface BusinessCardRendererProps {
   brand: Brand;
   templateIndex: number;
 }
 
+/**
+ * The legacy business cards — `business-cards-1` … `business-cards-12`.
+ *
+ * These are the twelve entries `TEMPLATE_LIBRARY` generates, and they were
+ * nine designs shown by `designs[templateIndex % designs.length]`, seven of
+ * which printed the same invented person: "Jane Smith", "Vice President",
+ * "+1 234 56789", "jane@<brand>.com". None of it was reachable by an edit —
+ * this renderer is reached through `renderTemplateDesign`, which takes no
+ * content — so a customer who typed their own name into the panel watched
+ * the card go on saying somebody else's.
+ *
+ * All twelve ids are archived in `renderers/curation/businessCards.ts`; the
+ * curated family is the 24 designs in `BusinessCardsExtended.tsx` and
+ * `BusinessCardsExtended2.tsx`. What remains here is ONE honest card, drawn
+ * from the brand's own defaults (`defaultPersonContent` — "Your name",
+ * "Your role", and the brand's real domain, phone and address), so the
+ * Classic module page still renders a real card if anything asks for one.
+ *
+ * `Bind` with no provider above it is an ordinary span, which is exactly
+ * what this path gets. Declaring the paths costs nothing here and means the
+ * card is already shaped correctly if these ids are ever brought back
+ * through a content-carrying dispatch.
+ */
 export function BusinessCardRenderer({ brand, templateIndex }: BusinessCardRendererProps) {
-  const p = brand.primaryColor;
-  const s = brand.secondaryColor || '#00D4AA';
-  const designs = [
-    // 0: Classic Clean — logo top-left, name right, contact bottom
-    (
-      <div className="w-full h-full bg-white flex flex-col justify-between p-[8%] relative overflow-hidden">
-        <div className="flex justify-between items-start">
-          <BrandLogo brand={brand} size="sm" />
-          <div className="text-right">
-            <div className="text-[7px] font-semibold text-gray-800">Jane Smith</div>
-            <div className="text-[5px] font-medium" style={{ color: p }}>Vice President</div>
-          </div>
-        </div>
-        <div className="space-y-[1px]">
-          <div className="text-[5px] text-gray-600">+1 234 56789</div>
-          <div className="text-[5px] text-gray-600">jane@{brand.name.toLowerCase()}.com</div>
-          <div className="text-[5px] text-gray-600">{brand.name.toLowerCase()}.com</div>
-        </div>
-        <div className="absolute bottom-0 right-0 w-[25%] h-[40%]">
-          <div className="absolute bottom-2 right-2 w-3 h-3 rounded-sm" style={{ backgroundColor: p, opacity: 0.8 }} />
-          <div className="absolute bottom-2 right-6 w-3 h-3 rounded-sm" style={{ backgroundColor: s, opacity: 0.6 }} />
-        </div>
-      </div>
-    ),
-    // 1: Centered — logo center-top, name/title center, contact below
-    (
-      <div className="w-full h-full bg-white flex flex-col items-center justify-center p-[8%] relative overflow-hidden">
-        <BrandLogo brand={brand} size="sm" />
-        <div className="mt-2 text-center">
-          <div className="text-[6px] font-semibold tracking-wider uppercase text-gray-800">Jane Smith</div>
-          <div className="text-[5px] font-medium mt-0.5" style={{ color: p }}>Vice President</div>
-        </div>
-        <div className="absolute bottom-[8%] left-0 right-0 flex justify-between px-[8%]">
-          <div className="text-[4.5px] text-gray-500">+1 234 56789</div>
-          <div className="text-[4.5px] text-gray-500">jane@{brand.name.toLowerCase()}.com</div>
-        </div>
-        <div className="absolute top-0 left-0 w-full h-[2px]" style={{ backgroundColor: p }} />
-      </div>
-    ),
-    // 2: Logo back — full brand color with logo only
-    (
-      <div className="w-full h-full flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: p }}>
-        <BrandLogo brand={brand} size="lg" color="#ffffff" />
-        <div className="absolute bottom-[8%] text-center">
-          <div className="text-[4.5px] text-white/60">{brand.name.toLowerCase()}.com</div>
-        </div>
-      </div>
-    ),
-    // 3: Split left — accent block left, content right
-    (
-      <div className="w-full h-full bg-white flex overflow-hidden">
-        <div className="w-[30%] flex flex-col items-center justify-center gap-1" style={{ backgroundColor: p }}>
-          <BrandLogo brand={brand} variant="monogram" size="sm" color={s} />
-        </div>
-        <div className="flex-1 flex flex-col justify-between p-[6%]">
-          <div>
-            <div className="text-[7px] font-semibold text-gray-800">Jane Smith</div>
-            <div className="text-[5px] font-medium" style={{ color: p }}>Vice President</div>
-          </div>
-          <div className="space-y-[1px]">
-            <div className="text-[4.5px] text-gray-500">+1 234 56789</div>
-            <div className="text-[4.5px] text-gray-500">jane@{brand.name.toLowerCase()}.com</div>
-            <div className="text-[4.5px] text-gray-500">{brand.name.toLowerCase()}.com</div>
-          </div>
-          <BrandLogo brand={brand} size="xs" />
-        </div>
-      </div>
-    ),
-    // 4: Diagonal band — brand color diagonal across the top
-    (
-      <div className="w-full h-full bg-white relative overflow-hidden">
-        <div className="absolute -top-[20%] -left-[10%] w-[120%] h-[55%] transform -rotate-6" style={{ backgroundColor: p }} />
-        <div className="absolute top-[6%] left-[8%]">
-          <BrandLogo brand={brand} size="sm" color="#ffffff" />
-        </div>
-        <div className="absolute bottom-[8%] left-[8%] right-[8%]">
-          <div className="flex justify-between items-end">
-            <div>
-              <div className="text-[7px] font-semibold text-gray-800">Jane Smith</div>
-              <div className="text-[5px] font-medium" style={{ color: p }}>Vice President</div>
-            </div>
-            <div className="text-right space-y-[1px]">
-              <div className="text-[4.5px] text-gray-500">+1 234 56789</div>
-              <div className="text-[4.5px] text-gray-500">jane@{brand.name.toLowerCase()}.com</div>
-              <div className="text-[4.5px] text-gray-500">{brand.name.toLowerCase()}.com</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
-    // 5: Minimal line — thin line, very clean
-    (
-      <div className="w-full h-full bg-white flex flex-col justify-between p-[8%] relative overflow-hidden">
-        <div className="flex justify-between items-center">
-          <BrandLogo brand={brand} size="sm" />
-          <div className="text-[4.5px] text-gray-400">{brand.name.toLowerCase()}.com</div>
-        </div>
-        <div className="w-full h-px bg-gray-200 my-1" />
-        <div className="flex justify-between items-end">
-          <div>
-            <div className="text-[7px] font-medium text-gray-800">Jane Smith</div>
-            <div className="text-[5px]" style={{ color: p }}>Vice President</div>
-          </div>
-          <div className="text-right space-y-[1px]">
-            <div className="text-[4.5px] text-gray-500">+1 234 56789</div>
-            <div className="text-[4.5px] text-gray-500">jane@{brand.name.toLowerCase()}.com</div>
-          </div>
-        </div>
-      </div>
-    ),
-    // 6: Bold full-color — brand bg, white text
-    (
-      <div className="w-full h-full flex flex-col justify-between p-[8%] relative overflow-hidden" style={{ backgroundColor: p }}>
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="text-[6px] font-semibold tracking-wider uppercase text-white">Jane Smith</div>
-            <div className="text-[5px] text-white/70 mt-0.5">Vice President</div>
-          </div>
-        </div>
-        <div className="space-y-[1px]">
-          <div className="text-[4.5px] text-white/80">+1 234 56789</div>
-          <div className="text-[4.5px] text-white/80">jane@{brand.name.toLowerCase()}.com</div>
-        </div>
-        <div className="absolute bottom-[6%] right-[6%]">
-          <BrandLogo brand={brand} size="xs" color="#ffffff" />
-        </div>
-        <div className="absolute top-0 right-0 w-[35%] h-full" style={{ backgroundColor: s, opacity: 0.15 }} />
-      </div>
-    ),
-    // 7: Striped pattern — geometric stripes
-    (
-      <div className="w-full h-full bg-white relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full flex">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="flex-1 h-full" style={{ backgroundColor: i % 2 === 0 ? `${p}10` : 'transparent' }} />
-          ))}
-        </div>
-        <div className="relative z-10 w-full h-full flex flex-col justify-center items-center p-[8%]">
-          <BrandLogo brand={brand} size="md" />
-        </div>
-      </div>
-    ),
-    // 8: Dark elegant — dark bg, accent line
-    (
-      <div className="w-full h-full bg-[#0F172A] flex flex-col justify-between p-[8%] relative overflow-hidden">
-        <div>
-          <div className="text-[7px] font-medium text-white">Jane Smith</div>
-          <div className="text-[5px] mt-0.5" style={{ color: s }}>Vice President</div>
-        </div>
-        <div className="space-y-[1px]">
-          <div className="text-[4.5px] text-gray-400">+1 234 56789</div>
-          <div className="text-[4.5px] text-gray-400">jane@{brand.name.toLowerCase()}.com</div>
-          <div className="text-[4.5px] text-gray-400">{brand.name.toLowerCase()}.com</div>
-        </div>
-        <div className="absolute bottom-[6%] right-[6%]">
-          <BrandLogo brand={brand} size="sm" color="#ffffff" />
-        </div>
-        <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: s }} />
-      </div>
-    ),
-  ];
+  const c = defaultPersonContent(brand);
 
-  return designs[templateIndex % designs.length];
+  // Even indices take the brand band, odd ones the plain sheet. One
+  // decision, so twelve ids are not twelve copies of one picture.
+  const banded = templateIndex % 2 === 0;
+  const card = surface(brand, 'card');
+  const bandBg = brand.primaryColor ?? card.text;
+  const bandInk = fgOn(bandBg);
+  const ink = card.text;
+  const quiet = contrastOf(card.textMuted, card.bg) >= 4.5 ? card.textMuted : ink;
+  const accent = contrastOf(bandBg, card.bg) >= 4.5 ? bandBg : ink;
+  const head = fontStack(brand, 'heading');
+  const body = fontStack(brand, 'body');
+  const micro = {
+    fontSize: 5.2,
+    letterSpacing: '0.16em',
+    textTransform: 'uppercase',
+    lineHeight: 1.4,
+  } as const;
+
+  return (
+    <div
+      className="w-full h-full flex flex-col overflow-hidden"
+      style={{ background: card.bg, color: ink, fontFamily: body }}
+    >
+      <div
+        className="flex items-center justify-between px-[8%] py-[5%]"
+        style={
+          banded
+            ? { background: bandBg, color: bandInk }
+            : { borderBottom: `1px solid ${card.border}` }
+        }
+      >
+        <BrandLogo brand={brand} size="sm" color={banded ? bandInk : accent} />
+        <div className="text-right min-w-0">
+          <div style={{ ...micro, color: banded ? bandInk : quiet }}>
+            <Bind path="company" value={c.company} />
+          </div>
+          <div style={{ fontSize: 5.2, color: banded ? bandInk : quiet }}>
+            <Bind path="tagline" value={c.tagline} />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col px-[8%] pt-[5%] pb-[6%]">
+        <div
+          style={{
+            fontFamily: head,
+            fontSize: 11,
+            fontWeight: 600,
+            lineHeight: 1.15,
+            letterSpacing: '-0.015em',
+            marginTop: 'auto',
+          }}
+        >
+          <Bind path="fullName" value={c.fullName} fit="shrink" />
+          <span style={{ fontFamily: body, fontSize: 5.2, color: quiet }}>
+            {c.pronouns ? ' · ' : ''}
+            <Bind path="pronouns" value={c.pronouns ?? ''} />
+          </span>
+        </div>
+        <div style={{ fontSize: 5.8, color: accent, marginTop: 1 }}>
+          <Bind path="jobTitle" value={c.jobTitle} fit="shrink" />
+        </div>
+
+        <div className="flex gap-[8%]" style={{ fontSize: 5.4, marginTop: 'auto', paddingTop: 5 }}>
+          <div className="min-w-0 flex flex-col gap-[1px]">
+            <Bind path="email" value={c.email} />
+            <Bind path="phone" value={c.phone} />
+          </div>
+          <div className="min-w-0 flex flex-col gap-[1px]">
+            <Bind path="website" value={c.website} />
+            <Bind path="socialHandle" value={c.socialHandle ?? ''} />
+          </div>
+        </div>
+        <div style={{ fontSize: 5.1, color: quiet, marginTop: 2 }}>
+          <Bind path="address" value={c.address} />
+        </div>
+      </div>
+    </div>
+  );
 }

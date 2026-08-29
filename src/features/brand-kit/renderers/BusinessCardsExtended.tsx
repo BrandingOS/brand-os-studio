@@ -44,6 +44,7 @@
  * six designs from, so the two waves cannot drift into two opinions about
  * what a card is.
  */
+import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { Bind } from '@/features/brandkit/content/Bind';
@@ -271,6 +272,14 @@ function monogram(company: string): string {
  * `picks.showLogo === false` removes the mark entirely; `picks.logoColor`
  * inks the monogram. A logo IMAGE is recoloured upstream, by the editor,
  * before the brand ever reaches a renderer.
+ *
+ * A url that FAILS falls back to the monogram rather than leaving a hole,
+ * and this is not hypothetical: the card editor's preview brand hands us a
+ * `data:image/svg+xml` wrapper containing `<image href="/brands/…/logo.svg">`,
+ * and a data-URI document is an opaque origin that may not load an external
+ * subresource — so the mark silently vanished on the one surface where the
+ * customer is looking hardest. Fixing the wrapper belongs to the editor;
+ * surviving a broken url belongs here.
  */
 export function Mark({
   brand,
@@ -287,13 +296,17 @@ export function Mark({
   picks?: TemplateDesignPicks;
   company: string;
 }) {
+  // The url that failed, not a boolean: a new logo must be given its own
+  // chance to load rather than inheriting the last one's failure.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   if (picks?.showLogo === false) return null;
   const resolved = logoOn(brand, on);
-  if (resolved?.url) {
+  if (resolved?.url && resolved.url !== failedUrl) {
     return (
       <img
         src={resolved.url}
         alt=""
+        onError={() => setFailedUrl(resolved.url!)}
         style={{
           height: `${height}px`,
           width: 'auto',
@@ -556,6 +569,17 @@ function ContactsSplit({
   );
 }
 
+/**
+ * The shared type helpers, published for Wave 2.
+ *
+ * `BusinessCardsExtended2.tsx` draws its six designs from exactly these —
+ * the same minimum size, the same uppercase tracking, the same contact
+ * ladders — so the two waves cannot drift into two opinions about what a
+ * card is. Renamed on the way out (`text` → `cardText`) only because a
+ * three-letter name is fine inside one module and not across two.
+ */
+export { Contacts, ContactsSplit, UPPER, text as cardText };
+
 /* ── The bound fragments ──────────────────────────────────────────── */
 
 export type Frag = {
@@ -625,13 +649,13 @@ const DESIGNS: CardDesign[] = [
           <div style={text(5.4, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
           <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
         </div>
-        <div style={{ height: '1px', background: t.paperLine, margin: '5px 0 7px' }} />
+        <div style={{ height: '1px', background: t.paperLine, margin: '4px 0 5px' }} />
         <div style={text(12, t.paperInk, t.heading, { fontWeight: 600, letterSpacing: '-0.015em' })}>
           {f.Name}
           <span style={text(5.4, t.paperMuted, t.body)}>{f.Pron}</span>
         </div>
-        <div style={text(6, t.paperAccent, t.body, { marginTop: '2px', ...UPPER })}>{f.Role}</div>
-        <div style={text(5.5, t.paperMuted, t.body, { marginTop: '3px' })}>{f.Tagline}</div>
+        <div style={text(6, t.paperAccent, t.body, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
+        <div style={text(5.4, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
         <div style={{ marginTop: 'auto' }}>
           <ContactsSplit f={f} color={t.paperInk} font={t.body} />
           <div style={text(5.1, t.paperMuted, t.body, { marginTop: '3px' })}>{f.Address}</div>
@@ -763,24 +787,27 @@ const DESIGNS: CardDesign[] = [
   // 5 — Centre Stack. Symmetrical, formal: mark, name, rule, contacts.
   ({ brand, theme: t, f, picks, company }) => ({
     front: (
-      <Face bg={t.paper} style={{ alignItems: 'center', textAlign: 'center' }}>
-        <Mark brand={brand} theme={t} on={t.paper} height={13} picks={picks} company={company} />
+      <Face bg={t.paper} pad="6% 8%" style={{ alignItems: 'center', textAlign: 'center' }}>
+        <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+        <div style={text(5.3, t.paperMuted, t.body, { marginTop: '3px', ...UPPER })}>
+          {f.Company}
+        </div>
         <div
-          style={text(11, t.paperInk, t.heading, {
+          style={text(10, t.paperInk, t.heading, {
             fontWeight: 600,
-            marginTop: '5px',
+            marginTop: '1px',
             letterSpacing: '-0.01em',
           })}
         >
           {f.Name}
           <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
         </div>
-        <div style={text(5.7, t.paperAccent, t.body, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
-        <div style={{ width: '22%', height: '1px', background: t.paperLine, margin: '5px 0' }} />
-        <div style={text(5.3, t.paperMuted, t.body)}>{f.Tagline}</div>
+        <div style={text(5.6, t.paperAccent, t.body, { ...UPPER })}>{f.Role}</div>
+        <div style={{ width: '22%', height: '1px', background: t.paperLine, margin: '3px 0' }} />
+        <div style={text(5.2, t.paperMuted, t.body)}>{f.Tagline}</div>
         <div style={{ marginTop: 'auto', width: '100%' }}>
-          <Contacts f={f} color={t.paperInk} font={t.body} size={5.4} align="center" gap={1.1} />
-          <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px', textAlign: 'center' })}>
+          <Contacts f={f} color={t.paperInk} font={t.body} size={5.3} align="center" gap={0.5} />
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: '1px', textAlign: 'center' })}>
             {f.Address}
           </div>
         </div>
@@ -859,7 +886,9 @@ const DESIGNS: CardDesign[] = [
   // 8 — Drafting Grid. A faint measured grid, drawn as a SIBLING layer so
   // the text is still measured against the paper it sits on rather than
   // being skipped as "text on an image".
-  ({ brand, theme: t, f, picks, company }) => ({
+  ({ brand, theme: t, f, picks, company }) => {
+    const gridLine = mixHex(t.paperLine, t.paper, 0.45);
+    return {
     front: (
       <div style={{ position: 'absolute', inset: 0, background: t.paper, overflow: 'hidden' }}>
         <div
@@ -867,7 +896,13 @@ const DESIGNS: CardDesign[] = [
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: `repeating-linear-gradient(0deg, ${t.paperLine} 0 0.5px, transparent 0.5px 12px), repeating-linear-gradient(90deg, ${t.paperLine} 0 0.5px, transparent 0.5px 12px)`,
+            // `to bottom` / `to right`, never `0deg` / `90deg`: measured in
+            // Chromium, `repeating-linear-gradient(0deg, …)` with a
+            // sub-pixel first stop draws NOTHING, so the grid shipped as a
+            // set of vertical stripes — ruled paper, not a drafting grid.
+            // The 0.8px rule survives the ScalingStage's transform; 0.5px
+            // did not.
+            backgroundImage: `repeating-linear-gradient(to bottom, ${gridLine} 0 0.8px, transparent 0.8px 7px), repeating-linear-gradient(to right, ${gridLine} 0 0.8px, transparent 0.8px 7px)`,
           }}
         />
         <Face bg="transparent">
@@ -895,7 +930,8 @@ const DESIGNS: CardDesign[] = [
       </div>
     ),
     back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
-  }),
+    };
+  },
 
   // 9 — Spine. A brand rule down the left edge; the type indented off it.
   ({ brand, theme: t, f, picks, company }) => ({
@@ -1026,18 +1062,18 @@ const DESIGNS: CardDesign[] = [
 
   // 12 — Ledger. Ruled rows, one value to a row — the card as a record.
   ({ brand, theme: t, f, picks, company }) => {
-    const row: CSSProperties = { borderTop: `1px solid ${t.paperLine}`, padding: '2.4px 0' };
+    const row: CSSProperties = { borderTop: `1px solid ${t.paperLine}`, padding: '1.1px 0' };
     return {
       front: (
-        <Face bg={t.paper} pad="8% 8%">
+        <Face bg={t.paper} pad="6% 8%">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={text(5.3, t.paperMuted, t.mono, UPPER)}>{f.Company}</div>
             <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
           </div>
           <div
-            style={text(10.5, t.paperInk, t.heading, {
+            style={text(9.5, t.paperInk, t.heading, {
               fontWeight: 600,
-              margin: '5px 0 4px',
+              margin: '3px 0 2px',
               letterSpacing: '-0.015em',
             })}
           >
@@ -1053,7 +1089,7 @@ const DESIGNS: CardDesign[] = [
             {f.Social}
           </div>
           <div style={{ ...row, ...text(5.2, t.paperMuted, t.mono) }}>{f.Address}</div>
-          <div style={text(5.2, t.paperMuted, t.body, { marginTop: 'auto', paddingTop: '3px' })}>
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: 'auto', paddingTop: '2px' })}>
             {f.Tagline}
           </div>
         </Face>
@@ -1065,11 +1101,11 @@ const DESIGNS: CardDesign[] = [
   // 13 — Seal. A ruled ring around the mark; formal, centred, quiet.
   ({ brand, theme: t, f, picks, company }) => ({
     front: (
-      <Face bg={t.tint} style={{ alignItems: 'center', textAlign: 'center' }}>
+      <Face bg={t.tint} pad="5% 8%" style={{ alignItems: 'center', textAlign: 'center' }}>
         <div
           style={{
-            width: '17%',
-            paddingBottom: '17%',
+            width: '11%',
+            paddingBottom: '11%',
             position: 'relative',
             borderRadius: '50%',
             border: `0.8px solid ${t.tintAccent}`,
@@ -1087,22 +1123,22 @@ const DESIGNS: CardDesign[] = [
             <Mark brand={brand} theme={t} on={t.tint} height={9} picks={picks} company={company} />
           </span>
         </div>
-        <div style={text(5.3, t.tintMuted, t.body, { marginTop: '4px', ...UPPER })}>{f.Company}</div>
+        <div style={text(5.3, t.tintMuted, t.body, { marginTop: '2px', ...UPPER })}>{f.Company}</div>
         <div
-          style={text(11, t.tintInk, t.heading, {
+          style={text(10, t.tintInk, t.heading, {
             fontWeight: 600,
-            marginTop: '3px',
+            marginTop: '1px',
             letterSpacing: '-0.01em',
           })}
         >
           {f.Name}
           <span style={text(5.2, t.tintMuted, t.body)}>{f.Pron}</span>
         </div>
-        <div style={text(5.7, t.tintAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
-        <div style={text(5.2, t.tintMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+        <div style={text(5.6, t.tintAccent, t.body)}>{f.Role}</div>
+        <div style={text(5.2, t.tintMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
         <div style={{ marginTop: 'auto', width: '100%' }}>
-          <Contacts f={f} color={t.tintInk} font={t.body} size={5.3} align="center" gap={1} />
-          <div style={text(5.1, t.tintMuted, t.body, { marginTop: '2px', textAlign: 'center' })}>
+          <Contacts f={f} color={t.tintInk} font={t.body} size={5.3} align="center" gap={0.6} />
+          <div style={text(5.1, t.tintMuted, t.body, { marginTop: '1px', textAlign: 'center' })}>
             {f.Address}
           </div>
         </div>
@@ -1115,7 +1151,7 @@ const DESIGNS: CardDesign[] = [
   ({ brand, theme: t, f, picks, company }) => ({
     front: (
       <Face bg={t.paper} pad="0">
-        <div style={{ padding: '8% 8% 4%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '6% 8% 3%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
           <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
         </div>
@@ -1126,7 +1162,7 @@ const DESIGNS: CardDesign[] = [
           </div>
           <div style={text(5.7, t.brandInk, t.body, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
         </div>
-        <div style={{ padding: '4% 8% 8%', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '3.5% 8% 6%', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={text(5.2, t.paperMuted, t.body)}>{f.Tagline}</div>
           <div style={{ marginTop: 'auto' }}>
             <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
