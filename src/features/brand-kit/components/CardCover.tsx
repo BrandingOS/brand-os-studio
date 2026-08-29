@@ -42,6 +42,7 @@ import { brandColors, fgOn, fontStack, logoOn, surface } from '../renderers/bran
 import { aspectForLabel, featuredTemplates } from '../data/cardPresentation';
 import { contentForTemplate } from '../data/savedContent';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
+import { FLATICON_RR_NAMES } from '../data/flaticonNames';
 
 /** The width every kit renderer is authored against. */
 const CANONICAL_WIDTH = 260;
@@ -237,20 +238,40 @@ function TypeCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?: Bra
   );
 }
 
+/**
+ * `brand.icons` holds TWO shapes and always has: the picker writes full
+ * UICONS class names (`fi-rr-camera`), and Setup's own seed keeps bare
+ * names (`camera`). Painting the bare shape as `class="fi camera"` names
+ * no glyph at all, so the cover drew six empty boxes — the icon font WAS
+ * loaded, it just had nothing to draw. Returns `null` for a name that is
+ * in neither shape, so a cover shows the icons it really has.
+ */
+const FLATICON_RR_LOOKUP = new Set(FLATICON_RR_NAMES);
+export function iconClassFor(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^fi-(rr|br|sr|rs|bs|ss|tr|ts|brands)-[a-z0-9-]+$/i.test(trimmed)) return trimmed;
+  const candidate = `fi-rr-${trimmed.toLowerCase()}`;
+  return FLATICON_RR_LOOKUP.has(candidate) ? candidate : null;
+}
+
 /** Icons — six of them, in the brand's colour, at a size you can read. */
 function IconsCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?: Brand }) {
   const source = sourceBrand ?? brand;
   const tokens = surface(source, 'card');
   const tint = brandColors(source).primary;
-  const icons = brand.icons.slice(0, 6);
+  const icons = brand.icons
+    .map((name) => ({ name, cls: iconClassFor(name) }))
+    .filter((i): i is { name: string; cls: string } => Boolean(i.cls))
+    .slice(0, 6);
   if (icons.length === 0) return <EmptyCover brand={brand} note="No icons yet" />;
   return (
     <div
       className="bk-cover-art bk-cover-art--icons"
       style={{ background: tokens.bg, color: tint }}
     >
-      {icons.map((cls, i) => (
-        <i key={`${cls}-${i}`} className={`fi ${cls} bk-cover-icon`} aria-hidden />
+      {icons.map((icon, i) => (
+        <i key={`${icon.cls}-${i}`} className={`fi ${icon.cls} bk-cover-icon`} aria-hidden />
       ))}
     </div>
   );
