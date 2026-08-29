@@ -64,7 +64,7 @@ describe('the brief covers Brand Strategy end to end', () => {
 
   it('interpret files each answer where the Setup card reads it', async () => {
     const out = await interpret({ description: REPLY, items: [] });
-    const byPath = new Map(out.proposals.map((p) => [p.corePath, p.value]));
+    const byPath = new Map<string, unknown>(out.proposals.map((p) => [p.corePath as string, p.value]));
     for (const [card, src] of Object.entries(CARD_SOURCE)) {
       if (src.path) expect(byPath.get(src.path), card).toBeTruthy();
       else expect((out.business as Record<string, unknown>)[src.business!], card).toBeTruthy();
