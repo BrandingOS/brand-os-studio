@@ -111,13 +111,17 @@ afterEach(() => cleanup());
 // ── Shell ───────────────────────────────────────────────────────────────────
 
 describe('the settings shell', () => {
-  it('renders the three sections a single-user account has', () => {
+  it('renders the sections this account has', () => {
+    // People joined Account/Preferences/Plan when membership stopped being theatre.
+    // It hides itself for anyone without `members.view` — every guest — but access has
+    // not hydrated in this test, and `unknown` shows it optimistically rather than
+    // flashing a tab away a moment later.
     mountSettings();
     const tablist = screen.getByRole('tablist', { name: /settings sections/i });
     const labels = Array.from(tablist.querySelectorAll('[role="tab"]')).map(
       (t) => t.textContent,
     );
-    expect(labels).toEqual(['Account', 'Preferences', 'Plan']);
+    expect(labels).toEqual(['Account', 'People', 'Preferences', 'Plan']);
   });
 
   it('each tab is a real route, so refresh and Back work', async () => {
