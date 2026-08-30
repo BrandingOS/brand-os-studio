@@ -19,6 +19,17 @@
   gap: 10px;
   margin: 0;
   cursor: pointer;
+  border-radius: 14px;
+}
+/* Focus is a 3px charcoal ring, never blue. The card is a `role="button"`
+   figure, so with no rule of its own it wore Chrome's default
+   `outline: 1px auto rgb(0,95,204)` (QA Q20) — the one colour the DS says a
+   focus ring is never. The ring goes on the CARD, not the cover, so the
+   label is inside it: same relationship `.panel-item` already has with
+   `.panel-item-body`. */
+[data-workspace] .bk-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }
 
 /* Frame — border + radius + shadow, transparent inside. The

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { BrandSwitcher } from '@/features/brand/components/BrandSwitcher';
 import { SegmentedNav } from '@/shared/ui/SegmentedNav';
@@ -58,6 +58,15 @@ function extractBrandSlug(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Where "Skip to content" lands, in order of preference. A page can name its
+ * own target with `data-workspace-main`; otherwise the shells' own content
+ * containers answer, so every Studio page gets the skip link with no per-page
+ * change. Deliberately a chain and not one selector: the three shells put
+ * their content in three different boxes.
+ */
+const MAIN_TARGETS = ['[data-workspace-main]', '.board-wrap', 'main', '.gl-doc-scroll'];
+
 export function WorkspaceShell({
   tabs: explicitTabs,
   brandName = 'BrandingOS',
@@ -95,9 +104,53 @@ export function WorkspaceShell({
   // local useState + a localStorage write that next-themes knew nothing about.
   const { theme, toggleTheme } = useWorkspaceTheme();
 
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  /**
+   * The first stop for the keyboard. Without it the Brand Kit's first card
+   * was 48 Tabs from the top of the page — 8 for the chrome and 39 for the
+   * sidebar's rows — so a keyboard user passed the whole of the navigation
+   * before reaching anything to act on (QA Q17). It is the first focusable
+   * element in the shell, so it is Tab 1 on every Studio page.
+   */
+  const skipToContent = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let target: HTMLElement | null = null;
+    for (const selector of MAIN_TARGETS) {
+      target = root.querySelector<HTMLElement>(selector);
+      if (target) break;
+    }
+    if (!target) return;
+    // tabindex -1 makes it focusable without making it tabbable, so Tab
+    // carries on from the content instead of from the top of the page.
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+    const top = target.getBoundingClientRect().top + window.scrollY - 72;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+  }, []);
+
+  /**
+   * Below 1080px the tab strip scrolls (see workspace.css) — so the tab you
+   * are on has to be brought into view, or a narrow viewport opens showing
+   * "Setup" while you are three tabs along.
+   */
+  useEffect(() => {
+    const nav = headerRef.current?.querySelector<HTMLElement>('.segmented-nav');
+    if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
+    const active = nav.querySelector<HTMLElement>('.segmented-nav-item.is-active');
+    if (!active) return;
+    const left = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+    nav.scrollTo({ left: Math.max(0, left), behavior: 'auto' });
+  }, [location.pathname, tabs]);
+
   return (
-    <div data-workspace data-theme={theme}>
-      <header className="top-nav-wrap" role="banner">
+    <div data-workspace data-theme={theme} ref={rootRef}>
+      <button type="button" className="skip-to-content" onClick={skipToContent}>
+        Skip to content
+      </button>
+      <header className="top-nav-wrap" role="banner" ref={headerRef}>
         <div className="top-nav-left">
           {slug ? (
             <BrandSwitcher currentSlug={slug} />

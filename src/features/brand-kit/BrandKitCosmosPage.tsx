@@ -163,6 +163,35 @@ const WIPE_SPEED = 0.4;
  */
 const ASSET_EDITOR_LABELS = new Set(['Logos', 'Colors', 'Fonts', 'Icons', 'Photos', 'About']);
 
+/**
+ * How much of the stage the sticky top bar would cover. Measured, not
+ * assumed: below 720px the bar wraps its tab strip onto a second row, so a
+ * constant would leave the drilldown's header under it.
+ */
+function topBarHeight(): number {
+  const bar = document.querySelector<HTMLElement>('.top-nav-wrap');
+  return bar ? Math.round(bar.getBoundingClientRect().height) : 80;
+}
+
+/**
+ * The document scroll position that puts the stage under the top bar.
+ *
+ * On a two-column viewport this is 0 (the board starts right below the
+ * chrome), which is exactly what the enter transition used to hard-code. In
+ * one column the sidebar sits above the board, so 0 means "look at the
+ * navigation" — and a card that opens something you cannot see has not
+ * visibly opened anything.
+ */
+function stageScrollTop(stage: HTMLElement | null): number {
+  if (!stage) return 0;
+  const top = stage.getBoundingClientRect().top + window.scrollY - topBarHeight();
+  // Anything within a hair of the top IS the top. Two columns leave the
+  // stage a few pixels below the bar, and scrolling by five pixels where
+  // the approved transition scrolled to zero is a visible jitter for no
+  // gain.
+  return top < 24 ? 0 : Math.round(top);
+}
+
 export function BrandKitCosmosPage({
   brand,
   sourceBrand,
@@ -943,6 +972,16 @@ export function BrandKitCosmosPage({
   // from, not at the top of the sections list.
   const enterScrollYRef = useRef<number>(0);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  // The two stage layers. Both stay mounted for the crossfade, so
+  // whichever one is not the current view has to be made INERT —
+  // `pointer-events: none` stops the mouse and nothing else, and Tab
+  // walked straight through the Overview sitting behind an open
+  // drilldown (QA Q18).
+  const page1Ref = useRef<HTMLDivElement | null>(null);
+  const page2Ref = useRef<HTMLDivElement | null>(null);
+  // The card that opened the drilldown, so Back returns focus to it
+  // instead of dropping the keyboard at the top of the document.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   // Carries the in-app Back button's click origin across the
   // history.back() → popstate hop so the radial wipe still
   // radiates from the button. Stays null for browser/mouse-driven
@@ -983,10 +1022,25 @@ export function BrandKitCosmosPage({
       // the history stack grows by one. The popstate listener
       // (effective while view === 'drilldown') runs the actual exit.
       window.history.pushState({ bkDrilldown: true }, '');
-      // Smooth scroll up — runs in parallel with the wipe so the
-      // user sees tiles fading in WHILE they scroll up, not before
+      // Smooth scroll to the STAGE — runs in parallel with the wipe so
+      // the user sees tiles fading in WHILE they scroll, not before
       // arrival (would look "ready") and not after (would lag).
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      //
+      // Not `top: 0`: in the one-column layout the sidebar is ABOVE the
+      // board, so scrolling to the document top parked the user on the
+      // navigation and opening a card looked like it did nothing at all
+      // (QA Q8). The stage's own top is 0 on a two-column viewport, so
+      // the desktop behaviour is unchanged.
+      window.scrollTo({ top: stageScrollTop(stageRef.current), behavior: 'smooth' });
+      // Where Back should put the keyboard again — the card if the click
+      // landed on one (normalised from whichever inner control took the
+      // focus), otherwise whatever had it, which is the sidebar row when
+      // the item was opened from there.
+      const active = document.activeElement;
+      returnFocusRef.current =
+        active instanceof HTMLElement && active !== document.body
+          ? ((active.closest('.bk-card') as HTMLElement | null) ?? active)
+          : null;
       requestAnimationFrame(() => setView('drilldown'));
     },
     [],
@@ -1206,6 +1260,52 @@ export function BrandKitCosmosPage({
     });
   }, [view, drilldownTarget]);
 
+  /**
+   * One layer at a time — for the mouse AND for the keyboard.
+   *
+   * Both stage layers stay mounted so the crossfade has something to fade
+   * between, and the CSS only ever took the mouse away from the inactive
+   * one. So with a drilldown open, Tab walked the Overview BEHIND it —
+   * "Edit Logos", "Download Logos", "Edit Colors" — and the drilldown's own
+   * tiles and their ⬇ / ✎ / ⋯ could not be reached at all (QA Q18).
+   *
+   * `inert` is the whole answer: it removes a subtree from the tab order,
+   * from the accessibility tree and from hit-testing, and it survives
+   * anything the layer contains. It is set imperatively rather than as a
+   * JSX prop because React 18 does not know the attribute.
+   *
+   * Focus then MOVES with the view: into the drilldown when it opens (the
+   * Back button, which is its first control), back to the card that opened
+   * it when it closes.
+   */
+  useEffect(() => {
+    const page1 = page1Ref.current;
+    const page2 = page2Ref.current;
+    const inactive = view === 'drilldown' ? page1 : page2;
+    const activeLayer = view === 'drilldown' ? page2 : page1;
+    inactive?.setAttribute('inert', '');
+    activeLayer?.removeAttribute('inert');
+
+    // Only move focus when the keyboard is what is driving — an
+    // editor/modal open above the stage owns focus and must keep it.
+    if (editorTarget || assetEditor) return;
+    if (view === 'drilldown') {
+      const back = page2?.querySelector<HTMLElement>('.bk-drilldown-back');
+      if (back && !page2?.contains(document.activeElement)) {
+        back.focus({ preventScroll: true });
+      }
+    } else if (returnFocusRef.current?.isConnected) {
+      const back = returnFocusRef.current;
+      returnFocusRef.current = null;
+      // Never restore into the layer that has just gone inert, and never
+      // fight a focus the user has already moved somewhere real.
+      const stranded = !document.activeElement || document.activeElement === document.body;
+      if (!back.closest('[inert]') && (stranded || page2?.contains(document.activeElement))) {
+        back.focus({ preventScroll: true });
+      }
+    }
+  }, [view, drilldownTarget, editorTarget, assetEditor]);
+
   return (
     <WorkspaceShell
       rightActions={
@@ -1228,12 +1328,12 @@ export function BrandKitCosmosPage({
           onSelectOverview={handleSelectOverview}
           onSelectEntry={handleSelectEntry}
         />
-        <div className="board-wrap bk-cosmos-board">
+        <div className="board-wrap bk-cosmos-board" data-workspace-main>
           <div ref={stageRef} className="bk-stage" data-active={view}>
             {/* Page 1 — the Overview. One band per catalog group, each
                 holding only the items this viewer may see. Always
                 mounted, always visible (modulo the per-tile wipe). */}
-            <div className="bk-stage-layer bk-stage-layer--page1">
+            <div ref={page1Ref} className="bk-stage-layer bk-stage-layer--page1">
               {groups.map((group) => (
                 <KitSection
                   key={group.id}
@@ -1272,7 +1372,7 @@ export function BrandKitCosmosPage({
                 in place). Lives behind page 1 with opacity 0 until
                 the wipe reveals it. */}
             {drilldownTarget !== null && (
-              <div className="bk-stage-layer bk-stage-layer--page2">
+              <div ref={page2Ref} className="bk-stage-layer bk-stage-layer--page2">
                 <BrandKitDrilldown
                   target={drilldownTarget}
                   entry={targetEntry}

@@ -572,20 +572,77 @@
   padding: var(--ds-space-6);
   animation: ds-fade-in var(--ds-duration-modal) var(--ds-ease);
 }
+/* Three bands, one scroller. The head and the action row are pinned inside
+   the box and only `.ds-modal-body` scrolls, so the primary action is on
+   screen the moment the dialog opens however tall its content is. */
 .ds-modal {
   background: var(--ds-surface);
   border-radius: var(--ds-radius-panel);
   box-shadow: 0 4px 10px rgba(20, 18, 14, 0.08), 0 16px 40px rgba(20, 18, 14, 0.2);
-  padding: 24px 28px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
   max-width: 620px;
   width: 100%;
   max-height: calc(100vh - 48px);
-  overflow-y: auto;
+  overflow: hidden;
   font-family: var(--ds-font);
   animation: ds-modal-in var(--ds-duration-modal) var(--ds-ease);
+}
+.ds-modal-head {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 28px 12px;
+}
+.ds-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 28px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ds-modal-body::-webkit-scrollbar { width: 6px; }
+.ds-modal-body::-webkit-scrollbar-thumb {
+  background: var(--ds-border-strong);
+  border-radius: 999px;
+}
+/* The hairline is what says "the body continues above me" — the old
+   layout gave the reader nothing at all. */
+.ds-modal-foot {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px 18px;
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+.ds-modal-foot-quiet { display: flex; gap: 6px; align-items: center; }
+.ds-modal-foot-main { display: flex; gap: 8px; align-items: center; }
+/* A modal with no body content should not open a 20px empty band. */
+.ds-modal-body:empty { padding: 0; }
+
+/* On a phone the action row's two groups do not fit one line — "Export
+   everything" ran off the right edge of the panel. They stack instead:
+   presets first, then the decision, right-aligned where it always is. */
+@media (max-width: 560px) {
+  .ds-modal-head { padding: 20px 18px 10px; }
+  .ds-modal-body { padding: 4px 18px 16px; }
+  .ds-modal-foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 18px 16px;
+  }
+  .ds-modal-foot-quiet { flex-wrap: wrap; }
+  .ds-modal-foot-main { justify-content: flex-end; }
+  .ds-modal-foot-quiet:empty { display: none; }
 }
 .ds-modal-title {
   font-size: 19px;
