@@ -245,7 +245,10 @@ export function BrandBoardCanvas() {
             </div>
             <div className="grid grid-cols-6 gap-2">
               {draft.colors.neutrals.map((n, i) => (
-                <ColorBlock key={i} hex={n} label={`N${i}`} size="sm" />
+                // The brand's own name for the swatch when it has one — this
+                // board is the thing that STATES the palette, and `N3` names
+                // nothing (QA Q12).
+                <ColorBlock key={i} hex={n} label={draft.colors.neutralNames?.[i] ?? `N${i}`} size="sm" />
               ))}
             </div>
           </section>

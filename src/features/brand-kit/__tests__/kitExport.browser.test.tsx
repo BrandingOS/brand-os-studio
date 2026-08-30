@@ -20,6 +20,7 @@ import '../brand-kit.css';
 import { mockBrand, type MockBrand } from '@/features/setup/data/mockBrand';
 import { SEED_BRANDS } from '@/data/brands';
 import { getEntryFor, visibleEntries } from '../catalog/catalog';
+import { variantsForCard } from '../data/legacy-mapping';
 import { ExportKitDialog } from '../components/ExportKitDialog';
 import { buildKitZipBlob, downloadEntry } from '../data/exportEverything';
 import { resizePng } from '../data/exportFormats';
@@ -591,6 +592,48 @@ describe('downloading a native format from a card', () => {
     }
   }, 120_000);
 
+  /**
+   * QA Q22 — three different Business Card designs all downloaded as
+   * `raqm-business-card.png`. The contents differed (32 341 / 31 754 /
+   * 34 449 bytes) and the names did not, so a folder of them was one name
+   * three times. The brand-asset families already named the design
+   * (`raqm-primary--original.png`); a deliverable tile now does too.
+   */
+  it('names the DESIGN when one tile is downloaded, not just the card', async () => {
+    const capture = captureDownload();
+    try {
+      const designs = variantsForCard('stationery', 'Business Card', brand).slice(0, 3);
+      expect(designs.length).toBeGreaterThan(1);
+      for (const design of designs) {
+        await downloadEntry(
+          BUSINESS_CARD,
+          {
+            brand,
+            sourceBrand,
+            entries: [BUSINESS_CARD],
+            featuredIdsByLabel: { 'Business Card': [design.id] },
+          },
+          { format: 'png', variant: design.name },
+        );
+      }
+      const names = capture.files.map((f) => f.name);
+      expect(names).toHaveLength(designs.length);
+      expect(new Set(names).size, `two designs shared a filename: ${names.join(', ')}`).toBe(
+        designs.length,
+      );
+      for (const name of names) expect(name).toMatch(/^[a-z0-9-]+-business-card--[a-z0-9-]+\.png$/);
+      // The card's own download is unchanged — no design, no suffix.
+      await downloadEntry(
+        BUSINESS_CARD,
+        { brand, sourceBrand, entries: [BUSINESS_CARD] },
+        { format: 'png' },
+      );
+      expect(capture.files.at(-1)!.name).toMatch(/-business-card\.png$/);
+    } finally {
+      capture.restore();
+    }
+  }, 180_000);
+
   it('still gives the raster when the raster is what was asked for', async () => {
     // The native row is an addition, not a replacement: "For web (PNG)" on
     // a favicon is still one PNG, not the whole icon set.
@@ -609,12 +652,17 @@ describe('downloading a native format from a card', () => {
 /**
  * The README, which is the only thing in the zip that explains the zip.
  *
- * Generated from the ARCHIVE rather than from the plan, so it cannot claim
- * a file that is not there or miss one that is — `fontExport` learned that
- * the hard way with a README naming four weights over a folder holding one.
+ * Generated from the ARCHIVE rather than from the plan, so it cannot
+ * describe a folder that is not there or miss one that is — `fontExport`
+ * learned that the hard way with a README naming four weights over a folder
+ * holding one.
+ *
+ * It is a SUMMARY, not a listing: one row per folder, the loose files named,
+ * one line per deliverable. A row per file made it 27 KB of the same four
+ * sentences and buried the clear-space rule under 249 of them (QA Q28).
  */
 describe('the README that travels with the kit', () => {
-  it('names every file in the bundle, and the ones that were left out', async () => {
+  it('describes every folder in the bundle, names the deliverables, and stays a readme', async () => {
     const broken: MockBrand = {
       ...brand,
       // One unit that cannot complete, so the skip list is not empty and
@@ -636,9 +684,26 @@ describe('the README that travels with the kit', () => {
 
     const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
     expect(paths.length).toBeGreaterThan(10);
-    for (const path of paths) {
+
+    // Every folder the zip really has is described…
+    const folders = new Set(paths.filter((p) => p.includes('/')).map((p) => p.split('/')[0]));
+    expect(folders.size).toBeGreaterThan(1);
+    for (const folder of folders) {
+      expect(text, `\`${folder}/\` is in the zip and not in the README`).toContain(`\`${folder}/\``);
+    }
+    // …every root file is named…
+    for (const path of paths.filter((p) => !p.includes('/'))) {
       expect(text, `${path} is in the zip and not in the README`).toContain(path);
     }
+    // …every deliverable is named, once…
+    for (const label of ['Business Card', 'Favicon', 'Email Signature', 'Pitch Deck', 'Post']) {
+      expect(text, `${label} shipped and the README does not name it`).toContain(label);
+    }
+    // …and it reads as a document rather than as a manifest. The kit this
+    // covers holds dozens of files; a row for each was the defect.
+    expect(text.length, 'the README is a listing again').toBeLessThan(9000);
+    expect(text).not.toContain('deliverables/business-card.png');
+
     for (const skip of skipped) {
       expect(text, `"${skip.label}" was left out and the README does not say so`).toContain(
         skip.label,

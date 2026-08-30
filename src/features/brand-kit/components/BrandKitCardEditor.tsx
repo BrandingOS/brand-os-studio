@@ -438,7 +438,7 @@ export function BrandKitCardEditor({
     // Structured content: the saved value when there is one, hydrated so
     // anything it predates is filled in rather than rendering blank.
     const kind = contentKindForTemplateType(templateType);
-    setContent(kind ? defaultContentFor(kind, brand) : null);
+    setContent(kind ? defaultContentFor(kind, brand, templateType) : null);
     // Re-apply the saved customization for this card, when one exists
     // (KIT-01). Saved ids are validated against the current brand so a
     // deleted logo/font falls back to the defaults seeded above.
@@ -457,7 +457,7 @@ export function BrandKitCardEditor({
       }
       if (kind) {
         if (saved.content) {
-          setContent(hydrateContent(kind, brand, saved.content));
+          setContent(hydrateContent(kind, brand, saved.content, templateType));
         } else if (kind === 'person') {
           // A card saved before the content model existed kept its person
           // in the flat overrides. Read it forward so nobody's saved name
@@ -1154,7 +1154,7 @@ export function BrandKitCardEditor({
                 onSelect={setSelectedPath}
                 onResetContent={() => {
                   setSelectedPath(null);
-                  setContent(defaultContentFor(contentKind, brand));
+                  setContent(defaultContentFor(contentKind, brand, templateType));
                 }}
               />
             )}
@@ -1489,7 +1489,7 @@ export function BrandKitCardEditor({
                   setSelectedFontId(brand.fonts[0]?.id ?? null);
                   setOverrides(defaultOverridesForType(templateType, brand));
                   setSelectedPath(null);
-                  if (contentKind) setContent(defaultContentFor(contentKind, brand));
+                  if (contentKind) setContent(defaultContentFor(contentKind, brand, templateType));
                 }}
                 title="Reset to brand defaults"
               >

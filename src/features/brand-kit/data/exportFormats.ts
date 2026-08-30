@@ -154,8 +154,12 @@ export function nativeFormatFor(entry: KitEntry): KitNativeFormat | null {
  * and *Custom size…*. A family with neither a native exporter nor vector
  * artwork still shows the third row, disabled with the reason — a menu that
  * changes shape per card is a menu nobody learns.
+ *
+ * `unavailable` disables the WHOLE menu with one reason, for a card that
+ * has no material to export at all. Same principle, one level up: the rows
+ * stay, and each says why it cannot run.
  */
-export function downloadOptionsFor(entry: KitEntry): DownloadOption[] {
+export function downloadOptionsFor(entry: KitEntry, unavailable?: string): DownloadOption[] {
   const native = nativeFormatFor(entry);
   const third: DownloadOption = native
     ? {
@@ -173,13 +177,72 @@ export function downloadOptionsFor(entry: KitEntry): DownloadOption[] {
           ? {}
           : { disabledReason: 'This design is drawn in the browser — it has no vector to export' }),
       };
-  return [
+  const options: DownloadOption[] = [
     { format: 'png', label: 'For web', chip: 'PNG' },
     { format: 'pdf', label: 'For print', chip: 'PDF' },
     third,
     { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true },
     { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true },
   ];
+  /*
+   * A CARD WITH NOTHING TO EXPORT SAYS SO IN THE MENU.
+   *
+   * raqm's Photos offered every row and produced no file at all — no
+   * error, no toast, no disabled state (QA Q13); skam's produced a
+   * picture of the empty state, under the missing photograph's own name
+   * (QA Q14). Both are the same mistake: an affordance offered for
+   * material that does not exist.
+   *
+   * The menu keeps its five rows — one shape everywhere is the whole
+   * point — and every one of them carries the reason. `disabledReason` is
+   * what the menu already renders for a format a family cannot honour.
+   */
+  if (unavailable) return options.map((option) => ({ ...option, disabledReason: unavailable }));
+  return options;
+}
+
+/**
+ * Several PNGs, side by side, as one PNG.
+ *
+ * Written for the animation storyboard (QA Q11): a motion deliverable's
+ * still is a strip of moments, and each moment is captured on its own
+ * offscreen mount, so something has to join them. Deliberately dumb — it
+ * composites bitmaps and knows nothing about what is in them.
+ *
+ * The gutter is painted first and the cells are drawn over it, so the
+ * separator is exactly the gaps and nothing else.
+ */
+export async function composePngStrip(
+  pngs: ReadonlyArray<Blob>,
+  options: { gutter?: number; gutterColor?: string } = {},
+): Promise<Blob> {
+  if (pngs.length === 0) throw new Error('A strip needs at least one frame');
+  const gutter = Math.max(0, Math.round(options.gutter ?? 0));
+  const bitmaps = await Promise.all(pngs.map((png) => createImageBitmap(png)));
+  try {
+    const height = Math.max(...bitmaps.map((b) => b.height));
+    const width =
+      bitmaps.reduce((sum, b) => sum + b.width, 0) + gutter * (bitmaps.length - 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('No 2D context');
+    if (gutter > 0) {
+      ctx.fillStyle = options.gutterColor ?? 'rgba(0, 0, 0, 0.14)';
+      ctx.fillRect(0, 0, width, height);
+    }
+    let x = 0;
+    for (const bitmap of bitmaps) {
+      ctx.drawImage(bitmap, x, Math.round((height - bitmap.height) / 2));
+      x += bitmap.width + gutter;
+    }
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png'),
+    );
+  } finally {
+    for (const bitmap of bitmaps) bitmap.close();
+  }
 }
 
 /** Turn a rendered PNG into a flattened JPG on a solid ground. */

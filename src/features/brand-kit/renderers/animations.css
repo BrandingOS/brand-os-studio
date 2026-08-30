@@ -280,6 +280,58 @@
   animation-play-state: paused !important;
 }
 
+/* ── The storyboard ───────────────────────────────────────────────── */
+/*
+ * A STILL OF AN ANIMATION IS NOT ONE FRAME.
+ *
+ * The export used to ship the rest frame, which is the finished lockup —
+ * and the finished lockup of a reveal, a fade and a spin is the same
+ * picture, so `logo-reveal.png`, `fade.png` and `rotate.png` came out of
+ * a kit BYTE-IDENTICAL (QA Q11). Three animations, one still.
+ *
+ * So an animation exports as a storyboard: the same design captured at
+ * several points along its own timeline and composed into one strip,
+ * ending on the frame the export used to ship alone. A frame is chosen by
+ * SEEKING rather than by playing — a negative delay on a paused animation
+ * is the browser's own way to say "show me time t" — so a cell is
+ * deterministic, needs no timer, and rasterises like any other tile.
+ *
+ * `--bka-at` is a fraction of the design's own `--bka-dur`. A cell asking
+ * for a time past the end (99) lands on the rest frame.
+ */
+.bka-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.bka-frame .bka-anim {
+  animation-delay: calc(var(--bka-delay, 0s) - var(--bka-dur, 1600ms) * var(--bka-at, 0)) !important;
+  animation-iteration-count: 1 !important;
+  animation-play-state: paused !important;
+  /*
+   * A STORYBOARD SAMPLES THE PATH, NOT THE CLOCK.
+   *
+   * The house easing is `cubic-bezier(0.22, 1, 0.36, 1)`, which is nearly
+   * finished a fifth of the way through — sampled at even points in TIME,
+   * three of the four cells landed on the finished artwork and the strip
+   * looked like four copies of one picture (measured, not assumed: the
+   * first exported strip of "Curtain Wipe" had its bar off-frame in every
+   * cell). Linear here makes `--bka-at` mean "a quarter of the way along
+   * the motion", for every design and every curve, which is what a
+   * storyboard is for. The final cell is past the end either way, so the
+   * frame the export used to ship alone is unchanged.
+   */
+  animation-timing-function: linear !important;
+}
+
+/* The duration slate belongs to the deliverable, not to every frame of it,
+   so only the last cell of a strip carries it. */
+.bka-frame--quiet .bka-slate {
+  display: none;
+}
+
 /* ── Keyframes ────────────────────────────────────────────────────── */
 /* Every one of these ENDS on the finished artwork. A looping design
    returns to identity at 100%, so the rest frame and the loop seam are

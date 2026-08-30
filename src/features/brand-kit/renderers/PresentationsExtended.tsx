@@ -4,6 +4,7 @@ import { Bind } from '@/features/brandkit/content/Bind';
 import {
   defaultDeckContent,
   isDeck,
+  type DeckVariant,
   type DeckContent,
   type DeckSlide,
   type DeliverableContent,
@@ -79,7 +80,12 @@ import {
 
 /* ── Families ─────────────────────────────────────────────────────── */
 
-export type DeckFamily = 'pitch' | 'plan' | 'proposal' | 'case' | 'portfolio';
+/**
+ * A family here is the same thing as a deck VARIANT in the content layer —
+ * one name, so a renderer and the content it is handed cannot disagree
+ * about which document this is.
+ */
+export type DeckFamily = DeckVariant;
 
 type DeckStyle = {
   /** Behind the slide — the desk or the projection the slide sits on. */
@@ -831,8 +837,12 @@ function DeckSlideRenderer({
   // Falls back to the kind's own brand-derived defaults, so a surface
   // that renders without passing content (a cover thumbnail, a standalone
   // preview) still paints this brand's deck rather than an empty frame.
-  const deck: DeckContent = deckContent ?? defaultDeckContent(brand);
-  const slides = deck.slides.length > 0 ? deck.slides : defaultDeckContent(brand).slides;
+  // The family IS the document: a plan's ten slides are not a pitch's ten
+  // slides (QA Q10), so the fallback is written for THIS family rather
+  // than shared across all five.
+  const deck: DeckContent = deckContent ?? defaultDeckContent(brand, new Date(), family);
+  const slides =
+    deck.slides.length > 0 ? deck.slides : defaultDeckContent(brand, new Date(), family).slides;
   const index = ((templateIndex % slides.length) + slides.length) % slides.length;
   const slide = slides[index]!;
 

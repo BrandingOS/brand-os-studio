@@ -37,10 +37,16 @@ export function contentFromCustomization(
   record: SavedCardCustomization | null | undefined,
   kind: ContentKind | null,
   brand: BrandLike,
+  /**
+   * The template's TYPE, so a kind whose defaults differ per family fills
+   * in as the document this template actually is. Only `deck` reads it —
+   * a business plan and a pitch are two documents, not one (QA Q10).
+   */
+  variant?: string,
 ): DeliverableContent | undefined {
   if (!kind || !record) return undefined;
   if (record.content && record.content.kind === kind) {
-    return hydrateContent(kind, brand, record.content);
+    return hydrateContent(kind, brand, record.content, variant);
   }
   if (!record.content && kind === 'person') {
     // Saved before the content model existed — read the person forward
@@ -73,7 +79,7 @@ export function contentForTemplate(
   if (!template) return undefined;
   const kind = contentKindForTemplateType(template.type as string);
   if (!kind) return undefined;
-  return contentFromCustomization(saved[template.id], kind, brand);
+  return contentFromCustomization(saved[template.id], kind, brand, template.type as string);
 }
 
 /** Convenience for a single artifact. Reads storage once. */

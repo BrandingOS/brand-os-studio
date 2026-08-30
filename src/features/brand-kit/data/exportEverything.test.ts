@@ -194,4 +194,20 @@ describe('downloadOptionsFor', () => {
     expect(logos.format).toBe('svg');
     expect(logos.disabledReason).toBeUndefined();
   });
+
+  /**
+   * QA Q13/Q14 — the Photos card offered every row and produced no file at
+   * all for one brand, and a picture of its own empty state for the other.
+   * A card with no material says so IN the menu; the five rows stay,
+   * because one vocabulary everywhere is the whole point.
+   */
+  it('disables every row, with the reason, for a card that has nothing to export', () => {
+    const entry = getEntryFor('brand-assets', 'Photos')!;
+    const reason = 'This brand has no photography yet';
+    const options = downloadOptionsFor(entry, reason);
+    expect(options).toHaveLength(5);
+    for (const option of options) expect(option.disabledReason).toBe(reason);
+    // …and nothing changes for a card that does have material.
+    expect(downloadOptionsFor(entry)[0].disabledReason).toBeUndefined();
+  });
 });

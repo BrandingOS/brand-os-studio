@@ -3,6 +3,8 @@ import {
   ALL_TEMPLATE_TYPES,
   CONTENT_KINDS,
   contentKindForTemplateType,
+  DECK_VARIANTS,
+  deckVariantForTemplateType,
   defaultContentFor,
   defaultInvoiceContent,
   defaultLetterContent,
@@ -151,6 +153,43 @@ describe('content kinds', () => {
     expect(text).toContain('Craft');
     // Deck ids are persistence keys; they must be stable and unique.
     expect(new Set(deck.slides.map((s) => s.id)).size).toBe(10);
+  });
+
+  /**
+   * QA Q10 — the five presentation families held ONE document, so the deck
+   * PPTX files in a kit export were interchangeable. The slot SHAPE is
+   * shared (it is what `curation/presentations.ts` names the tiles by); the
+   * headings belong to the document.
+   */
+  it('writes a different document per deck family, on the shared slot shape', () => {
+    const SHAPE = [
+      'title', 'section', 'content', 'content', 'section',
+      'content', 'content', 'content', 'content', 'closing',
+    ];
+    const decks = DECK_VARIANTS.map((variant) => {
+      const type = `pres-${variant}`;
+      expect(deckVariantForTemplateType(type)).toBe(variant);
+      const deck = defaultContentFor('deck', answered, type) as { kind: 'deck' } & DeckContent;
+      expect(deck.slides.map((s) => s.kind), `${variant} broke the slot shape`).toEqual(SHAPE);
+      expect(new Set(deck.slides.map((s) => s.id)).size).toBe(10);
+      return { variant, headings: deck.slides.map((s) => s.heading).join('|'), deck };
+    });
+    // No two families may read the same.
+    const seen = new Map<string, string>();
+    for (const { variant, headings } of decks) {
+      expect(seen.get(headings), `${variant} is the same deck as ${seen.get(headings)}`).toBeUndefined();
+      seen.set(headings, variant);
+    }
+    // And each names itself on its own cover.
+    const byVariant = Object.fromEntries(decks.map((d) => [d.variant, d.deck]));
+    expect(byVariant.plan.subtitle).toContain('Business plan');
+    expect(byVariant.proposal.subtitle).toContain('Proposal');
+    expect(byVariant.case.slides[2].heading).toBe('The client');
+    expect(byVariant.plan.slides[2].heading).toBe('Executive summary');
+    // An unknown type is not a deck family — it falls back to the pitch.
+    expect(deckVariantForTemplateType('business-cards')).toBeNull();
+    expect((defaultContentFor('deck', answered) as { kind: 'deck' } & DeckContent).slides[2].heading)
+      .toBe(byVariant.pitch.slides[2].heading);
   });
 
   it('leaves a hero statistic empty — a claim nobody made is not a default', () => {

@@ -943,6 +943,56 @@ export function RotateRenderer(props: Props) {
 /* ── The export seam ──────────────────────────────────────────────── */
 
 /**
+ * The frames an exported still is made of, as fractions of the design's
+ * own duration.
+ *
+ * Three late beats — and then the finished artwork.
+ * `99` is "past the end": the rest frame, which is the picture the export
+ * used to ship on its own.
+ *
+ * The cells are read as LINEAR progress (see `.bka-frame` in
+ * `animations.css`), so these numbers mean what they look like — and they
+ * are weighted LATE because they were measured rather than guessed: the
+ * ink in each captured cell was counted for all four families. An entrance
+ * carries its subject off-frame for well past half its own timeline (Slide
+ * In's mark is still outside the frame at 50%), so an evenly spaced strip
+ * spent its opening cells on an empty stage. From 0.62 onwards every
+ * family has something in every cell.
+ */
+export const STORYBOARD_FRAMES: ReadonlyArray<number> = [0.62, 0.75, 0.88, 99];
+
+/**
+ * One frame of an animation, frozen — what an animation EXPORTS as, four
+ * times over.
+ *
+ * Each cell is captured on its OWN offscreen mount and the strip is
+ * composed from the rasters (`composePngStrip`), rather than laying four
+ * live cells out side by side: html2canvas positions a transformed element
+ * against the wrong clipping box when several of them share a host, and
+ * the first attempt at a four-cell strip lost the sweeping bar from every
+ * cell but one. One cell per capture is the same mount the export already
+ * knew how to take.
+ */
+export function AnimationFrame({
+  at,
+  quiet = false,
+  children,
+}: {
+  /** Fraction of the design's duration to freeze at. */
+  at: number;
+  /** Hide the duration slate — every cell but the last. */
+  quiet?: boolean;
+  children: ReactNode;
+}) {
+  const vars: Vars = { '--bka-at': at };
+  return (
+    <div className={quiet ? 'bka-frame bka-frame--quiet' : 'bka-frame'} style={vars}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * Freeze every animation under `root` on its FINAL frame.
  *
  * The offscreen export path already gets this for free — a stage outside

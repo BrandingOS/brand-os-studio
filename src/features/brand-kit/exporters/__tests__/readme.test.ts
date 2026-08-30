@@ -1,11 +1,17 @@
 /**
  * The README, checked against the manifest it was generated from.
  *
- * The failure this test exists to prevent is the one `fontExport` shipped
- * once already: a README that describes a folder DIFFERENT from the folder
- * beside it. So the central assertion is exhaustive rather than
- * representative — every path in the manifest must appear, and no path may
- * appear that was not in the manifest.
+ * Two failures this test exists to prevent, and they pull against each
+ * other:
+ *
+ *  • The one `fontExport` shipped once: a README that describes a folder
+ *    DIFFERENT from the folder beside it. So everything asserted here has
+ *    to be DERIVED — a folder named because the manifest holds files in it,
+ *    a deliverable named because a row said so.
+ *  • QA Q28: 27 KB of per-file manifest, 249 rows repeating the same four
+ *    sentences. A listing is not a readme, and the rule a kit is judged on
+ *    was below all of it. So the summary is per FOLDER, and the test says
+ *    plainly that a row-per-file is not what this document is.
  *
  * The rest is the four things the document has to say: the download
  * vocabulary in the same words the menu uses, what each format is for, the
@@ -33,57 +39,85 @@ const FILES: KitManifestEntry[] = [
 
 /** Every path the document quotes in backticks. */
 function quotedPaths(markdown: string): string[] {
-  return [...markdown.matchAll(/\| `([^`]+)` \|/g)].map((m) => m[1]);
+  return [...markdown.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 }
 
-describe('buildKitReadme — the file list', () => {
+describe('buildKitReadme — what is in this folder', () => {
   const markdown = buildKitReadme(mockBrand, FILES);
 
-  it('lists EVERY path it was given', () => {
-    for (const file of FILES) {
-      expect(markdown, `${file.path} is not in the README`).toContain(`\`${file.path}\``);
-    }
+  it('describes every FOLDER the manifest has files in, with a count', () => {
+    // Four folders across the fixture; each is named once, and the count is
+    // the number of files really in it.
+    expect(markdown).toMatch(/\| `logos\/` \| .+ \| 1 \|/);
+    expect(markdown).toMatch(/\| `deliverables\/` \| .+ \| 3 \|/);
+    expect(markdown).toMatch(/\| `web\/` \| .+ \| 2 \|/);
+    expect(markdown).toMatch(/\| `social\/` \| .+ \| 1 \|/);
   });
 
-  it('lists nothing it was not given, in manifest order', () => {
-    expect(quotedPaths(markdown)).toEqual(FILES.map((f) => f.path));
+  it('names a folder the manifest has nothing in — never', () => {
+    const md = buildKitReadme(mockBrand, [{ path: 'logos/mark.svg', label: 'Logos' }]);
+    expect(md).toContain('`logos/`');
+    expect(md).not.toContain('`deliverables/`');
+    expect(md).not.toContain('`fonts/`');
   });
 
-  it('says what each row is, in the words the manifest used', () => {
-    expect(markdown).toContain('| `deliverables/business-card.png` | Business Card.');
-    expect(markdown).toContain('| `logos/` | Logos. A folder');
-    // The description follows the EXTENSION, so a reader looking at a file
-    // name is told what to do with that file.
-    expect(markdown).toMatch(/`deliverables\/pitch-deck\.pptx`.*PowerPoint/);
-    expect(markdown).toMatch(/`web\/favicon\.ico`.*favicon/i);
-    expect(markdown).toMatch(/`strategy\.pdf`.*print/i);
+  it('is a summary, not a listing — one row per folder, not per file', () => {
+    // The defect: 249 rows and the same four sentences over and over.
+    const many = Array.from({ length: 60 }, (_, i) => ({
+      path: `logos/variant-${i}.svg`,
+      label: 'Logos',
+    }));
+    const md = buildKitReadme(mockBrand, many);
+    expect(md).toContain('| 60 |');
+    expect(md).not.toContain('variant-42.svg');
+    // And the whole document stays small enough that the rules below it
+    // are still reachable.
+    expect(md.length).toBeLessThan(8000);
   });
 
-  it('appends a note when the manifest carries one', () => {
+  it('names the loose files at the top level individually — they are few and each differs', () => {
+    expect(markdown).toContain('- `brand.json` — Brand data.');
+    expect(markdown).toMatch(/- `strategy\.pdf` — Brand strategy\..*print/i);
+  });
+
+  it('lists each deliverable once, with the formats it shipped in', () => {
+    expect(markdown).toContain('| Business Card | PNG |');
+    expect(markdown).toContain('| Pitch Deck | PPTX |');
+    // One deliverable in two formats is ONE row naming both.
     const md = buildKitReadme(mockBrand, [
-      { path: 'deliverables/poster.png', label: 'Poster', note: 'Exported at 300 dpi.' },
+      { path: 'deliverables/business-card.png', label: 'Business Card' },
+      { path: 'deliverables/business-card.pdf', label: 'Business Card' },
+    ]);
+    expect(md).toContain('| Business Card | PNG · PDF |');
+    expect(md).toContain('### The 1 deliverables');
+  });
+
+  it('appends a note when the manifest carries one, for a root file', () => {
+    const md = buildKitReadme(mockBrand, [
+      { path: 'poster.png', label: 'Poster', note: 'Exported at 300 dpi.' },
     ]);
     expect(md).toContain('Exported at 300 dpi.');
   });
 
-  it('lists a path once however many times it is claimed', () => {
+  it('counts a path once however many times it is claimed', () => {
     const md = buildKitReadme(mockBrand, [
       { path: 'brand.json', label: 'Brand data' },
       { path: 'brand.json', label: 'Brand data again' },
     ]);
-    expect(quotedPaths(md)).toEqual(['brand.json']);
+    expect(quotedPaths(md).filter((p) => p === 'brand.json')).toHaveLength(1);
   });
 
   it('escapes a pipe rather than breaking the table', () => {
-    const md = buildKitReadme(mockBrand, [{ path: 'a|b.png', label: 'Odd | name' }]);
-    expect(md).toContain('`a\\|b.png`');
+    const md = buildKitReadme(mockBrand, [
+      { path: 'deliverables/a|b.png', label: 'Odd | name' },
+    ]);
     expect(md).toContain('Odd \\| name');
   });
 
   it('says so plainly when nothing was exported', () => {
     const md = buildKitReadme(mockBrand, []);
     expect(md).toContain('Nothing');
-    expect(quotedPaths(md)).toEqual([]);
+    expect(md).not.toContain('| Folder |');
   });
 });
 
@@ -143,7 +177,7 @@ describe('buildKitReadme — what it explains', () => {
   it('survives a brand it knows nothing about', () => {
     const md = buildKitReadme(null, FILES);
     expect(md.startsWith('# This brand — Brand Kit')).toBe(true);
-    expect(quotedPaths(md)).toEqual(FILES.map((f) => f.path));
+    expect(md).toContain('`deliverables/`');
   });
 });
 

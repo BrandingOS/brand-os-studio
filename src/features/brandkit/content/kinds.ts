@@ -588,44 +588,160 @@ function slide(
 }
 
 /**
- * Ten slides that tell THIS brand's story.
+ * The five deck families, as documents rather than as one document.
  *
- * The deck families used to ship one invented pitch — "$1.4M seed round",
- * a market size, three initialled team members — repeated across four
- * families. Every slide below is either the brand's own answer from
- * Setup's Brand Strategy or a branded prompt naming the brand, so an
- * untouched deck is a real outline of the customer's business rather
- * than a fictional company's.
+ * A pitch, a business plan, a proposal, a case study and a portfolio are
+ * not the same ten slides wearing five colour schemes — they answer
+ * different questions in a different order, and `curation/presentations.ts`
+ * has ALWAYS named them that way ("Executive summary", "Scope of work",
+ * "The client in one line"). What was missing was the content behind those
+ * names: every family hydrated the SAME ten slides, so the four deck PPTX
+ * files in a kit export came out byte-identical (QA Q10). A tile promising
+ * "Scope of work" showed "What we make".
+ *
+ * So a family is a table of ten SLOTS. The shape is shared — the slot list
+ * in `curation/presentations.ts` is `Cover · Divider · Statement ·
+ * Statement · Divider · List · Statement · Statement · List · Closing`, and
+ * the kinds below are exactly that, in that order — while the heading and
+ * the brand fact that fills it belong to the document.
+ *
+ * Nothing here invents a fact. Every line is either the brand's own answer
+ * from Setup's Brand Strategy or a branded prompt naming the brand, which
+ * is what the previous single outline established after the families
+ * shipped a fictional start-up's "$1.4M seed round".
  */
-export function defaultDeckSlides(brand: BrandLike): DeckSlide[] {
+export type DeckVariant = 'pitch' | 'plan' | 'proposal' | 'case' | 'portfolio';
+
+export const DECK_VARIANTS: ReadonlyArray<DeckVariant> = [
+  'pitch',
+  'plan',
+  'proposal',
+  'case',
+  'portfolio',
+];
+
+/** `pres-plan` → `plan`. Any other template type is not a deck. */
+export function deckVariantForTemplateType(templateType: string | undefined): DeckVariant | null {
+  if (!templateType) return null;
+  const m = /^pres-(pitch|plan|proposal|case|portfolio)$/.exec(templateType);
+  return m ? (m[1] as DeckVariant) : null;
+}
+
+/** What the document calls itself, on its own cover. */
+const DECK_LABEL: Record<DeckVariant, string> = {
+  pitch: 'Pitch deck',
+  plan: 'Business plan',
+  proposal: 'Proposal',
+  case: 'Case study',
+  portfolio: 'Portfolio',
+};
+
+/**
+ * The ten headings, per family, in slot order.
+ *
+ * Read alongside `NAMES` in `curation/presentations.ts`: that file names
+ * the SLOT a customer picks between, this one writes what the slide says.
+ * They are two halves of one outline and must stay in the same order.
+ */
+const DECK_HEADINGS: Record<DeckVariant, string[]> = {
+  pitch: [
+    '', 'Who we are', 'In one line', 'Why we exist', 'What we do',
+    'What we make', "Who it's for", 'Where we stand', 'What we value', 'Thank you',
+  ],
+  plan: [
+    '', 'Summary', 'Executive summary', 'Mission', 'How we operate',
+    'Products and services', 'Market and audience', 'Positioning', 'Operating principles', 'Prepared by',
+  ],
+  proposal: [
+    '', 'Introduction', 'The brief', 'Why us', 'Scope',
+    'Scope of work', 'Who it serves', 'Our approach', 'How we work', 'Sign-off',
+  ],
+  case: [
+    '', 'Context', 'The client', 'Why it mattered', 'The work',
+    'What we made', 'Who it reached', 'The position it won', 'What we held to', 'More work',
+  ],
+  portfolio: [
+    '', 'The studio', 'The studio in one line', 'Why we make', 'Selected work',
+    'Selected work', 'Who we work with', 'Where we sit', 'What we value', 'Get in touch',
+  ],
+};
+
+/**
+ * The third slide is the one place the families genuinely disagree about
+ * WHOSE line it is: a plan and a portfolio open on the brand's own
+ * summary, while a proposal and a case study open on the client's brief —
+ * which nobody but the customer can write, so it is a prompt naming them.
+ */
+function openingLine(variant: DeckVariant, brand: BrandLike): string {
+  const name = brandName(brand);
+  if (variant === 'proposal') return `What the client asked ${name} for — in one line.`;
+  if (variant === 'case') return `The client ${name} did this work for — in one line.`;
+  return summaryLine(brand);
+}
+
+/** Slide four: why this document exists at all. */
+function reasonLine(variant: DeckVariant, brand: BrandLike): string {
+  if (variant === 'proposal') return positioningLine(brand);
+  if (variant === 'case') return `What was at stake for the client, and why this work mattered.`;
+  return missionLine(brand);
+}
+
+/** Slide eight: where the brand stands. A proposal states its approach. */
+function standLine(variant: DeckVariant, brand: BrandLike): string {
+  if (variant === 'proposal') {
+    return `How ${brandName(brand)} works, and what makes that different. ${positioningLine(brand)}`.trim();
+  }
+  return positioningLine(brand);
+}
+
+/**
+ * One family's ten slides.
+ *
+ * `variant` defaults to `pitch` so every existing caller — the bind sweep,
+ * a preview with no template in hand — keeps the deck it already had.
+ */
+export function defaultDeckSlides(brand: BrandLike, variant: DeckVariant = 'pitch'): DeckSlide[] {
   const name = brandName(brand);
   const tagline = brandTagline(brand);
+  const headings = DECK_HEADINGS[variant];
+  const closingQuote =
+    variant === 'plan' || variant === 'case' ? { text: '', by: '' } : { text: tagline, by: name };
   return [
     slide('sl-1', 'title', { heading: name, body: tagline || summaryLine(brand) }),
-    slide('sl-2', 'section', { heading: 'Who we are', body: name }),
-    slide('sl-3', 'content', { heading: 'In one line', body: summaryLine(brand) }),
-    slide('sl-4', 'content', { heading: 'Why we exist', body: missionLine(brand) }),
-    slide('sl-5', 'section', { heading: 'What we do', body: name }),
-    slide('sl-6', 'content', { heading: 'What we make', bullets: offeringLines(brand, 4) }),
-    slide('sl-7', 'content', { heading: 'Who it is for', body: audienceLine(brand) }),
-    slide('sl-8', 'content', { heading: 'Where we stand', body: positioningLine(brand) }),
-    slide('sl-9', 'content', { heading: 'What we value', bullets: valueLines(brand, 4) }),
+    slide('sl-2', 'section', { heading: headings[1], body: name }),
+    slide('sl-3', 'content', { heading: headings[2], body: openingLine(variant, brand) }),
+    slide('sl-4', 'content', { heading: headings[3], body: reasonLine(variant, brand) }),
+    slide('sl-5', 'section', { heading: headings[4], body: name }),
+    slide('sl-6', 'content', { heading: headings[5], bullets: offeringLines(brand, 4) }),
+    slide('sl-7', 'content', { heading: headings[6], body: audienceLine(brand) }),
+    slide('sl-8', 'content', { heading: headings[7], body: standLine(variant, brand) }),
+    slide('sl-9', 'content', { heading: headings[8], bullets: valueLines(brand, 4) }),
     slide('sl-10', 'closing', {
-      heading: 'Thank you',
-      body: brandDomain(brand),
-      quote: { text: tagline, by: name },
+      heading: headings[9],
+      body: variant === 'plan' ? `${name}  ·  ${brandDomain(brand)}` : brandDomain(brand),
+      quote: closingQuote,
     }),
   ];
 }
 
-export function defaultDeckContent(brand: BrandLike, today: Date = new Date()): DeckContent {
+export function defaultDeckContent(
+  brand: BrandLike,
+  today: Date = new Date(),
+  variant: DeckVariant = 'pitch',
+): DeckContent {
   const name = brandName(brand);
+  const tagline = brandTagline(brand);
+  const label = DECK_LABEL[variant];
   return {
     title: name,
-    subtitle: brandTagline(brand) || summaryLine(brand),
+    // The document names ITSELF on its own cover. Before this every deck's
+    // subtitle was the brand's tagline, so five different documents opened
+    // with the same two lines and the export had nothing to tell them
+    // apart by.
+    subtitle: tagline ? `${label}  ·  ${tagline}` : label,
     presenter: name,
     date: formatLongDate(today),
-    slides: defaultDeckSlides(brand),
+    slides: defaultDeckSlides(brand, variant),
   };
 }
 
@@ -653,7 +769,21 @@ export function defaultQrContent(brand: BrandLike): QrContent {
   };
 }
 
-export function defaultContentFor(kind: ContentKind, brand: BrandLike): DeliverableContent {
+/**
+ * The variant a default is written for — a TEMPLATE TYPE (`pres-plan`).
+ *
+ * Optional everywhere and ignored by every kind but `deck`, because the
+ * deck is the only family whose five members are five different documents
+ * rather than five treatments of one. A caller that has a template in hand
+ * passes its type; one that does not gets the family's first reading.
+ */
+export type ContentVariant = string;
+
+export function defaultContentFor(
+  kind: ContentKind,
+  brand: BrandLike,
+  variant?: ContentVariant,
+): DeliverableContent {
   switch (kind) {
     case 'person':
       return { kind: 'person', ...defaultPersonContent(brand) };
@@ -672,7 +802,10 @@ export function defaultContentFor(kind: ContentKind, brand: BrandLike): Delivera
     case 'webHero':
       return { kind: 'webHero', ...defaultWebHeroContent(brand) };
     case 'deck':
-      return { kind: 'deck', ...defaultDeckContent(brand) };
+      return {
+        kind: 'deck',
+        ...defaultDeckContent(brand, new Date(), deckVariantForTemplateType(variant) ?? 'pitch'),
+      };
     case 'mockupLabel':
       return { kind: 'mockupLabel', ...defaultMockupLabelContent(brand) };
     case 'motion':
@@ -700,8 +833,9 @@ export function hydrateContent(
   kind: ContentKind,
   brand: BrandLike,
   stored: unknown,
+  variant?: ContentVariant,
 ): DeliverableContent {
-  const base = defaultContentFor(kind, brand);
+  const base = defaultContentFor(kind, brand, variant);
   if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return base;
   const s = stored as Record<string, unknown>;
   // A stored value for a different kind is not this deliverable's content.

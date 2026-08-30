@@ -30,6 +30,7 @@ import type { Brand } from '@/shared/types/brand';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitEntry } from '../catalog/catalog';
 import { renderCosmosTemplate } from '../renderers';
+import { AnimationFrame, STORYBOARD_FRAMES } from '../renderers/AnimationsExtended';
 import { StrategyView } from '../systems/StrategyView';
 import { SocialSystemView } from '../systems/SocialSystemView';
 import { PresentationSystemView } from '../systems/PresentationSystemView';
@@ -65,6 +66,7 @@ import {
   PRINT_PAGE_MM,
   SOCIAL_PACK_SLOTS,
   nativeFormatFor,
+  composePngStrip,
   pngToJpg,
   pngToPdf,
   resizePng,
@@ -417,7 +419,16 @@ function nativeContent<T>(
 ): T {
   const template = firstTemplateFor(unit, input);
   const stored = template ? input.saved?.[template.id]?.content : undefined;
-  return hydrateContent(kind, input.brand, stored) as unknown as T;
+  // The template TYPE is handed over as well, because a deck's defaults
+  // depend on which document it is: without it every presentation family
+  // hydrated the same ten slides and the four deck PPTX files in a kit
+  // came out byte-identical (QA Q10).
+  return hydrateContent(
+    kind,
+    input.brand,
+    stored,
+    template?.type as string | undefined,
+  ) as unknown as T;
 }
 
 /** `deliverables/business-card.png` → `business-card`. */
@@ -539,6 +550,47 @@ async function writePrintPdf(
 }
 
 /**
+ * A STILL OF AN ANIMATION IS A STORYBOARD, NOT A FRAME.
+ *
+ * Every animation's last frame is the finished lockup, so exporting that
+ * frame gave three of the four families the SAME picture — `logo-reveal.png`,
+ * `fade.png` and `rotate.png` came out of a kit byte-identical (QA Q11).
+ * The motion is the deliverable; a strip of moments along the design's own
+ * timeline is the honest still of it, and it ends on the frame the export
+ * used to ship alone.
+ *
+ * Mounted at `frames × 260px` so every cell is drawn at the width the
+ * renderers are authored for (the ScalingStage contract), which is also why
+ * the aspect is multiplied rather than the cells being squeezed.
+ */
+function isAnimation(unit: KitExportUnit): boolean {
+  return unit.entry.sectionKey === 'animations';
+}
+
+/** The hairline between two frames, in output pixels. */
+const STRIP_GUTTER = 4;
+
+async function snapshotStoryboard(
+  element: ReactElement,
+  aspect: number,
+): Promise<Blob | null> {
+  const frames: Blob[] = [];
+  for (let i = 0; i < STORYBOARD_FRAMES.length; i += 1) {
+    const at = STORYBOARD_FRAMES[i];
+    const cell = await snapshotTemplatePng(
+      <AnimationFrame at={at} quiet={i < STORYBOARD_FRAMES.length - 1}>
+        {element}
+      </AnimationFrame>,
+      260,
+      aspect,
+    );
+    if (!cell) return null;
+    frames.push(cell);
+  }
+  return composePngStrip(frames, { gutter: STRIP_GUTTER });
+}
+
+/**
  * Write ONE catalog entry's files into a zip root.
  *
  * Extracted so the Export Kit and a single card's Download button run
@@ -636,6 +688,7 @@ export async function writeUnit(
           });
           break;
         }
+        const animated = isAnimation(unit);
         const aspect = aspectForLabel(unit.entry.storageLabel);
         // One design lands as the file the plan named; several become a
         // folder, so a card is never a pile of loose numbered PNGs at the
@@ -650,7 +703,9 @@ export async function writeUnit(
         const used = new Set<string>();
         for (let n = 0; n < designs.length; n += 1) {
           throwIfAborted(signal);
-          const blob = await snapshotTemplatePng(designs[n].element, 260, aspect);
+          const blob = animated
+            ? await snapshotStoryboard(designs[n].element, aspect)
+            : await snapshotTemplatePng(designs[n].element, 260, aspect);
           if (!blob) {
             skipped.push({ label: `${unit.label} — ${designs[n].name}`, reason: "it couldn't be rasterized" });
             continue;
@@ -860,7 +915,21 @@ const NATIVE_PATTERN: Record<KitNativeFormat, RegExp> = {
 export async function downloadEntry(
   entry: KitEntry,
   input: KitExportInput,
-  choice: { format?: DownloadFormat; size?: CustomSize } = {},
+  choice: {
+    format?: DownloadFormat;
+    size?: CustomSize;
+    /**
+     * The DESIGN's own name, when the download is one tile rather than the
+     * card.
+     *
+     * Three different Business Card designs all arrived as
+     * `raqm-business-card.png`, so a folder of them was three files with
+     * one name and a browser-appended `(1)` (QA Q22). The brand-asset
+     * families already got this right — `raqm-primary--original.png` — and
+     * this is the same shape: the deliverable, then the design.
+     */
+    variant?: string;
+  } = {},
 ): Promise<{ added: boolean; skipped: ExportSkip[] }> {
   const [unit] = planKitExport([entry]);
   if (!unit) return { added: false, skipped: [] };
@@ -871,7 +940,10 @@ export async function downloadEntry(
   const added = await writeUnit(unit, zip as unknown as ZipFolder, input, skipped);
   if (!added) return { added: false, skipped };
 
-  const base = `${slugifyName(input.brand.name)}-${slugifyName(entry.label)}`;
+  const variant = choice.variant ? slugifyName(choice.variant) : '';
+  const base = `${slugifyName(input.brand.name)}-${slugifyName(entry.label)}${
+    variant ? `--${variant}` : ''
+  }`;
   const paths = Object.keys(zip.files).filter((path) => !zip.files[path].dir);
   const format = choice.format ?? 'png';
 

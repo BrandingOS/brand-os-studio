@@ -28,8 +28,14 @@ import {
   hasRealPhotos,
   isPhotoSourceBroken,
   lightness,
+  markPhotoSourceBroken,
   nameFromSource,
+  NO_PHOTOS_REASON,
   orderedPhotos,
+  photoSourceVersion,
+  photosUnavailableReason,
+  probePhotoSources,
+  subscribePhotoSources,
   rampFor,
   readPngSize,
   realPhotos,
@@ -221,6 +227,82 @@ describe('realPhotos / hasRealPhotos — D14, D46', () => {
 });
 
 /* ─── Names and order ─────────────────────────────────────────────── */
+
+/**
+ * QA Q15 — the sidebar read 37 / 37 with Photos ticked while the card beside
+ * it said "No photography yet".
+ *
+ * `hasRealPhotos` is optimistic on purpose: an unmeasured source counts as a
+ * photograph, because refusing to show a picture nobody has failed to load
+ * would be worse. What was missing is that nothing ASKED for the measurement
+ * and nothing HEARD the answer, so a count taken on first paint believed a
+ * 404 for the rest of the session.
+ */
+describe('the count is honest, and it says when it changes', () => {
+  it('gives a reason a user can act on, and none when there is nothing to say', () => {
+    expect(photosUnavailableReason(brand())).toBe(NO_PHOTOS_REASON);
+    expect(photosUnavailableReason(null)).toBe(NO_PHOTOS_REASON);
+    expect(
+      photosUnavailableReason(brand({ photos: [photo('a', 'https://cdn.test/a.png')] })),
+    ).toBeUndefined();
+  });
+
+  it('a source measured as broken changes the answer, and announces it', () => {
+    const b = brand({ photos: [photo('a', 'https://cdn.test/gone.png')] });
+    expect(photosUnavailableReason(b)).toBeUndefined();
+
+    const seen: number[] = [];
+    const stop = subscribePhotoSources(() => seen.push(photoSourceVersion()));
+    markPhotoSourceBroken('https://cdn.test/gone.png');
+    expect(photosUnavailableReason(b)).toBe(NO_PHOTOS_REASON);
+    expect(seen, 'nobody was told the answer had changed').toHaveLength(1);
+
+    // Measuring the same source twice is not news.
+    markPhotoSourceBroken('https://cdn.test/gone.png');
+    expect(seen).toHaveLength(1);
+    stop();
+    markPhotoSourceBroken('https://cdn.test/also-gone.png');
+    expect(seen).toHaveLength(1);
+  });
+
+  it('probes each source once, and records only the failures', () => {
+    const loaded: Array<{ src: string; fail: boolean }> = [];
+    class FakeImage {
+      onerror: (() => void) | null = null;
+      onload: (() => void) | null = null;
+      naturalWidth = 8;
+      set src(value: string) {
+        const entry = { src: value, fail: value.includes('gone') };
+        loaded.push(entry);
+        // The load is asynchronous in a browser; fire it the same way.
+        queueMicrotask(() => (entry.fail ? this.onerror?.() : this.onload?.()));
+      }
+    }
+    const original = globalThis.Image;
+    (globalThis as { Image?: unknown }).Image = FakeImage as unknown as typeof Image;
+    try {
+      const b = brand({
+        photos: [photo('a', 'https://cdn.test/gone.png'), photo('b', 'https://cdn.test/real.png')],
+      });
+      probePhotoSources(b);
+      probePhotoSources(b); // …twice, on purpose.
+      expect(loaded.map((l) => l.src)).toEqual([
+        'https://cdn.test/gone.png',
+        'https://cdn.test/real.png',
+      ]);
+      return new Promise<void>((resolve) => {
+        queueMicrotask(() => {
+          expect(isPhotoSourceBroken('https://cdn.test/gone.png')).toBe(true);
+          expect(isPhotoSourceBroken('https://cdn.test/real.png')).toBe(false);
+          expect(hasRealPhotos(b)).toBe(true);
+          resolve();
+        });
+      });
+    } finally {
+      (globalThis as { Image?: unknown }).Image = original;
+    }
+  });
+});
 
 describe('captions and order', () => {
   it('reads a name out of a filename and falls back to an index', () => {

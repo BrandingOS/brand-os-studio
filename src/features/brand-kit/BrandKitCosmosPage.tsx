@@ -51,6 +51,7 @@ import {
 import { ExportKitDialog } from './components/ExportKitDialog';
 import type { DownloadChoice } from './components/DownloadMenu';
 import { downloadOptionsFor, type DownloadOption } from './data/exportFormats';
+import { photosUnavailableReason } from './data/photoExport';
 import { IconPickerModal } from './components/IconPickerModal';
 import { ColorsEditor } from './components/assets/ColorsEditor';
 import { TypographyEditor } from './components/assets/TypographyEditor';
@@ -490,6 +491,18 @@ export function BrandKitCosmosPage({
             toast(`Nothing to export for ${t.displayLabel ?? t.label} yet`);
             return;
           }
+          // …unless the tile is an EMPTY STATE. The Photos card renders
+          // "No photos yet" when the brand has none, and rasterising that
+          // shipped a picture of an error message under the missing
+          // photograph's own name — `skam-grain-texture-overlay.png` was a
+          // white card reading "No photos yet" (QA Q14).
+          if (t.label === 'Photos') {
+            const reason = photosUnavailableReason(b);
+            if (reason) {
+              toast(`Nothing to export for ${one.name}`, { description: reason });
+              return;
+            }
+          }
           const blob = await snapshotTemplatePng(
             renderTemplateDesign(one, sourceBrand, b),
             260,
@@ -513,7 +526,10 @@ export function BrandKitCosmosPage({
                 // The whole point: this card shows exactly one design here.
                 featuredIdsByLabel: { ...featuredIdsByLabel, [t.label]: [templateId] },
               },
-              choice,
+              // …and the file says WHICH design it is. Three Business Card
+              // tiles used to arrive as three files called
+              // `raqm-business-card.png` (QA Q22).
+              { ...choice, variant: one?.name },
             );
             if (result.added) toast.success(`${one?.name ?? t.label} downloaded`, { id });
             else {
@@ -572,22 +588,14 @@ export function BrandKitCosmosPage({
             );
             return;
           }
-          case 'Photos': {
-            const photos = b.photos.filter((p) => p.src);
-            if (photos.length === 0) {
-              toast('No photos yet', { description: 'Add photos in Setup first.' });
-              return;
-            }
-            const { default: JSZip } = await import('jszip');
-            const zip = new JSZip();
-            for (let i = 0; i < photos.length; i += 1) {
-              const res = await fetch(photos[i].src).catch(() => null);
-              const blob = res ? await res.blob() : null;
-              if (blob) zip.file(`photo-${i + 1}.${blob.type.split('/')[1] || 'png'}`, blob);
-            }
-            triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${slug}-photos.zip`);
-            return;
-          }
+          // 'Photos' is deliberately NOT special-cased any more. This case
+          // used to fetch every source and zip whatever came back, named
+          // from the mime type — the exact code D1 was filed against, and
+          // the reason a brand whose only picture is a 404 shipped the
+          // app's own `index.html` as `photo-1.html`. It falls through to
+          // the shared writer, which verifies the BYTES, names each file
+          // from the Library, and hands back a reason for anything it had
+          // to leave out (QA Q13/Q14).
           // 'About' (the Strategy card) is deliberately NOT special-cased
           // any more: it used to ship about.md alone, which is the free-form
           // sections and none of the eleven strategy answers. It falls
@@ -1392,7 +1400,16 @@ export function BrandKitCosmosPage({
                   onPickVariant={(template) =>
                     setEditorTarget({ ...drilldownTarget, template })
                   }
-                  downloadOptions={targetEntry ? downloadOptionsFor(targetEntry) : undefined}
+                  downloadOptions={
+                    targetEntry
+                      ? downloadOptionsFor(
+                          targetEntry,
+                          drilldownTarget.label === 'Photos'
+                            ? photosUnavailableReason(effectiveBrand)
+                            : undefined,
+                        )
+                      : undefined
+                  }
                   onDownloadVariant={(template, choice) =>
                     handleDownloadCard(drilldownTarget, choice, template.id)
                   }

@@ -11,6 +11,8 @@ import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
 import { getEntryFor, type KitEntry } from '../catalog/catalog';
 import { downloadOptionsFor } from '../data/exportFormats';
+import { photosUnavailableReason } from '../data/photoExport';
+import { usePhotoSources } from '../data/usePhotoSources';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
 import { DeliverableCard } from './DeliverableCard';
@@ -323,6 +325,8 @@ type CardProps = {
   onOpenMenu: (e: React.MouseEvent, item: GridItem) => void;
   /** Everything the cover needs to paint the brand's own artwork. */
   cover: React.ReactNode;
+  /** Why this card has nothing to export, when it has nothing. */
+  downloadUnavailable?: string;
 };
 
 function BrandKitCard({
@@ -332,6 +336,7 @@ function BrandKitCard({
   onDownload,
   onOpenMenu,
   cover,
+  downloadUnavailable,
 }: CardProps) {
   // The ⬇ button opens the shared Download menu rather than firing a
   // download: For web · For print · Vector · Flattened · Custom size, the
@@ -393,7 +398,7 @@ function BrandKitCard({
         </div>
         {menuOpen && onDownload && entry && (
           <DownloadMenu
-            options={downloadOptionsFor(entry)}
+            options={downloadOptionsFor(entry, downloadUnavailable)}
             anchor={{ top: 44, left: 12 }}
             onClose={() => setMenuOpen(false)}
             onChoose={(choice) => onDownload(item, choice)}
@@ -467,6 +472,11 @@ export function CardGrid({
   kit,
 }: CardGridProps) {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  // The Photos menu's disabled state is only as honest as the photo-source
+  // cache behind it, and that cache is optimistic until something measures
+  // it (QA Q15). Asking here means the menu is right the first time it is
+  // opened rather than after a tile has failed to load.
+  usePhotoSources(brand);
 
   // Keep the card visually raised (actions visible) while its menu is open,
   // mirroring SetupBoard's `.is-ctx-active` pattern.
@@ -564,6 +574,14 @@ export function CardGrid({
                 onDownloadCard ? (it, choice) => onDownloadCard(targetFor(it), choice) : undefined
               }
               onOpenMenu={openMenu}
+              // A card whose material does not exist offers a menu that
+              // says so rather than five rows that quietly do nothing
+              // (QA Q13/Q14). Photos is the only such family today.
+              downloadUnavailable={
+                item.sectionKey === 'brand-assets' && item.storageLabel === 'Photos'
+                  ? photosUnavailableReason(brand)
+                  : undefined
+              }
               cover={
                 brand ? (
                   <CardCover

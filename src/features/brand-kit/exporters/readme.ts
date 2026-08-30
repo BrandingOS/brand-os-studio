@@ -11,10 +11,11 @@
  * So this file is not a table of contents with a friendly tone. It is the
  * four things the audit found missing from every previous export:
  *
- *   • **Every path, listed.** Generated from the SAME manifest the zip was
- *     written from, so the README cannot claim a file that is not there or
- *     miss one that is. `fontExport` learned this the hard way — a README
- *     naming four weights over a folder holding one is worse than none.
+ *   • **What the folders are**, and how much is in each. Summarised from
+ *     the SAME manifest the zip was written from, so the README cannot
+ *     describe a folder that is not there or miss one that is.
+ *     `fontExport` learned that the hard way — a README naming four
+ *     weights over a folder holding one is worse than none.
  *   • **The download vocabulary**, in the same words the menu uses: *For
  *     web* · *For print* · *Vector* · *Flattened* · *Custom size…*. The
  *     person reading this will come back for another size, and they should
@@ -24,6 +25,21 @@
  *   • **The clear-space rule**, stated as the formula and as an example,
  *     because it is the one rule a kit is judged on and the one that gets
  *     dropped when the logo is pasted into a slide.
+ *
+ * ## It is a readme, not a listing
+ *
+ * It used to print one row per FILE. On a real kit that was 27 KB of
+ * manifest — 249 rows repeating the same four sentences, "Vector artwork.
+ * Scales to any size with no loss" over and over (QA Q28). A reader
+ * scrolled past every logo weight to reach the clear-space rule, which is
+ * the part they came for.
+ *
+ * A zip already lists its own files; what it cannot say is what the folders
+ * MEAN. So the summary is one row per folder with a count, the root files
+ * named individually because they are few and each is different, and one
+ * line per deliverable naming the formats it shipped in. Everything is
+ * still derived from the manifest, so nothing here can drift from the
+ * archive it describes.
  *
  * Pure and total, like every builder here: content in, markdown out. No
  * DOM, no store, no download.
@@ -173,6 +189,114 @@ function cell(text: string): string {
   return text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
 
+/* ── The summary ──────────────────────────────────────────────────── */
+
+/**
+ * What each top-level folder of a kit holds, in one sentence.
+ *
+ * Keyed on the folder NAME because that is what the reader is looking at
+ * in their file browser. A folder this does not know is described from
+ * what is in it rather than left blank.
+ */
+const BY_FOLDER: Record<string, string> = {
+  logos: 'Every logo variant the brand owns, as vector and as raster, on the grounds each was drawn for.',
+  colors: 'The palette — swatch files, the values in every notation, and a sheet to hand a printer.',
+  fonts: 'The typefaces, with the weights the brand uses and how to install or self-host them.',
+  icons: 'The icon set, at the weights and sizes the brand draws them.',
+  photos: 'The brand’s photography, plus the art direction every picture is treated to.',
+  deliverables: 'The brand applied — cards, stationery, social, web, decks and the board. One file per design.',
+};
+
+/** `deliverables/business-card.pptx` → `PPTX`; a folder → nothing. */
+function formatOf(path: string): string {
+  const ext = extensionOf(path);
+  return ext && ext !== 'folder' ? ext.toUpperCase() : '';
+}
+
+/** The first path segment, or '' for a file sitting at the root. */
+function folderOf(path: string): string {
+  const slash = path.indexOf('/');
+  return slash < 0 ? '' : path.slice(0, slash);
+}
+
+/**
+ * The kit, described rather than listed.
+ *
+ * Three passes over the manifest, and each answers a question a reader
+ * actually has: what are these folders, what are the loose files, and which
+ * deliverables did I get and in what formats.
+ */
+function summarize(rows: KitManifestEntry[]): string[] {
+  const lines: string[] = [];
+
+  const folders = new Map<string, { count: number; formats: Set<string> }>();
+  const root: KitManifestEntry[] = [];
+  /** Deliverable label → the formats it shipped in, in first-seen order. */
+  const deliverables = new Map<string, string[]>();
+
+  for (const row of rows) {
+    const folder = folderOf(row.path);
+    if (!folder) {
+      root.push(row);
+      continue;
+    }
+    const bucket = folders.get(folder) ?? { count: 0, formats: new Set<string>() };
+    bucket.count += 1;
+    const format = formatOf(row.path);
+    if (format) bucket.formats.add(format);
+    folders.set(folder, bucket);
+
+    if (folder === 'deliverables') {
+      // The manifest already says who owns each path; the label is what a
+      // person calls the deliverable, which is what belongs in a summary.
+      const label = row.label ?? row.path.slice(folder.length + 1).split('/')[0];
+      const formats = deliverables.get(label) ?? [];
+      if (format && !formats.includes(format)) formats.push(format);
+      deliverables.set(label, formats);
+    }
+  }
+
+  if (folders.size > 0) {
+    lines.push('| Folder | What is in it | Files |', '| --- | --- | --- |');
+    for (const [name, bucket] of folders) {
+      const described =
+        BY_FOLDER[name] ??
+        (bucket.formats.size > 0
+          ? `${[...bucket.formats].sort().join(' · ')} files.`
+          : 'Part of this kit.');
+      lines.push(`| \`${cell(name)}/\` | ${cell(described)} | ${bucket.count} |`);
+    }
+    lines.push('');
+  }
+
+  if (root.length > 0) {
+    lines.push('At the top level:', '');
+    for (const row of root) {
+      lines.push(`- \`${cell(row.path)}\` — ${cell(describe(row))}`);
+    }
+    lines.push('');
+  }
+
+  if (deliverables.size > 0) {
+    lines.push(
+      `### The ${deliverables.size} deliverables`,
+      '',
+      'Each is the brand applied to one thing. Every one ships a PNG; where a',
+      'format beyond it exists — a real deck, an icon container, markup, a',
+      'print sheet — it sits beside the picture under the same name.',
+      '',
+      '| Deliverable | Formats |',
+      '| --- | --- |',
+    );
+    for (const [label, formats] of deliverables) {
+      lines.push(`| ${cell(label)} | ${cell(formats.join(' · ') || '—')} |`);
+    }
+    lines.push('');
+  }
+
+  return lines;
+}
+
 /* ── The document ─────────────────────────────────────────────────── */
 
 export function buildKitReadme(brand: BrandStyleSource, manifest: KitManifest): string {
@@ -201,11 +325,7 @@ export function buildKitReadme(brand: BrandStyleSource, manifest: KitManifest): 
   if (rows.length === 0) {
     lines.push('Nothing — this export produced no files. See the note at the end.', '');
   } else {
-    lines.push('| File | What it is |', '| --- | --- |');
-    for (const row of rows) {
-      lines.push(`| \`${cell(row.path)}\` | ${cell(describe(row))} |`);
-    }
-    lines.push('');
+    lines.push(...summarize(rows));
   }
 
   /* The download vocabulary */

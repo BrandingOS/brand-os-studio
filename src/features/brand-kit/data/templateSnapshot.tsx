@@ -299,6 +299,49 @@ function fitBox(
   return { dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh };
 }
 
+/**
+ * BAKE THE FRAME THE LIVE ELEMENT IS SHOWING INTO THE CLONE.
+ *
+ * html2canvas parses a COPY of the tree in its own iframe, and a CSS
+ * animation in that copy is a new animation: it has its own start time and
+ * its own layout, so a frame chosen on the page is not the frame that gets
+ * drawn. Measured, on the animation storyboard (QA Q11): a sweeping bar
+ * sitting at x = −48.6px on the page rasterised at x = +235px, and two of
+ * the four frames lost it off the right edge entirely.
+ *
+ * Percentage transforms are the worst of it — `translateX(-180%)` resolves
+ * against the element's own width, and the clone resolves it against a
+ * different one — which is why this copies the RESOLVED values across:
+ * `getComputedStyle` on the live node returns a pixel matrix, an opacity
+ * and a clip path for the exact instant being captured. The animation is
+ * then turned off in the clone, so nothing can re-run and disagree.
+ *
+ * Structural equality is checked rather than assumed: if the two trees do
+ * not have the same node count the mapping is meaningless and this does
+ * nothing at all, which leaves the capture exactly as it was before.
+ */
+function freezeAnimationsForCapture(live: HTMLElement, clone: HTMLElement): void {
+  const liveNodes = [live, ...Array.from(live.querySelectorAll<HTMLElement>('*'))];
+  const cloneNodes = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>('*'))];
+  if (liveNodes.length !== cloneNodes.length) return;
+  for (let i = 0; i < liveNodes.length; i += 1) {
+    const source = liveNodes[i];
+    const target = cloneNodes[i];
+    if (!source || !target || typeof target.style === 'undefined') continue;
+    const computed = getComputedStyle(source);
+    if (!computed.animationName || computed.animationName === 'none') continue;
+    target.style.animation = 'none';
+    if (computed.transform && computed.transform !== 'none') {
+      target.style.transform = computed.transform;
+    }
+    if (computed.opacity) target.style.opacity = computed.opacity;
+    if (computed.clipPath && computed.clipPath !== 'none') {
+      target.style.clipPath = computed.clipPath;
+    }
+    if (computed.filter && computed.filter !== 'none') target.style.filter = computed.filter;
+  }
+}
+
 /** Rasterize an already-mounted element to a PNG blob. */
 export async function snapshotElementPng(
   element: HTMLElement,
@@ -311,7 +354,12 @@ export async function snapshotElementPng(
     useCORS: true,
     backgroundColor: null,
     logging: false,
-    onclone: (_doc, cloned) => flattenPicturesForCapture(cloned as HTMLElement, scale),
+    onclone: (_doc, cloned) => {
+      // Freezing runs FIRST: it maps the two trees by position, and
+      // flattening rewrites nodes in the clone.
+      freezeAnimationsForCapture(element, cloned as HTMLElement);
+      return flattenPicturesForCapture(cloned as HTMLElement, scale);
+    },
   });
   return new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), 'image/png'));
 }

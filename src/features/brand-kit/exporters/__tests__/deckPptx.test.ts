@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 import type JSZipType from 'jszip';
 import type { DeckContent, DeckSlide } from '@/features/brandkit/content';
-import { defaultDeckContent } from '@/features/brandkit/content';
+import { defaultContentFor, defaultDeckContent } from '@/features/brandkit/content';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import { buildDeckPptx } from '../deckPptx';
 import { bytesOf } from '../bytes';
@@ -74,7 +74,18 @@ async function slideText(zip: JSZipType, index: number): Promise<string> {
   const part = zip.file(`ppt/slides/slide${index}.xml`);
   expect(part, `no ppt/slides/slide${index}.xml`).not.toBeNull();
   const xml = await part!.async('string');
-  return [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((m) => m[1]).join('\n');
+  // XML entities are decoded, so an assertion may be written in the words a
+  // reader would see: a heading holding an apostrophe travels as `&apos;`.
+  return [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
+    .map((m) =>
+      m[1]
+        .replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&'),
+    )
+    .join('\n');
 }
 
 describe('buildDeckPptx — the container', () => {
@@ -202,5 +213,67 @@ describe('buildDeckPptx — the real default deck', () => {
     const { default: JSZip } = await import('jszip');
     const zip = await JSZip.loadAsync(await bytesOf(files[0].blob));
     expect(Object.keys(zip.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))).toHaveLength(0);
+  });
+});
+
+/**
+ * QA Q10 — four decks shipped two files.
+ *
+ * `deliverables/pitch-deck.pptx` and `business-plan.pptx` came out
+ * byte-identical, and so did `proposal.pptx` and `case-studies.pptx`: every
+ * presentation family hydrated the SAME `deck` content, and a PPTX carries
+ * no styling of its own to tell them apart afterwards. The pairing was an
+ * accident of the timestamp pptxgenjs stamps at second granularity — the
+ * defect is that all five families held one document.
+ *
+ * So the assertion is on the WORDS, not on the bytes: each family's file
+ * must carry headings the others do not.
+ */
+describe('buildDeckPptx — five families, five documents', () => {
+  const FAMILIES = ['pres-pitch', 'pres-plan', 'pres-proposal', 'pres-case', 'pres-portfolio'];
+
+  /** Everything a reader would see across the whole deck. */
+  async function deckText(templateType: string): Promise<string> {
+    const content = defaultContentFor('deck', { name: 'Nuworld' }, templateType) as DeckContent;
+    const { zip } = await openPptx(content);
+    const parts = Object.keys(zip.files)
+      .filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))
+      .sort();
+    const texts: string[] = [];
+    for (let i = 1; i <= parts.length; i += 1) texts.push(await slideText(zip, i));
+    return texts.join('\n');
+  }
+
+  it('gives every family a deck no other family exports', async () => {
+    const byFamily = new Map<string, string>();
+    for (const family of FAMILIES) byFamily.set(family, await deckText(family));
+    const seen = new Map<string, string>();
+    for (const [family, text] of byFamily) {
+      const twin = seen.get(text);
+      expect(twin, `${family} exports the same deck as ${twin}`).toBeUndefined();
+      seen.set(text, family);
+    }
+  });
+
+  it('each family carries the headings its own outline names', async () => {
+    const expected: Record<string, string[]> = {
+      'pres-plan': ['Executive summary', 'Products and services', 'Operating principles'],
+      'pres-proposal': ['The brief', 'Scope of work', 'How we work'],
+      'pres-case': ['The client', 'What we made', 'What we held to'],
+      'pres-portfolio': ['Selected work', 'Who we work with', 'Get in touch'],
+      'pres-pitch': ['In one line', 'What we make', 'What we value'],
+    };
+    for (const [family, headings] of Object.entries(expected)) {
+      const text = await deckText(family);
+      for (const heading of headings) {
+        expect(text, `${family} never says "${heading}"`).toContain(heading);
+      }
+    }
+  });
+
+  it('names the document on its own cover', async () => {
+    expect(await deckText('pres-plan')).toContain('Business plan');
+    expect(await deckText('pres-proposal')).toContain('Proposal');
+    expect(await deckText('pres-case')).toContain('Case study');
   });
 });

@@ -91,7 +91,8 @@ export function PresentationSystemView({
   );
 
   /**
-   * The same content the Pitch Deck card paints.
+   * The same content the Pitch Deck card paints — named explicitly, since
+   * the deck kind now has one default per family.
    *
    * `hydrateContent` with no stored value is the kind's brand-derived
    * default — the brand's summary, mission, offerings, audience,
@@ -99,7 +100,7 @@ export function PresentationSystemView({
    * therefore cannot show different decks.
    */
   const deck = useMemo(
-    () => hydrateContent('deck', styleSource, undefined) as { kind: 'deck' } & DeckContent,
+    () => hydrateContent('deck', styleSource, undefined, 'pres-pitch') as { kind: 'deck' } & DeckContent,
     [styleSource],
   );
 

@@ -61,17 +61,87 @@ export type KitPhoto = {
  */
 const brokenSources = new Set<string>();
 
+/**
+ * Who is listening for the answer to change.
+ *
+ * The cache is optimistic, so the FIRST answer for a never-measured source
+ * is "it is a photograph" and the true one arrives a moment later. Anything
+ * that renders a count off it has to hear about that: skam's sidebar read
+ * 37 / 37 with Photos ticked while the card beside it said "No photography
+ * yet" (QA Q15), because nothing had told the sidebar the measurement had
+ * come back.
+ */
+const listeners = new Set<() => void>();
+
+/** Bumped whenever the answer for any source changes. */
+let version = 0;
+
+export function subscribePhotoSources(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** The current answer's identity — a `useSyncExternalStore` snapshot. */
+export function photoSourceVersion(): number {
+  return version;
+}
+
+function announce(): void {
+  version += 1;
+  for (const listener of Array.from(listeners)) listener();
+}
+
 export function markPhotoSourceBroken(url: string): void {
-  if (url) brokenSources.add(url);
+  if (!url || brokenSources.has(url)) return;
+  brokenSources.add(url);
+  announce();
 }
 
 export function isPhotoSourceBroken(url: string): boolean {
   return brokenSources.has(url);
 }
 
+/** Sources already measured — broken or proven — so nothing is probed twice. */
+const measuredSources = new Set<string>();
+
+/**
+ * Measure this brand's photo sources, once each.
+ *
+ * "Nothing counts as broken until something tried to load it" is the right
+ * default for a PICTURE — refusing to show one we have not yet failed to
+ * load would be worse — and the wrong default for a COUNT, which is read
+ * before anything has been drawn. So the count asks for the measurement
+ * rather than waiting for a tile to fail: one `Image()` per unmeasured
+ * source, which is the same request the tile would make and is served from
+ * the browser cache when the tile then makes it.
+ *
+ * A source that decodes is left alone; the optimistic default was already
+ * right for it. Only a failure is recorded, and it is recorded in the one
+ * cache every reader shares.
+ */
+export function probePhotoSources(brand: MockBrand | null | undefined): void {
+  if (typeof Image === 'undefined') return;
+  for (const photo of brand?.photos ?? []) {
+    const src = photo?.src;
+    if (!src || measuredSources.has(src) || brokenSources.has(src)) continue;
+    measuredSources.add(src);
+    const probe = new Image();
+    probe.onerror = () => markPhotoSourceBroken(src);
+    // A single-page app answers a missing path with its own document at
+    // status 200 (see `buildPhotoFiles`), and `<img>` cannot decode HTML —
+    // so the error handler is exactly the right detector for D1's case.
+    probe.onload = () => {
+      if (probe.naturalWidth === 0) markPhotoSourceBroken(src);
+    };
+    probe.src = src;
+  }
+}
+
 /** Test seam — the cache is process-wide and must not leak between cases. */
 export function resetPhotoSourceCache(): void {
   brokenSources.clear();
+  measuredSources.clear();
+  announce();
 }
 
 /**
@@ -153,6 +223,23 @@ export function realPhotos(
       slot: String(p.slot ?? ''),
       name: brand ? photoName(brand, p, i) : nameFromSource(p.src, i),
     }));
+}
+
+/**
+ * Why a Photos download cannot run, in words a user can act on.
+ *
+ * One sentence, one place: the card menu, the drilldown menu and the tile
+ * all say the same thing, and the export's own skip list says it too.
+ */
+export const NO_PHOTOS_REASON =
+  'This brand has no photography yet — add photos in Setup and this exports them';
+
+/** The reason, or nothing at all when the brand does have photographs. */
+export function photosUnavailableReason(
+  brand: MockBrand | null | undefined,
+  direction?: PhotoDirection,
+): string | undefined {
+  return hasRealPhotos(brand, direction) ? undefined : NO_PHOTOS_REASON;
 }
 
 /**
