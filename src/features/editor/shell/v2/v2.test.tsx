@@ -210,6 +210,23 @@ describe('EditorAppRail', () => {
     }
   });
 
+  it('a layerless renderer loses Insert and claims no active panel', () => {
+    // Insert adds a layer, so it is filtered out. The other three drive
+    // panels that need a layer adapter too, so beside a layerless
+    // renderer the panel shows that renderer's own properties — and a
+    // highlighted rail card would claim a panel that is not open.
+    const { container } = render(
+      <EditorAppRail active="brand" onChange={vi.fn()} supportsLayerEditing={false} />,
+    );
+    const buttons = container.querySelectorAll<HTMLButtonElement>('button[data-rail-item]');
+    expect(buttons.length).toBe(3);
+    expect(container.querySelector('button[data-rail-item="insert"]')).toBeNull();
+    for (const btn of buttons) {
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+      expect(btn.style.border).not.toMatch(/--accent/);
+    }
+  });
+
   it('active rail entry shows a purple border + accent tint instead of a background swap (R4)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,

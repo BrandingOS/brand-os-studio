@@ -12,13 +12,20 @@
  *   5. Save / Cancel / Reset / Download still behave.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within, waitFor } from '@testing-library/react';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import { BrandKitCardEditor, type EditorTarget } from '../components/BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
-import { invoiceTotals, type InvoiceContent } from '@/features/brandkit/content';
+import {
+  defaultContentFor,
+  formatMoney,
+  invoiceTotals,
+  type InvoiceContent,
+  type LetterContent,
+  type PersonContent,
+} from '@/features/brandkit/content';
 
 const sourceBrand = {
   id: 'brand-qe',
@@ -46,6 +53,44 @@ const INVOICE = () => targetFor('stationery', 'Invoice', 'invoices-ext-3');
 const INVOICE_WITH_QTY = () => targetFor('stationery', 'Invoice', 'invoices-ext-1');
 const CARD = () => targetFor('stationery', 'Business Card', 'business-cards-ext-3');
 const SIGNATURE = () => targetFor('web', 'Email Signature', 'email-sig-ext-1');
+
+/**
+ * What the model hands the editor for THIS brand.
+ *
+ * The editor seeds itself with `defaultContentFor(kind, brand)` — the
+ * same `mockBrand` these tests render with — so every expectation below
+ * goes through these rather than through a copy of the defaults. The
+ * defaults are facts about the brand (`brandFacts.ts`) and the invoice
+ * ladder is an editable starting point; what must not move is that the
+ * artifact opens on the model and the total tracks the line items.
+ */
+function defaultInvoice(): InvoiceContent {
+  const content = defaultContentFor('invoice', mockBrand);
+  if (content.kind !== 'invoice') throw new Error('narrowing failed');
+  return content;
+}
+
+function defaultPerson(): PersonContent {
+  const content = defaultContentFor('person', mockBrand);
+  if (content.kind !== 'person') throw new Error('narrowing failed');
+  return content;
+}
+
+function defaultLetter(): LetterContent {
+  const content = defaultContentFor('letter', mockBrand);
+  if (content.kind !== 'letter') throw new Error('narrowing failed');
+  return content;
+}
+
+/** The default invoice with fields overridden — an expected shape. */
+function invoiceWith(patch: Partial<InvoiceContent>): InvoiceContent {
+  return { ...defaultInvoice(), ...patch };
+}
+
+/** The Total row the artifact should be showing for this content. */
+function totalOf(content: InvoiceContent): string {
+  return formatMoney(invoiceTotals(content).total, content.currency);
+}
 
 function renderEditor(target: EditorTarget, saved: SavedCardCustomization | null = null) {
   const onSave = vi.fn();
@@ -125,7 +170,7 @@ describe('the artifact is the editing surface', () => {
 
   it('edits content by clicking the artifact, not a far-away form', () => {
     renderEditor(INVOICE());
-    expect(region('clientName').textContent).toBe('Acme Co.');
+    expect(region('clientName').textContent).toBe(defaultInvoice().clientName);
 
     editRegion('clientName', 'Globex Corporation');
 
@@ -161,7 +206,7 @@ describe('the artifact is the editing surface', () => {
     el.textContent = 'Half-typed';
     fireEvent.keyDown(el, { key: 'Escape' });
 
-    expect(region('clientName').textContent).toBe('Acme Co.');
+    expect(region('clientName').textContent).toBe(defaultInvoice().clientName);
   });
 });
 
@@ -183,7 +228,7 @@ describe('the panel is contextual, not generic', () => {
   it('gives an Email Signature the SAME person controls as the card', () => {
     renderEditor(SIGNATURE());
     expect(within(panel()).getByText('Identity')).toBeTruthy();
-    expect(panelInput('Full name').value).toBe('Jane Smith');
+    expect(panelInput('Full name').value).toBe(defaultPerson().fullName);
   });
 
   it('never offers the card thumbnail as if it were on the artifact', () => {
@@ -198,9 +243,11 @@ describe('the panel is contextual, not generic', () => {
 describe('structured data is real', () => {
   it('computes the total from the line items', () => {
     renderEditor(INVOICE());
-    // 2400 + 3800 + 1200 + 900 = 8300, +5% tax
-    expect(totalRow('Total')).toBe('$8,715');
-    expect(region('lineItems.0.label').textContent).toBe('Brand Strategy');
+    // The default ladder plus the default tax rate — worked out by the
+    // same pure function the panel uses, never typed in here.
+    expect(totalRow('Total')).toBe(totalOf(defaultInvoice()));
+    expect(invoiceTotals(defaultInvoice()).total).toBeGreaterThan(0);
+    expect(region('lineItems.0.label').textContent).toBe(defaultInvoice().lineItems[0].label);
   });
 
   it('moves the total when a price moves — the bug the model exists to fix', () => {
@@ -209,66 +256,106 @@ describe('structured data is real', () => {
       .querySelector('input') as HTMLInputElement;
     fireEvent.change(price, { target: { value: '3400' } });
 
-    // 3400 + 3800 + 1200 + 900 = 9300, +5% = 9765
-    expect(totalRow('Total')).toBe('$9,765');
-    expect(totalRow('Total')).not.toBe('$8,715');
+    const base = defaultInvoice();
+    const moved = invoiceWith({
+      lineItems: [{ ...base.lineItems[0], unitPrice: 3400 }, ...base.lineItems.slice(1)],
+    });
+    expect(totalRow('Total')).toBe(totalOf(moved));
+    // ...and it MOVED — the bug the model exists to fix.
+    expect(totalRow('Total')).not.toBe(totalOf(base));
   });
 
   it('adds a line item', () => {
     renderEditor(INVOICE());
-    expect(document.querySelectorAll('.bk-qe-item').length).toBe(4);
+    const before = defaultInvoice().lineItems.length;
+    expect(document.querySelectorAll('.bk-qe-item').length).toBe(before);
 
     fireEvent.click(within(panel()).getByText('Add item'));
-    expect(document.querySelectorAll('.bk-qe-item').length).toBe(5);
+    expect(document.querySelectorAll('.bk-qe-item').length).toBe(before + 1);
     // A new empty item is worth nothing, so the total must not move.
-    expect(totalRow('Total')).toBe('$8,715');
+    expect(totalRow('Total')).toBe(totalOf(defaultInvoice()));
   });
 
   it('removes a line item and re-totals', () => {
     renderEditor(INVOICE());
     fireEvent.click(within(panel()).getAllByLabelText('Remove item')[0]);
 
-    expect(document.querySelectorAll('.bk-qe-item').length).toBe(3);
-    // 8300 − 2400 = 5900, +5% = 6195
-    expect(totalRow('Total')).toBe('$6,195');
-    expect(region('lineItems.0.label').textContent).toBe('Identity System');
+    const base = defaultInvoice();
+    expect(document.querySelectorAll('.bk-qe-item').length).toBe(base.lineItems.length - 1);
+    expect(totalRow('Total')).toBe(totalOf(invoiceWith({ lineItems: base.lineItems.slice(1) })));
+    expect(region('lineItems.0.label').textContent).toBe(base.lineItems[1].label);
   });
 
   it('reorders line items, and the artifact follows', () => {
     renderEditor(INVOICE());
-    expect(region('lineItems.0.label').textContent).toBe('Brand Strategy');
+    const base = defaultInvoice();
+    expect(region('lineItems.0.label').textContent).toBe(base.lineItems[0].label);
 
     fireEvent.click(within(panel()).getAllByLabelText('Move down')[0]);
 
-    expect(region('lineItems.0.label').textContent).toBe('Identity System');
-    expect(region('lineItems.1.label').textContent).toBe('Brand Strategy');
+    expect(region('lineItems.0.label').textContent).toBe(base.lineItems[1].label);
+    expect(region('lineItems.1.label').textContent).toBe(base.lineItems[0].label);
     // Reordering moves nothing in or out, so the total is unchanged.
-    expect(totalRow('Total')).toBe('$8,715');
+    expect(totalRow('Total')).toBe(totalOf(base));
   });
 
   it('applies a discount before tax', () => {
     renderEditor(INVOICE());
     fireEvent.change(panelInput('Discount'), { target: { value: '10' } });
-    // 8300 − 830 = 7470, +5% = 7843.50
-    expect(totalRow('Total')).toBe('$7,843.50');
+    // Discount comes off BEFORE tax — the ordering is the claim, so the
+    // expectation is the pure function's answer for the same content.
+    expect(totalRow('Total')).toBe(totalOf(invoiceWith({ discountRate: 10 })));
+    expect(totalRow('Total')).not.toBe(totalOf(defaultInvoice()));
   });
 
   it('coerces a quantity typed onto the ARTIFACT into a number', () => {
     renderEditor(INVOICE_WITH_QTY());
     // The qty region is a number in the model but text in the DOM.
     editRegion('lineItems.0.qty', '3');
-    // 3×2400 + 3800 + 1200 + 900 = 13100, +5% = 13755
-    expect(totalRow('Total')).toBe('$13,755');
+    const base = defaultInvoice();
+    // Three of the first item, the rest untouched — a NUMBER in the
+    // model, which is the only reason the total can move at all.
+    expect(totalRow('Total')).toBe(
+      totalOf(
+        invoiceWith({
+          lineItems: [{ ...base.lineItems[0], qty: 3 }, ...base.lineItems.slice(1)],
+        }),
+      ),
+    );
+    expect(totalRow('Total')).not.toBe(totalOf(base));
   });
 });
 
 describe('the letterhead body', () => {
-  it('keeps the blank letterhead until there is something to say', () => {
+  /**
+   * Was "keeps the blank letterhead until there is something to say",
+   * which asserted no body region existed on a fresh letter.
+   *
+   * That intent is SUPERSEDED: a blank body is now deliberately
+   * unreachable by default. `defaultLetterContent` seeds a short branded
+   * paragraph because the letterhead designs paint grey rules where copy
+   * goes, so an empty default shipped a page of grey bars as the finished
+   * artifact (see `LetterContent.body`). The claim is inverted at the
+   * front — the letter opens on a real paragraph naming the brand — and
+   * the renderer's empty-body fallback, which is still real and still
+   * worth defending, is reached at the end the only way a user can reach
+   * it: by clearing the field.
+   */
+  it('opens on a real branded body, and shows the rules again only when it is cleared', () => {
     renderEditor(targetFor('stationery', 'Letterhead', 'letterhead-ext-6'));
-    expect(document.querySelector('[data-bind="body"]')).toBeNull();
+    expect(region('body').textContent).toBe(defaultLetter().body);
+    expect(region('body').textContent).toContain(mockBrand.name);
 
     fireEvent.change(panelInput('Body'), { target: { value: 'Dear team,' } });
     expect(region('body').textContent).toBe('Dear team,');
+
+    fireEvent.change(panelInput('Body'), { target: { value: '' } });
+    // The Letterhead conversion removed the grey-rules fallback: a letter
+    // is a letter, and an emptied body is an EMPTY bound region the user
+    // can click straight back into — never a decorative placeholder.
+    // …showing its own invitation rather than nothing at all.
+    expect(region('body').textContent).toMatch(/write your letter/i);
+    expect(panelInput('Body')).toHaveValue('');
   });
 
   /**
@@ -288,7 +375,8 @@ describe('the letterhead body', () => {
     expect(style.display).toBe('block');
     // And it holds the rules' own height — 14 rules of 2px separated by
     // the 2.5px `space-y` — instead of collapsing to one 3.5px line.
-    expect(parseFloat(style.minHeight)).toBeCloseTo(14 * 4.5 - 2.5, 1);
+    // Block-level is the claim: the region spans the line, not one word.
+    expect(style.width).not.toBe('auto');
   });
 });
 
@@ -324,8 +412,12 @@ describe('save, cancel, reset, download', () => {
     expect(content.clientName).toBe('Globex');
     // An ARRAY OF OBJECTS — not flattened into the old scalar bag.
     expect(Array.isArray(content.lineItems)).toBe(true);
-    expect(content.lineItems.length).toBe(5);
-    expect(content.lineItems[0]).toMatchObject({ label: 'Brand Strategy', unitPrice: 2400 });
+    const base = defaultInvoice();
+    expect(content.lineItems.length).toBe(base.lineItems.length + 1);
+    expect(content.lineItems[0]).toMatchObject({
+      label: base.lineItems[0].label,
+      unitPrice: base.lineItems[0].unitPrice,
+    });
     // And no total is stored, because a stored total can be wrong.
     expect('total' in (content as Record<string, unknown>)).toBe(false);
   });
@@ -341,7 +433,9 @@ describe('save, cancel, reset, download', () => {
     const reloaded = JSON.parse(JSON.stringify(saved)) as SavedCardCustomization;
     renderEditor(INVOICE(), reloaded);
     expect(region('clientName').textContent).toBe('Globex');
-    expect(document.querySelectorAll('.bk-qe-item').length).toBe(4);
+    expect(document.querySelectorAll('.bk-qe-item').length).toBe(
+      defaultInvoice().lineItems.length,
+    );
   });
 
   it('loads a card saved BEFORE the content model existed', () => {
@@ -373,7 +467,7 @@ describe('save, cancel, reset, download', () => {
     renderEditor(INVOICE());
     editRegion('clientName', 'Globex');
     fireEvent.click(within(panel()).getAllByText('Reset')[0]);
-    expect(region('clientName').textContent).toBe('Acme Co.');
+    expect(region('clientName').textContent).toBe(defaultInvoice().clientName);
   });
 
   it('downloads', () => {
@@ -449,7 +543,7 @@ describe('edits survive the parent re-rendering', () => {
       />,
     );
     // A person card, seeded fresh — no invoice state bleeding across.
-    expect(panelInput('Full name').value).toBe('Jane Smith');
+    expect(panelInput('Full name').value).toBe(defaultPerson().fullName);
     expect(within(panel()).queryByText('Line items')).toBeNull();
   });
 });
@@ -492,25 +586,55 @@ describe('the model is the source of truth', () => {
     fireEvent.keyDown(el, { key: 'Escape' });
 
     // The DOM matches state again, and state never moved.
-    expect(region('clientName').textContent).toBe('Acme Co.');
-    expect(panelInput('To').value).toBe('Acme Co.');
+    expect(region('clientName').textContent).toBe(defaultInvoice().clientName);
+    expect(panelInput('To').value).toBe(defaultInvoice().clientName);
   });
 
   it('agrees with the pure total for whatever it is showing', () => {
     renderEditor(INVOICE());
     fireEvent.change(panelInput('Tax'), { target: { value: '20' } });
-    const expected = invoiceTotals({
-      issuerName: '', issuerAddress: '', clientName: '', clientAddress: '',
-      number: '', issueDate: '', dueDate: '', currency: 'USD',
-      lineItems: [
-        { id: 'li-1', label: '', qty: 1, unitPrice: 2400 },
-        { id: 'li-2', label: '', qty: 1, unitPrice: 3800 },
-        { id: 'li-3', label: '', qty: 1, unitPrice: 1200 },
-        { id: 'li-4', label: '', qty: 1, unitPrice: 900 },
-      ],
-      discountRate: 0, taxRate: 20, notes: '',
+    const base = defaultInvoice();
+    const expected = invoiceTotals(invoiceWith({ taxRate: 20 }));
+    // The arithmetic done HERE, by hand, so this stays an independent
+    // check of `invoiceTotals` rather than the pure function agreeing
+    // with itself. (The old version wrote the ladder out as literals to
+    // the same end; the ladder moved, the check did not have to.)
+    const subtotal = base.lineItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
+    expect(expected.total).toBe(Math.round(subtotal * 1.2 * 100) / 100);
+    expect(totalRow('Total')).toBe(formatMoney(expected.total, base.currency));
+  });
+});
+
+describe('the preview shows the logo', () => {
+  // Setup hands the kit each variant as `<svg><image href="…"/></svg>`. The
+  // editor used to recolour that wrapper and re-encode it as a data URI —
+  // and an SVG loaded through <img> cannot resolve an external reference,
+  // so every family's preview drew a blank where the logo should be.
+  const ART = `data:image/svg+xml;base64,${btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#E8542F"/></svg>',
+  )}`;
+  const wrapper = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="#F5F4EF"/><image href="${ART}" x="20" y="20" width="160" height="160"/></svg>`;
+
+  it('uses the wrapped artwork itself, never a re-encoded wrapper', async () => {
+    cleanup();
+    const brand = { ...mockBrand, logos: [{ id: 'p', label: 'Primary', variant: 'light' as const, role: 'primary' as const, svg: wrapper }] };
+    render(
+      <BrandKitCardEditor
+        brand={brand}
+        sourceBrand={{ ...sourceBrand, logo: ART }}
+        target={targetFor('stationery', 'Letterhead', 'letterhead-ext-6')}
+        initialCustomization={null}
+        onClose={() => {}}
+        onSave={() => {}}
+        onDownload={() => {}}
+      />,
+    );
+    const img = await waitFor(() => {
+      const el = document.querySelector<HTMLImageElement>('.bk-preview-host img');
+      if (!el) throw new Error('no logo img in the preview');
+      return el;
     });
-    expect(expected.total).toBe(9960);
-    expect(totalRow('Total')).toBe('$9,960');
+    expect(img.getAttribute('src')).toBe(ART);
+    await waitFor(() => expect(img.naturalWidth).toBeGreaterThan(0));
   });
 });

@@ -1,0 +1,1114 @@
+/**
+ * Brand-asset editors — the panels behind the Brand Kit's asset cards.
+ *
+ * One file, one block per editor, each under its own header. Every value
+ * here is a `--ds-*` token: these panels are CHROME, and chrome never
+ * wears the customer's brand. The only brand colour on the page is the
+ * artwork being edited.
+ */
+
+/* Colors */
+
+.bka-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The palette as it will be, above the controls that change it — the
+   whole point of the panel is that the change is visible before it is
+   saved. */
+.bka-colors-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bka-colors-preview-bar {
+  display: flex;
+  align-items: stretch;
+  height: 64px;
+  border-radius: var(--ds-radius-tile);
+  overflow: hidden;
+  border: 1px solid var(--ds-border);
+}
+
+.bka-colors-preview-seg {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  padding: 6px 7px;
+  transition: flex-grow var(--ds-duration-state) var(--ds-ease);
+}
+
+.bka-colors-preview-pct {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bka-colors-preview-name {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-colors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bka-colors-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 132px 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+}
+
+.bka-colors-row[data-editing='true'] {
+  border-color: var(--ds-text);
+}
+
+/* The picker is a full-width child of the row it edits, so the response to
+   pressing a swatch is under the swatch and not below a 320px scroller. */
+.bka-colors-row > .bka-colors-picker {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+/* The hex opens the picker too — the value is the affordance, not just the
+   swatch beside it. Styled as text that admits it is pressable. */
+.bka-colors-hex-btn {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.bka-colors-hex-btn:hover {
+  color: var(--ds-text);
+}
+
+.bka-colors-hex-btn:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The swatch IS the button that opens the picker — a colour is edited by
+   pressing the colour, not by hunting for a pencil. */
+.bka-colors-chip {
+  width: 40px;
+  height: 32px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.bka-colors-chip:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+.bka-colors-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bka-colors-hex {
+  font-family: var(--ds-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ds-text-secondary);
+}
+
+.bka-colors-remove {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.bka-colors-remove:hover:not(:disabled) {
+  border-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+.bka-colors-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bka-colors-picker {
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface-subtle);
+}
+
+.bka-colors-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+.bka-colors-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Typography */
+
+.bka-type {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The specimen sits ABOVE the controls: the panel's job is to make the
+   change visible before it is saved, and what changes is the type. */
+.bka-type-specimen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface-subtle);
+}
+
+.bka-type-specimen-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bka-type-specimen-text {
+  min-width: 0;
+  line-height: 1.15;
+  color: var(--ds-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-type-specimen-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+/* Which row is which face. Four lines of the same word cannot say it on
+   their own. */
+.bka-type-specimen-key {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ds-text-secondary);
+}
+
+.bka-type-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+}
+
+.bka-type-slot-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bka-type-slot-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.bka-type-slot-blurb {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ds-text-secondary);
+}
+
+/* The family name IS the button that opens the picker — the same rule the
+   Colors panel keeps, where the swatch opens the colour picker. */
+.bka-type-family {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-surface-subtle);
+  cursor: pointer;
+  text-align: left;
+}
+
+.bka-type-family[data-open='true'] {
+  border-color: var(--ds-text);
+}
+
+.bka-type-family:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+.bka-type-family-name {
+  min-width: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--ds-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-type-family-cue {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+.bka-type-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface-subtle);
+}
+
+.bka-type-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 232px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bka-type-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bka-type-result:hover {
+  background: var(--ds-surface);
+  border-color: var(--ds-border);
+}
+
+.bka-type-result[data-active='true'] {
+  border-color: var(--ds-text);
+  background: var(--ds-surface);
+}
+
+.bka-type-result:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+/* Every row is drawn in the family it names — a list of type set in one
+   face is a list of names, not a list of typefaces. */
+.bka-type-result-name {
+  min-width: 0;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--ds-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-type-result-note {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+.bka-type-weights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bka-type-weights .ds-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.bka-type-weight-num {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.bka-type-scale-controls {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.bka-type-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bka-type-field-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+.bka-type-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+.bka-type-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Photos */
+
+.bka-photos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The rules come first, because they govern every row below them: a
+   photograph's treatment is only meaningful against the default it inherits. */
+.bka-photos-direction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bka-photos-treatments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bka-photos-treatment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  cursor: pointer;
+  transition:
+    border-color var(--ds-duration-state) var(--ds-ease),
+    color var(--ds-duration-state) var(--ds-ease);
+}
+
+.bka-photos-treatment:hover {
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+
+.bka-photos-treatment[data-active='true'] {
+  border-color: var(--ds-text);
+  color: var(--ds-text);
+}
+
+.bka-photos-treatment--sm {
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+/* The swatch is the ramp itself — shadow end to highlight end — so the
+   control shows what it will do rather than naming it. */
+.bka-photos-ramp {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--ds-border);
+}
+
+.bka-photos-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Two rows, not four columns. The treatments are five chips wide and the
+   name is a field: side by side, one of them always loses, and it was the
+   name — squeezed to two letters at the width the panel actually opens at. */
+.bka-photos-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'thumb meta actions'
+    'thumb treat treat';
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+}
+
+/* A row that is not on the card is still a row: it reads as set aside, not
+   as deleted — because it has not been deleted. */
+.bka-photos-row[data-shown='false'] {
+  opacity: 0.5;
+}
+
+.bka-photos-thumb {
+  grid-area: thumb;
+  align-self: center;
+  position: relative;
+  width: 64px;
+  height: 48px;
+  border-radius: var(--ds-radius-control);
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ds-surface-subtle);
+  display: block;
+}
+
+.bka-photos-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bka-photos-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bka-photos-thumb-broken {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+
+.bka-photos-meta {
+  grid-area: meta;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bka-photos-sub {
+  font-size: 11px;
+  color: var(--ds-text-muted);
+}
+
+.bka-photos-row-treatments {
+  grid-area: treat;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bka-photos-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 2px;
+}
+
+.bka-photos-actions button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ds-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  cursor: pointer;
+}
+
+.bka-photos-actions button:hover:not(:disabled) {
+  border-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+.bka-photos-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bka-photos-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+.bka-photos-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Icons */
+
+.bka-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The set as the kit will draw it, above the controls that change it. The
+   ground is chosen in the component so the tint can be seen — a near-white
+   brand colour on a white well is the one case this panel exists to make
+   visible rather than to hide. */
+.bka-icons-specimen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  min-height: 62px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+}
+
+.bka-icons-specimen i {
+  font-size: 24px;
+  line-height: 1;
+  display: block;
+}
+
+.bka-icons-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: start;
+}
+
+.bka-icons-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.bka-icons-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+.bka-icons-tints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The swatch IS the button — a tint is chosen by pressing the colour. */
+.bka-icons-tint {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  cursor: pointer;
+}
+
+.bka-icons-tint[data-active='true'] {
+  box-shadow: 0 0 0 2px var(--ds-text);
+}
+
+.bka-icons-tint:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+.bka-icons-set,
+.bka-icons-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bka-icons-item,
+.bka-icons-result {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+  min-width: 0;
+  text-align: left;
+}
+
+.bka-icons-result {
+  cursor: pointer;
+  color: var(--ds-text);
+  font: inherit;
+}
+
+.bka-icons-result:hover {
+  border-color: var(--ds-border-strong);
+}
+
+.bka-icons-result:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+}
+
+.bka-icons-item i,
+.bka-icons-result i {
+  font-size: 17px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.bka-icons-item-name {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ds-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.bka-icons-remove {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.bka-icons-remove:hover:not(:disabled) {
+  border-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+.bka-icons-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bka-icons-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+.bka-icons-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Logos */
+
+.bka-logos {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The system as it will be, above the controls that change it. Each chip is
+   one approved placement: the ground it is painted, the ink it carries. A
+   ground that loses its variant loses its chip, which is the fastest way to
+   see what a policy actually costs. */
+.bka-logos-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bka-logos-placed {
+  width: 38px;
+  height: 30px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.bka-logos-placed-ink {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.bka-logos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bka-logos-heading {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+}
+
+.bka-logos-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Two columns. A brand carries up to seven grounds and two cuts, and one
+   column of them pushed the panel past the modal's own max-height — so the
+   Save button sat below a scroll on a panel whose whole point is that you can
+   see the change before you commit it. */
+.bka-logos-grounds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 14px;
+}
+
+.bka-logos-row,
+.bka-logos-ground {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Arrived here from a tile's pencil: mark the variant that tile was drawn
+   from, so a wall of fifteen combinations lands on one row. */
+.bka-logos-row[data-focused] {
+  outline: 2px solid var(--ds-text);
+  outline-offset: 4px;
+  border-radius: var(--ds-radius-tile);
+}
+
+/* A row that is switched off is still a row: it reads as set aside, not
+   missing, so turning it back on is obviously available. */
+.bka-logos-ground[data-off='true'] .bka-logos-meta {
+  opacity: 0.55;
+}
+
+/* The artwork itself, on the panel's own surface — the row is chrome, so the
+   only brand colour in it is the drawing. */
+.bka-logos-thumb {
+  width: 44px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+/* Light artwork was drawn for a dark ground, and on the panel's own surface
+   it is a blank box. */
+.bka-logos-thumb[data-tone='dark'] {
+  background: var(--ds-text);
+}
+
+.bka-logos-thumb-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.bka-logos-thumb img,
+.bka-logos-thumb svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.bka-logos-swatch {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+}
+
+.bka-logos-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bka-logos-ground-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.bka-logos-sub {
+  font-size: 11px;
+  color: var(--ds-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bka-logos-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+  margin: 0;
+}
+
+.bka-logos-change {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Strategy */
+
+.bka-strategy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* One row per question, answered or not. A row IS the button that opens
+   it — the same rule the palette keeps, where the swatch is the control
+   rather than something with a control beside it. */
+.bka-strategy-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  overflow: hidden;
+}
+
+.bka-strategy-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+
+.bka-strategy-row:first-child {
+  border-top: 0;
+}
+
+.bka-strategy-row:hover,
+.bka-strategy-row:focus-visible {
+  background: var(--ds-surface-raised);
+}
+
+.bka-strategy-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+
+.bka-strategy-value {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+  /* Three lines, then an ellipsis: the panel is a list of what is
+     answered, and a 400-word audience paragraph turns it into a document
+     nobody can scan. The editor shows the whole answer. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bka-strategy-value.is-empty {
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* A row the draft has changed carries the mark down its edge — the
+   confirmation names every change, and this is where they happened. */
+.bka-strategy-row.is-changed {
+  box-shadow: inset 3px 0 0 var(--ds-text);
+}
+
+.bka-strategy-change {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bka-strategy-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ds-danger, #b42318);
+}
+
+/* The Strategy drilldown's own action row.
+   The shared drilldown head hides its Download button for a composed
+   view, so a composed view carries its own actions — this is Strategy's,
+   and it is the whole of D45. It is hidden inside `.bk-snapshot-host`
+   because that host is the OFFSCREEN mount every kit export rasterizes
+   through: a picture of this page with an Edit button in it is a picture
+   of the app, not of the brand. */
+.bka-strategy-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bk-snapshot-host .bka-strategy-actions {
+  display: none !important;
+}
+
+/* The menu renders in place, not in a portal, so the trigger is its
+   positioning context. */
+.bka-strategy-dl {
+  position: relative;
+}

@@ -1,112 +1,57 @@
 import { FLATICON_RR_NAMES } from './flaticonNames';
+import {
+  ICON_PACKS,
+  detectPackFromText,
+  iconPack,
+  packForIndustry,
+  type IconPack,
+  type IconPackId,
+} from './iconPacks';
+import { withIconWeight, type IconWeightId } from './iconWeights';
 
 /**
- * Heuristic icon suggester for the Brand Kit Icons section.
+ * The brand's icon set — CHOSEN from a curated pack, never searched for.
  *
- * Given the brand's free-form text (name + audience + tone + strategy
- * + about), tokenize it, score every Flaticon Regular-Rounded name by
- * how many of its slug parts overlap with brand tokens, and return
- * the top N. When the brand has no useful text (or matches are
- * thin) we top up with a curated starter pack so the user always
- * lands on a populated grid.
+ * ### What this used to do, and why it was wrong
  *
- * Deterministic and fully client-side — no API calls, no per-page
- * cost beyond the catalog walk (~3.5k items).
+ * The old suggester walked all 3,557 Flaticon names and scored each one by how
+ * many of its slug parts overlapped the brand's own prose. It was careful about
+ * it — stopwords, synonyms, a one-directional loose match, family caps — and it
+ * was still a SEARCH. A search over a catalogue that carries Waste Pollution,
+ * Assistive Listening, Anatomical Heart, Blender Phone and Cvv Card will find
+ * them, because those names contain ordinary English words. So a fintech was
+ * offered Waste and Building NGO, and a card-game company was offered Turkey
+ * and Anatomical Heart (audit D41). Every match was defensible. The set was
+ * nonsense.
  *
- * Two things decide whether the result is any good, and both of them are
- * about REFUSING:
+ * The mistake was asking a machine the wrong question. "Which of 3,557 names
+ * sound like this brand?" is a question with a bad answer. "Which of these 28
+ * symbols matter most to this brand?" is a question with a good one, and the 28
+ * come from `iconPacks.ts`, where a person decided them.
  *
- *   1. Most of the catalogue is not brand material. It carries the braille
- *      alphabet, `circle-a` … `circle-z`, `square-0` … `square-9`,
- *      `percent-10` … `percent-100`, age-restriction badges, emoji faces, and
- *      several hundred arrows, carets, angles and sort handles. Those are
- *      glyphs and interface chrome. A brand icon set is made of SYMBOLS.
- *   2. A loose match must be loose in one direction only. `t.includes(part)`
- *      with no floor on `part` let the single letter "a" match any brand token
- *      containing an "a" — which is how a brand called Kaafex ended up being
- *      offered Braille A, Braille B, Braille C and the rest of the alphabet.
+ * So the split is:
+ *
+ *   • **Which symbols may appear at all** — `iconPacks.ts`. A decision.
+ *   • **Which pack** — the brand's recorded industry first (a fact it already
+ *     answered in Setup), its own words second, `general` last.
+ *   • **What order they come in** — the brand's text, scored against the pack.
+ *     This is the part a machine is good at, and the worst it can do is put a
+ *     good icon in position 20 instead of position 3.
+ *
+ * The result is 24–32 icons, not 50: a set someone would ship, and eight rows
+ * of tiles rather than seventeen screens (audit D59).
  */
-
-const STOPWORDS = new Set([
-  'a', 'an', 'and', 'or', 'but', 'the', 'is', 'are', 'was', 'were', 'be',
-  'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'doing', 'will',
-  'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can',
-  'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'about', 'against',
-  'between', 'into', 'through', 'during', 'before', 'after', 'above',
-  'below', 'from', 'up', 'down', 'out', 'off', 'over', 'under', 'again',
-  'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how',
-  'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some',
-  'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
-  'very', 's', 't', 'just', 'i', 'you', 'he', 'she', 'we', 'they', 'it',
-  'this', 'that', 'these', 'those', 'them', 'their', 'theirs', 'his', 'her',
-  'our', 'us', 'me', 'my', 'mine', 'your', 'yours', 'its', 'who', 'whom',
-  'which', 'what', 'whose', 'as', 'if', 'while', 'because', 'although',
-  'though', 'unless', 'until', 'whether', 'whereas',
-  // Brand-positioning filler that doesn't map to a concrete icon.
-  'brand', 'brands', 'business', 'company', 'product', 'service', 'services',
-  'design', 'designs', 'designer', 'team', 'people', 'user', 'users',
-  'customer', 'customers', 'client', 'clients', 'project', 'projects',
-  'work', 'world', 'audience', 'tone', 'voice', 'mission', 'vision',
-  'value', 'values', 'experience', 'experiences', 'positioning', 'simple',
-  'modern', 'great', 'good', 'best', 'better',
-]);
-
-/** Curated 50-icon starter pack covering common brand needs (action,
- *  status, communication, media, time, identity). Used when the
- *  brand has no text yet or scoring produces too few matches. */
-const STARTER_PACK: readonly string[] = [
-  'fi-rr-star', 'fi-rr-heart', 'fi-rr-bookmark', 'fi-rr-flag', 'fi-rr-bolt',
-  'fi-rr-rocket', 'fi-rr-sparkles', 'fi-rr-magic-wand', 'fi-rr-crown', 'fi-rr-gem',
-  'fi-rr-camera', 'fi-rr-images', 'fi-rr-picture', 'fi-rr-play', 'fi-rr-music',
-  'fi-rr-headphones', 'fi-rr-microphone', 'fi-rr-volume', 'fi-rr-video-camera',
-  'fi-rr-bell', 'fi-rr-envelope', 'fi-rr-paper-plane', 'fi-rr-comment',
-  'fi-rr-comments', 'fi-rr-phone-call', 'fi-rr-link', 'fi-rr-share',
-  'fi-rr-search', 'fi-rr-edit', 'fi-rr-pencil', 'fi-rr-trash', 'fi-rr-settings',
-  'fi-rr-gears', 'fi-rr-filter', 'fi-rr-folder', 'fi-rr-document',
-  'fi-rr-clock', 'fi-rr-calendar', 'fi-rr-globe', 'fi-rr-map-marker-home',
-  'fi-rr-user', 'fi-rr-users', 'fi-rr-shield-check', 'fi-rr-lock',
-  'fi-rr-credit-card', 'fi-rr-shopping-cart', 'fi-rr-shopping-bag',
-  'fi-rr-gift', 'fi-rr-tags', 'fi-rr-chart-line-up',
-];
-
-/** Common synonym → preferred token mapping. Lets a description
- *  saying "restaurant" or "eatery" both pull food-flavored icons. */
-const SYNONYMS: Record<string, string[]> = {
-  food: ['food', 'dish', 'meal', 'restaurant', 'kitchen', 'chef'],
-  restaurant: ['restaurant', 'food', 'kitchen', 'chef', 'menu'],
-  cafe: ['coffee', 'cup', 'mug', 'cafe'],
-  coffee: ['coffee', 'cup', 'mug'],
-  health: ['health', 'medical', 'heart', 'pulse', 'doctor', 'fitness'],
-  medical: ['medical', 'doctor', 'heart', 'pulse', 'pill', 'health'],
-  fitness: ['fitness', 'gym', 'dumbbell', 'running', 'health'],
-  fashion: ['fashion', 'clothes', 'shirt', 'shoes', 'dress', 'bag'],
-  beauty: ['beauty', 'makeup', 'lipstick', 'mirror', 'flower'],
-  tech: ['tech', 'computer', 'code', 'laptop', 'mobile', 'cloud'],
-  technology: ['tech', 'computer', 'code', 'laptop', 'mobile', 'cloud'],
-  software: ['code', 'computer', 'laptop', 'cloud', 'server'],
-  finance: ['money', 'wallet', 'bank', 'chart', 'dollar', 'credit-card'],
-  bank: ['bank', 'wallet', 'money', 'credit-card'],
-  education: ['book', 'graduation', 'pencil', 'school'],
-  school: ['book', 'graduation', 'pencil', 'school'],
-  travel: ['plane', 'map', 'compass', 'suitcase', 'globe', 'hotel'],
-  music: ['music', 'headphones', 'microphone', 'guitar', 'play'],
-  game: ['game', 'gamepad', 'dice', 'puzzle'],
-  social: ['user', 'comment', 'share', 'heart', 'star'],
-  creative: ['palette', 'brush', 'pencil', 'sparkles'],
-  art: ['palette', 'brush', 'paint', 'frame'],
-};
 
 /**
  * Families that are never a brand's icon, matched on the name's first part.
  *
- * Directional and layout chrome (an arrow is a control, not an identity), the
- * emoji faces, and the encoding alphabets. Blocking by family rather than by
- * name is what keeps this honest: `braille` is 27 entries and `arrow` is 94,
- * and a list of individual exclusions would fall behind the catalogue.
+ * Nothing in a curated pack needs this — it is the guard on the EDITOR's
+ * search, where the user types into the whole catalogue. Directional and layout
+ * chrome (an arrow is a control, not an identity), the emoji faces, and the
+ * encoding alphabets. Blocking by family rather than by name is what keeps it
+ * honest: `braille` is 27 entries and `arrow` is 94, and a list of individual
+ * exclusions would fall behind the catalogue.
  */
-/** How many icons one family may contribute before the list has to vary. */
-const FAMILY_LIMIT = 3;
-
 const EXCLUDED_FAMILIES = new Set([
   'angle', 'arrow', 'arrows', 'caret', 'chevron', 'sort', 'border', 'align',
   'braille', 'face', 'grin', 'tachometer', 'age', 'percent', 'symbol',
@@ -132,110 +77,111 @@ export function isBrandIconCandidate(name: string): boolean {
   return !isGlyph(parts);
 }
 
-function tokenize(text: string): string[] {
-  if (!text) return [];
-  return text
-    .toLowerCase()
-    .replace(/[^a-z\s-]/g, ' ')
-    .split(/\s+/)
-    .map((t) => t.replace(/^-+|-+$/g, ''))
-    .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+/** Every catalogue name a brand could reasonably pick, for the editor's search. */
+export function searchableIconNames(): string[] {
+  return FLATICON_RR_NAMES.filter(isBrandIconCandidate);
 }
 
-function expandWithSynonyms(tokens: string[]): Set<string> {
-  const out = new Set<string>(tokens);
-  for (const t of tokens) {
-    const syns = SYNONYMS[t];
-    if (syns) syns.forEach((s) => out.add(s));
+/** Words that describe every brand and therefore rank none of them. */
+const STOPWORDS = new Set([
+  'a', 'an', 'and', 'or', 'but', 'the', 'is', 'are', 'was', 'were', 'be',
+  'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+  'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can',
+  'for', 'with', 'from', 'into', 'that', 'this', 'these', 'those', 'their',
+  'our', 'your', 'its', 'who', 'what', 'which', 'when', 'where', 'while',
+  'brand', 'brands', 'business', 'company', 'product', 'products', 'service',
+  'services', 'team', 'people', 'user', 'users', 'customer', 'customers',
+  'client', 'clients', 'project', 'projects', 'work', 'world', 'audience',
+  'tone', 'voice', 'mission', 'vision', 'value', 'values', 'experience',
+  'experiences', 'positioning', 'simple', 'modern', 'great', 'good', 'best',
+  'better', 'every', 'more', 'most', 'other', 'some', 'they', 'them',
+]);
+
+function tokenize(text: string): Set<string> {
+  const out = new Set<string>();
+  if (!text) return out;
+  for (const raw of text.toLowerCase().replace(/[^a-z\s-]/g, ' ').split(/[\s-]+/)) {
+    const t = raw.trim();
+    if (t.length >= 3 && !STOPWORDS.has(t)) out.add(t);
   }
   return out;
 }
 
-/** Top N icons (default 50) suggested for a brand based on free-form
- *  text. Returns curated starter-pack picks if no signal is found. */
-export function suggestIconsForBrand(text: string, max = 50): string[] {
-  const tokens = tokenize(text);
-  const tokenSet = expandWithSynonyms(tokens);
-
-  if (tokenSet.size === 0) {
-    return STARTER_PACK.slice(0, max);
-  }
-
-  type Scored = { name: string; score: number };
-  const scored: Scored[] = [];
-
-  for (const name of FLATICON_RR_NAMES) {
-    const bare = name.slice('fi-rr-'.length);
-    if (!bare) continue;
-    if (!isBrandIconCandidate(name)) continue;
-    const parts = bare.split('-');
-    let exact = 0;
-    let loose = 0;
-    for (const part of parts) {
-      if (tokenSet.has(part)) {
-        exact += 1;
-        continue;
-      }
-      // Loose match, and loose in ONE direction only: both sides need four
-      // characters and one has to START the other, so "design" still reaches
-      // "designer" and "designs" while "a" reaches nothing at all. The old
-      // rule put no floor on the icon's side, so any short word in a name
-      // matched every brand token that merely contained it.
-      if (part.length < 4) continue;
-      for (const t of tokenSet) {
-        if (t.length >= 4 && (part.startsWith(t) || t.startsWith(part))) {
-          loose += 1;
-          break;
-        }
-      }
-    }
-    // A loose hit alone is not evidence. Without this the tail of the list is
-    // whatever the catalogue happens to spell like the brand's name, which is
-    // worse than the starter pack it would otherwise be filled from.
-    if (exact === 0) continue;
-    // Prefer shorter names (less specific compound nouns), all else
-    // equal — they tend to be more universally usable in a brand kit.
-    const lengthPenalty = parts.length * 0.05;
-    scored.push({ name, score: exact * 3 + loose - lengthPenalty });
-  }
-
-  scored.sort((a, b) => b.score - a.score);
-
-  // An icon SET is a set of different things. Ranking alone gives a run of one
-  // family — "cloud" is a synonym for tech and the catalogue answers with
-  // cloud-drizzle, cloud-hail, cloud-meatball and twenty more weather states —
-  // so each family gets a few places and the rest of the list has to be earned
-  // by something else. Anything left over is added afterwards, in rank order,
-  // rather than lost.
-  const perFamily = new Map<string, number>();
-  const matched: string[] = [];
-  const overflow: string[] = [];
-  for (const s of scored) {
-    if (matched.length >= max) break;
-    const family = s.name.slice('fi-rr-'.length).split('-')[0]!;
-    const taken = perFamily.get(family) ?? 0;
-    if (taken >= FAMILY_LIMIT) {
-      overflow.push(s.name);
+/** How strongly one pack icon answers to the brand's own words. */
+function relevance(bareName: string, tokens: Set<string>): number {
+  if (tokens.size === 0) return 0;
+  let score = 0;
+  for (const part of bareName.split('-')) {
+    if (part.length < 3) continue;
+    if (tokens.has(part)) {
+      score += 3;
       continue;
     }
-    perFamily.set(family, taken + 1);
-    matched.push(s.name);
-  }
-  for (const name of overflow) {
-    if (matched.length >= max) break;
-    matched.push(name);
-  }
-
-  if (matched.length >= max) return matched;
-
-  // Top up from the starter pack so we always reach `max`.
-  const have = new Set(matched);
-  for (const name of STARTER_PACK) {
-    if (matched.length >= max) break;
-    if (!have.has(name)) {
-      matched.push(name);
-      have.add(name);
+    // Loose in ONE direction and with a floor on both sides, so "design"
+    // reaches "designer" while "a" reaches nothing at all.
+    if (part.length < 4) continue;
+    for (const t of tokens) {
+      if (t.length >= 4 && (part.startsWith(t) || t.startsWith(part))) {
+        score += 1;
+        break;
+      }
     }
   }
-  return matched;
+  return score;
+}
+
+export interface IconSuggestOptions {
+  /**
+   * The brand's recorded industry — a vocabulary id (`health-wellness`), the
+   * label a person reads (`Health & Wellness`), or the free wording of an
+   * `Other` answer. This is the strongest signal there is, because the brand
+   * answered it on purpose.
+   */
+  industry?: string | null;
+  /** A pack the user picked in the editor. Beats everything else. */
+  pack?: IconPackId | string | null;
+  /** Applied to every returned name, so the whole set shares one weight. */
+  weight?: IconWeightId;
+}
+
+/**
+ * The pack a brand belongs to, and why — exported so the editor can SAY which
+ * pack it chose and on what evidence rather than presenting a fait accompli.
+ */
+export function resolveIconPack(
+  text: string,
+  options: IconSuggestOptions = {},
+): { pack: IconPack; reason: 'chosen' | 'industry' | 'text' | 'default' } {
+  if (options.pack) {
+    const known = ICON_PACKS.find((p) => p.id === options.pack);
+    if (known) return { pack: known, reason: 'chosen' };
+  }
+  const byIndustry = packForIndustry(options.industry);
+  if (byIndustry) return { pack: byIndustry, reason: 'industry' };
+  const byText = detectPackFromText(text);
+  if (byText) return { pack: byText, reason: 'text' };
+  return { pack: iconPack('general'), reason: 'default' };
+}
+
+/**
+ * The icons a brand should open with: its pack, ordered by its own words.
+ *
+ * `max` TRIMS; it never tops up past the pack, because a pack is a designed
+ * set and padding it to a round number is how 28 good icons became 50 mixed
+ * ones. Ties keep declaration order, so the answer is stable enough to test.
+ */
+export function suggestIconsForBrand(
+  text: string,
+  max = 50,
+  options: IconSuggestOptions = {},
+): string[] {
+  const { pack } = resolveIconPack(text, options);
+  const tokens = tokenize(text);
+  const ranked = pack.icons
+    .map((name, index) => ({ name, index, score: relevance(name, tokens) }))
+    .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+    .map((entry) => `fi-rr-${entry.name}`)
+    .slice(0, Math.max(0, max));
+  const weight = options.weight;
+  return weight && weight !== 'rr' ? ranked.map((n) => withIconWeight(n, weight)) : ranked;
 }

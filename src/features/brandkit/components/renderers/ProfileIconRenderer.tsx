@@ -1,5 +1,25 @@
 import type { Brand } from '@/shared/types/brand';
-import { getProfileIconConfig } from '../../engine/brandRules';
+import {
+  PROFILE_KEPT_IDS,
+  SocialProfileExtendedRenderer,
+} from '@/features/brand-kit/renderers/SocialProfileExtended';
+
+/**
+ * The legacy profile-icon renderer. It no longer draws anything of its own.
+ *
+ * It used to answer twelve template ids with six letter tiles on
+ * `#0A0A0F` and white, or — when the brand had a logo — with
+ * `getProfileIconConfig`, whose backgrounds are chosen by rule and whose
+ * `logoFilter` recolours the customer's artwork. Neither path could be
+ * edited, and neither measured whether the mark it placed could be SEEN
+ * on the ground it placed it on.
+ *
+ * The twelve legacy ids are archived in `renderers/curation/social.ts`.
+ * This module stays because `TemplateCard` still dispatches on the legacy
+ * template type, and it forwards to the curated 24-design family — where
+ * the glyph is the customer's own choice, the letters are a bound field,
+ * and the ground is picked so `logoOn` can place a variant that reads.
+ */
 
 interface ProfileIconRendererProps {
   brand: Brand;
@@ -7,51 +27,11 @@ interface ProfileIconRendererProps {
 }
 
 export function ProfileIconRenderer({ brand, templateIndex }: ProfileIconRendererProps) {
-  const p = brand.primaryColor;
-  const hasLogo = !!brand.logo;
-
-  if (hasLogo) {
-    // Use real logo-based profile icons via the brand rules engine
-    const configs = getProfileIconConfig(brand);
-    const config = configs[templateIndex % configs.length];
-    const isCircle = config.shape === 'circle';
-
-    return (
-      <div
-        className={`w-full h-full flex items-center justify-center ${isCircle ? 'rounded-full' : 'rounded-xl'}`}
-        style={{ backgroundColor: config.bgColor }}
-      >
-        <img
-          src={config.logoSrc}
-          alt={brand.name}
-          className="w-[55%] h-[55%] object-contain"
-          style={{ filter: config.logoFilter || 'none' }}
-        />
-      </div>
-    );
-  }
-
-  // Fallback: letter-based icons only when NO logo exists
-  const fallbacks = [
-    <div className="w-full h-full rounded-full flex items-center justify-center" style={{ backgroundColor: p }}>
-      <span className="text-[14px] font-bold text-white">{brand.name.charAt(0)}</span>
-    </div>,
-    <div className="w-full h-full rounded-full bg-white border border-gray-100 flex items-center justify-center">
-      <span className="text-[14px] font-bold" style={{ color: p }}>{brand.name.charAt(0)}</span>
-    </div>,
-    <div className="w-full h-full rounded-xl flex items-center justify-center" style={{ backgroundColor: p }}>
-      <span className="text-[14px] font-bold text-white">{brand.name.charAt(0)}</span>
-    </div>,
-    <div className="w-full h-full rounded-xl bg-white border border-gray-100 flex items-center justify-center">
-      <span className="text-[14px] font-bold" style={{ color: p }}>{brand.name.charAt(0)}</span>
-    </div>,
-    <div className="w-full h-full rounded-full bg-[#0A0A0F] flex items-center justify-center">
-      <span className="text-[14px] font-bold text-white">{brand.name.charAt(0)}</span>
-    </div>,
-    <div className="w-full h-full rounded-xl bg-[#0A0A0F] flex items-center justify-center">
-      <span className="text-[14px] font-bold text-white">{brand.name.charAt(0)}</span>
-    </div>,
-  ];
-
-  return fallbacks[templateIndex % fallbacks.length];
+  const rank = Math.max(0, templateIndex);
+  return (
+    <SocialProfileExtendedRenderer
+      brand={brand}
+      templateIndex={rank % PROFILE_KEPT_IDS.length}
+    />
+  );
 }

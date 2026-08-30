@@ -145,6 +145,12 @@ function typographyChangesFrom(patch: Partial<Brand>) {
       ...(typo?.secondary?.files ? { files: typo.secondary.files } : {}),
     };
   }
+  // The SCALE travels too. `typography.scale` is a declared Core field and
+  // `TypographySystem` carries it, but this reader only ever unpacked the two
+  // families — so a saved base size reached the router and was filtered out of
+  // its own patch. The confirmation still appeared and the value was gone on
+  // the next read (QA Q5).
+  if (typo?.scale) changes.scale = typo.scale;
   return Object.keys(changes).length ? changes : null;
 }
 

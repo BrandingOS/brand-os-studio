@@ -18,6 +18,7 @@ import { letterheadConfig } from './letterhead.config';
 import { brochureConfig } from './brochure.config';
 import { posterConfig } from './poster.config';
 import { emailSignatureConfig } from './email-signature.config';
+import { BRAND_KIT_CONTENT_TYPES } from './brandKit.configs';
 
 export const CONTENT_TYPES: Record<string, ContentTypeConfig> = {
   [socialPostConfig.id]: socialPostConfig,
@@ -31,6 +32,10 @@ export const CONTENT_TYPES: Record<string, ContentTypeConfig> = {
   [brochureConfig.id]: brochureConfig,
   [posterConfig.id]: posterConfig,
   [emailSignatureConfig.id]: emailSignatureConfig,
+  // The Brand Kit deliverables. They all name the `template-instance`
+  // renderer and are deliberately distinct ids from the Fabric types
+  // above — see `brandKit.configs.ts` for why.
+  ...BRAND_KIT_CONTENT_TYPES,
 };
 
 /**
@@ -61,6 +66,7 @@ for (const key in CONTENT_TYPES) {
   CONTENT_TYPES[key] = ContentTypeConfigSchema.parse(CONTENT_TYPES[key]);
 }
 
+export { BRAND_KIT_CONTENT_TYPE_IDS } from './brandKit.configs';
 export type { ContentTypeConfig } from './types';
 export {
   ContentTypeConfigSchema,

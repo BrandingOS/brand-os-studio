@@ -14,6 +14,7 @@ import type {
 import { hexToName } from './colorNames';
 import { NEUTRAL_RAMP } from './neutralRamp';
 import { suggestIconsForBrand } from '@/features/brand-kit/data/suggestIcons';
+import { detectIconWeight, type IconWeightId } from '@/features/brand-kit/data/iconWeights';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import { logoRefByRole } from '@/shared/brand/logoRoles';
 import type { LogoRole } from '@/shared/types/brandAssets';
@@ -47,9 +48,24 @@ export function brandToMockBrand(brand: Brand): MockBrand {
   return {
     name: brand.name,
     logos: mapLogos(brand),
+    // The brand's own policy about its logo system. Spread rather than set,
+    // so a brand that has never expressed one carries no field at all and
+    // every reader falls back to the derived answer.
+    ...(brand.guidelines?.logoUsage?.grounds
+      ? { logoGrounds: [...brand.guidelines.logoUsage.grounds] }
+      : {}),
+    ...(brand.guidelines?.logoUsage?.treatments
+      ? { logoTreatments: [...brand.guidelines.logoUsage.treatments] }
+      : {}),
     colors: mapColors(brand),
     fonts: mapFonts(brand),
     icons: mapIcons(brand),
+    ...(brand.guidelines?.iconography?.pack
+      ? { iconPack: brand.guidelines.iconography.pack }
+      : {}),
+    ...(brand.guidelines?.iconography?.tint
+      ? { iconTint: brand.guidelines.iconography.tint }
+      : {}),
     photos: mapPhotos(brand),
     websites: mapWebsites(brand, canonical),
     voice: mapVoice(brand),
@@ -124,8 +140,16 @@ function mapLogos(brand: Brand): BrandLogo[] {
   const bySlot = (role: LogoRole) => resolveBrandLogo(brand, role)?.url;
   // A name the user gave the variant. `LogoRef.description` is the one field
   // the model has for it; absent, the role's own name is the label.
-  const nameOf = (role: LogoRole, fallback: string) =>
-    logoRefByRole(brand, role)?.description?.trim() || fallback;
+  //
+  // But a DESCRIPTION is not always a NAME. Onboarding writes a paragraph
+  // there ("The RAQM wordmark features bold geometric letterforms…"), and
+  // used verbatim it became the tile caption, the export filename and a
+  // 600px-tall column in the logo picker. A name is short and has no
+  // sentence punctuation; anything else keeps the role's own name.
+  const nameOf = (role: LogoRole, fallback: string) => {
+    const text = logoRefByRole(brand, role)?.description?.trim() ?? '';
+    return looksLikeAName(text) ? text : fallback;
+  };
 
   const primaryUrl = bySlot('primary') ?? brand.logoAssets?.full ?? brand.logo;
   const wordmarkUrl = bySlot('wordmark') ?? brand.logoAssets?.wordmark;
@@ -232,6 +256,15 @@ function mapLogos(brand: Brand): BrandLogo[] {
   return logos;
 }
 
+/** Short, no sentence punctuation, fewer than seven words — a label, not prose. */
+export function looksLikeAName(text: string): boolean {
+  if (!text) return false;
+  if (text.length > 40) return false;
+  // Sentence punctuation, parentheses and a hex code are all prose tells.
+  if (/[.!?;:()#]/.test(text)) return false;
+  return text.split(/\s+/).length <= 6;
+}
+
 function buildLogoSvg(url: string, label: string, bg: string, fg: string): string {
   // Embed an <image> referencing the asset URL. Falls back to a text
   // mark if the image fails to load.
@@ -291,10 +324,31 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
     return Math.max(r, g, b) - Math.min(r, g, b) < 14;
   };
+  /*
+   * THE SAME COLOUR REACHES US TWICE, AND IT MUST ONLY BE COUNTED ONCE.
+   *
+   * `colorSystem.neutrals` is hydrated by `migrateBrandToCurrent` from
+   * `guidelines.colorPalette.neutral`, and `brand.neutrals` is the scalar the
+   * Setup chain writes — they are two views of ONE list, so the moment anything
+   * saves the palette back the brand holds both copies. Concatenating them
+   * doubled the count, which tripped the generated-ramp tell below, whose
+   * greyscale filter then dropped every one of them: renaming a colour in the
+   * Brand Kit's Colors panel deleted the brand's five neutrals and left a
+   * three-colour palette (QA Q1). Dedupe on the hex, before anything measures
+   * the length.
+   */
+  const seenStored = new Set<string>();
   const stored = [
     ...(brand.colorSystem?.neutrals ?? []).map((n) => n.hex),
     ...(brand.neutrals ?? []),
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .filter((hex) => {
+      const key = hex.toUpperCase().replace(/^#?/, '#');
+      if (seenStored.has(key)) return false;
+      seenStored.add(key);
+      return true;
+    });
   /*
    * A SHORT list is a palette; a long one is a generated ramp.
    *
@@ -305,9 +359,13 @@ function mapColors(brand: Brand): MockBrand['colors'] {
    * onboarding review and then could not find it in Setup at all: too grey for
    * Core, not on the canonical ladder either.
    *
-   * The length is the tell. Nobody hand-picks more than a handful.
+   * The length is the tell, and it is NOT the same number as the cap. A ramp is
+   * thirty-odd steps; a hand-picked palette that runs one past the six Core can
+   * show is still hand-picked, and answering "generated" there threw the whole
+   * palette away rather than showing six of it.
    */
-  const looksGenerated = stored.length > EXTRA_CORE_LIMIT;
+  const GENERATED_RAMP_MIN = 12;
+  const looksGenerated = stored.length >= GENERATED_RAMP_MIN;
   const extraColors = (looksGenerated ? stored.filter((hex) => !isGreyscale(hex)) : stored).slice(
     0,
     EXTRA_CORE_LIMIT,
@@ -323,6 +381,26 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   const usedHexes = new Set<string>();
   const normHex = (hex: string) => hex.toUpperCase().replace(/^#?/, '#');
 
+  /*
+   * A NAME THE USER TYPED OUTRANKS THE ONE WE DERIVED.
+   *
+   * Everything else here names a swatch from the hex (`hexToName`) so Setup and
+   * the Brand Kit never disagree about what a colour is called. That is the
+   * right default and the wrong absolute: the Kit's Colors panel offers a name
+   * field, and with nowhere to keep the answer a rename was accepted,
+   * confirmed, and gone on the next read (QA Q1).
+   *
+   * `guidelines.colorNames` is that home — hex → the name its owner chose,
+   * written only for names that differ from the derived one, so a brand nobody
+   * has renamed carries no map and reads exactly as before.
+   */
+  const chosenNames = new Map<string, string>(
+    Object.entries(brand.guidelines?.colorNames ?? {}).map(([hex, name]) => [
+      normHex(hex),
+      name,
+    ]),
+  );
+
   const pushUnique = (
     bucket: BrandColor[],
     hex: string,
@@ -331,7 +409,7 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     const norm = normHex(hex);
     if (usedHexes.has(norm)) return false;
     usedHexes.add(norm);
-    const base = explicitName ?? hexToName(norm);
+    const base = explicitName ?? chosenNames.get(norm) ?? hexToName(norm);
     let name = base;
     let n = 2;
     while (usedNames.has(name)) {
@@ -395,15 +473,44 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   return { core, accent, grey: greys };
 }
 
-/** Brand-appropriate icon suggestions — same heuristic the Brand Kit
- *  uses: score the Flaticon catalog against the brand's own words
- *  (name, audience, tone, strategy, About sections). Brands with no
- *  text yet get the curated starter pack, so the marquee is never
- *  empty. Names come back as `fi-rr-*` — IconsMarquee renders those
- *  via the UICONS font. */
+/**
+ * The brand's icon set — WHAT IT OWNS FIRST, a suggestion only when it owns
+ * nothing.
+ *
+ * Reading order matters here and it used to be missing entirely: `mapIcons`
+ * re-ran the suggester on every read, so an icon the user added, removed,
+ * recoloured or re-weighted was gone by the next paint (audit D11). A stored
+ * set is the brand's own decision and outranks anything a heuristic would
+ * propose.
+ *
+ * The suggestion path is now pack-based (`brand-kit/data/iconPacks`) and takes
+ * the brand's RECORDED INDUSTRY as its strongest input, because the brand
+ * answered that question on purpose.
+ */
 function mapIcons(brand: Brand): string[] {
+  const stored = brand.guidelines?.iconography?.set;
+  if (Array.isArray(stored) && stored.length > 0) return [...stored];
+  return suggestedIconsFor(brand);
+}
+
+/**
+ * What this brand would be OFFERED if it owned nothing.
+ *
+ * Exported because `mockBrandToPatch` needs the same answer: a set that still
+ * equals the suggestion is a suggestion, and writing it on a save about
+ * something else would commit a decision nobody made.
+ */
+export function suggestedIconsFor(brand: Brand): string[] {
+  return suggestIconsForBrand(iconSourceText(brand), 50, {
+    industry: brand.businessInfo?.industry,
+    weight: iconWeightOf(brand),
+  });
+}
+
+/** The brand's own words, in the order a suggester should weigh them. */
+function iconSourceText(brand: Brand): string {
   const g = brand.guidelines;
-  const text = [
+  return [
     brand.name,
     brand.audience,
     brand.tone,
@@ -414,7 +521,12 @@ function mapIcons(brand: Brand): string[] {
   ]
     .filter((s): s is string => Boolean(s && s.trim()))
     .join(' ');
-  return suggestIconsForBrand(text, 50);
+}
+
+/** The weight a stored set is drawn at, read off its own class names. */
+function iconWeightOf(brand: Brand): IconWeightId | undefined {
+  const first = brand.guidelines?.iconography?.set?.[0];
+  return first ? detectIconWeight(first) : undefined;
 }
 
 function mapFonts(brand: Brand): BrandFont[] {

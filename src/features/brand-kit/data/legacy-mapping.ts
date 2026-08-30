@@ -7,9 +7,16 @@ import type { BrandKitTemplate } from '@/features/brandkit/types';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from '../components/BrandKitSidebar';
 import { logoCombosFor } from './recolorLogo';
+import { curatedName, isArchived } from '../renderers/curation';
+import { photoName } from './photoExport';
 import { BUSINESS_CARDS_EXTENDED } from '../renderers/BusinessCardsExtended';
 import { BUSINESS_CARDS_EXTENDED_2 } from '../renderers/BusinessCardsExtended2';
-import { MOCKUPS_EXTENDED } from '../renderers/MockupsExtended';
+import {
+  MOCKUPS_EXTENDED,
+  MOCKUP_SIGNAGE_EXTENDED,
+  MOCKUP_CARD_STACK_EXTENDED,
+  MOCKUP_DEVICE_EXTENDED,
+} from '../renderers/MockupsExtended';
 import { LETTERHEAD_EXTENDED } from '../renderers/LetterheadExtended';
 import { LETTERHEAD_EXTENDED_2 } from '../renderers/LetterheadExtended2';
 import { ENVELOPE_EXTENDED } from '../renderers/EnvelopeExtended';
@@ -106,6 +113,24 @@ const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
     'Slide In': { moduleId: '__anim-slide__' },
     'Fade': { moduleId: '__anim-fade__' },
     'Rotate': { moduleId: '__anim-rotate__' },
+  },
+  /* Mockups (spec §3, NEW) — eight cards over six template TYPES.
+   *
+   * Five artifacts own a type each. Signage, Business Card Stack and
+   * Device Screen share the `mockups` type and therefore ONE id range
+   * (`mockups-ext-21…38`), split three ways in `MockupsExtended.tsx` —
+   * which is why each of them still needs its own moduleId here: the
+   * moduleId is what narrows the shared range down to the six designs
+   * this particular card offers. */
+  mockups: {
+    'Signage': { moduleId: '__mockup-signage__' },
+    'Apparel': { moduleId: '__mockup-tshirt__' },
+    'Mug': { moduleId: '__mockup-mug__' },
+    'Tote': { moduleId: '__mockup-tote__' },
+    'Sticker': { moduleId: '__mockup-sticker__' },
+    'Business Card Stack': { moduleId: '__mockup-cardstack__' },
+    'Device Screen': { moduleId: '__mockup-device__' },
+    'Billboard': { moduleId: '__mockup-billboard__' },
   },
 };
 
@@ -233,7 +258,9 @@ function brandAssetTemplates(
   if (moduleId === '__brand-asset-photo__') {
     return brand.photos.map((p, idx) => ({
       id: `brand-asset-photo-ext-${idx + 1}`,
-      name: `Slot ${p.slot}`,
+      // The name the Library holds for the picture — the same answer
+      // `photoExport` gives the zip, so a tile and its file agree.
+      name: photoName(brand, p, idx),
       category: 'photo',
       type: 'brand-asset-photo' as BrandKitTemplate['type'],
       orientation: 'landscape' as const,
@@ -360,13 +387,18 @@ function syntheticTemplates(moduleId: string, label: string): BrandKitTemplate[]
       tags: ['landing', 'extended', t.category],
     }));
   }
-  // Mockups (5 distinct artifacts)
+  // Mockups (8 cards). The last three share the `mockups` type — see
+  // MAP.mockups above — so their ids come out of one range and only the
+  // list differs.
   const mockupMap: Record<string, [readonly { idSuffix: string; name: string; category: string }[], string]> = {
     '__mockup-mug__': [MOCKUP_MUG_EXTENDED, 'mockup-mug'],
     '__mockup-tshirt__': [MOCKUP_TSHIRT_EXTENDED, 'mockup-tshirt'],
     '__mockup-billboard__': [MOCKUP_BILLBOARD_EXTENDED, 'mockup-billboard'],
     '__mockup-tote__': [MOCKUP_TOTE_EXTENDED, 'mockup-tote'],
     '__mockup-sticker__': [MOCKUP_STICKER_EXTENDED, 'mockup-sticker'],
+    '__mockup-signage__': [MOCKUP_SIGNAGE_EXTENDED, 'mockups'],
+    '__mockup-cardstack__': [MOCKUP_CARD_STACK_EXTENDED, 'mockups'],
+    '__mockup-device__': [MOCKUP_DEVICE_EXTENDED, 'mockups'],
   };
   if (mockupMap[moduleId]) {
     const [list, type] = mockupMap[moduleId];
@@ -544,7 +576,7 @@ const EXTENDED_TEMPLATES: Record<string, BrandKitTemplate[]> = {
  *  template per real asset (logo combos, colors, fonts…). When
  *  omitted, brand-assets variants come back empty — callers in a
  *  brand-scoped page should always pass it. */
-export function variantsForCard(
+function variantsForCardRaw(
   sectionKey: KitSectionKey,
   label: string,
   brand?: MockBrand,
@@ -564,4 +596,24 @@ export function variantsForCard(
   // an extension's category may not match the card's filter, and
   // we'd rather show too few than show off-category designs.
   return src.category ? filtered : [...filtered, ...extensions];
+}
+
+/**
+ * The variants a card shows — after each family's own curation.
+ *
+ * Archived ids vanish from every surface (drilldown, picker, export) while
+ * staying valid persistence keys; curated names replace generator names
+ * like "Wave 2 · 43". This wrapper is the ONLY place curation is applied,
+ * so a family converting its renderers never edits this file or the
+ * dispatch — it edits `renderers/curation/<family>.ts`.
+ */
+export function variantsForCard(
+  ...args: Parameters<typeof variantsForCardRaw>
+): ReturnType<typeof variantsForCardRaw> {
+  return variantsForCardRaw(...args)
+    .filter((t) => !isArchived(t.id))
+    .map((t) => {
+      const name = curatedName(t.id);
+      return name ? { ...t, name } : t;
+    });
 }

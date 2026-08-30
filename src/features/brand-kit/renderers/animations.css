@@ -1,0 +1,494 @@
+/**
+ * The Animations family — real CSS keyframe animations, and the two
+ * rules that decide when they run.
+ *
+ * Before this file existed the four animation cards were STATIC STILLS:
+ * `AnimationsExtended.tsx` declared no `@keyframes` at all and its one
+ * `transitionDelay` sat on an element with no transition (`.audit/CODE.md`
+ * §7). Ten designs were tripled to thirty by `[...x, ...x, ...x]`, so a
+ * customer browsing "Logo Reveal" chose between the same picture three
+ * times.
+ *
+ * ## When an animation plays
+ *
+ * Three states, and the DEFAULT is the last frame:
+ *
+ *   • **At rest** — every animation is paused with a huge negative delay,
+ *     one iteration and `fill-mode: both`, so the browser computes it as
+ *     FINISHED. The tile shows the completed lockup, which is the only
+ *     honest thumbnail for a motion piece and the only safe frame for an
+ *     export: `templateSnapshot` mounts the renderer in `.bk-snapshot-host`
+ *     and rasterises whatever it finds, so a running animation would ship
+ *     a half-wipe.
+ *   • **On hover** — the drilldown grid. Hovering the stage restarts every
+ *     layer from time 0 with its own stagger.
+ *   • **Always** — inside `.bk-preview-host`, which is the Brand Kit card
+ *     editor's preview and the Design editor's template-instance canvas.
+ *     A motion deliverable being edited should be moving.
+ *
+ * `data-anim-frame="end"` on a stage forces the rest state back, whatever
+ * else applies — that is what `pauseAtEnd()` sets before a live-DOM
+ * snapshot, and why it is the one rule in this file carrying `!important`.
+ *
+ * `prefers-reduced-motion: reduce` pins the rest state everywhere. It is
+ * declared last so it wins on equal specificity.
+ *
+ * ## The three custom properties
+ *
+ *   --bka-dur    the motion kind's `durationMs`
+ *   --bka-iter   `infinite` or `1`, from the motion kind's `loop`
+ *   --bka-delay  a per-layer stagger, always a fraction of --bka-dur
+ *
+ * Nothing here is random. Every delay is derived from the duration and
+ * the layer's index, so two runs of the same design are the same film —
+ * which is what a later GIF/MP4 frame-capture exporter needs.
+ *
+ * ## Colour
+ *
+ * Nothing in this file names a colour. Grounds, ink and the brand hues
+ * are computed in `AnimationsExtended.tsx` through `renderers/brandStyle`
+ * and arrive as inline custom properties. Chrome-ish values (the slate's
+ * radius) use `--ds-*`.
+ */
+
+/* ── Stage ────────────────────────────────────────────────────────── */
+
+.bka-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: block;
+  isolation: isolate;
+}
+
+/* Every design's artwork lives in here, so a design can be described as
+   layers without each one repeating the fill. */
+.bka-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The lockup: the mark over the bound word. */
+.bka-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 78%;
+  text-align: center;
+}
+.bka-lockup--row {
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+/**
+ * The mark is sized in px, not in per cent.
+ *
+ * `height: 34%` here was a percentage of the LOCKUP, which is an
+ * auto-height flex column — so the percentage resolved to `auto` and every
+ * brand got its logo at whatever intrinsic size its file happened to
+ * declare (CLAUDE.md, "percentage max-height on a child of an auto-height
+ * flex item"). Measured on the two seed brands that was a 46px icon for one
+ * and a 12px smudge for the other, from the same rule. A definite height
+ * plus `object-fit: contain` gives every brand the same presence and still
+ * letterboxes a wide wordmark rather than stretching it.
+ */
+.bka-mark {
+  display: block;
+  height: 42px;
+  width: auto;
+  max-width: 62%;
+  object-fit: contain;
+}
+.bka-lockup--row .bka-mark {
+  height: 26px;
+  max-height: none;
+}
+.bka-word {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.bka-word--lg {
+  font-size: 22px;
+}
+.bka-word--sm {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* The timing slate. It carries its own opaque ground so the duration and
+   loop readings are measurable against a known colour whatever a design
+   animates underneath them. */
+.bka-slate {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: var(--ds-radius-sm, 6px);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.bka-slate-unit {
+  opacity: 1;
+}
+
+/* Geometry primitives the designs compose. None of them paint a colour. */
+.bka-panel {
+  position: absolute;
+  inset: 0;
+}
+.bka-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+}
+.bka-rule {
+  position: absolute;
+  height: 2px;
+}
+/**
+ * The round furniture is sized off the stage's HEIGHT, and centred with
+ * `inset: 0; margin: auto`.
+ *
+ * Two bugs in one rule, both measured in the drilldown. Sizing a circle by
+ * WIDTH is wrong the moment the stage is not square — `.bk-variant-tile` is
+ * 1.6 : 1, so a ring at 74% of the width stood half a tile taller than the
+ * tile and read as a pair of arcs running off the top and bottom edges.
+ * And centring by a negative percentage margin only works while the size is
+ * a percentage of the same axis; centring by `transform` is worse here,
+ * because `bka-turn` animates transform and would win. `inset: 0` plus
+ * `margin: auto` centres an absolutely-positioned box on both axes with no
+ * transform at all, which leaves transform free for the animation.
+ */
+.bka-disc,
+.bka-ring,
+.bka-orbit,
+.bka-svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: auto;
+  aspect-ratio: 1;
+}
+.bka-disc {
+  height: 62%;
+  border-radius: 50%;
+}
+.bka-ring {
+  height: 74%;
+  border-radius: 50%;
+  border-width: 2px;
+  border-style: dashed;
+}
+.bka-orbit {
+  height: 70%;
+}
+.bka-orbit-dot {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 8%;
+  aspect-ratio: 1;
+  margin-left: -4%;
+  border-radius: 50%;
+}
+.bka-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+}
+.bka-stack {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.bka-stack-bar {
+  height: 6px;
+  transform-origin: left center;
+}
+.bka-clipper {
+  overflow: hidden;
+  display: block;
+}
+.bka-svg {
+  height: 76%;
+}
+.bka-draw-path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.bka-3d {
+  perspective: 420px;
+}
+
+/* ── Play state ───────────────────────────────────────────────────── */
+
+/**
+ * At rest: computed as FINISHED.
+ *
+ * `-9999s` rather than `calc(-1 * var(--bka-dur))` on purpose — the delay
+ * has to outrun the animation AND every stagger, and a single constant
+ * that outruns all of them cannot be got wrong by a design that adds one.
+ * `iteration-count: 1` matters just as much: with `infinite`, a delay of
+ * exactly one duration lands on the START of the next iteration.
+ */
+.bka-anim {
+  animation-duration: var(--bka-dur, 1600ms);
+  animation-timing-function: var(--bka-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+  animation-delay: -9999s;
+  animation-play-state: paused;
+}
+
+.bka-stage:hover .bka-anim,
+.bka-stage:focus-within .bka-anim,
+.bk-preview-host .bka-stage .bka-anim {
+  animation-delay: var(--bka-delay, 0s);
+  animation-iteration-count: var(--bka-iter, 1);
+  animation-play-state: running;
+}
+
+/* The export frame. Set by `pauseAtEnd()` on a live host before it is
+   rasterised; it must beat the preview-host rule above. */
+.bka-stage[data-anim-frame='end'] .bka-anim {
+  animation-delay: -9999s !important;
+  animation-iteration-count: 1 !important;
+  animation-play-state: paused !important;
+}
+
+/* ── The storyboard ───────────────────────────────────────────────── */
+/*
+ * A STILL OF AN ANIMATION IS NOT ONE FRAME.
+ *
+ * The export used to ship the rest frame, which is the finished lockup —
+ * and the finished lockup of a reveal, a fade and a spin is the same
+ * picture, so `logo-reveal.png`, `fade.png` and `rotate.png` came out of
+ * a kit BYTE-IDENTICAL (QA Q11). Three animations, one still.
+ *
+ * So an animation exports as a storyboard: the same design captured at
+ * several points along its own timeline and composed into one strip,
+ * ending on the frame the export used to ship alone. A frame is chosen by
+ * SEEKING rather than by playing — a negative delay on a paused animation
+ * is the browser's own way to say "show me time t" — so a cell is
+ * deterministic, needs no timer, and rasterises like any other tile.
+ *
+ * `--bka-at` is a fraction of the design's own `--bka-dur`. A cell asking
+ * for a time past the end (99) lands on the rest frame.
+ */
+.bka-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.bka-frame .bka-anim {
+  animation-delay: calc(var(--bka-delay, 0s) - var(--bka-dur, 1600ms) * var(--bka-at, 0)) !important;
+  animation-iteration-count: 1 !important;
+  animation-play-state: paused !important;
+  /*
+   * A STORYBOARD SAMPLES THE PATH, NOT THE CLOCK.
+   *
+   * The house easing is `cubic-bezier(0.22, 1, 0.36, 1)`, which is nearly
+   * finished a fifth of the way through — sampled at even points in TIME,
+   * three of the four cells landed on the finished artwork and the strip
+   * looked like four copies of one picture (measured, not assumed: the
+   * first exported strip of "Curtain Wipe" had its bar off-frame in every
+   * cell). Linear here makes `--bka-at` mean "a quarter of the way along
+   * the motion", for every design and every curve, which is what a
+   * storyboard is for. The final cell is past the end either way, so the
+   * frame the export used to ship alone is unchanged.
+   */
+  animation-timing-function: linear !important;
+}
+
+/* The duration slate belongs to the deliverable, not to every frame of it,
+   so only the last cell of a strip carries it. */
+.bka-frame--quiet .bka-slate {
+  display: none;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+/* Every one of these ENDS on the finished artwork. A looping design
+   returns to identity at 100%, so the rest frame and the loop seam are
+   the same picture. */
+
+@keyframes bka-wipe-right {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes bka-mask-up {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes bka-iris {
+  from { clip-path: circle(0% at 50% 50%); }
+  to { clip-path: circle(78% at 50% 50%); }
+}
+@keyframes bka-scale-in {
+  from { opacity: 0; transform: scale(0.62); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes bka-focus-in {
+  from { opacity: 0; filter: blur(9px); transform: scale(1.1); }
+  to { opacity: 1; filter: blur(0); transform: scale(1); }
+}
+@keyframes bka-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes bka-split-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-102%); }
+}
+@keyframes bka-split-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(102%); }
+}
+@keyframes bka-rise {
+  from { transform: translateY(115%); }
+  to { transform: translateY(0); }
+}
+@keyframes bka-sweep-across {
+  from { transform: translateX(-180%); }
+  to { transform: translateX(320%); }
+}
+@keyframes bka-build-bar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes bka-in-left {
+  from { transform: translateX(-135%); }
+  to { transform: translateX(0); }
+}
+@keyframes bka-in-right {
+  from { transform: translateX(135%); }
+  to { transform: translateX(0); }
+}
+@keyframes bka-in-top {
+  from { transform: translateY(-135%); }
+  to { transform: translateY(0); }
+}
+@keyframes bka-in-bottom {
+  from { transform: translateY(135%); }
+  to { transform: translateY(0); }
+}
+@keyframes bka-in-diagonal {
+  from { transform: translate(-80%, 80%); }
+  to { transform: translate(0, 0); }
+}
+@keyframes bka-push-panel {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes bka-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bka-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes bka-fade-up {
+  from { opacity: 0; transform: translateY(26%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bka-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.38; }
+  100% { opacity: 1; }
+}
+@keyframes bka-breathe {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+/* No `translate(-50%, -50%)` any more: `.bka-disc` centres itself with
+   `margin: auto`, so the keyframe carries only the growth. */
+@keyframes bka-halo {
+  0% { opacity: 0.55; transform: scale(0.72); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes bka-through {
+  0% { opacity: 1; }
+  45% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes bka-spin-in {
+  from { opacity: 0; transform: rotate(-200deg) scale(0.7); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+@keyframes bka-flip-x {
+  from { opacity: 0; transform: rotateX(90deg); }
+  to { opacity: 1; transform: rotateX(0deg); }
+}
+@keyframes bka-flip-y {
+  from { opacity: 0; transform: rotateY(90deg); }
+  to { opacity: 1; transform: rotateY(0deg); }
+}
+@keyframes bka-tilt {
+  from { transform: rotate(-11deg) scale(0.92); }
+  to { transform: rotate(0deg) scale(1); }
+}
+@keyframes bka-turn {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+/* A whole turn about the vertical axis, so the loop seam and the rest
+   frame are both the artwork face-on. Half a turn would rest mirrored —
+   a backwards logo is not a frame worth exporting. */
+@keyframes bka-coin {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+@keyframes bka-swing {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-7deg); }
+  75% { transform: rotate(7deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes bka-turn-reveal {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+/* Declared last so it wins on equal specificity: the end frame, always. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bka-stage .bka-anim,
+  .bka-stage:hover .bka-anim,
+  .bka-stage:focus-within .bka-anim,
+  .bk-preview-host .bka-stage .bka-anim {
+    animation-delay: -9999s;
+    animation-iteration-count: 1;
+    animation-play-state: paused;
+  }
+}

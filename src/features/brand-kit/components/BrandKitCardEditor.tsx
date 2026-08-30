@@ -14,6 +14,8 @@ import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
+import { rendererBindsContent } from '../renderers/contentBinding';
+import { ContentPanel } from '@/features/brandkit/content';
 import {
   BindProvider,
   contentKindForTemplateType,
@@ -24,14 +26,15 @@ import {
   type ContentKind,
   type DeliverableContent,
 } from '@/features/brandkit/content';
-import { ContentPanel } from './quick-edit/ContentPanel';
+
 // The editor portals to document.body and is mounted from more than one
 // page, so it brings its own styles rather than relying on whichever page
 // happened to import them first.
 import '../brand-kit.css';
 import { toast } from 'sonner';
-import { recolorLogoSvg, contrastRatio } from '../data/recolorLogo';
+import { recolorLogoSvg, contrastRatio, extractWrappedImageUrl, cachedRecoloredLogo } from '../data/recolorLogo';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
+import { editorSwatches } from '../data/editorSwatches';
 import { hexToName } from '@/features/setup/data/colorNames';
 import { CopyIcon, type OrganicIconHandle } from '@/features/setup/components/organic-icons';
 import {
@@ -292,6 +295,16 @@ type Props = {
    *  user picks a different weight, the page rewrites brand.icons
    *  at this index so the drilldown tile matches on close. */
   onUpdateIconAt?: (index: number, newClassName: string) => void;
+  /**
+   * `Use Template` / `Edit Template` — the Design hand-off (owner decision
+   * 2026-08-29: kit-side Quick Edit for CONTENT stays; Design is offered
+   * BESIDE it, never instead of it). Present only when the page has wired
+   * this deliverable's family to Design; absent handlers hide the buttons
+   * rather than offering a dead affordance. Never offered for a
+   * brand-asset target.
+   */
+  onUseTemplate?: (template: BrandKitTemplate) => void;
+  onEditTemplate?: (template: BrandKitTemplate) => void;
 };
 
 /**
@@ -306,6 +319,63 @@ type Props = {
  * context, with the workspace's data-theme mirrored onto the dialog
  * so light/dark tokens still apply.
  */
+
+/**
+ * The colour swatches a deliverable editor offers, in two groups.
+ *
+ * The brand's own palette first, then the short neutral ladder on its own
+ * row — a wrapping flex row cannot express "a gap here", so the separation
+ * is two rows rather than a margin that lands wherever the wrap happens to
+ * fall. What is offered is decided by `data/editorSwatches.ts`; this only
+ * draws it. (Before that, every picker was 39 swatches: the brand's 8 plus
+ * the generated 32-step grey ramp, with colliding names and one duplicated
+ * hex — QA Q16.)
+ */
+function SwatchGroups({
+  colors,
+  selected,
+  onPick,
+  keyPrefix,
+  labelPrefix,
+}: {
+  colors: ReadonlyArray<{ hex: string; name: string; neutral?: boolean }>;
+  selected: string | null;
+  onPick: (hex: string) => void;
+  keyPrefix: string;
+  labelPrefix: string;
+}) {
+  const brand = colors.filter((c) => !c.neutral);
+  const neutrals = colors.filter((c) => c.neutral);
+  const row = (list: typeof brand, neutral: boolean) => (
+    <div className="bk-editor-swatches">
+      {list.map((c) => (
+        <button
+          key={`${keyPrefix}-${c.hex}-${c.name}`}
+          type="button"
+          className={`bk-editor-swatch${selected === c.hex ? ' is-selected' : ''}`}
+          style={{ background: c.hex }}
+          data-neutral={neutral || undefined}
+          onClick={() => onPick(c.hex)}
+          title={`${c.name} — ${c.hex.toUpperCase()}`}
+          aria-pressed={selected === c.hex}
+          aria-label={`${labelPrefix} ${c.name} ${c.hex}`}
+        />
+      ))}
+    </div>
+  );
+  return (
+    <>
+      {row(brand, false)}
+      {neutrals.length > 0 && (
+        <>
+          <span className="bk-editor-swatch-group-label">Neutrals</span>
+          {row(neutrals, true)}
+        </>
+      )}
+    </>
+  );
+}
+
 export function BrandKitCardEditor({
   brand,
   sourceBrand,
@@ -315,6 +385,8 @@ export function BrandKitCardEditor({
   onSave,
   onDownload,
   onUpdateIconAt,
+  onUseTemplate,
+  onEditTemplate,
 }: Props) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedCover, setSelectedCover] = useState<string | null>(null);
@@ -424,7 +496,7 @@ export function BrandKitCardEditor({
     // Structured content: the saved value when there is one, hydrated so
     // anything it predates is filled in rather than rendering blank.
     const kind = contentKindForTemplateType(templateType);
-    setContent(kind ? defaultContentFor(kind, brand) : null);
+    setContent(kind ? defaultContentFor(kind, brand, templateType) : null);
     // Re-apply the saved customization for this card, when one exists
     // (KIT-01). Saved ids are validated against the current brand so a
     // deleted logo/font falls back to the defaults seeded above.
@@ -443,7 +515,7 @@ export function BrandKitCardEditor({
       }
       if (kind) {
         if (saved.content) {
-          setContent(hydrateContent(kind, brand, saved.content));
+          setContent(hydrateContent(kind, brand, saved.content, templateType));
         } else if (kind === 'person') {
           // A card saved before the content model existed kept its person
           // in the flat overrides. Read it forward so nobody's saved name
@@ -509,7 +581,17 @@ export function BrandKitCardEditor({
   const previewLogoSrc = useMemo<string | null>(() => {
     const logo = brand.logos.find((l) => l.id === selectedLogoId);
     if (!logo) return null;
+    // Setup hands the kit each logo as `<svg><image href="…"/></svg>` — a
+    // PREVIEW wrapper. Recoloured and re-encoded as a data URI it renders
+    // EMPTY: an SVG loaded through <img> cannot resolve an external
+    // reference, so every family's editor preview showed a blank logo.
+    // The wrapped artwork is used directly; a recolour, when one has been
+    // rasterised for this url + colour, is preferred over it.
+    const wrapped = extractWrappedImageUrl(logo.svg);
     const color = selectedLogoColor ?? brand.colors.core[0]?.hex ?? '#0F1216';
+    if (wrapped) {
+      return (selectedLogoColor ? cachedRecoloredLogo(wrapped, color) : undefined) ?? wrapped;
+    }
     const recolored = recolorLogoSvg(logo.svg, color);
     return `data:image/svg+xml;utf8,${encodeURIComponent(recolored)}`;
   }, [brand.logos, brand.colors.core, selectedLogoId, selectedLogoColor]);
@@ -565,7 +647,11 @@ export function BrandKitCardEditor({
 
   if (!target) return null;
 
-  const allColors = [...brand.colors.core, ...brand.colors.accent, ...brand.colors.grey];
+  // The brand's own palette, then a short non-colliding neutral ladder.
+  // NOT `core + accent + grey`: `grey` is the generated 32-step ramp, which
+  // made every picker 39 swatches with two names and one hex colliding with
+  // the brand's own (QA Q16). See `data/editorSwatches.ts`.
+  const allColors = editorSwatches(brand);
   // Brand-asset cards (Logos / Colors / Fonts / Icons / Photos /
   // About) render a single piece of real data — their renderers
   // ignore primary/secondary color and font picks, and the icon
@@ -833,7 +919,7 @@ export function BrandKitCardEditor({
     try {
       const { downloadFontsBundle } = await import('../data/fontExport');
       const result = await downloadFontsBundle(
-        [{ name: fontPreview.family, files: fontPreview.files }],
+        [{ name: fontPreview.family, files: fontPreview.files, weights: fontPreview.weights }],
         fontPreview.family.toLowerCase().replace(/\s+/g, '-'),
         { flatten: true },
       );
@@ -1130,7 +1216,7 @@ export function BrandKitCardEditor({
                 onSelect={setSelectedPath}
                 onResetContent={() => {
                   setSelectedPath(null);
-                  setContent(defaultContentFor(contentKind, brand));
+                  setContent(defaultContentFor(contentKind, brand, templateType));
                 }}
               />
             )}
@@ -1204,20 +1290,13 @@ export function BrandKitCardEditor({
                   </div>
                 </RailGroup>
                 <RailGroup title="Color" hint="Tap a brand color to recolor the icon.">
-                  <div className="bk-editor-swatches">
-                    {allColors.map((c) => (
-                      <button
-                        key={`icon-${c.hex}-${c.name}`}
-                        type="button"
-                        className={`bk-editor-swatch${selectedIconColor === c.hex ? ' is-selected' : ''}`}
-                        style={{ background: c.hex }}
-                        onClick={() => setSelectedIconColor(c.hex)}
-                        title={`${c.name} — ${c.hex.toUpperCase()}`}
-                        aria-pressed={selectedIconColor === c.hex}
-                        aria-label={`Icon color ${c.name} ${c.hex}`}
-                      />
-                    ))}
-                  </div>
+                  <SwatchGroups
+                    colors={allColors}
+                    selected={selectedIconColor}
+                    onPick={setSelectedIconColor}
+                    keyPrefix="icon"
+                    labelPrefix="Icon color"
+                  />
                 </RailGroup>
               </>
             ) : isFontAsset && fontPreview ? (
@@ -1331,37 +1410,23 @@ export function BrandKitCardEditor({
             <RailGroup title="Colors" hint="Tap a swatch to recolor primary or secondary.">
               <div className="bk-editor-color-row">
                 <span className="bk-editor-color-row-label">Primary</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`p-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedColor === c.hex}
-                      aria-label={`Primary ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
+                <SwatchGroups
+                  colors={allColors}
+                  selected={selectedColor}
+                  onPick={setSelectedColor}
+                  keyPrefix="p"
+                  labelPrefix="Primary"
+                />
               </div>
               <div className="bk-editor-color-row">
                 <span className="bk-editor-color-row-label">Secondary</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`s-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedSecondaryColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedSecondaryColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedSecondaryColor === c.hex}
-                      aria-label={`Secondary ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
+                <SwatchGroups
+                  colors={allColors}
+                  selected={selectedSecondaryColor}
+                  onPick={setSelectedSecondaryColor}
+                  keyPrefix="s"
+                  labelPrefix="Secondary"
+                />
               </div>
             </RailGroup>
             )}
@@ -1403,20 +1468,13 @@ export function BrandKitCardEditor({
               </div>
               <div className="bk-editor-color-row" style={{ marginTop: 12 }}>
                 <span className="bk-editor-color-row-label">Mark</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`logo-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedLogoColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedLogoColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedLogoColor === c.hex}
-                      aria-label={`Logo color ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
+                <SwatchGroups
+                  colors={allColors}
+                  selected={selectedLogoColor}
+                  onPick={setSelectedLogoColor}
+                  keyPrefix="logo"
+                  labelPrefix="Logo color"
+                />
               </div>
             </RailGroup>
             )}
@@ -1465,7 +1523,7 @@ export function BrandKitCardEditor({
                   setSelectedFontId(brand.fonts[0]?.id ?? null);
                   setOverrides(defaultOverridesForType(templateType, brand));
                   setSelectedPath(null);
-                  if (contentKind) setContent(defaultContentFor(contentKind, brand));
+                  if (contentKind) setContent(defaultContentFor(contentKind, brand, templateType));
                 }}
                 title="Reset to brand defaults"
               >
@@ -1473,6 +1531,33 @@ export function BrandKitCardEditor({
                 <span>Reset</span>
               </DsButton>
             )}
+            {!isBrandAsset &&
+              target.template &&
+              (onUseTemplate || onEditTemplate) &&
+              rendererBindsContent(target.template) && (
+                <>
+                  {onEditTemplate && (
+                    <DsButton
+                      tone="tertiary"
+                      size="sm"
+                      onClick={() => onEditTemplate(target.template!)}
+                      title="Open this variant's master template in Design"
+                    >
+                      Edit Template
+                    </DsButton>
+                  )}
+                  {onUseTemplate && (
+                    <DsButton
+                      tone="tertiary"
+                      size="sm"
+                      onClick={() => onUseTemplate(target.template!)}
+                      title="Start a Design from this template"
+                    >
+                      Use Template
+                    </DsButton>
+                  )}
+                </>
+              )}
             <DsButton tone="secondary" size="sm" onClick={onClose}>
               Cancel
             </DsButton>
@@ -1739,6 +1824,7 @@ function sectionLabel(key: KitSectionKey): string {
     'brand-guides': 'Brand Guides',
     presentations: 'Presentations',
     animations: 'Animations',
+    mockups: 'Mockups',
   };
   return map[key];
 }

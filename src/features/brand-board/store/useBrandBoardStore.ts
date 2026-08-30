@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { hexToName } from '@/features/setup/data/colorNames';
 import {
   shuffleColorScheme,
   shuffleFontPairing,
@@ -18,6 +19,15 @@ export interface BrandBoardDraft {
     secondary: string;
     accent: string;
     neutrals: string[];
+    /**
+     * What each neutral is CALLED, when the brand owns them.
+     *
+     * The board is the one artefact whose job is to state the palette, so a
+     * neutral the brand chose is printed under its own name rather than as
+     * `N0`. Absent (a generated ramp, a shuffle) means the board falls back
+     * to the positional label.
+     */
+    neutralNames?: string[];
     background: string;
     foreground: string;
   };
@@ -184,6 +194,89 @@ function hslToHex(h: number, s: number, l: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// The brand's own palette
+// ---------------------------------------------------------------------------
+
+/** `#abc` / `ABCDEF` → `#abcdef`, or null when it is not a colour. */
+function normalizeHex(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(raw);
+  if (!m) return null;
+  const body = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+  return `#${body.toUpperCase()}`;
+}
+
+/**
+ * The accent the BRAND declared, in the order the rest of the app reads it.
+ *
+ * `brandToMockBrand` reads `accentColor` then `colorSystem.accent.hex`; the
+ * guidelines palette is the third place because a seed brand carries its
+ * accent there and `migrateBrandToCurrent` is what hydrates the other two —
+ * a board handed a raw record would otherwise invent one.
+ */
+export function brandAccentOf(brand: any): string | null {
+  return (
+    normalizeHex(brand?.accentColor) ??
+    normalizeHex(brand?.colorSystem?.accent?.hex) ??
+    normalizeHex(brand?.guidelines?.colorPalette?.accent?.hex)
+  );
+}
+
+/** 0 (black) → 1 (white). Perceptual enough to sort a neutral ladder by. */
+function toneOf(hex: string): number {
+  const v = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+/**
+ * The neutrals the BRAND declared, named the way the Brand Kit names them,
+ * ordered LIGHTEST FIRST.
+ *
+ * `hexToName` rather than the stored name for the same reason
+ * `brandToMockBrand` uses it: one source of truth for what a swatch is
+ * called, so "Pearl" on the Colors card is "Pearl" on the board.
+ *
+ * The order is not cosmetic. `BrandBoardCanvas` reads these six as a
+ * LADDER — `--bb-neutral-50` is the page's own surface and `--bb-neutral-500`
+ * is muted text — so a brand that happens to list its neutrals darkest-first
+ * (SKAM does: black, jet, grey, white) would paint the typography panel
+ * black and its text on top of it in near-black. Measured on the export,
+ * which is exactly what happened the first time this read the brand's own
+ * values.
+ */
+export function brandNeutralsOf(brand: any): Array<{ hex: string; name: string }> {
+  const sources = [
+    ...(Array.isArray(brand?.colorSystem?.neutrals) ? brand.colorSystem.neutrals : []),
+    ...(Array.isArray(brand?.guidelines?.colorPalette?.neutral)
+      ? brand.guidelines.colorPalette.neutral
+      : []),
+    ...(Array.isArray(brand?.neutrals) ? brand.neutrals : []),
+  ];
+  const out: Array<{ hex: string; name: string }> = [];
+  const seen = new Set<string>();
+  for (const entry of sources) {
+    const hex = normalizeHex(typeof entry === 'string' ? entry : entry?.hex);
+    if (!hex || seen.has(hex)) continue;
+    seen.add(hex);
+    // Two near-identical greys resolve to one word; a palette that prints
+    // "Grey" twice reads as a mistake, so the second is "Grey 2" — the same
+    // rule `brandToMockBrand` applies to the Colors card.
+    const base = hexToName(hex);
+    let name = base;
+    let n = 2;
+    while (out.some((c) => c.name === name)) {
+      name = `${base} ${n}`;
+      n += 1;
+    }
+    out.push({ hex, name });
+    if (out.length === 6) break;
+  }
+  return out.sort((a, b) => toneOf(b.hex) - toneOf(a.hex));
+}
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -254,7 +347,7 @@ export const useBrandBoardStore = create<BrandBoardState>()(
         set((state) => ({
           draft: {
             ...state.draft,
-            colors: { ...state.draft.colors, neutrals },
+            colors: { ...state.draft.colors, neutrals, neutralNames: undefined },
           },
         }));
       },
@@ -359,6 +452,9 @@ export const useBrandBoardStore = create<BrandBoardState>()(
               secondary: lockedColors.secondary ? state.draft.colors.secondary : scheme.secondary,
               accent:    lockedColors.accent    ? state.draft.colors.accent    : scheme.accent,
               neutrals:  lockedColors.neutrals  ? state.draft.colors.neutrals  : scheme.neutrals,
+              // A generated ramp has no names. Keeping the brand's would
+              // label somebody else's greys with the brand's own words.
+              neutralNames: lockedColors.neutrals ? state.draft.colors.neutralNames : undefined,
             },
           },
         }));
@@ -407,6 +503,7 @@ export const useBrandBoardStore = create<BrandBoardState>()(
               secondary: lockedColors.secondary ? state.draft.colors.secondary : result.colors.secondary,
               accent:    lockedColors.accent    ? state.draft.colors.accent    : result.colors.accent,
               neutrals:  lockedColors.neutrals  ? state.draft.colors.neutrals  : result.colors.neutrals,
+              neutralNames: lockedColors.neutrals ? state.draft.colors.neutralNames : undefined,
             },
             typography: {
               ...state.draft.typography,
@@ -503,16 +600,26 @@ export const useBrandBoardStore = create<BrandBoardState>()(
 
         const hue = hexToHue(primaryColor);
 
-        // Prefer the previously-saved Brand Board state (accent, neutrals,
-        // uiStyle, weight) if present. Otherwise derive sensible defaults:
-        // accent = triadic rotation of primary, neutrals tinted from the
-        // primary hue. This ensures Save/refresh round-trips every choice.
-        const accent =
-          brand?.accentColor ?? hslToHex(hue + 120, 0.7, 0.5);
-        const neutrals: string[] =
-          Array.isArray(brand?.neutrals) && brand.neutrals.length === 6
-            ? brand.neutrals
-            : generateNeutrals(hue);
+        /*
+         * THE BOARD STATES THE BRAND'S PALETTE, SO IT READS THE BRAND'S
+         * PALETTE.
+         *
+         * It used to derive both of these instead: the accent was a triadic
+         * rotation of the primary and the neutrals were a tinted ramp off
+         * the same hue — so `deliverables/brand-board.png` printed ACCENT
+         * `#D95F26` for a brand whose accent is `#F59E0B`, and six neutrals
+         * `N0…N5` the brand had never chosen (QA Q12). The one artefact
+         * whose whole job is to state the palette stated a different one.
+         *
+         * The brand's own answer is taken wherever it keeps it — the same
+         * places `brandToMockBrand` reads, so the board and the Colors card
+         * cannot disagree — and the derivation stays as the fallback for a
+         * brand that genuinely has neither.
+         */
+        const accent = brandAccentOf(brand) ?? hslToHex(hue + 120, 0.7, 0.5);
+        const own = brandNeutralsOf(brand);
+        const neutrals: string[] = own.length >= 3 ? own.map((n) => n.hex) : generateNeutrals(hue);
+        const neutralNames = own.length >= 3 ? own.map((n) => n.name) : undefined;
 
         const savedUi = brand?.uiStyle;
 
@@ -524,6 +631,7 @@ export const useBrandBoardStore = create<BrandBoardState>()(
               secondary: secondaryColor,
               accent,
               neutrals,
+              neutralNames,
               background: '#ffffff',
               foreground: '#0a0a0f',
             },

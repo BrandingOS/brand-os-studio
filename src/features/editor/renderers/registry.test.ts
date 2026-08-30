@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { getDesignRenderer } from './index';
+import * as contentTypes from '@/features/editor/content-types';
+import { invoiceConfig } from '@/features/editor/content-types/invoice.config';
 
 describe('design renderer registry', () => {
   it('resolves a layer content type to the fabric renderer', () => {
@@ -27,6 +29,29 @@ describe('design renderer registry', () => {
     expect(r.id).toBe('template-instance');
     expect(r.supportsLayerEditing).toBe(false);
     expect(r.Properties).not.toBeNull();
+  });
+
+  // `DesignRendererIdSchema` is a closed two-value enum and both values
+  // are registered today, so no real config can name an unbacked
+  // renderer id — this guards the branch by construction instead:
+  // a config whose `renderer` names an id `RENDERERS` doesn't have.
+  // This is the failure mode the fallback exists for: a third renderer
+  // id gets added to the enum and used by a config before its module
+  // registers — the shell must still open the document as Fabric, not
+  // throw or return undefined.
+  it('falls back to fabric when a config names a renderer id nothing has registered', () => {
+    const ghostConfig = { ...invoiceConfig, renderer: 'ghost-renderer' } as unknown as ReturnType<
+      typeof contentTypes.getContentTypeConfig
+    >;
+    const spy = vi
+      .spyOn(contentTypes, 'getContentTypeConfig')
+      .mockReturnValue(ghostConfig);
+    try {
+      const r = getDesignRenderer('invoice');
+      expect(r.id).toBe('fabric');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('builds a working adapter', () => {

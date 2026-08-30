@@ -8,14 +8,22 @@
  * same component renders a plain span. One artwork, two hosts, no fork.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BindProvider, hydrateContent, setAtPath } from '@/features/brandkit/content';
+import {
+  BindProvider,
+  coerceToPathType,
+  hydrateContent,
+  setAtPath,
+} from '@/features/brandkit/content';
 import { ScalingStage } from '@/shared/brand/ScalingStage';
-import { snapshotElementPng } from '@/features/brand-kit/data/templateSnapshot';
-import { aspectForType } from '@/features/brand-kit/kit/registry';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
+// `.ti-canvas` sizing — moved here (2026-08-20) alongside `.bk-preview-*`
+// from `ScalingStage.css` so this frame has real layout wherever it
+// mounts. See templateInstance.css's own header for why the size has
+// to be explicit pixels, not a percentage.
+import './templateInstance.css';
 import type { DesignCanvasProps } from '../types';
 import type { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
-import { renderArtwork, resolveTemplate } from './templateArtwork';
+import { exportArtworkPng, renderArtwork, resolveAspect, resolveTemplate } from './templateArtwork';
 
 export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanvasProps) {
   const instance = adapter as TemplateInstanceAdapter;
@@ -27,11 +35,30 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
     instance.getSelectedPath(),
   );
 
+  // Which document this canvas has actually loaded into the adapter.
+  //
+  // Keyed on the document's OWN id, not the `initialDocument` object's
+  // identity — a parent re-rendering for any unrelated reason (a toolbar
+  // click, a sibling state change) can hand this component a structurally
+  // identical but referentially NEW `initialDocument`, and reloading on
+  // that would call `loadDocument` again, which resets history and would
+  // throw away whatever the user had just typed. Same bug class, same fix
+  // shape as `BrandKitCardEditor`'s `loadedCardRef` — see canvas.browser.
+  // test.tsx's "survives a re-render that hands it an equal-but-new
+  // initialDocument" for the regression this guards.
+  const loadedDocIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (loadedDocIdRef.current === initialDocument.id) return;
+    loadedDocIdRef.current = initialDocument.id;
     void instance.loadDocument(initialDocument);
     setDoc(initialDocument);
-    return instance.on('change', setDoc);
   }, [instance, initialDocument]);
+
+  // The adapter's own change stream — kept in a separate effect, keyed
+  // only on `instance`, so subscribing/unsubscribing isn't tangled up
+  // with the load-guard above.
+  useEffect(() => instance.on('change', setDoc), [instance]);
 
   useEffect(
     () => instance.onSelectedPathChange(setSelectedPath),
@@ -43,7 +70,7 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
     instance.snapshot = async () => {
       const host = hostRef.current;
       if (!host) throw new Error('Nothing to export — the artwork is not mounted');
-      const blob = await snapshotElementPng(host, 4);
+      const blob = await exportArtworkPng(host, 4);
       if (!blob) throw new Error('Rasterization produced no image');
       return blob;
     };
@@ -70,8 +97,18 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
     (path: string, text: string) => {
       const current = instance.getBody();
       if (current?.kind !== 'template-instance') return;
+      // The text arrives as text — a caret has no idea it is a price — so
+      // the model coerces it against whatever the field already holds.
+      // This is the ONLY way an artifact edit reaches data.
       instance.updateBody(
-        { ...current, content: setAtPath(current.content, path, text) },
+        {
+          ...current,
+          content: setAtPath(
+            current.content,
+            path,
+            coerceToPathType(current.content, path, text),
+          ),
+        },
         `Edit ${path}`,
       );
     },
@@ -90,10 +127,35 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
   // missing key renders its default rather than a blank.
   const content = hydrateContent(body.content.kind, mockBrand, body.content);
 
+  // The frame's UNSCALED pixel size — set explicitly, in the same
+  // document-space units `Editor.tsx`'s `fitToContainer` uses to
+  // compute the zoom transform it applies to this frame's ancestor.
+  // Everything above this frame (the zoom wrap, the canvas surface) is
+  // a shrink-to-fit chain with no definite size of its own — exactly
+  // like Fabric's raw `<canvas>` before its width/height attributes are
+  // set — so without this the frame, and everything inside it, is
+  // 0×0. See templateInstance.css.
+  const page = doc.pages[0];
+  const pageAspect =
+    page && page.width > 0 && page.height > 0 ? page.width / page.height : resolveAspect(template.type);
+
   return (
     <div
       ref={hostRef}
       className="bk-editor-preview-frame ti-canvas"
+      style={
+        page
+          ? {
+              width: page.width,
+              height: page.height,
+              // `page.background` is a `ResolvedValue` (string | number |
+              // SlotRef) generically, but `createTemplateInstanceDocument`
+              // only ever writes a literal hex string — a SlotRef would
+              // need brand resolution this frame has no reason to do.
+              background: typeof page.background === 'string' ? page.background : '#ffffff',
+            }
+          : undefined
+      }
       onClick={() => instance.setSelectedPath(null)}
     >
       <BindProvider
@@ -103,7 +165,23 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
           onCommit: commitBoundValue,
         }}
       >
-        <ScalingStage aspect={aspectForType(template.type)} fontFamily={null} hideLogo={body.design.showLogo === false}>
+        <ScalingStage
+          // The PAGE's aspect, not the Brand Kit tile's.
+          //
+          // `aspectForType('invoices')` answers 1.6 (its `default`) while
+          // the invoice content type declares 1080×1920, and the stage
+          // was taking the tile's answer inside a frame sized by the
+          // page's — so the artwork sat in a band across a third of the
+          // document, and `instance.snapshot`, which rasterises the whole
+          // `.ti-canvas`, baked that letterbox into every export.
+          //
+          // For a Design, the document's own page dimensions are the
+          // authority. `aspectForType` is untouched: Brand Kit's previews
+          // are drawn at tile proportions and still want it.
+          aspect={pageAspect}
+          fontFamily={null}
+          hideLogo={body.design.showLogo === false}
+        >
           {renderArtwork(template, brand, mockBrand, content)}
         </ScalingStage>
       </BindProvider>

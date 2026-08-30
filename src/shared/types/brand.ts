@@ -212,7 +212,19 @@ export interface BrandGuidelines {
    *  the user wrote so Setup/About can render it all. */
   aboutSections?: Array<{ id: string; title: string; content: string }>;
   logoSystem?: LogoSystem;
+  /** The brand's own policy about where its logo may go. See `LogoUsagePolicy`. */
+  logoUsage?: LogoUsagePolicy;
   colorPalette?: ExtendedColorPalette;
+  /**
+   * The names the brand's OWNER gave its colours, hex → name.
+   *
+   * Every other reader derives a swatch's label from the hex (`hexToName`), so
+   * Setup and the Brand Kit agree without storing anything. This map is the one
+   * exception and holds only what someone actually typed: a rename made in the
+   * Kit's Colors panel used to be confirmed and then lost, because the palette
+   * persists as bare hexes and had nowhere to put the word.
+   */
+  colorNames?: Record<string, string>;
   typography?: ExtendedTypography;
   voiceAndTone?: VoiceAndTone;
   iconography?: Iconography;
@@ -271,6 +283,24 @@ export interface LogoUsageRule {
   do: string;
   dont: string;
   example?: string;
+}
+
+/**
+ * What the brand has DECIDED about its logo system, as opposed to what the
+ * kit can measure about it.
+ *
+ * The Brand Kit derives every approved pairing from contrast — which variant
+ * reads on which brand colour, which mono cut covers the grounds the coloured
+ * artwork cannot. Two answers are not measurable: a ground the brand has
+ * ruled out anyway, and a mono cut it does not publish. Absent means the
+ * derived answer stands, so an existing brand keeps exactly the system it
+ * had.
+ */
+export interface LogoUsagePolicy {
+  /** Hexes the logo may be published on. Absent = every ground that clears the floor. */
+  grounds?: string[];
+  /** Mono cuts the system offers. Absent = both. */
+  treatments?: Array<'black' | 'white'>;
 }
 
 export interface ExtendedColorPalette {
@@ -362,6 +392,23 @@ export interface Iconography {
   cornerRadius: string;
   examples: IconExample[];
   usage: string;
+  /**
+   * The brand's icon SET, as UICONS class names (`fi-rr-camera`).
+   *
+   * The three fields above are PROSE — a guidelines page prints them as
+   * "Rounded outline icons" and "1.5px consistent stroke" — so the set, the
+   * pack it came from and the colour it is drawn in get fields of their own
+   * rather than being encoded into a sentence somebody reads.
+   *
+   * The WEIGHT lives in each name's own prefix (`fi-br-camera` is the bold
+   * cut), because that is what a UICONS class name already means; there is no
+   * second place for it to disagree with itself.
+   */
+  set?: string[];
+  /** Which curated pack the set was chosen from (`brand-kit/data/iconPacks`). */
+  pack?: string;
+  /** The colour every icon in the set is drawn in. Absent means brand primary. */
+  tint?: string;
 }
 
 export interface IconExample {

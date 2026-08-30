@@ -267,8 +267,19 @@ function overlayStoredIdentity(base: BrandIdentity, stored: BrandIdentity): Bran
       neutrals: base.colors.neutrals ?? sc.neutrals,
     },
     typography: {
+      // SPREAD FIRST. This object used to be built from two named keys, so
+      // every read of every brand silently deleted `scale` and `accent` —
+      // `TypographySystem` carries both, `typography.scale` is a declared Core
+      // field, and neither survived the trip home. A confirmed base-size change
+      // was written correctly and then erased by the very next read (QA Q5).
+      // The rule for a value object is the same as everywhere else here: keep
+      // what you were given, then decide the fields you actually reason about.
+      ...base.typography,
       primary: backfillFont(base.typography.primary, stypo.primary) ?? base.typography.primary,
       secondary: backfillFont(base.typography.secondary, stypo.secondary) ?? base.typography.secondary,
+      // Legacy-first, like everything else in this function: the blob only
+      // recovers a scale the transport dropped.
+      scale: base.typography.scale ?? stypo.scale,
     },
     strategy: {
       ...base.strategy,

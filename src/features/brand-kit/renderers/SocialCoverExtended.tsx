@@ -1,88 +1,494 @@
+import type { CSSProperties, ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import type { DeliverableContent } from '@/features/brandkit/content/kinds';
+import {
+  CtaLink,
+  CtaPill,
+  Frame,
+  Mark,
+  MetaLine,
+  TagChip,
+  bodyStyle,
+  groundsFor,
+  headingStyle,
+  metaStyle,
+  mixHex,
+  postFields,
+  type Ground,
+  type PostFields,
+} from './socialCommon';
+import { picksOf, postContentFor } from './SocialPostExtended';
 
 /**
- * Facebook-cover extensions — 22 wide landscape designs join the
- * legacy 8 = 30 total for Social::Cover. Each fills the cosmos
- * tile edge-to-edge with a banner composition.
+ * Facebook / LinkedIn / X cover — 12 designs, wide, safe-area aware.
+ *
+ * A cover is the one social format nobody sees whole. Facebook serves the
+ * same file at 820×312 on a desktop and crops it to roughly 640×360 on a
+ * phone; LinkedIn and X want 1584×396 and 1500×500. So a cover that
+ * arranges its message across the full width is a cover whose message is
+ * cut in half on the device most people use.
+ *
+ * Every design here therefore keeps its words inside a CENTRED SAFE BAND —
+ * `<SafeBand>`, 74% of the width — and lets only colour, rule and tile
+ * reach the edges. The band is what survives every crop. It is also why
+ * these are laid out as ROWS: the kit draws this card at 1.6 and the
+ * editor previews it at the real 820÷312, so the design has to read at
+ * 260×162 and at 260×99 without re-authoring, and a row degrades where a
+ * column clips.
+ *
+ * What it replaces: twenty-two designs that printed `a brand · est. 2026`
+ * and `good morning,` as though they were facts about the customer, on
+ * grounds picked by eye.
+ *
+ *    1  Wide Banner     Announcement · Bold      brand ground, mark and message
+ *    2  Ruled Page      Quote · Editorial        paper, accent rule
+ *    3  Split Panel     Launch · Modern          brand block, paper message
+ *    4  Ink Band        Announcement · Bold      inverted ground, centred
+ *    5  Edge Strip      Launch · Minimal         brand strip on the left edge
+ *    6  Centre Mark     Quote · Minimal          mark over the message
+ *    7  Tag Rail        Holiday · Modern         the tag as a standing rail
+ *    8  Inset Card      Launch · Modern          paper card on brand ground
+ *    9  Wide Underline  Sales · Bold             headline over a thick rule
+ *   10  Footer Strip    Announcement · Modern    message up, brand along the foot
+ *   11  Tile Edge       Holiday · Modern         brand tiles hold the right edge
+ *   12  Quiet Wide      Quote · Minimal          small type, wide margins
  */
-interface Props { brand: Brand; templateIndex: number }
 
-export function SocialCoverExtendedRenderer({ brand, templateIndex }: Props) {
-  const p = brand.primaryColor;
-  const init = brand.name.charAt(0).toUpperCase();
+interface Props {
+  brand: Brand;
+  templateIndex: number;
+  content?: DeliverableContent;
+}
+
+/**
+ * The band every crop keeps.
+ *
+ * Centred, capped at 74% of the width, and vertically centred so the same
+ * design reads at 260×162 and at 260×99. Nothing outside it may carry a
+ * word.
+ */
+function SafeBand({
+  children,
+  align = 'space-between',
+  style,
+}: {
+  children: ReactNode;
+  align?: CSSProperties['justifyContent'];
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        width: '74%',
+        maxWidth: '74%',
+        margin: '0 auto',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: align,
+        gap: 12,
+        minWidth: 0,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The right-hand stack every cover carries: caption, action, attribution. */
+function CoverAside({
+  brand,
+  ground,
+  fields,
+  align = 'right',
+  cta = 'link',
+}: {
+  brand: Brand;
+  ground: Ground;
+  fields: PostFields;
+  align?: 'left' | 'right';
+  cta?: 'link' | 'pill';
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: align === 'right' ? 'flex-end' : 'flex-start',
+        textAlign: align,
+        gap: 5,
+        minWidth: 0,
+        maxWidth: '46%',
+      }}
+    >
+      <div
+        style={{
+          ...bodyStyle(brand, ground, 6.8, { color: ground.soft, lineHeight: 1.4 }),
+          maxHeight: 6.8 * 1.4 * 2,
+          overflow: 'hidden',
+        }}
+      >
+        {fields.Body}
+      </div>
+      {cta === 'pill' ? (
+        <CtaPill brand={brand} ground={ground} fields={fields} size={6.8} />
+      ) : (
+        <CtaLink brand={brand} ground={ground} fields={fields} size={6.8} />
+      )}
+      <MetaLine brand={brand} ground={ground} fields={fields} align={align} size={6} />
+    </div>
+  );
+}
+
+export function SocialCoverExtendedRenderer({ brand, templateIndex, content }: Props) {
+  const c = postContentFor(brand, content);
+  const picks = picksOf(content);
+  const f = postFields(c);
+  const g = groundsFor(brand, picks);
+  const head = (ground: Ground, size: number) => headingStyle(brand, ground, size);
+  const lead = (ground: Ground) => ({
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 4,
+    minWidth: 0,
+    flex: 1,
+    color: ground.ink,
+  });
 
   const designs = [
-    // 0 — Solid Brand banner with centered title.
-    (<div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: p }}><div className="text-center text-white"><BrandLogo brand={brand} size="md" color="#ffffff" /><div className="text-[10px] uppercase tracking-[0.32em] mt-2 opacity-90">{brand.name}</div></div></div>),
-    // 1 — Editorial Title — big serif name.
-    (<div className="w-full h-full bg-[#FBF8EE] flex items-center justify-center"><div className="text-center"><div className="text-[3px] uppercase tracking-[0.32em] text-gray-500">studio</div><div className="text-[36px] font-serif font-black tracking-tight" style={{ color: p }}>{brand.name}</div></div></div>),
-    // 2 — Diagonal Split.
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute inset-0" style={{ background: `linear-gradient(105deg, ${p} 0%, ${p} 50%, transparent 50.5%, transparent 100%)` }} /><div className="absolute left-[6%] top-1/2 -translate-y-1/2 text-white"><BrandLogo brand={brand} size="sm" color="#ffffff" /><div className="text-[6px] uppercase tracking-[0.32em] mt-1 opacity-90">{brand.name}</div></div><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right text-gray-700"><div className="text-[10px] font-serif italic">a brand · 2026</div></div></div>),
-    // 3 — Halftone Wash.
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0" style={{ background: `linear-gradient(120deg, ${p} 0%, ${p}66 100%)` }} /><div className="absolute inset-0 mix-blend-multiply opacity-50" style={{ backgroundImage: `radial-gradient(circle, #111 0.6px, transparent 0.7px)`, backgroundSize: '5px 5px' }} /><div className="absolute inset-0 flex items-center justify-center text-white"><div className="text-center"><div className="text-[18px] font-serif font-bold">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-90">est · 2026</div></div></div></div>),
-    // 4 — Brute Force Text.
-    (<div className="w-full h-full bg-[#0F1216] text-white relative overflow-hidden font-mono"><div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)', backgroundSize: '12px 12px' }} /><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] opacity-70">▉ {brand.name.toUpperCase()} / SYS</div><div className="text-[28px] font-extrabold leading-none mt-1" style={{ color: p }}>RUN.{brand.name.toUpperCase()}</div></div></div></div>),
-    // 5 — Big Initial.
-    (<div className="w-full h-full bg-[#FBF8EE] relative overflow-hidden"><div className="absolute -left-[2%] top-1/2 -translate-y-1/2 font-serif font-black leading-none" style={{ color: p, fontSize: '180%' }}>{init}</div><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[14px] font-serif font-bold text-gray-900">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 text-gray-600">a brand · est. 2026</div></div></div>),
-    // 6 — Three Stripes.
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute inset-y-0 left-0 w-[8%]" style={{backgroundColor:p}} /><div className="absolute inset-y-0 left-[12%] w-[6%]" style={{backgroundColor:`${p}77`}} /><div className="absolute inset-y-0 left-[20%] w-[4%]" style={{backgroundColor:`${p}33`}} /><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[20px] font-serif font-black" style={{ color: p }}>{brand.name}</div><div className="text-[6px] uppercase tracking-[0.32em] mt-1 text-gray-500">brand · studio</div></div></div>),
-    // 7 — Mountain Stack.
-    (<div className="w-full h-full bg-[#FBF8EE] relative overflow-hidden"><div className="absolute left-0 right-0 bottom-0 h-[55%]" style={{backgroundColor:p}} /><div className="absolute left-0 right-0 bottom-[55%] h-[15%]" style={{backgroundColor:`${p}77`}} /><div className="absolute right-[14%] top-[14%] w-[14%] aspect-square rounded-full bg-white/70" /><div className="absolute left-[6%] bottom-[8%] text-white"><BrandLogo brand={brand} size="sm" color="#ffffff" /><div className="text-[8px] font-serif font-bold mt-1">{brand.name}</div></div></div>),
-    // 8 — Frosted Layer.
-    (<div className="w-full h-full bg-white relative overflow-hidden"><div className="absolute inset-0" style={{ background: `radial-gradient(140% 80% at 18% 30%, ${p} 0%, ${p}AA 35%, transparent 80%)` }} /><div className="absolute inset-[5%] rounded-md backdrop-blur-[3px] bg-white/55 border border-white/70 flex items-center justify-between px-[5%]"><BrandLogo brand={brand} size="sm" /><div className="text-right"><div className="text-[14px] font-serif font-bold text-gray-900">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">2026 collection</div></div></div></div>),
-    // 9 — Color Block Diptych.
-    (<div className="w-full h-full flex"><div className="w-1/2 h-full flex items-center justify-center" style={{ backgroundColor: p }}><BrandLogo brand={brand} size="lg" color="#ffffff" /></div><div className="w-1/2 h-full bg-white flex items-center px-[6%]"><div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">studio · brand</div><div className="text-[18px] font-serif font-black mt-1" style={{ color: p }}>{brand.name}</div></div></div></div>),
-    // 10 — Numbered Index.
-    (<div className="w-full h-full bg-[#FBF8EE] relative overflow-hidden flex items-center px-[6%]"><div className="text-[44px] leading-none font-bold tabular-nums" style={{ color: p }}>N°<br/>014</div><div className="ml-6"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">issue · spring</div><div className="text-[16px] font-serif font-bold text-gray-900 mt-1">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{ color: p }}>a brand</div></div></div>),
-    // 11 — Underline Title.
-    (<div className="w-full h-full bg-white relative overflow-hidden flex items-center justify-center"><div className="text-center"><div className="text-[24px] font-serif font-black tracking-tight text-gray-900">{brand.name}</div><div className="h-[2px] mx-auto w-[40%] mt-1" style={{ backgroundColor: p }} /><div className="text-[6px] uppercase tracking-[0.32em] mt-2 text-gray-500">a brand · est. 2026</div></div></div>),
-    // 12 — Stamp Tilted.
-    (<div className="w-full h-full bg-[#FBF8EE] relative overflow-hidden flex items-center justify-center"><div className="-rotate-6 border-2 px-3 py-1" style={{ borderColor: p, color: p }}><div className="text-[6px] uppercase tracking-[0.32em] text-center">approved</div><div className="text-[20px] font-serif font-black leading-none">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] text-center">est · 2026</div></div></div>),
-    // 13 — Word Repeat.
-    (<div className="w-full h-full bg-[#FBF8EE] relative overflow-hidden flex flex-col justify-center px-[3%]" style={{ lineHeight: 0.8 }}>{Array.from({length:5}).map((_,i)=>(<div key={i} className="text-[18px] font-serif font-black uppercase opacity-90 tracking-tight" style={{ color: i === 2 ? p : `${p}33`, transform: `translateX(${(i%2)*-4}%)` }}>{brand.name} {brand.name} {brand.name}</div>))}</div>),
-    // 14 — Sticker Stack.
-    (<div className="w-full h-full bg-[#FFFBF2] relative overflow-hidden"><div className="absolute -left-[2%] top-[10%] w-[20%] aspect-square rounded-full -rotate-12" style={{backgroundColor:p}} /><div className="absolute left-[18%] bottom-[10%] w-[16%] aspect-square rounded-full bg-[#0F1216] rotate-6" /><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[18px] font-serif font-bold" style={{color:p}}>{brand.name}</div><div className="text-[6px] uppercase tracking-[0.32em] mt-1 text-gray-500">studio · 2026</div></div></div>),
-    // 15 — Mono Grid.
-    (<div className="w-full h-full bg-white relative overflow-hidden"><div className="absolute inset-0 grid grid-cols-12">{Array.from({length:12}).map((_,i)=>(<div key={i} style={{borderRight: '1px solid #00000010'}} />))}</div><div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">grid · system</div><div className="text-[20px] font-serif font-black tracking-tight text-gray-900 mt-1">{brand.name}</div></div></div>),
-    // 16 — Sunrise Gradient.
-    (<div className="w-full h-full relative overflow-hidden" style={{ background: `linear-gradient(180deg, ${p} 0%, ${p}88 50%, #FBF8EE 100%)` }}><div className="absolute right-[18%] top-[20%] w-[12%] aspect-square rounded-full bg-white/80" /><div className="absolute left-[6%] bottom-[10%]"><div className="text-[10px] font-serif italic font-bold text-gray-900">good morning,</div><div className="text-[18px] font-serif font-black mt-0.5" style={{color:p,filter:'brightness(0.7)'}}>{brand.name}</div></div></div>),
-    // 17 — Quote.
-    (<div className="w-full h-full bg-white relative overflow-hidden flex items-center px-[6%]"><div className="text-[60px] font-serif leading-none" style={{ color: p }}>"</div><div className="ml-4"><div className="text-[8px] font-serif italic text-gray-800 leading-tight">a small studio doing work that lasts.</div><div className="text-[5px] uppercase tracking-[0.32em] mt-2" style={{ color: p }}>— {brand.name}</div></div></div>),
-    // 18 — Wireframe.
-    (<div className="w-full h-full bg-[#0A0F12] text-white relative overflow-hidden"><div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 3px)' }} /><div className="absolute inset-0" style={{ background: `radial-gradient(80% 50% at 50% 50%, ${p}55 0%, transparent 70%)` }} /><div className="absolute inset-0 flex items-center justify-center font-mono"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] opacity-70" style={{color:p}}>● {brand.name.toUpperCase()}.SYS</div><div className="text-[20px] font-bold tracking-tight" style={{textShadow: `0 0 8px ${p}`}}>RUN_BRAND_2026</div></div></div></div>),
-    // 19 — Sunburst Mark.
-    (<div className="w-full h-full bg-white relative overflow-hidden"><div className="absolute -left-[10%] -top-[40%] w-[80%] aspect-square rounded-full" style={{ background: `conic-gradient(from 180deg, ${p} 0deg, ${p}99 30deg, transparent 60deg, ${p} 90deg, ${p}99 120deg, transparent 150deg, ${p} 180deg)`, opacity: 0.85 }} /><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[24px] font-serif font-black tracking-tight text-gray-900">{brand.name}</div><div className="text-[6px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>since 2026</div></div></div>),
-    // 20 — Wave Bands.
-    (<div className="w-full h-full bg-[#FBF8EE] relative overflow-hidden">{Array.from({length:6}).map((_,i)=>(<div key={i} className="absolute left-0 right-0" style={{ height:'12%', top: `${i*16+2}%`, background: i%2===0?p:'transparent', borderRadius: '50%' }} />))}<div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[14px] font-serif font-bold text-gray-900">{brand.name}</div></div></div>),
-    // 21 — Spotlight.
-    (<div className="w-full h-full bg-[#0F1216] relative overflow-hidden"><div className="absolute inset-0" style={{ background: `radial-gradient(60% 80% at 30% 50%, ${p}AA 0%, transparent 70%)` }} /><div className="absolute left-[8%] top-1/2 -translate-y-1/2 text-white"><BrandLogo brand={brand} size="md" color="#ffffff" /><div className="text-[16px] font-serif font-bold mt-2">{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-80">a studio · 2026</div></div></div>),
+    // 1 — Wide Banner.
+    (
+      <Frame ground={g.brand} pad={0}>
+        <SafeBand>
+          <div style={lead(g.brand)}>
+            <Mark brand={brand} ground={g.brand} size={14} picks={picks} />
+            <div style={{ ...head(g.brand, 17), marginTop: 2 }}>{f.Headline}</div>
+            <div style={bodyStyle(brand, g.brand, 8, { weight: 600 })}>{f.Subline}</div>
+            <div style={metaStyle(brand, g.brand, 6)}>{f.Tag}</div>
+          </div>
+          <CoverAside brand={brand} ground={g.brand} fields={f} />
+        </SafeBand>
+      </Frame>
+    ),
+
+    // 2 — Ruled Page.
+    (
+      <Frame ground={g.paper} pad={0}>
+        <SafeBand>
+          <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 0, alignItems: 'stretch' }}>
+            <div style={{ width: 3, background: g.paper.mark, flex: '0 0 auto' }} />
+            <div style={lead(g.paper)}>
+              <div style={head(g.paper, 17)}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.paper, 8, { weight: 600 })}>{f.Subline}</div>
+              <div style={metaStyle(brand, g.paper, 6, { color: g.paper.accent })}>{f.Tag}</div>
+            </div>
+          </div>
+          <CoverAside brand={brand} ground={g.paper} fields={f} />
+        </SafeBand>
+      </Frame>
+    ),
+
+    // 3 — Split Panel. Brand block on the left, message on paper.
+    (
+      <Frame ground={g.paper} pad={0} style={{ flexDirection: 'row' }}>
+        <div
+          style={{
+            width: '30%',
+            background: g.brand.bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 10,
+            boxSizing: 'border-box',
+          }}
+        >
+          <Mark brand={brand} ground={g.brand} size={20} picks={picks} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+          <SafeBand style={{ width: '86%', maxWidth: '86%' }}>
+            <div style={lead(g.paper)}>
+              <div style={head(g.paper, 16)}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
+              <TagChip brand={brand} ground={g.paper} fields={f} size={6} />
+            </div>
+            <CoverAside brand={brand} ground={g.paper} fields={f} />
+          </SafeBand>
+        </div>
+      </Frame>
+    ),
+
+    // 4 — Ink Band.
+    (
+      <Frame ground={g.ink} pad={0}>
+        <SafeBand align="center">
+          <div style={{ ...lead(g.ink), alignItems: 'center', textAlign: 'center', flex: 'unset' }}>
+            <Mark brand={brand} ground={g.ink} size={14} picks={picks} />
+            <div style={{ ...head(g.ink, 17), marginTop: 2 }}>{f.Headline}</div>
+            <div style={bodyStyle(brand, g.ink, 8, { weight: 600, color: g.ink.accent })}>
+              {f.Subline}
+            </div>
+            <div
+              style={{
+                ...bodyStyle(brand, g.ink, 6.8, { color: g.ink.soft, lineHeight: 1.4 }),
+                maxHeight: 6.8 * 1.4 * 2,
+                overflow: 'hidden',
+              }}
+            >
+              {f.Body}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
+              <CtaPill brand={brand} ground={g.ink} fields={f} size={6.8} />
+              <MetaLine brand={brand} ground={g.ink} fields={f} size={6} />
+              <div style={metaStyle(brand, g.ink, 6, { color: g.ink.accent })}>{f.Tag}</div>
+            </div>
+          </div>
+        </SafeBand>
+      </Frame>
+    ),
+
+    // 5 — Edge Strip.
+    (
+      <Frame ground={g.paper} pad={0} style={{ flexDirection: 'row' }}>
+        <div aria-hidden style={{ width: 14, background: g.brand.bg, flex: '0 0 auto' }} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+          <SafeBand style={{ width: '82%', maxWidth: '82%' }}>
+            <div style={lead(g.paper)}>
+              <Mark brand={brand} ground={g.paper} size={13} picks={picks} />
+              <div style={{ ...head(g.paper, 16), marginTop: 2 }}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
+              <div style={metaStyle(brand, g.paper, 6, { color: g.paper.accent })}>{f.Tag}</div>
+            </div>
+            <CoverAside brand={brand} ground={g.paper} fields={f} cta="pill" />
+          </SafeBand>
+        </div>
+      </Frame>
+    ),
+
+    // 6 — Centre Mark.
+    (
+      <Frame ground={g.paper} pad={0}>
+        <SafeBand align="center">
+          <div style={{ ...lead(g.paper), alignItems: 'center', textAlign: 'center', flex: 'unset' }}>
+            <Mark brand={brand} ground={g.paper} size={16} picks={picks} />
+            <div style={{ height: 2, width: 30, background: g.paper.mark, margin: '3px 0' }} />
+            <div style={head(g.paper, 16)}>{f.Headline}</div>
+            <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
+            <div
+              style={{
+                ...bodyStyle(brand, g.paper, 6.8, { color: g.paper.soft, lineHeight: 1.4 }),
+                maxHeight: 6.8 * 1.4 * 2,
+                overflow: 'hidden',
+              }}
+            >
+              {f.Body}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
+              <CtaLink brand={brand} ground={g.paper} fields={f} size={6.8} />
+              <MetaLine brand={brand} ground={g.paper} fields={f} size={6} />
+              <div style={metaStyle(brand, g.paper, 6, { color: g.paper.accent })}>{f.Tag}</div>
+            </div>
+          </div>
+        </SafeBand>
+      </Frame>
+    ),
+
+    // 7 — Tag Rail.
+    (
+      <Frame ground={g.tint} pad={0}>
+        <SafeBand>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                background: g.brand.bg,
+                padding: '6px 8px',
+                borderRadius: 4,
+                flex: '0 0 auto',
+                maxWidth: '34%',
+              }}
+            >
+              <div style={metaStyle(brand, g.brand, 6.5, { color: g.brand.ink })}>{f.Tag}</div>
+            </div>
+            <div style={lead(g.tint)}>
+              <div style={head(g.tint, 16)}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.tint, 7.6, { weight: 600 })}>{f.Subline}</div>
+              <Mark brand={brand} ground={g.tint} size={12} picks={picks} />
+            </div>
+          </div>
+          <CoverAside brand={brand} ground={g.tint} fields={f} />
+        </SafeBand>
+      </Frame>
+    ),
+
+    // 8 — Inset Card.
+    (
+      <Frame ground={g.brand} pad={10}>
+        <div
+          style={{
+            flex: 1,
+            background: g.paper.bg,
+            borderRadius: 6,
+            display: 'flex',
+            minWidth: 0,
+          }}
+        >
+          <SafeBand style={{ width: '88%', maxWidth: '88%' }}>
+            <div style={lead(g.paper)}>
+              <Mark brand={brand} ground={g.paper} size={13} picks={picks} />
+              <div style={{ ...head(g.paper, 16), marginTop: 2 }}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
+              <div style={metaStyle(brand, g.paper, 6, { color: g.paper.accent })}>{f.Tag}</div>
+            </div>
+            <CoverAside brand={brand} ground={g.paper} fields={f} />
+          </SafeBand>
+        </div>
+      </Frame>
+    ),
+
+    // 9 — Wide Underline.
+    (
+      <Frame ground={g.paper} pad={0}>
+        <SafeBand>
+          <div style={lead(g.paper)}>
+            <div style={head(g.paper, 19)}>{f.Headline}</div>
+            <div style={{ height: 5, width: '58%', background: g.paper.mark, marginTop: 1 }} />
+            <div style={{ ...bodyStyle(brand, g.paper, 8, { weight: 600 }), marginTop: 2 }}>
+              {f.Subline}
+            </div>
+            <div style={metaStyle(brand, g.paper, 6, { color: g.paper.accent })}>{f.Tag}</div>
+          </div>
+          <CoverAside brand={brand} ground={g.paper} fields={f} cta="pill" />
+        </SafeBand>
+      </Frame>
+    ),
+
+    // 10 — Footer Strip.
+    (
+      <Frame ground={g.paper} pad={0}>
+        <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
+          <SafeBand>
+            <div style={lead(g.paper)}>
+              <div style={head(g.paper, 17)}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
+              <div style={metaStyle(brand, g.paper, 6, { color: g.paper.accent })}>{f.Tag}</div>
+            </div>
+            <div
+              style={{
+                ...bodyStyle(brand, g.paper, 6.8, { color: g.paper.soft, lineHeight: 1.4 }),
+                maxHeight: 6.8 * 1.4 * 3,
+                overflow: 'hidden',
+                maxWidth: '46%',
+                textAlign: 'right',
+              }}
+            >
+              {f.Body}
+            </div>
+          </SafeBand>
+        </div>
+        <div
+          style={{
+            background: g.brand.bg,
+            padding: '7px 0',
+            flex: '0 0 auto',
+          }}
+        >
+          <SafeBand style={{ height: 'auto' }}>
+            <Mark brand={brand} ground={g.brand} size={11} picks={picks} />
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <CtaLink brand={brand} ground={g.brand} fields={f} size={6.4} />
+              <MetaLine brand={brand} ground={g.brand} fields={f} size={6} />
+            </div>
+          </SafeBand>
+        </div>
+      </Frame>
+    ),
+
+    // 11 — Tile Edge.
+    (
+      <Frame ground={g.paper} pad={0} style={{ flexDirection: 'row' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+          <SafeBand style={{ width: '84%', maxWidth: '84%' }}>
+            <div style={lead(g.paper)}>
+              <Mark brand={brand} ground={g.paper} size={13} picks={picks} />
+              <div style={{ ...head(g.paper, 16), marginTop: 2 }}>{f.Headline}</div>
+              <div style={bodyStyle(brand, g.paper, 7.6, { weight: 600 })}>{f.Subline}</div>
+              <TagChip brand={brand} ground={g.paper} fields={f} size={6} />
+            </div>
+            <CoverAside brand={brand} ground={g.paper} fields={f} />
+          </SafeBand>
+        </div>
+        <div aria-hidden style={{ width: '16%', display: 'flex', flexDirection: 'column' }}>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                background: i % 2 === 0 ? g.brand.bg : mixHex(g.brand.bg, g.paper.bg, 0.45),
+              }}
+            />
+          ))}
+        </div>
+      </Frame>
+    ),
+
+    // 12 — Quiet Wide.
+    (
+      <Frame ground={g.tint} pad={0}>
+        <SafeBand style={{ width: '66%', maxWidth: '66%' }}>
+          <div style={lead(g.tint)}>
+            <div style={metaStyle(brand, g.tint, 6, { color: g.tint.accent })}>{f.Tag}</div>
+            <div style={{ ...headingStyle(brand, g.tint, 14, { weight: 700 }), marginTop: 2 }}>
+              {f.Headline}
+            </div>
+            <div style={bodyStyle(brand, g.tint, 7.2, { weight: 600 })}>{f.Subline}</div>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              textAlign: 'right',
+              gap: 4,
+              minWidth: 0,
+              maxWidth: '46%',
+            }}
+          >
+            <div
+              style={{
+                ...bodyStyle(brand, g.tint, 6.6, { color: g.tint.soft, lineHeight: 1.4 }),
+                maxHeight: 6.6 * 1.4 * 2,
+                overflow: 'hidden',
+              }}
+            >
+              {f.Body}
+            </div>
+            <CtaLink brand={brand} ground={g.tint} fields={f} size={6.4} />
+            <MetaLine brand={brand} ground={g.tint} fields={f} align="right" size={6} />
+            <Mark brand={brand} ground={g.tint} size={11} picks={picks} />
+          </div>
+        </SafeBand>
+      </Frame>
+    ),
   ];
 
   return designs[templateIndex] ?? designs[0];
 }
 
+/**
+ * The twelve kept designs. `ext-13`…`ext-22` and the eight legacy
+ * `facebook-covers-N` ids are culled; see `renderers/curation/social.ts`.
+ */
 export const SOCIAL_COVER_EXTENDED = [
-  { idSuffix: 'ext-1', name: 'Solid Brand', category: 'Bold' },
-  { idSuffix: 'ext-2', name: 'Editorial Title', category: 'Editorial' },
-  { idSuffix: 'ext-3', name: 'Diagonal Split', category: 'Bold' },
-  { idSuffix: 'ext-4', name: 'Halftone Wash', category: 'Modern' },
-  { idSuffix: 'ext-5', name: 'Brute Force', category: 'Bold' },
-  { idSuffix: 'ext-6', name: 'Big Initial', category: 'Editorial' },
-  { idSuffix: 'ext-7', name: 'Three Stripes', category: 'Modern' },
-  { idSuffix: 'ext-8', name: 'Mountain Stack', category: 'Modern' },
-  { idSuffix: 'ext-9', name: 'Frosted Layer', category: 'Modern' },
-  { idSuffix: 'ext-10', name: 'Color Block', category: 'Bold' },
-  { idSuffix: 'ext-11', name: 'Numbered Index', category: 'Editorial' },
-  { idSuffix: 'ext-12', name: 'Underline Title', category: 'Minimalist' },
-  { idSuffix: 'ext-13', name: 'Stamp Tilted', category: 'Vintage' },
-  { idSuffix: 'ext-14', name: 'Word Repeat', category: 'Bold' },
-  { idSuffix: 'ext-15', name: 'Sticker Stack', category: 'Bold' },
-  { idSuffix: 'ext-16', name: 'Mono Grid', category: 'Minimalist' },
-  { idSuffix: 'ext-17', name: 'Sunrise', category: 'Modern' },
-  { idSuffix: 'ext-18', name: 'Quote', category: 'Editorial' },
-  { idSuffix: 'ext-19', name: 'Wireframe', category: 'Modern' },
-  { idSuffix: 'ext-20', name: 'Sunburst', category: 'Lux' },
-  { idSuffix: 'ext-21', name: 'Wave Bands', category: 'Modern' },
-  { idSuffix: 'ext-22', name: 'Spotlight', category: 'Bold' },
+  { idSuffix: 'ext-1', name: 'Wide Banner', category: 'Bold' },
+  { idSuffix: 'ext-2', name: 'Ruled Page', category: 'Editorial' },
+  { idSuffix: 'ext-3', name: 'Split Panel', category: 'Modern' },
+  { idSuffix: 'ext-4', name: 'Ink Band', category: 'Bold' },
+  { idSuffix: 'ext-5', name: 'Edge Strip', category: 'Minimalist' },
+  { idSuffix: 'ext-6', name: 'Centre Mark', category: 'Minimalist' },
+  { idSuffix: 'ext-7', name: 'Tag Rail', category: 'Modern' },
+  { idSuffix: 'ext-8', name: 'Inset Card', category: 'Modern' },
+  { idSuffix: 'ext-9', name: 'Wide Underline', category: 'Bold' },
+  { idSuffix: 'ext-10', name: 'Footer Strip', category: 'Modern' },
+  { idSuffix: 'ext-11', name: 'Tile Edge', category: 'Modern' },
+  { idSuffix: 'ext-12', name: 'Quiet Wide', category: 'Minimalist' },
 ] as const;

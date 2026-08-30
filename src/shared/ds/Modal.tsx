@@ -7,7 +7,51 @@ import { DsButton } from './Button';
  * with a fade at 360ms — never slides up. Bold title, eyebrow above, one
  * solid primary bottom-right. Rendered in place (no portal) so tokens
  * resolve in the local theme scope.
+ *
+ * The panel is THREE bands and only the middle one scrolls: `.ds-modal-head`
+ * (title + close), `.ds-modal-body` (the caller's children), and
+ * `.ds-modal-foot` (the actions). Before this the whole panel was one
+ * scroller, so a long modal laid its own primary button out BELOW the box —
+ * the Brand Kit's "Export everything" measured at y≈1024 in a 900px viewport
+ * with nothing on screen to say more content existed (QA Q4). An action the
+ * user cannot see is an action that does not exist, so the action row is now
+ * always inside the box, at the bottom, with a hairline that says the body
+ * continues past it.
+ *
+ * Body scroll is locked while any modal is open — the same wheel that
+ * scrolled the dialog also scrolled the page behind it by 3300px. The lock is
+ * ref-counted so a confirm dialog opened ON TOP of a modal does not release
+ * it when it closes.
  */
+
+let scrollLocks = 0;
+let restoreBodyOverflow = '';
+let restoreBodyPaddingRight = '';
+
+function lockBodyScroll(): () => void {
+  if (typeof document === 'undefined') return () => {};
+  scrollLocks += 1;
+  if (scrollLocks === 1) {
+    const body = document.body;
+    restoreBodyOverflow = body.style.overflow;
+    restoreBodyPaddingRight = body.style.paddingRight;
+    // Removing the scrollbar reflows the page under the scrim; pad by its
+    // width so nothing behind the modal jumps sideways as it opens.
+    const gap = window.innerWidth - document.documentElement.clientWidth;
+    if (gap > 0) body.style.paddingRight = `${gap}px`;
+    body.style.overflow = 'hidden';
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    scrollLocks = Math.max(0, scrollLocks - 1);
+    if (scrollLocks === 0) {
+      document.body.style.overflow = restoreBodyOverflow;
+      document.body.style.paddingRight = restoreBodyPaddingRight;
+    }
+  };
+}
 
 export interface DsModalProps {
   open: boolean;
@@ -39,6 +83,11 @@ export function DsModal({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    return lockBodyScroll();
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -49,7 +98,7 @@ export function DsModal({
       }}
     >
       <div className="ds-modal" role="dialog" aria-modal="true" aria-label={title}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className="ds-modal-head">
           <div>
             {eyebrow && <div className="ds-eyebrow" style={{ marginBottom: 4, fontSize: '10.5px' }}>{eyebrow}</div>}
             <h2 className="ds-modal-title">{title}</h2>
@@ -58,11 +107,11 @@ export function DsModal({
             <CloseIcon size={16} />
           </button>
         </div>
-        {children}
+        <div className="ds-modal-body">{children}</div>
         {(actions || secondaryActions) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 6 }}>{secondaryActions}</div>
-            <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
+          <div className="ds-modal-foot">
+            <div className="ds-modal-foot-quiet">{secondaryActions}</div>
+            <div className="ds-modal-foot-main">{actions}</div>
           </div>
         )}
       </div>
@@ -90,6 +139,11 @@ export function DsConfirmDialog({
   onConfirm,
   onCancel,
 }: DsConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return undefined;
+    return lockBodyScroll();
+  }, [open]);
+
   if (!open) return null;
   return (
     <div

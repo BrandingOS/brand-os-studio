@@ -1,61 +1,370 @@
-import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+/**
+ * Billboard — the brand at a hundred metres.
+ *
+ * Six vector scenes. A billboard is read from a moving car, so these are
+ * the only mockups in the family where the type is deliberately huge and
+ * the copy deliberately short: the primary line carries the design and
+ * everything else is a supporting mark. The board is a flat opaque face
+ * with a frame and posts drawn around it; the sky is the brand's own
+ * lightest neutral rather than a photographic gradient, so a board reads
+ * the same in every brand.
+ *
+ * Ids `mockup-billboard-ext-1 … -6` are the six kept designs; `-7 … -30`
+ * stay reserved and archived (`curation/mockups.ts`).
+ */
+import type { ReactNode } from 'react';
+import {
+  Badge,
+  CastShadow,
+  DeclareRest,
+  Mark,
+  Primary,
+  Print,
+  Scene,
+  SceneLight,
+  SceneSvg,
+  Secondary,
+  Url,
+  accentOn,
+  ink,
+  mutedOn,
+  renderScene,
+  templateList,
+  withIds,
+  type MockupPalette,
+  type MockupRendererProps,
+  type MockupScene,
+} from './MockupScene';
+import { typePx } from './typeFloor';
 
-/** Billboard mockups — 30 outdoor-poster scenes with brand artwork. */
-interface Props { brand: Brand; templateIndex: number }
+/* ── The object ───────────────────────────────────────────────────── */
 
-function BillboardFrame({ children }: { children: React.ReactNode }) {
+/**
+ * A board on posts: the printed face, a frame around it, two legs under.
+ *
+ * The frame is a `cut`-coloured box the face is inset into (the same
+ * device the sticker family uses) rather than a border on the face, so the
+ * printable area is exactly what the type is centred in.
+ */
+function Board({
+  face,
+  frame,
+  posts = true,
+  left = 6,
+  top = 14,
+  width = 88,
+  height = 48,
+  children,
+}: {
+  face: string;
+  frame: string;
+  posts?: boolean;
+  left?: number;
+  top?: number;
+  width?: number;
+  height?: number;
+  children: ReactNode;
+}) {
   return (
-    <div className="w-full h-full bg-[#3F4348] flex items-center justify-center p-[3%]">
-      <div className="relative w-[88%] h-[80%]">
-        <div className="absolute inset-0 bg-black p-[2px] shadow-2xl">
-          <div className="w-full h-full overflow-hidden bg-white">{children}</div>
-        </div>
-        <div className="absolute -bottom-[8%] left-[10%] w-[3%] h-[24%] bg-[#1F2429]" />
-        <div className="absolute -bottom-[8%] right-[10%] w-[3%] h-[24%] bg-[#1F2429]" />
+    <>
+      {posts ? (
+        <SceneSvg style={{ inset: 'auto', left: `${left}%`, top: `${top + height}%`, width: `${width}%`, height: `${94 - top - height}%` }}>
+          <rect x="26" y="0" width="7" height="100" fill={frame} />
+          <rect x="67" y="0" width="7" height="100" fill={frame} />
+          <rect x="20" y="0" width="60" height="9" fill={frame} opacity="0.7" />
+        </SceneSvg>
+      ) : null}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${left}%`,
+          top: `${top}%`,
+          width: `${width}%`,
+          height: `${height}%`,
+          backgroundColor: frame,
+          borderRadius: 3,
+          boxShadow: '0 6px 14px rgba(0,0,0,0.22)',
+        }}
+      >
+        <Print bg={face} style={{ left: '2.5%', top: '4%', right: '2.5%', bottom: '4%' }}>
+          {children}
+        </Print>
       </div>
+    </>
+  );
+}
+
+/** The layout a board's copy uses: one big line, one supporting row. */
+function Copy({
+  children,
+  align = 'center',
+  pad = '6% 7%',
+  justify = 'center',
+}: {
+  children: ReactNode;
+  align?: 'center' | 'flex-start';
+  pad?: string;
+  justify?: 'center' | 'space-between';
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: align,
+        justifyContent: justify,
+        textAlign: align === 'center' ? 'center' : 'left',
+        gap: 3,
+        padding: pad,
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-export function MockupBillboardExtendedRenderer({ brand, templateIndex }: Props) {
-  const p = brand.primaryColor;
-  const init = brand.name.charAt(0).toUpperCase();
-
-  const compositions = [
-    (<div className="w-full h-full flex items-center justify-center" style={{backgroundColor:p}}><div className="text-center text-white"><BrandLogo brand={brand} size="lg" color="#fff" /><div className="text-[8px] uppercase tracking-[0.32em] mt-2 opacity-90">{brand.name}</div></div></div>),
-    (<div className="w-full h-full flex items-center justify-center bg-white"><div className="text-[40px] font-serif font-black" style={{color:p}}>{brand.name}.</div></div>),
-    (<div className="w-full h-full flex"><div className="w-1/2" style={{backgroundColor:p}} /><div className="w-1/2 bg-white flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">launching</div><div className="text-[18px] font-serif font-black" style={{color:p}}>SS 2026</div></div></div></div>),
-    (<div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${p} 0%, ${p}66 100%)` }}><div className="absolute inset-0 flex items-center justify-center text-white text-center"><div><div className="text-[20px] font-serif italic font-bold">make better.</div><div className="text-[6px] uppercase tracking-[0.32em] mt-2 opacity-90">— {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-[#0F1216] text-white flex items-center justify-center"><div className="text-center"><div className="text-[6px] uppercase tracking-[0.32em] opacity-70" style={{color:p}}>● ON AIR</div><div className="text-[24px] font-mono font-extrabold tracking-tight">{brand.name.toUpperCase()}</div></div></div>),
-    (<div className="w-full h-full bg-white p-3 flex items-center"><div className="text-[36px] leading-none font-serif" style={{color:p}}>"</div><div className="ml-2"><div className="text-[10px] font-serif italic font-bold text-gray-900">a small studio.</div><div className="text-[10px] font-serif italic font-bold text-gray-900">big ideas.</div><div className="text-[5px] uppercase tracking-[0.32em] mt-2" style={{color:p}}>— {brand.name}</div></div></div>),
-    (<div className="w-full h-full" style={{ background: `radial-gradient(140% 80% at 30% 30%, ${p} 0%, ${p}AA 35%, transparent 80%)` }}><div className="absolute inset-0 flex items-center justify-center"><div className="bg-white/70 backdrop-blur rounded-md px-4 py-2"><div className="text-[14px] font-bold" style={{color:p}}>{brand.name}.com</div></div></div></div>),
-    (<div className="w-full h-full bg-[#FAF6EE]"><div className="absolute -left-[6%] -top-[40%] w-[80%] aspect-square rounded-full" style={{ background: `conic-gradient(from 180deg, ${p} 0deg, ${p}99 30deg, transparent 60deg, ${p} 90deg, transparent 150deg, ${p} 180deg)`, opacity:0.85 }} /><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[20px] font-serif font-black text-gray-900">{brand.name}</div><div className="text-[6px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>since 2026</div></div></div>),
-    (<div className="w-full h-full bg-white p-3 flex flex-col justify-center" style={{ lineHeight: 0.85 }}>{Array.from({length:4}).map((_,i)=><div key={i} className="text-[26px] font-serif font-black uppercase tracking-tight" style={{ color: i===1?p:`${p}33` }}>{brand.name}</div>)}</div>),
-    (<div className="w-full h-full flex items-center justify-center bg-[#FAF6EE]"><div className="-rotate-6 border-2 px-3 py-2" style={{ borderColor: p, color: p }}><div className="text-[6px] uppercase tracking-[0.32em] text-center">approved</div><div className="text-[20px] font-serif font-black leading-none">{brand.name}</div></div></div>),
-    (<div className="w-full h-full grid grid-cols-3"><div style={{backgroundColor:p}} className="flex items-center justify-center"><div className="text-white text-[20px] font-serif font-black">{init}</div></div><div className="bg-white" /><div className="bg-[#0F1216]" /></div>),
-    (<div className="w-full h-full bg-[#FBF8EE] p-3 flex items-center"><div className="text-[80px] font-bold tabular-nums leading-none" style={{color:p}}>14</div><div className="ml-3"><div className="text-[6px] uppercase tracking-[0.32em] text-gray-500">issue</div><div className="text-[16px] font-serif font-bold">spring 2026</div><div className="text-[6px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>— {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white"><div className="absolute inset-0" style={{ background: p, clipPath: 'polygon(0 0, 100% 0, 100% 70%, 0 100%)' }} /><div className="absolute right-[6%] bottom-[8%] text-right"><div className="text-[10px] font-bold text-gray-900">make less. ship more.</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-[#FBF8EE]"><div className="absolute left-0 right-0 bottom-0 h-[55%]" style={{backgroundColor:p}} /><div className="absolute left-0 right-0 bottom-[55%] h-[12%]" style={{backgroundColor:`${p}77`}} /><div className="absolute right-[16%] top-[14%] w-[14%] aspect-square rounded-full bg-white/70" /><div className="absolute left-[6%] bottom-[8%] text-white"><div className="text-[16px] font-serif font-bold">{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>NOW HIRING</div><div className="text-[18px] font-serif font-black mt-1">join the studio.</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 text-gray-500">{brand.name.toLowerCase()}.com/jobs</div></div></div>),
-    (<div className="w-full h-full bg-[#0F1216]"><div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)', backgroundSize: '12px 12px' }} /><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[6px] uppercase tracking-[0.32em]" style={{color:p}}>{brand.name.toUpperCase()} / SYS</div><div className="text-[24px] font-mono font-extrabold mt-1">RUN.LIVE</div></div></div></div>),
-    (<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-x-0 top-1/3 h-[30%] bg-white flex items-center justify-center"><div className="text-[14px] font-bold" style={{color:p}}>{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-[#FAF6EE] flex items-center justify-center"><div className="text-center"><div className="text-[60px] leading-none font-serif" style={{color:p}}>"</div><div className="text-[10px] font-serif italic">a brand worth knowing.</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 text-gray-500">— a happy client</div></div></div>),
-    (<div className="w-full h-full bg-white p-3 grid grid-cols-2 gap-2"><div className="rounded p-2" style={{backgroundColor:p}}><div className="text-white text-[12px] font-bold">make.</div></div><div className="rounded p-2 border-2" style={{borderColor:p}}><div className="text-[12px] font-bold" style={{color:p}}>better.</div></div></div>),
-    (<div className="w-full h-full bg-white"><div className="absolute inset-0 grid grid-cols-12">{Array.from({length:12}).map((_,i)=><div key={i} style={{borderRight:'1px solid #00000010'}} />)}</div><div className="absolute inset-0 flex items-center justify-center"><div className="text-[24px] font-bold tracking-tight" style={{color:p}}>{brand.name}.</div></div></div>),
-    (<div className="w-full h-full bg-[#FAF6EE]" style={{ background: `repeating-linear-gradient(0deg, ${p} 0 8px, #FAF6EE 8px 16px)` }}><div className="absolute inset-0 flex items-center justify-center"><div className="bg-white px-4 py-2 shadow-md"><div className="text-[14px] font-bold text-gray-900">{brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-[#0F1216]"><div className="absolute inset-0" style={{ background: `radial-gradient(60% 80% at 30% 50%, ${p}AA 0%, transparent 70%)` }} /><div className="absolute left-[6%] top-1/2 -translate-y-1/2 text-white"><BrandLogo brand={brand} size="lg" color="#fff" /><div className="text-[16px] font-serif font-bold mt-2">{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white p-3 flex flex-col justify-center"><div className="text-[5px] uppercase tracking-[0.32em] mb-1" style={{color:p}}>— manifesto —</div>{['Make less.','Make better.','Make it last.'].map((s,i)=>(<div key={i} className="text-[14px] font-serif italic font-bold" style={{color:i===1?p:'#0F1216'}}>{s}</div>))}</div>),
-    (<div className="w-full h-full grid grid-cols-2"><div className="bg-white flex items-center justify-center"><BrandLogo brand={brand} size="lg" color={p} /></div><div className="flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[14px] font-serif font-bold">— studio</div></div></div>),
-    (<div className="w-full h-full" style={{ background: `linear-gradient(180deg, ${p} 0%, ${p}88 50%, #FBF8EE 100%)` }}><div className="absolute right-[14%] top-[14%] w-[14%] aspect-square rounded-full bg-white/80" /><div className="absolute left-[6%] bottom-[10%]"><div className="text-[14px] font-serif italic font-bold text-gray-900">good morning,</div><div className="text-[20px] font-serif font-black mt-0.5" style={{color:p,filter:'brightness(0.65)'}}>{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-[#FBF8EE] flex items-center justify-center"><div className="text-center"><div className="text-[20px] font-serif font-black tracking-tight">{brand.name}</div><div className="h-[2px] mx-auto w-[40%] my-1" style={{backgroundColor:p}} /><div className="text-[6px] uppercase tracking-[0.32em] text-gray-500">a studio · est. 2026</div></div></div>),
-    (<div className="w-full h-full bg-white p-3"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">{brand.name} · 014</div><div className="text-[24px] font-serif font-black mt-1" style={{color:p}}>spring</div><div className="text-[24px] font-serif font-black -mt-1">issue.</div></div>),
-    (<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-0 flex items-center justify-center text-white text-center"><div><div className="text-[5px] uppercase tracking-[0.32em] opacity-80">— launching —</div><div className="text-[24px] font-serif font-black mt-1">SS 2026</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-80">{brand.name.toLowerCase()}.com</div></div></div></div>),
-    (<div className="w-full h-full grid grid-cols-3 grid-rows-2 gap-[1px] bg-white">{Array.from({length:6}).map((_,i)=>(<div key={i} className="flex items-center justify-center" style={{backgroundColor: i===2?p:i%2===0?'#FBF8EE':'#0F1216',color:i%2===0?'#0F1216':'#fff'}}><span className="text-[10px] font-bold">{['M','A','K','E','I','T'][i]}</span></div>))}</div>),
-    (<div className="w-full h-full bg-[#FBF8EE] flex items-center justify-center"><div className="text-center"><BrandLogo brand={brand} size="xl" color={p} /><div className="text-[8px] uppercase tracking-[0.4em] mt-3 text-gray-700">— since 2026 —</div></div></div>),
-  ];
-
-  return <BillboardFrame>{compositions[templateIndex] ?? compositions[0]}</BillboardFrame>;
+function headlineStyle(p: MockupPalette, face: string, size: number) {
+  return {
+    fontFamily: p.heading,
+    fontSize: typePx(size),
+    lineHeight: 1,
+    fontWeight: 800,
+    letterSpacing: '-0.025em',
+    color: ink(face),
+    maxWidth: '100%',
+  };
 }
 
-export const MOCKUP_BILLBOARD_EXTENDED = Array.from({length:30},(_,i)=>({idSuffix:`ext-${i+1}`,name:['Solid','Big Type','Split','Italic','Mono Sys','Quote','Frosted','Sun','Type Wall','Stamp','Triple','Number','Diagonal','Mountain','Hiring','Brutalist','Bar','Editorial Quote','Two Cards','Grid','Stripes','Spotlight','Manifesto','Dual','Sunset','Underline','Issue','Launch','Letter Tiles','Crest'][i],category:'Environment'}));
+function noteStyle(p: MockupPalette, face: string, size = 5) {
+  return {
+    fontFamily: p.body,
+    fontSize: typePx(size),
+    lineHeight: 1.3,
+    color: mutedOn(face),
+    maxWidth: '100%',
+  };
+}
+
+/* ── The six scenes ───────────────────────────────────────────────── */
+
+export const BILLBOARD_SCENES: ReadonlyArray<MockupScene> = withIds([
+  {
+    name: 'Roadside Board',
+    category: 'Environment',
+    tags: ['Outdoor', 'Bold', 'Awareness'],
+    render: ({ brand, c, p }) => {
+      const face = p.brand;
+      return (
+        <Scene ground={p.paper}>
+          <SceneLight x={70} y={10} strength={0.5} />
+          <CastShadow cx={50} cy={92} rx={26} ry={2.4} opacity={0.18} />
+          <Board face={face} frame={p.dark}>
+            <Copy justify="space-between" align="flex-start">
+              <Mark brand={brand} c={c} p={p} on={face} size={16} />
+              <Primary c={c} style={headlineStyle(p, face, 20)} />
+              <Url c={c} style={{ ...noteStyle(p, face, 6), color: ink(face) }} />
+            </Copy>
+          </Board>
+          <DeclareRest c={c} omit={['primaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Colour Field',
+    category: 'Environment',
+    tags: ['Minimal', 'Brand-led', 'Statement'],
+    render: ({ brand, c, p }) => {
+      const face = p.dark;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={30} y={12} strength={0.32} />
+          <CastShadow cx={50} cy={92} rx={26} ry={2.4} opacity={0.22} />
+          <Board face={face} frame={p.brand}>
+            <Copy>
+              <Mark brand={brand} c={c} p={p} on={face} size={22} />
+              <Primary c={c} style={headlineStyle(p, face, 16)} />
+              <Secondary c={c} style={noteStyle(p, face, 6)} />
+            </Copy>
+          </Board>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Split Board',
+    category: 'Environment',
+    tags: ['Editorial', 'Launch', 'Contrast'],
+    render: ({ brand, c, p }) => {
+      const left = p.brand;
+      const right = p.paper;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={50} y={8} strength={0.36} />
+          <CastShadow cx={50} cy={92} rx={26} ry={2.4} opacity={0.2} />
+          <Board face={right} frame={p.dark}>
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: '38%',
+                backgroundColor: left,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Mark brand={brand} c={c} p={p} on={left} size={22} />
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                left: '38%',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: 3,
+                padding: '0 7%',
+              }}
+            >
+              <Primary c={c} style={headlineStyle(p, right, 14)} />
+              <Secondary c={c} style={noteStyle(p, right, 5.5)} wrap />
+              <Url c={c} style={noteStyle(p, right, 5)} />
+            </div>
+          </Board>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Transit Panel',
+    category: 'Environment',
+    tags: ['Transit', 'Wide', 'Urban'],
+    render: ({ brand, c, p }) => {
+      const face = p.paper;
+      const rule = accentOn(face, p);
+      return (
+        <Scene ground={p.dark}>
+          <SceneLight x={50} y={16} strength={0.2} floor={0.28} />
+          <Board face={face} frame={p.wall} posts={false} left={4} top={30} width={92} height={30}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '0 6%',
+              }}
+            >
+              <Mark brand={brand} c={c} p={p} on={face} size={18} />
+              <div style={{ width: 1.5, alignSelf: 'stretch', backgroundColor: rule, margin: '8% 0' }} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <Primary c={c} style={headlineStyle(p, face, 11)} />
+                <Secondary c={c} style={noteStyle(p, face, 5)} />
+              </div>
+              <Badge c={c} on={face} p={p} />
+            </div>
+          </Board>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'badge']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Digital Screen',
+    category: 'Environment',
+    tags: ['Night', 'Retail', 'Modern'],
+    render: ({ brand, c, p }) => {
+      const face = p.brand;
+      return (
+        <Scene ground={p.dark}>
+          <SceneLight x={50} y={40} strength={0.18} floor={0.34} />
+          <Board face={face} frame={p.dark} left={10} top={16} width={80} height={44}>
+            <Copy justify="space-between">
+              <Badge c={c} on={face} p={p} />
+              <Primary c={c} style={headlineStyle(p, face, 18)} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                <Secondary c={c} style={{ ...noteStyle(p, face, 5.5), color: ink(face) }} />
+                <Url c={c} style={noteStyle(p, face, 5)} />
+              </div>
+            </Copy>
+          </Board>
+          {/* The screen's spill on the ground under it — below the posts,
+              faint enough to read as light rather than as a second panel. */}
+          <SceneSvg style={{ inset: 'auto', left: '16%', top: '78%', width: '68%', height: '14%' }}>
+            <rect width="100" height="100" fill={face} opacity="0.1" />
+          </SceneSvg>
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: '6%',
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <Mark brand={brand} c={c} p={p} on={p.dark} size={10} />
+          </div>
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Wall Poster',
+    category: 'Environment',
+    tags: ['Street', 'Typographic', 'Culture'],
+    render: ({ c, p }) => {
+      const face = p.paper;
+      const bar = p.brand;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={24} y={10} strength={0.3} />
+          <Board face={face} frame={p.dark} posts={false} left={16} top={8} width={68} height={80}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                padding: '8% 8%',
+              }}
+            >
+              <Primary c={c} style={headlineStyle(p, face, 22)} />
+              <div
+                style={{
+                  backgroundColor: bar,
+                  padding: '4% 6%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                <Secondary c={c} style={{ ...noteStyle(p, bar, 5.5), color: ink(bar) }} wrap />
+                <Url c={c} style={{ ...noteStyle(p, bar, 5), color: ink(bar) }} />
+              </div>
+            </div>
+          </Board>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+]);
+
+export function MockupBillboardExtendedRenderer(props: MockupRendererProps) {
+  return <>{renderScene(BILLBOARD_SCENES, props)}</>;
+}
+
+export const MOCKUP_BILLBOARD_EXTENDED = templateList(BILLBOARD_SCENES);

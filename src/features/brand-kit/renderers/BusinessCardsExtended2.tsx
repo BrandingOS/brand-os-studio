@@ -1,224 +1,403 @@
-import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
-import { contrastRatio } from '../data/recolorLogo';
-import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
-import { Bind } from '@/features/brandkit/content/Bind';
-
 /**
- * Business cards — second batch of extended designs (100 new).
- * Wave 2 (ext-19 → ext-118). Applies 2026 design movements:
+ * Business cards — Wave 2. Six designs, not a hundred.
  *
- *   Apple HIG       — clarity, deference, depth
- *   Brutalism       — broken grid, raw type, asymmetric
- *   Swiss / Vignelli — strict grid, structural type
- *   Bento           — asymmetric modular cards
- *   Glassmorphism   — translucent depth
- *   Pentagram       — flexible geometric system
- *   Editorial       — magazine-spread typography
- *   Color theory    — minimal + bold accent, rich gradients
+ * WHAT THIS FILE USED TO BE
  *
- * Each design is brand-aware (`brand.primaryColor`, `brand.name`,
- * `BrandLogo`) and renders into a 1.6:1 landscape frame to match
- * the cosmos variant tile.
+ * `business-cards-ext-19` … `-ext-118`: a hundred designs generated in one
+ * function body from `brand.name`. `.audit/CODE.md` §2 measured what a
+ * customer actually got from them — roughly fifty-five printed the string
+ * "VP" over the bound job title, five tiled the letters "JN / SM / XX",
+ * one printed `> jane_smith`, one an issue number "N° 013", and one a
+ * founding year computed from the LENGTH of the brand's name. They reached
+ * the picker as "Wave 2 · 95" and the drilldown as a hundred near-identical
+ * tiles, and one of them was FEATURED on the Brand Kit page.
  *
- * IDs `business-cards-ext-19` through `business-cards-ext-118`
- * are wired through the cosmos render dispatcher so a clean
- * 100-design batch joins the previous 18 — bringing the
- * Business Card drilldown to 12 legacy + 118 ext = 130 total.
+ * WHAT IT IS NOW
+ *
+ * Six designs, at the ids `ext-19` … `-ext-24`, built from the same
+ * machinery Wave 1 uses (`cardTheme`, `CardStage`, `Face`, `CardBack`,
+ * `Mark`, `fragments`, `cardText`) — so there is one answer in this repo to
+ * "what is a business card", not two. Each of the six is a COMPOSITION Wave
+ * 1 does not have: a diagonal cut, a contact rail, a centre split, three
+ * stacked panels, a perforated stub, and type running up the edge.
+ *
+ * Every one of them binds all ten `person` fields, paints only from
+ * `brandStyle`, and carries a back. The other 94 ids are archived in
+ * `renderers/curation/businessCards.ts` — reserved, so a saved
+ * customization filed under one still resolves, and invisible everywhere
+ * else. `BUSINESS_CARDS_EXTENDED_2` holding six entries is what actually
+ * stops the 94 being emitted; the ids' `-ext-N` arithmetic is untouched.
  */
+import type { ReactNode } from 'react';
+import type { Brand } from '@/shared/types/brand';
+import {
+  CardBack,
+  CardStage,
+  Contacts,
+  ContactsSplit,
+  Face,
+  Mark,
+  UPPER,
+  cardContext,
+  cardText,
+  type CardCtx,
+  type PersonCardContent,
+} from './BusinessCardsExtended';
+
 interface Props {
   brand: Brand;
   templateIndex: number;
-  /** Optional prop-driven content. See `BusinessCardContent`. */
-  content?: Partial<BusinessCardContent>;
+  /** The `person` content the shared dispatch hands every card. */
+  content?: PersonCardContent;
 }
 
+type CardDesign = (ctx: CardCtx) => { front: ReactNode; back: ReactNode };
+
+const DESIGNS: CardDesign[] = [
+  // 19 — Diagonal Cut. A brand wedge taken out of the top-right corner,
+  // carrying the mark. Nothing else is printed on it: a wedge is a shape
+  // whose edge moves with the card's width, and type that has to dodge a
+  // moving edge is type that eventually collides with it.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <div style={{ position: 'absolute', inset: 0, background: t.paper, overflow: 'hidden' }}>
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '54%',
+            height: '48%',
+            background: t.brandBg,
+            clipPath: 'polygon(26% 0, 100% 0, 100% 100%)',
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            top: '7%',
+            right: '6%',
+            display: 'block',
+          }}
+        >
+          <Mark brand={brand} theme={t} on={t.brandBg} height={11} picks={picks} company={company} />
+        </span>
+        <Face bg="transparent">
+          <div style={{ maxWidth: '44%' }}>
+            <div style={cardText(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+            <div style={cardText(5.1, t.paperMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
+          </div>
+          <div
+            style={cardText(11.5, t.paperInk, t.heading, {
+              fontWeight: 600,
+              marginTop: 'auto',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={cardText(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={cardText(5.8, t.paperAccent, t.body, { marginTop: '1px', ...UPPER })}>
+            {f.Role}
+          </div>
+          <div style={{ marginTop: '5px' }}>
+            <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
+            <div style={cardText(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+          </div>
+        </Face>
+      </div>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
+  }),
+
+  // 20 — Contact Rail. The four ways to reach the person live in a brand
+  // column down the right-hand edge, so they read as a block rather than
+  // as the tail of the card.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ display: 'flex', height: '100%' }}>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: '9% 6% 9% 8%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <Mark brand={brand} theme={t} on={t.paper} height={12} picks={picks} company={company} />
+            <div
+              style={cardText(11, t.paperInk, t.heading, {
+                fontWeight: 600,
+                marginTop: 'auto',
+                letterSpacing: '-0.015em',
+              })}
+            >
+              {f.Name}
+              <span style={cardText(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+            </div>
+            <div style={cardText(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+            <div style={cardText(5.3, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Company}</div>
+            <div style={cardText(5.1, t.paperMuted, t.body, { marginTop: '3px' })}>{f.Address}</div>
+          </div>
+          <div
+            style={{
+              width: '38%',
+              background: t.brandBg,
+              padding: '9% 6%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minWidth: 0,
+            }}
+          >
+            <div style={cardText(5.2, t.brandMuted, t.body, UPPER)}>{f.Tagline}</div>
+            <Contacts f={f} color={t.brandInk} font={t.body} size={5.3} gap={1.4} />
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
+  }),
+
+  // 21 — Centre Split. One hairline down the middle: who, and how to
+  // reach them. The most literal reading of what a card is for.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="9% 7%">
+        <div style={{ display: 'flex', height: '100%', gap: '6%' }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
+            <div
+              style={cardText(10.5, t.paperInk, t.heading, {
+                fontWeight: 600,
+                marginTop: 'auto',
+                letterSpacing: '-0.015em',
+              })}
+            >
+              {f.Name}
+              <span style={cardText(5.1, t.paperMuted, t.body)}>{f.Pron}</span>
+            </div>
+            <div style={cardText(5.7, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+          </div>
+          <div style={{ width: '1px', background: t.paperLine, flex: '0 0 auto' }} />
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={cardText(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+            <div style={cardText(5.2, t.paperMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
+            <div style={{ marginTop: 'auto' }}>
+              <Contacts f={f} color={t.paperInk} font={t.body} size={5.3} gap={1.1} />
+              <div style={cardText(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>
+                {f.Address}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 22 — Three Panels. Paper, tint, brand — stacked, each one holding the
+  // part of the card that belongs to it: the mark, the person, the
+  // contact. Every text node is measured against the panel it sits on.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div
+          style={{
+            padding: '5% 8% 3%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '5%',
+          }}
+        >
+          <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
+          <div style={cardText(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+        </div>
+        <div style={{ background: t.tint, padding: '4% 8%', flex: 1 }}>
+          <div
+            style={cardText(11, t.tintInk, t.heading, { fontWeight: 600, letterSpacing: '-0.015em' })}
+          >
+            {f.Name}
+            <span style={cardText(5.2, t.tintMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={cardText(5.8, t.tintAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+          <div style={cardText(5.2, t.tintMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+        </div>
+        <div style={{ background: t.brandBg, padding: '4% 8%' }}>
+          <ContactsSplit f={f} color={t.brandInk} font={t.body} size={5.3} gap={0.8} />
+          <div style={cardText(5.1, t.brandMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="second" />,
+  }),
+
+  // 23 — Perforation. A dashed rule with a notch at each end, the way a
+  // ticket tears. The stub below it carries the contact block.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ flex: 1, padding: '8% 8% 4%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={cardText(5.3, t.paperMuted, t.mono, UPPER)}>{f.Company}</div>
+            <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+          </div>
+          <div
+            style={cardText(11.5, t.paperInk, t.heading, {
+              fontWeight: 600,
+              marginTop: 'auto',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={cardText(5.2, t.paperMuted, t.mono)}>{f.Pron}</span>
+          </div>
+          <div style={cardText(5.7, t.paperAccent, t.mono, { marginTop: '1px', ...UPPER })}>
+            {f.Role}
+          </div>
+          <div style={cardText(5.2, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+        </div>
+        <div style={{ position: 'relative', height: '1px' }}>
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `repeating-linear-gradient(90deg, ${t.paperLine} 0 2px, transparent 2px 4px)`,
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: '-2%',
+              top: '-2px',
+              width: '5px',
+              height: '5px',
+              borderRadius: '50%',
+              background: t.brandBg,
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              right: '-2%',
+              top: '-2px',
+              width: '5px',
+              height: '5px',
+              borderRadius: '50%',
+              background: t.brandBg,
+            }}
+          />
+        </div>
+        <div style={{ padding: '4.5% 8% 7%' }}>
+          <ContactsSplit f={f} color={t.paperInk} font={t.mono} size={5.3} gap={1.1} />
+          <div style={cardText(5.1, t.paperMuted, t.mono, { marginTop: '2px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 24 — Edge Type. The company runs UP the left edge in a tint strip.
+  // The strip's rotated box is sized in PERCENT of the strip, not pixels,
+  // so it stays the height of the card at any width the stage is given.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ display: 'flex', height: '100%' }}>
+          <div
+            style={{
+              width: '13%',
+              background: t.brandBg,
+              position: 'relative',
+              flex: '0 0 auto',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                width: '480%',
+                transform: 'translate(-50%, -50%) rotate(-90deg)',
+                textAlign: 'center',
+                ...cardText(5.6, t.brandInk, t.heading, { fontWeight: 600, ...UPPER }),
+              }}
+            >
+              {f.Company}
+            </div>
+          </div>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: '9% 8% 8% 7%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={cardText(5.2, t.paperMuted, t.body)}>{f.Tagline}</div>
+              <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+            </div>
+            <div
+              style={cardText(11.5, t.paperInk, t.heading, {
+                fontWeight: 600,
+                marginTop: 'auto',
+                letterSpacing: '-0.02em',
+              })}
+            >
+              {f.Name}
+              <span style={cardText(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+            </div>
+            <div style={cardText(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+            <div style={{ marginTop: '5px' }}>
+              <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.3} gap={1.1} />
+              <div style={cardText(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>
+                {f.Address}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
+  }),
+];
+
+/**
+ * Wave 2's renderer.
+ *
+ * `templateIndex` arrives already rebased by the shared dispatch (`ext-19`
+ * is 0). An index past the six can only come from a saved customization
+ * filed against an archived id: it wraps rather than painting nothing,
+ * because the customer's own content still shows on a design that reads.
+ */
 export function BusinessCardExtended2Renderer({ brand, templateIndex, content }: Props) {
-  const p = brand.primaryColor;
-  const s = brand.secondaryColor || '#0F1216';
-  const init = brand.name.charAt(0).toUpperCase();
-  const N = brand.name.toUpperCase();
-  const lower = brand.name.toLowerCase();
-  // Prop-driven content + derived stringy variants used by the
-  // brutalist / mono-styled designs ({NAME_DOT}, {NAME_LOWER_DOT}, VP, etc.)
-  const c = deriveBusinessCardContent(brand, content);
-  // Bound fragments. The designs were already prop-driven — this adds the
-  // editor contract on top, so each piece of identity is a region the
-  // user can click on the card itself.
-  //
-  // `firstName` and `initials` are NOT bound, deliberately. They are
-  // derived from the full name, so binding them would mean committing
-  // "JS" as the person's whole name the moment someone tidied up a
-  // monogram. They still update the instant the name does, because they
-  // are recomputed from it; the name itself is edited on the card
-  // wherever it appears in full, or in the panel.
-  const Name = <Bind path="fullName" value={c.fullName} fit="shrink" />;
-  const First = <>{c.firstName}</>;
-  const Initials = <>{c.initials}</>;
-  const Title = <Bind path="jobTitle" value={c.jobTitle} />;
-  const Email = <Bind path="email" value={c.email} />;
-  const Phone = <Bind path="phone" value={c.phone} />;
-  const Site = <Bind path="website" value={c.website} />;
-  const NAME = c.fullName.toUpperCase();
-  const NAME_DOT = c.fullName.replace(/\s+/g, '.').toUpperCase();
-  const NAME_UNDER = c.fullName.replace(/\s+/g, '_').toUpperCase();
-  const NAME_LOWER_DOT = c.fullName.replace(/\s+/g, '.').toLowerCase();
-  const TITLE = c.jobTitle.toUpperCase();
-  const TITLE_LOWER = c.jobTitle.toLowerCase();
-  const TITLE_SHORT = c.jobTitle
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase())
-    .join('');
-  // Fixed near-black panels swallow a dark brand primary — the dot
-  // grid and accent text vanish entirely. Pick the first brand color
-  // that clears WCAG AA (4.5:1) on the panel, falling back to white.
-  const DARK_PANEL = '#0F1216';
-  const pOnDark =
-    contrastRatio(p, DARK_PANEL) >= 4.5
-      ? p
-      : contrastRatio(s, DARK_PANEL) >= 4.5
-        ? s
-        : '#FFFFFF';
-
-  // 100 designs — ordered by movement so the drilldown reads as
-  // a curated tour rather than a random pile.
-  const designs: React.ReactNode[] = [
-    // ─── APPLE-LIKE (clarity / deference / depth) — 15
-    (<div className="w-full h-full bg-white relative p-[7%]"><div className="absolute inset-x-[7%] top-1/2 -translate-y-1/2 text-center"><div className="text-[14px] font-bold tracking-tight text-gray-900">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{Title} · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-[#F5F5F7] relative p-[7%]"><BrandLogo brand={brand} size="xs" /><div className="absolute right-[7%] bottom-[7%] text-right"><div className="text-[10px] font-medium text-gray-900">{Name}</div><div className="text-[4.5px] mt-0.5 text-gray-500">VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 flex items-center justify-between px-[8%]"><div><div className="text-[12px] font-medium text-gray-900 leading-tight">{First}<br/>{c.lastName || ''}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP</div></div><div className="text-right text-[4px] text-gray-500"><div>{Email}</div><div className="mt-0.5">{Phone}</div></div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[8%]"><div className="text-[5px] uppercase tracking-[0.4em] text-gray-500">{brand.name}</div><div className="absolute inset-x-[8%] top-1/2 -translate-y-1/2"><div className="text-[16px] font-light text-gray-900">{Name}</div><div className="h-[1px] w-[40%] mt-2" style={{backgroundColor:p}} /></div><div className="absolute right-[8%] bottom-[8%] text-[4px] text-gray-500">{Email}</div></div>),
-    (<div className="w-full h-full bg-[#FAFAFA] relative"><div className="absolute inset-x-[8%] top-[8%] flex items-center gap-2"><div className="w-[10px] h-[10px] rounded-full" style={{backgroundColor:p}} /><span className="text-[5px] uppercase tracking-[0.32em] text-gray-700">{brand.name}</span></div><div className="absolute inset-x-[8%] bottom-[8%]"><div className="text-[12px] font-semibold text-gray-900">{Name}</div><div className="text-[4.5px] text-gray-500 mt-0.5">VP · {Email}</div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[8%]"><div className="absolute inset-0 flex items-center justify-center"><BrandLogo brand={brand} size="lg" color={p} /></div></div>),
-    (<div className="w-full h-full bg-white p-[7%] flex flex-col justify-between"><div className="text-[4.5px] uppercase tracking-[0.32em] text-gray-400">{brand.name} · 2026</div><div><div className="text-[20px] font-light text-gray-900 leading-none">{First}.</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP</div></div><div className="text-[4px] text-gray-400">{Email}</div></div>),
-    (<div className="w-full h-full bg-[#F2F2F7] relative"><div className="absolute inset-[4%] rounded-2xl bg-white shadow-sm flex items-center justify-between px-[6%]"><BrandLogo brand={brand} size="xs" /><div className="text-right"><div className="text-[10px] font-semibold text-gray-900">{Name}</div><div className="text-[4px] text-gray-500">{Email}</div></div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.5em] text-gray-400 mb-2">— a card —</div><div className="text-[14px] font-light text-gray-900">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-white"><div className="grid grid-cols-2 h-full"><div className="bg-[#F5F5F7] flex items-center justify-center"><BrandLogo brand={brand} size="md" color={p} /></div><div className="flex flex-col justify-between p-[8%]"><div className="text-[4.5px] uppercase tracking-[0.32em] text-gray-400">vp</div><div><div className="text-[10px] font-semibold">{Name}</div><div className="text-[4px] text-gray-500 mt-0.5">{Email}</div></div></div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[7%]"><div className="text-[5px] uppercase tracking-[0.4em] text-gray-400">design · {brand.name}</div><div className="absolute inset-x-[7%] top-[40%]"><div className="text-[18px] font-light leading-none text-gray-900">{First},</div><div className="text-[18px] font-light leading-none text-gray-900 mt-0.5">{c.lastName || c.firstName}.</div></div><div className="absolute right-[7%] bottom-[7%] text-[4px] text-gray-500">·</div></div>),
-    (<div className="w-full h-full bg-[#FAFAFA] relative p-[7%] flex flex-col justify-between"><div className="flex items-center gap-1"><div className="w-[6px] h-[6px] rounded-full" style={{backgroundColor:p}} /><span className="text-[3.5px] uppercase tracking-[0.4em] text-gray-600">live</span></div><div className="text-[14px] font-medium text-gray-900">{Name}</div><div className="text-[4px] text-gray-500">VP, {brand.name} · {Email}</div></div>),
-    (<div className="w-full h-full bg-white"><div className="absolute inset-0 flex items-center justify-center"><div className="text-[44px] font-thin leading-none text-gray-900">{init}</div></div><div className="absolute inset-x-0 bottom-[6%] text-center text-[4.5px] uppercase tracking-[0.4em] text-gray-500">{c.firstName.toLowerCase()} · {brand.name}</div></div>),
-    (<div className="w-full h-full bg-white p-[7%] flex"><div className="w-[40%] flex flex-col justify-between"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-400">contact</div><div className="text-[4px] text-gray-700">{Email}<br/>{Phone}</div></div><div className="flex-1 flex items-end pl-3"><div><div className="text-[14px] font-light text-gray-900">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 flex items-center justify-center"><BrandLogo brand={brand} size="xl" color={p} /></div><div className="absolute inset-x-0 bottom-[6%] text-center text-[4px] uppercase tracking-[0.5em] text-gray-400">— {c.fullName.toLowerCase()} —</div></div>),
-
-    // ─── BRUTALIST / ANTI-DESIGN — 15
-    (<div className="w-full h-full bg-yellow-300 relative p-[6%] font-mono"><div className="text-[5px] uppercase tracking-[0.22em]">{brand.name.toUpperCase()} ::</div><div className="text-[20px] font-extrabold leading-none mt-1">{NAME_DOT}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1">VP // OPS // {init}-014</div><div className="absolute right-[6%] bottom-[6%] text-[4px] text-right">{Email}<br/>{Phone}</div></div>),
-    (<div className="w-full h-full bg-black text-yellow-300 relative p-[6%] font-mono"><div className="text-[18px] font-extrabold leading-[0.92]">{c.firstName.toUpperCase()}</div><div className="text-[18px] font-extrabold leading-[0.92]">{(c.lastName || c.firstName).toUpperCase()}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-2 text-yellow-300/70">▉ {TITLE}</div><div className="absolute right-[6%] bottom-[6%] text-[4px] text-right">{Site}</div></div>),
-    (<div className="w-full h-full bg-white relative font-mono"><div className="absolute inset-x-[6%] top-[8%] text-[4.5px] uppercase tracking-[0.32em] border-b-4 border-black pb-1">{NAME_UNDER}.OBJECT</div><div className="absolute inset-x-[6%] top-[28%] text-[5px] leading-[1.5]"><div>{`{`}</div><div className="ml-3">role: <span style={{color:p}}>"VP"</span>,</div><div className="ml-3">brand: <span style={{color:p}}>"{brand.name}"</span>,</div><div className="ml-3">mail: <span style={{color:p}}>"{Email}"</span></div><div>{`}`}</div></div></div>),
-    (<div className="w-full h-full bg-[#FF3B30] text-white relative p-[6%] font-bold uppercase font-mono"><div className="text-[5px] tracking-[0.32em] opacity-80">!! HELLO</div><div className="text-[24px] tracking-tight leading-[0.92] mt-1">{c.firstName.toUpperCase()}_{(c.lastName || c.firstName).charAt(0).toUpperCase()}.</div><div className="text-[4.5px] tracking-[0.32em] mt-1 opacity-90">VP // {brand.name}</div><div className="absolute right-[6%] bottom-[6%] text-[4px] text-right opacity-80">[ {Email} ]</div></div>),
-    (<div className="w-full h-full bg-white p-[5%] grid grid-cols-3 grid-rows-3 gap-0 font-mono uppercase text-[3.5px] border-2 border-black">{['JN','SM','01','VP','OPS','{brand}','XX','XX','XX'].map((c,i)=>(<div key={i} className="border border-black flex items-center justify-center font-bold">{c.replace('{brand}',init+'/'+init)}</div>))}</div>),
-    (<div className="w-full h-full bg-[#0F1216] text-[#39FF14] relative p-[6%] font-mono"><div className="text-[4.5px] uppercase tracking-[0.22em] opacity-70">█ ROOT@{brand.name.toUpperCase()}:~$</div><div className="text-[5px] mt-1">whoami</div><div className="text-[10px] font-bold mt-0.5">{NAME_LOWER_DOT}</div><div className="text-[5px] mt-1">--role vp --brand {lower}</div><div className="text-[4px] mt-1 opacity-60">█</div></div>),
-    (<div className="w-full h-full relative" style={{ background: 'repeating-linear-gradient(0deg, #000 0 2px, #fff 2px 4px)' }}><div className="absolute inset-[8%] bg-white p-3"><div className="text-[5px] uppercase tracking-[0.22em] text-black">{brand.name}</div><div className="text-[16px] font-extrabold uppercase mt-1">{NAME}</div><div className="text-[4px] mt-1 text-black/70">VP // {Email}</div></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative"><div className="absolute inset-0 grid grid-cols-12 grid-rows-8">{Array.from({length:96}).map((_,i)=><div key={i} style={{backgroundColor:i%17===0?p:'transparent'}} />)}</div><div className="absolute inset-x-[6%] bottom-[6%]"><div className="text-[12px] font-extrabold uppercase font-mono">{NAME_DOT}</div><div className="text-[3.5px] uppercase tracking-[0.32em]" style={{color:p}}>vp · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative font-mono uppercase"><div className="text-[5px] tracking-[0.22em]">[file: card.txt]</div><div className="text-[10px] font-extrabold mt-2">{'> jane_smith'}</div><div className="text-[10px] font-extrabold leading-none">{'> vice_pres'}</div><div className="text-[10px] font-extrabold leading-none">{`> ${Site}`}</div><div className="absolute right-[6%] bottom-[6%] text-[3.5px]" style={{color:p}}>[end_of_card]</div></div>),
-    (<div className="w-full h-full bg-[#39FF14] relative p-[6%] font-mono"><div className="text-[5px] uppercase tracking-[0.22em] text-black/70">FROM_THE_DESK_OF</div><div className="text-[18px] font-extrabold leading-[0.92] text-black mt-1">{NAME_DOT}()</div><div className="text-[4.5px] uppercase tracking-[0.22em] text-black mt-1 font-bold">VP_OPS · {brand.name.toUpperCase()}</div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative"><div className="text-[24px] font-extrabold uppercase font-mono leading-[0.92] tracking-tight">{c.firstName.toUpperCase()}</div><div className="text-[24px] font-extrabold uppercase font-mono leading-[0.92] tracking-tight" style={{ color: p }}>{(c.lastName || c.firstName).toUpperCase()}</div><div className="text-[24px] font-extrabold uppercase font-mono leading-[0.92] tracking-tight">VP.</div><div className="absolute right-[6%] bottom-[6%] text-[4px] uppercase tracking-[0.22em] font-mono">{Site}</div></div>),
-    (<div className="w-full h-full bg-white relative" style={{ borderTop: '8px solid #000', borderBottom: '8px solid #000' }}><div className="p-[5%] font-mono"><div className="text-[5px] uppercase tracking-[0.22em] text-black/70">CARD/{init}.014</div><div className="text-[16px] font-extrabold uppercase mt-1">{NAME}</div><div className="text-[4px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP // {brand.name.toUpperCase()}</div></div></div>),
-    (<div className="w-full h-full bg-[#1F1F1F] text-white p-[6%] font-mono relative"><div className="text-[3.5px] uppercase tracking-[0.32em] text-white/60">— terminal_card —</div><div className="text-[5px] mt-2"><span className="opacity-60">user@</span><span style={{color:p}}>{lower}</span><span className="opacity-60">:</span></div><div className="text-[12px] font-extrabold mt-1">{NAME_LOWER_DOT}</div><div className="text-[5px] mt-2 opacity-70">→ role: VP</div><div className="text-[5px] opacity-70">→ {Phone}</div></div>),
-    (<div className="w-full h-full bg-yellow-300 relative" style={{transform:'rotate(0deg)'}}><div className="absolute inset-[6%] bg-white shadow-md p-[6%] -rotate-1"><div className="text-[5px] uppercase tracking-[0.22em] font-mono">★ {brand.name.toUpperCase()} ★</div><div className="text-[20px] font-extrabold uppercase font-mono mt-1">{c.firstName.toUpperCase()}!</div><div className="text-[12px] font-bold uppercase font-mono">{(c.lastName || c.firstName).toUpperCase()}</div><div className="text-[4px] uppercase tracking-[0.22em] mt-1 font-mono" style={{color:p}}>vp · ops · live</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 grid grid-cols-2 grid-rows-2"><div className="border-2 border-black flex items-center justify-center font-mono text-[5px] uppercase tracking-[0.22em]">name</div><div className="bg-black text-white flex items-center justify-center font-mono text-[10px] font-extrabold">{c.firstName.toUpperCase()}</div><div className="bg-black text-white flex items-center justify-center font-mono text-[10px] font-extrabold">{(c.lastName || c.firstName).toUpperCase()}</div><div className="border-2 border-black flex items-center justify-center font-mono text-[5px] uppercase tracking-[0.22em]" style={{color:p}}>vp.</div></div></div>),
-
-    // ─── SWISS / VIGNELLI — 15
-    (<div className="w-full h-full bg-white relative p-[7%]"><div className="text-[4px] uppercase tracking-[0.32em] font-bold text-black">{brand.name}</div><div className="absolute inset-x-[7%] top-1/2 -translate-y-1/2 grid grid-cols-12"><div className="col-start-3 col-span-9"><div className="text-[16px] font-bold leading-tight">{Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>{Title}</div></div></div><div className="absolute inset-x-[7%] bottom-[7%] grid grid-cols-12 text-[3.5px] uppercase tracking-[0.22em]"><span className="col-span-2 text-gray-500">tel</span><span className="col-span-4">{Phone}</span><span className="col-span-2 text-gray-500">email</span><span className="col-span-4">{Email}</span></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative"><div className="absolute left-[6%] top-[6%] bottom-[6%] w-[1px]" style={{backgroundColor:p}} /><div className="absolute right-[6%] top-[6%] bottom-[6%] w-[1px]" style={{backgroundColor:p}} /><div className="absolute inset-x-[6%] top-[6%] h-[1px]" style={{backgroundColor:p}} /><div className="absolute inset-x-[6%] bottom-[6%] h-[1px]" style={{backgroundColor:p}} /><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.4em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-white p-[7%] grid grid-cols-7 grid-rows-3 gap-1 text-[3.5px]"><div className="col-span-2 uppercase tracking-[0.22em] text-gray-400">name</div><div className="col-span-5 font-bold uppercase tracking-tight text-[10px] leading-none">{Name}</div><div className="col-span-2 uppercase tracking-[0.22em] text-gray-400">role</div><div className="col-span-5 uppercase tracking-[0.22em]" style={{color:p}}>VP / OPS</div><div className="col-span-2 uppercase tracking-[0.22em] text-gray-400">@</div><div className="col-span-5 font-mono">{Email}</div></div>),
-    (<div className="w-full h-full bg-white p-[7%] relative"><div className="text-[5px] uppercase tracking-[0.32em] text-black border-b-2 border-black pb-1">{brand.name} · {init}-014 · 2026</div><div className="mt-3"><div className="text-[14px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>{TITLE_LOWER} · ops</div></div><div className="absolute inset-x-[7%] bottom-[7%] flex justify-between text-[3.5px] uppercase tracking-[0.22em] border-t pt-1 border-black"><span>{Site}</span><span>{Phone}</span></div></div>),
-    (<div className="w-full h-full bg-white p-[7%]"><div className="grid grid-cols-12 gap-1"><div className="col-span-12 text-[3.5px] uppercase tracking-[0.32em] text-gray-400 mb-1">{brand.name}</div><div className="col-span-9"><div className="text-[12px] font-bold leading-none">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP · OPS</div></div><div className="col-span-3 text-right"><BrandLogo brand={brand} size="xs" /></div><div className="col-span-12 mt-2 grid grid-cols-3 text-[3.5px] uppercase tracking-[0.22em] text-gray-500"><span>tel · {Phone}</span><span>{Email}</span><span className="text-right">{Site}</span></div></div></div>),
-    (<div className="w-full h-full bg-[#F5F2E8] p-[6%] relative"><div className="text-[4.5px] uppercase tracking-[0.32em] text-black">{brand.name} · A studio</div><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[7px] uppercase tracking-[0.4em] text-gray-700">— {TITLE_LOWER} —</div><div className="font-serif font-bold text-[16px] mt-1">{Name}</div></div></div><div className="absolute right-[6%] bottom-[6%] text-[3.5px] uppercase tracking-[0.32em]" style={{color:p}}>est · 2026</div></div>),
-    (<div className="w-full h-full bg-white p-[7%] flex flex-col justify-between"><div className="border-b-2 pb-1 border-black"><div className="text-[5px] uppercase tracking-[0.4em] font-bold">{brand.name}</div></div><div className="text-center"><div className="text-[16px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>{TITLE_LOWER}</div></div><div className="border-t-2 pt-1 border-black flex justify-between text-[3.5px] uppercase tracking-[0.22em]"><span>{Phone}</span><span>{Email}</span></div></div>),
-    (<div className="w-full h-full bg-white p-[7%] relative"><div className="grid grid-cols-2 h-full"><div className="border-r border-black pr-3 flex flex-col justify-between"><div className="text-[5px] uppercase tracking-[0.32em] font-bold">{brand.name}</div><div className="text-[12px] font-bold leading-none">{Name}</div></div><div className="pl-3 flex flex-col justify-between"><div className="text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>VP — Operations</div><div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500"><div>{Phone}</div><div>{Email}</div><div>{Site}</div></div></div></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative"><div className="text-[3.5px] uppercase tracking-[0.32em] text-gray-400">A — {brand.name} — 014</div><div className="text-[40px] font-black tracking-tight leading-none mt-2 text-black">{init}.</div><div className="absolute right-[6%] bottom-[6%] text-right"><div className="text-[10px] font-bold">{Name}</div><div className="text-[3.5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>vp</div></div></div>),
-    (<div className="w-full h-full bg-white p-[7%] relative"><div className="absolute inset-x-[7%] top-[7%] flex justify-between"><div className="text-[3.5px] uppercase tracking-[0.32em] font-bold">{brand.name}</div><div className="text-[3.5px] uppercase tracking-[0.32em] text-gray-400">{init}-014 / spring 2026</div></div><div className="absolute inset-x-[7%] top-1/2 -translate-y-1/2 text-center"><div className="text-[16px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.4em] mt-2" style={{color:p}}>{TITLE_LOWER}</div></div><div className="absolute inset-x-[7%] bottom-[7%] flex justify-between text-[3.5px] uppercase tracking-[0.32em] border-t pt-1 border-black"><span>{Phone}</span><span>{Email}</span><span>{Site}</span></div></div>),
-    (<div className="w-full h-full bg-white"><div className="grid grid-cols-3 h-full"><div className="bg-black flex items-center justify-center"><div className="text-white text-[24px] font-bold leading-none">{init}</div></div><div className="col-span-2 p-[6%] flex flex-col justify-between"><div className="text-[5px] uppercase tracking-[0.32em] font-bold">{brand.name}</div><div><div className="text-[14px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP · Operations</div></div><div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">{Email} · {Phone}</div></div></div></div>),
-    (<div className="w-full h-full bg-white p-[7%] relative"><div className="grid grid-cols-12 gap-1 h-full"><div className="col-span-12 text-[3.5px] uppercase tracking-[0.32em] text-black border-b border-black pb-1">{brand.name} CO. · A — {init}/014</div><div className="col-span-12 flex flex-col justify-center"><div className="text-[14px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP · operations</div></div><div className="col-span-12 text-[3.5px] uppercase tracking-[0.32em] border-t border-black pt-1 flex justify-between"><span>{Phone}</span><span>{Email}</span></div></div></div>),
-    (<div className="w-full h-full bg-white p-[7%]"><div className="text-[3.5px] uppercase tracking-[0.32em] font-bold">{brand.name}</div><div className="mt-2 grid grid-cols-2 gap-3"><div><div className="text-[10px] font-bold leading-none">{Name}</div><div className="text-[4px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP, Operations</div></div><div><div className="text-[3px] uppercase tracking-[0.22em] text-gray-400">CONTACT</div><div className="text-[3.5px] mt-0.5">{Email}</div><div className="text-[3.5px]">{Phone}</div></div></div></div>),
-    (<div className="w-full h-full bg-white p-[7%] relative"><div className="absolute inset-x-[7%] top-[20%] h-[2px] bg-black" /><div className="absolute inset-x-[7%] top-[40%] h-[2px]" style={{backgroundColor:p}} /><div className="absolute inset-x-[7%] top-[60%] h-[2px] bg-black" /><div className="absolute inset-x-[7%] top-[8%]"><div className="text-[3.5px] uppercase tracking-[0.32em] font-bold">{brand.name} CO.</div></div><div className="absolute inset-x-[7%] top-[26%]"><div className="text-[10px] font-bold leading-none">{Name}</div></div><div className="absolute inset-x-[7%] top-[46%]"><div className="text-[5px] uppercase tracking-[0.22em]" style={{color:p}}>VP · Operations</div></div><div className="absolute inset-x-[7%] top-[66%] text-[3.5px] uppercase tracking-[0.22em]">{Email}</div></div>),
-    (<div className="w-full h-full bg-white p-[7%]"><div className="grid grid-cols-12 gap-1"><div className="col-span-2 text-[3.5px] uppercase tracking-[0.32em] text-gray-400 self-end">/01</div><div className="col-span-10 text-[3.5px] uppercase tracking-[0.32em] font-bold border-b border-black pb-1">{brand.name} · BUSINESS CARD A · 014</div></div><div className="mt-3"><div className="text-[14px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP · Operations</div></div></div>),
-
-    // ─── BENTO / MODULAR — 10
-    (<div className="w-full h-full bg-[#F5F5F7] p-[3%] grid grid-cols-3 grid-rows-2 gap-1.5"><div className="col-span-2 row-span-2 rounded-2xl flex items-center justify-center" style={{backgroundColor:p}}><BrandLogo brand={brand} size="lg" color="#fff" /></div><div className="rounded-2xl bg-white flex items-center justify-center"><div className="text-[8px] font-semibold">{First}</div></div><div className="rounded-2xl bg-white flex items-center justify-center"><div className="text-[8px] font-semibold">{c.lastName || ''}</div></div></div>),
-    (<div className="w-full h-full bg-[#F5F5F7] p-[3%] grid grid-cols-4 grid-rows-3 gap-1.5"><div className="col-span-2 row-span-2 rounded-2xl bg-white p-3 flex flex-col justify-end"><div className="text-[12px] font-bold leading-none">{Name}</div><div className="text-[4px] uppercase tracking-[0.22em] mt-1" style={{color:p}}>VP · Ops</div></div><div className="col-span-2 rounded-2xl flex items-end p-2" style={{backgroundColor:p}}><div className="text-white text-[5px] uppercase tracking-[0.32em]">{brand.name}</div></div><div className="rounded-2xl bg-white flex items-center justify-center"><BrandLogo brand={brand} size="xs" color={p} /></div><div className="rounded-2xl bg-[#0F1216] flex items-center justify-center"><div className="text-white text-[8px] font-bold">{init}</div></div><div className="col-span-4 rounded-2xl bg-white p-2 text-[3.5px] uppercase tracking-[0.32em] text-gray-500">{Email} · {Phone}</div></div>),
-    (<div className="w-full h-full bg-[#FBF8EE] p-[3%] grid grid-cols-3 grid-rows-3 gap-1"><div className="col-span-2 rounded-xl bg-white p-2"><div className="text-[10px] font-semibold">{Name}</div><div className="text-[3.5px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>vp</div></div><div className="rounded-xl flex items-center justify-center" style={{backgroundColor:p}}><BrandLogo brand={brand} size="xs" color="#fff" /></div><div className="rounded-xl bg-white flex items-center justify-center text-[5px] uppercase tracking-[0.32em]">{brand.name}</div><div className="col-span-2 row-span-2 rounded-xl bg-[#0F1216] flex items-end p-2"><div className="text-white text-[7px] font-mono">{Email}<br/>{Phone}</div></div><div className="rounded-xl bg-white flex items-center justify-center text-[10px] font-serif font-bold" style={{color:p}}>{init}</div></div>),
-    (<div className="w-full h-full bg-[#0F1216] p-[3%] grid grid-cols-3 grid-rows-2 gap-1"><div className="rounded-xl flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[10px] font-bold">VP</div></div><div className="col-span-2 rounded-xl bg-[#1F2429] p-2 flex flex-col justify-center"><div className="text-white text-[10px] font-semibold">{Name}</div></div><div className="col-span-2 rounded-xl bg-[#1F2429] p-2 flex items-end"><div className="text-white text-[3.5px] uppercase tracking-[0.32em] opacity-80">{Email}</div></div><div className="rounded-xl bg-[#1F2429] flex items-center justify-center"><BrandLogo brand={brand} size="xs" color={p} /></div></div>),
-    (<div className="w-full h-full bg-white p-[3%] grid grid-cols-4 grid-rows-2 gap-1.5"><div className="col-span-3 row-span-2 rounded-2xl flex items-end p-3" style={{backgroundColor:p}}><div className="text-white"><div className="text-[16px] font-bold leading-none">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1 opacity-90">{brand.name} · VP</div></div></div><div className="rounded-2xl bg-[#F5F5F7] flex items-center justify-center"><BrandLogo brand={brand} size="xs" color={p} /></div><div className="rounded-2xl bg-[#F5F5F7] flex items-center justify-center text-[7px] font-serif font-bold" style={{color:p}}>014</div></div>),
-    (<div className="w-full h-full bg-[#F5F5F7] p-[3%] grid grid-cols-2 grid-rows-3 gap-1.5"><div className="rounded-2xl bg-white flex items-end p-2"><div><div className="text-[10px] font-bold">{First}</div><div className="text-[10px] font-bold">{c.lastName || ''}</div></div></div><div className="row-span-2 rounded-2xl flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[24px] font-serif font-black">{init}</div></div><div className="rounded-2xl bg-white flex items-center justify-center text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>VP · Ops</div><div className="col-span-2 rounded-2xl bg-[#0F1216] p-2 text-white text-[3.5px] uppercase tracking-[0.32em]">{Email}</div></div>),
-    (<div className="w-full h-full bg-[#F5F5F7] p-[3%] grid grid-cols-3 grid-rows-2 gap-1.5"><div className="row-span-2 rounded-2xl bg-white p-2 flex flex-col justify-between"><div className="text-[3.5px] uppercase tracking-[0.32em] text-gray-400">name</div><div><div className="text-[10px] font-bold leading-none">{Name}</div><div className="text-[3.5px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP</div></div></div><div className="rounded-2xl flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[6px] uppercase tracking-[0.32em]">{brand.name}</div></div><div className="rounded-2xl bg-white flex items-center justify-center"><BrandLogo brand={brand} size="xs" color={p} /></div><div className="col-span-2 rounded-2xl bg-[#0F1216] flex items-end p-2"><div className="text-white text-[3.5px] uppercase tracking-[0.32em] opacity-80">{Email} · {Phone}</div></div></div>),
-    (<div className="w-full h-full bg-[#F2F0EA] p-[3%] grid grid-cols-2 grid-rows-2 gap-1.5"><div className="row-span-2 rounded-3xl bg-white p-3 flex flex-col justify-between"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-400">— {brand.name}</div><div className="text-[7px] uppercase tracking-[0.32em]" style={{color:p}}>VP · Ops</div></div><div className="rounded-3xl flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[14px] font-bold">{First}</div></div><div className="rounded-3xl flex items-center justify-center bg-[#0F1216]"><div className="text-white text-[14px] font-bold">{c.lastName || ''}</div></div></div>),
-    (<div className="w-full h-full bg-[#F5F5F7] p-[3%] grid grid-cols-5 grid-rows-3 gap-1"><div className="col-span-5 rounded-xl flex items-center justify-between px-3" style={{backgroundColor:p}}><BrandLogo brand={brand} size="xs" color="#fff" /><span className="text-white text-[5px] uppercase tracking-[0.32em]">{brand.name}</span></div><div className="col-span-3 row-span-2 rounded-xl bg-white p-2 flex flex-col justify-end"><div className="text-[10px] font-bold leading-none">{Name}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP · Ops</div></div><div className="col-span-2 rounded-xl bg-white flex items-center justify-center text-[5px] uppercase tracking-[0.32em] text-gray-500">jane@</div><div className="col-span-2 rounded-xl bg-[#0F1216] flex items-center justify-center text-white text-[5px]">{Phone}</div></div>),
-    (<div className="w-full h-full bg-[#F5F5F7] p-[3%] grid grid-cols-3 grid-rows-2 gap-1.5"><div className="rounded-2xl bg-white p-2 flex items-end"><div className="text-[7px] font-semibold">Name</div></div><div className="col-span-2 row-span-2 rounded-2xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${p}, ${p}99)` }}><div className="text-white text-center"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-90">VP · {brand.name}</div></div></div><div className="rounded-2xl bg-[#0F1216] flex items-center justify-center"><BrandLogo brand={brand} size="xs" color={p} /></div></div>),
-
-    // ─── GLASSMORPHISM — 10
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${p}, ${s})` }} /><div className="absolute inset-[10%] rounded-2xl backdrop-blur-md bg-white/20 border border-white/40 p-3 flex flex-col justify-between"><BrandLogo brand={brand} size="xs" color="#fff" /><div className="text-white"><div className="text-[12px] font-semibold">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1 opacity-90">VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-[#0F1216]"><div className="absolute inset-0" style={{ background: `radial-gradient(80% 60% at 30% 30%, ${p} 0%, transparent 70%)` }} /><div className="absolute inset-[8%] rounded-3xl backdrop-blur-md bg-white/10 border border-white/20 flex items-center px-3"><div className="text-white"><div className="text-[10px] font-semibold">{Name}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-0.5 opacity-80">VP · {brand.name.toLowerCase()}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${p} 0%, ${p}99 100%)` }} /><div className="absolute left-[6%] top-1/2 -translate-y-1/2 w-[44%] aspect-square rounded-full bg-white/30 backdrop-blur-md border border-white/50 flex items-center justify-center"><BrandLogo brand={brand} size="md" color="#fff" /></div><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right text-white"><div className="text-[14px] font-light">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-90">VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-[#F5F5F7]"><div className="absolute -left-[20%] -top-[20%] w-[80%] h-[80%] rounded-full" style={{ background: `linear-gradient(135deg, ${p}, ${s})` }} /><div className="absolute -right-[20%] -bottom-[20%] w-[60%] h-[60%] rounded-full" style={{ background: `linear-gradient(135deg, ${p}, ${s})` }} /><div className="absolute inset-[10%] rounded-3xl backdrop-blur-2xl bg-white/40 border border-white/60 flex items-center justify-center"><div className="text-center"><div className="text-[12px] font-semibold text-gray-900">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0 grid grid-cols-3"><div style={{backgroundColor:p}} /><div className="bg-[#0F1216]" /><div style={{backgroundColor:s}} /></div><div className="absolute inset-[12%] rounded-2xl backdrop-blur-2xl bg-white/30 border border-white/50 flex items-center justify-center"><div className="text-center text-white"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-90">{brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute inset-0" style={{ background: `conic-gradient(from 90deg, ${p}, ${s}, ${p})` }} /><div className="absolute inset-[8%] rounded-2xl backdrop-blur-3xl bg-white/40 border border-white/60 p-3 flex flex-col justify-between"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-700">{brand.name} · 014</div><div><div className="text-[12px] font-semibold text-gray-900">{Name}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP · OPS</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${p} 0%, transparent 100%)`, backgroundColor: '#0F1216' }} /><div className="absolute left-[8%] top-[8%] right-[40%] bottom-[8%] rounded-2xl backdrop-blur-md bg-white/15 border border-white/20 p-3 flex flex-col justify-between"><BrandLogo brand={brand} size="xs" color="#fff" /><div className="text-white text-[8px] font-bold leading-tight">{First}<br/>{c.lastName || ''}</div></div><div className="absolute right-[8%] top-1/2 -translate-y-1/2 text-right text-white"><div className="text-[5px] uppercase tracking-[0.32em] opacity-80">VP · Ops</div><div className="text-[4px] mt-0.5 opacity-70">{Email}</div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-[#1F1F1F]"><div className="absolute inset-0" style={{ background: `radial-gradient(40% 30% at 80% 80%, ${p}AA 0%, transparent 100%)` }} /><div className="absolute inset-[6%] rounded-3xl border border-white/10 backdrop-blur-sm bg-white/5 flex items-center justify-center"><div className="text-center text-white"><div className="text-[5px] uppercase tracking-[0.4em] opacity-70">— {TITLE_LOWER} —</div><div className="text-[14px] font-light mt-1">{Name}</div><div className="h-[1px] mx-auto w-[30%] mt-2" style={{backgroundColor:p}} /></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute -left-[10%] -top-[10%] w-[60%] aspect-square" style={{ background: `radial-gradient(circle, ${p}, transparent 70%)` }} /><div className="absolute right-[6%] top-[6%] left-[40%] bottom-[6%] rounded-2xl backdrop-blur-lg bg-white/50 border border-white/70 p-3 flex flex-col justify-between"><div className="text-[4.5px] uppercase tracking-[0.32em]" style={{color:p}}>{brand.name}</div><div><div className="text-[10px] font-semibold text-gray-900">{Name}</div><div className="text-[4px] mt-0.5 text-gray-600">VP · Ops</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-[#0F1216]"><div className="absolute inset-0" style={{background:`linear-gradient(45deg, transparent 0%, ${p}55 50%, transparent 100%)`}} /><div className="absolute inset-[10%] rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 flex items-center justify-between px-3"><BrandLogo brand={brand} size="xs" color="#fff" /><div className="text-right text-white"><div className="text-[10px] font-light">{Name}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-0.5 opacity-80">VP · {brand.name}</div></div></div></div>),
-
-    // ─── GRADIENT MESH (Color theory) — 10
-    (<div className="w-full h-full relative overflow-hidden" style={{ background: `radial-gradient(120% 80% at 20% 30%, ${p} 0%, transparent 60%), radial-gradient(120% 80% at 80% 70%, ${s} 0%, transparent 60%), #FBF8EE` }}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[16px] font-bold text-gray-900">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden" style={{background:`linear-gradient(135deg, ${p} 0%, ${s} 100%)`}}><div className="absolute inset-[6%] flex flex-col justify-between"><BrandLogo brand={brand} size="xs" color="#fff" /><div className="text-white"><div className="text-[14px] font-light">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-90">VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0" style={{ background: `conic-gradient(from 0deg at 30% 70%, ${p}, ${s}, ${p})` }} /><div className="absolute inset-x-[8%] bottom-[8%]"><div className="text-white text-[14px] font-bold drop-shadow-md">{Name}</div><div className="text-white text-[4.5px] uppercase tracking-[0.32em] mt-1 opacity-90 drop-shadow">{brand.name}</div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute left-0 top-0 w-1/2 h-full" style={{background:`linear-gradient(180deg, ${p}, ${s})`}} /><div className="absolute inset-0 flex"><div className="w-1/2 flex items-center justify-center"><BrandLogo brand={brand} size="md" color="#fff" /></div><div className="w-1/2 flex items-center px-3"><div><div className="text-[12px] font-bold text-gray-900">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · Ops</div></div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden" style={{ background: `linear-gradient(180deg, ${s} 0%, ${p} 100%)` }}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[24px] font-light leading-none">{init}</div><div className="text-[5px] uppercase tracking-[0.4em] mt-2 opacity-90">{First} · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-[#0F1216]"><div className="absolute -inset-[10%] opacity-70" style={{ background: `radial-gradient(circle at 30% 30%, ${p}, transparent 50%), radial-gradient(circle at 70% 70%, ${s}, transparent 50%)` }} /><div className="absolute inset-[8%] flex flex-col justify-between"><BrandLogo brand={brand} size="xs" color="#fff" /><div className="text-white"><div className="text-[14px] font-light">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1 opacity-90">{brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden" style={{ background: `linear-gradient(105deg, ${p} 0%, ${p} 50%, #fff 50%, #fff 100%)` }}><div className="absolute inset-x-[8%] top-[8%] flex justify-between text-[5px] uppercase tracking-[0.32em]"><span className="text-white">{brand.name}</span><span style={{color:p}}>014</span></div><div className="absolute right-[8%] bottom-[8%] text-right"><div className="text-[14px] font-bold text-gray-900">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · Ops</div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute inset-x-[8%] top-[8%] bottom-[8%] rounded-2xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${p} 0%, ${s} 100%)` }}><div className="text-center text-white"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-90">VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden" style={{ background: `linear-gradient(45deg, ${p}, transparent), linear-gradient(135deg, ${s}, transparent), #FBF8EE` }}><div className="absolute inset-x-[8%] bottom-[8%]"><div className="text-[14px] font-light text-gray-900">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden"><div className="absolute inset-0" style={{ background: `linear-gradient(225deg, ${p}, ${s}, ${p})` }} /><div className="absolute inset-[6%] rounded-2xl bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center"><div className="text-center text-white"><BrandLogo brand={brand} size="md" color="#fff" /><div className="text-[14px] font-light mt-2">{Name}</div></div></div></div>),
-
-    // ─── PENTAGRAM-LIKE FLEXIBLE GRID — 10
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 grid grid-cols-12 grid-rows-8">{Array.from({length:96}).map((_,i)=>{ const r=Math.floor(i/12); const c=i%12; const accent=(r===2&&c>=2&&c<=5)||(r===3&&c===2)||(r===4&&c===2)||(r===4&&c===3)||(r===4&&c===4); return <div key={i} style={{backgroundColor:accent?p:'transparent'}} />; })}</div><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[12px] font-bold leading-tight">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 grid grid-cols-8 grid-rows-5 gap-[1px]">{Array.from({length:40}).map((_,i)=><div key={i} style={{backgroundColor:[5,12,19,20,21,28,35].includes(i)?p:'transparent'}} />)}</div><div className="absolute left-[6%] bottom-[6%]"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative grid grid-cols-12 grid-rows-7"><div className="col-span-4 row-span-3 col-start-2 row-start-2" style={{backgroundColor:p}} /><div className="col-span-3 row-span-2 col-start-7 row-start-2 bg-[#0F1216]" /><div className="col-span-2 row-span-3 col-start-9 row-start-3" style={{backgroundColor:p,opacity:0.4}} /><div className="absolute right-[6%] bottom-[6%] text-right"><div className="text-[10px] font-bold">{Name}</div><div className="text-[4px] uppercase tracking-[0.32em]" style={{color:p}}>{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0" style={{ background: `repeating-linear-gradient(0deg, ${p}11 0 14px, transparent 14px 28px)` }} /><div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative"><div className="grid grid-cols-3 gap-1 absolute inset-x-[6%] top-[6%]">{Array.from({length:3}).map((_,i)=><div key={i} className="aspect-square" style={{backgroundColor:i===1?p:`${p}33`}} />)}</div><div className="absolute left-[6%] bottom-[6%]"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{brand.name} · VP</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute left-0 top-0 bottom-0 w-[8%]" style={{backgroundColor:p}} /><div className="absolute left-[8%] top-0 bottom-0 w-[8%] bg-[#0F1216]" /><div className="absolute left-[16%] top-0 bottom-0 w-[8%]" style={{backgroundColor:`${p}66`}} /><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 flex items-center justify-center"><div className="grid grid-cols-3 grid-rows-3 gap-1 w-[40%]">{Array.from({length:9}).map((_,i)=><div key={i} className="aspect-square" style={{backgroundColor: i===4?p:i%2===0?'#0F1216':'transparent'}} />)}</div></div><div className="absolute right-[6%] bottom-[6%] text-right text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>{First} · {brand.name}</div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-x-[6%] top-[6%] grid grid-cols-12 gap-[1px]">{Array.from({length:12}).map((_,i)=><div key={i} className="h-[3px]" style={{backgroundColor:i<7?p:'transparent'}} />)}</div><div className="absolute inset-x-[6%] top-[14%]"><div className="text-[16px] font-bold leading-none">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{TITLE_LOWER} · {brand.name}</div></div><div className="absolute inset-x-[6%] bottom-[6%] grid grid-cols-12 gap-[1px]">{Array.from({length:12}).map((_,i)=><div key={i} className="h-[3px]" style={{backgroundColor:i>=5?p:'transparent'}} />)}</div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute left-0 top-0 w-[60%] h-[60%]" style={{backgroundColor:p}} /><div className="absolute right-0 bottom-0 w-[60%] h-[60%] bg-[#0F1216]" /><div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-md px-3 py-2 shadow-lg"><div className="text-[12px] font-bold">{Name}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-x-[10%] top-[10%] bottom-[10%]" style={{borderTop:`6px solid ${p}`,borderLeft:`6px solid ${p}`,borderRight:`6px solid #0F1216`,borderBottom:`6px solid #0F1216`}}><div className="absolute inset-0 flex items-center justify-center"><div className="text-center"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div></div></div>),
-
-    // ─── MIXED CREATIVE — 25
-    (<div className="w-full h-full bg-[#FBF8EE] relative p-[6%]"><div className="text-[40px] font-serif italic font-black leading-none" style={{color:p}}>Hi.</div><div className="absolute right-[6%] bottom-[6%] text-right"><div className="text-[10px] font-serif font-bold">— {Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 text-gray-500">VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[6%]"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-400">file: card.014</div><div className="text-[24px] font-serif font-black leading-none mt-2" style={{color:p}}>{First},</div><div className="text-[24px] font-serif font-black leading-none">{c.lastName || c.firstName}.</div><div className="absolute right-[6%] bottom-[6%] text-right text-[5px] uppercase tracking-[0.32em] text-gray-500">VP · {brand.name}</div></div>),
-    (<div className="w-full h-full bg-[#0F1216] relative p-[6%]"><div className="text-[5px] uppercase tracking-[0.4em] opacity-70" style={{color:p}}>● ● ●</div><div className="absolute inset-0 flex items-center justify-center"><div className="text-white text-center"><div className="text-[20px] font-light">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-2 opacity-80" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[6%]"><div className="text-[80px] font-serif font-black leading-none" style={{color:`${p}11`}}>{init}</div><div className="absolute right-[6%] top-[6%] text-right"><div className="text-[10px] font-bold">{First}</div><div className="text-[10px] font-bold">{c.lastName || ''}</div></div><div className="absolute right-[6%] bottom-[6%] text-right text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>VP · {brand.name}</div></div>),
-    (<div className="w-full h-full bg-white relative" style={{ borderRadius:'40px 0 40px 0', backgroundColor: p }}><div className="absolute inset-[8%] rounded-3xl bg-white p-3 flex flex-col justify-between"><BrandLogo brand={brand} size="xs" color={p} /><div><div className="text-[12px] font-bold">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0" style={{ background: `repeating-linear-gradient(45deg, ${p} 0 6px, #fff 6px 12px)` }} /><div className="absolute inset-[14%] bg-white rounded-md p-2 shadow-lg flex items-center justify-center"><div className="text-center"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-[#FBF8EE] relative p-[6%]"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— hello there —</div><div className="text-[36px] italic font-bold mt-1" style={{ color:p, fontFamily:'Caveat, cursive' }}>{First},</div><div className="absolute right-[6%] bottom-[6%] text-right text-[5px] uppercase tracking-[0.32em]">VP · {brand.name}</div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-x-[10%] top-[10%] bottom-[10%] rounded-full flex items-center justify-center" style={{backgroundColor:p}}><div className="text-center text-white"><div className="text-[14px] font-bold">{First}</div><div className="text-[14px] font-bold leading-none">{c.lastName || ''}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-2 opacity-90">VP</div></div></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative"><div className="grid grid-cols-2 gap-2 h-full"><div className="rounded-md overflow-hidden flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[24px] font-serif font-black">{init}</div></div><div className="rounded-md bg-[#FBF8EE] flex flex-col justify-between p-2"><div className="text-[3.5px] uppercase tracking-[0.32em]" style={{color:p}}>jane@</div><div><div className="text-[10px] font-bold">{Name}</div><div className="text-[3.5px] uppercase tracking-[0.32em] mt-0.5">VP</div></div></div></div></div>),
-    (<div className="w-full h-full bg-[#0F1216] relative p-[6%]"><div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(${pOnDark} 1px, transparent 1.5px)`, backgroundSize: '8px 8px', opacity: 0.4 }} /><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2"><div className="text-white text-[14px] font-light">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:pOnDark}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[6%]"><div className="absolute inset-0 flex items-center justify-center" style={{ backgroundImage: `linear-gradient(0deg, transparent 0%, transparent 49.5%, ${p}33 49.5%, ${p}33 50.5%, transparent 50.5%, transparent 100%)` }}><div className="bg-white px-3 py-2"><div className="text-[12px] font-bold text-gray-900">{Name}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
-    (<div className="w-full h-full bg-white relative" style={{ background: `linear-gradient(180deg, white 0%, white 50%, ${p} 50%, ${p} 100%)` }}><div className="absolute inset-x-[6%] top-[20%] text-[14px] font-bold leading-none">{First}</div><div className="absolute inset-x-[6%] bottom-[20%] text-right text-white text-[14px] font-bold leading-none">{c.lastName || ''}</div></div>),
-    (<div className="w-full h-full bg-[#FAF6EE] relative p-[6%]"><div className="absolute inset-x-[6%] top-[10%] grid grid-cols-3 gap-1">{Array.from({length:9}).map((_,i)=><div key={i} className="h-[3px] rounded-full" style={{backgroundColor:i%4===0?p:'#E5E0D2'}} />)}</div><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 grid grid-cols-2"><div style={{backgroundColor:p}}><div className="absolute inset-0 flex items-end p-3"><div className="text-white"><BrandLogo brand={brand} size="xs" color="#fff" /><div className="text-[10px] font-light mt-1">{Name}</div></div></div></div><div className="bg-white"><div className="absolute right-3 bottom-3 text-right text-[3.5px] uppercase tracking-[0.32em]"><div style={{color:p}}>VP</div><div className="mt-0.5 text-gray-500">{brand.name}</div></div></div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute -left-[20%] top-1/2 -translate-y-1/2 w-[80%] aspect-square rounded-full" style={{ background: `radial-gradient(circle, ${p}55, transparent 70%)` }} /><div className="absolute right-[6%] top-1/2 -translate-y-1/2 text-right"><div className="text-[14px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white p-[6%] relative font-serif"><div className="text-[36px] leading-none italic font-black" style={{color:p}}>“</div><div className="absolute inset-x-[10%] top-[34%] text-[7px] italic">make it small.</div><div className="absolute right-[6%] bottom-[6%] text-right"><div className="text-[10px] font-bold">— {Name}</div><div className="text-[5px] uppercase tracking-[0.22em] mt-1 not-italic" style={{color:p}}>{brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-x-[15%] top-1/2 -translate-y-1/2 border-[6px] p-3" style={{borderColor:p}}><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— vp —</div><div className="text-[12px] font-bold mt-1">{Name}</div></div></div></div>),
-    (<div className="w-full h-full bg-[#0F1216] relative p-[6%]"><div className="text-white"><div className="text-[3.5px] uppercase tracking-[0.4em] opacity-70" style={{color:p}}>★ ★ ★ ★ ★</div><div className="text-[14px] font-light mt-2">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 opacity-80">VP · {brand.name}</div></div><div className="absolute right-[6%] bottom-[6%] text-right text-[3.5px] uppercase tracking-[0.32em] text-white/60">{Email}</div></div>),
-    (<div className="w-full h-full bg-white relative p-[6%]"><div className="text-[7px] uppercase tracking-[0.32em] text-gray-400">{brand.name} · {init}-014 · 2026</div><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2 grid grid-cols-2"><div><div className="text-[14px] font-light">{First}</div><div className="text-[14px] font-light">{c.lastName || ''}</div></div><div className="text-right"><div className="text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>VP</div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">OPS</div></div></div></div>),
-    (<div className="w-full h-full bg-[#FBF8EE] p-[6%] relative"><div className="text-[5px] uppercase tracking-[0.4em] text-gray-500">— a small studio —</div><div className="text-[14px] font-serif italic font-bold mt-1" style={{color:p}}>{brand.name}</div><div className="absolute inset-x-[6%] bottom-[6%]"><div className="text-[10px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1 text-gray-500">VP · Operations</div></div></div>),
-    (<div className="w-full h-full bg-white relative p-[6%]"><div className="absolute right-[6%] top-[6%] w-[40%] aspect-[1.6/1] rounded-md" style={{backgroundColor:p}} /><div className="absolute left-[6%] bottom-[6%]"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full relative overflow-hidden bg-white"><div className="absolute inset-0" style={{ background: `repeating-radial-gradient(circle at 50% 50%, ${p}11 0 16px, transparent 16px 32px)` }} /><div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center"><div className="text-[16px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
-    (<div className="w-full h-full bg-white relative"><div className="absolute inset-0 flex"><div className="w-[24%] flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[24px] font-serif font-black">{init}</div></div><div className="flex-1 px-[6%] flex flex-col justify-center"><div className="text-[12px] font-bold">{Name}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>{TITLE_LOWER}</div><div className="text-[3.5px] mt-2 text-gray-500">{Email} · {Phone}</div></div></div></div>),
-    (<div className="w-full h-full bg-[#F5F2E8] p-[6%] relative"><div className="text-[3.5px] uppercase tracking-[0.4em] text-gray-500">{brand.name} · 014 · spring 2026</div><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2"><div className="text-[18px] font-serif font-light leading-none">{Name},</div><div className="text-[5px] italic mt-2 text-gray-700">{TITLE_LOWER} of operations</div></div><div className="absolute right-[6%] bottom-[6%] text-right text-[3.5px] uppercase tracking-[0.32em]" style={{color:p}}>{Email}</div></div>),
-    (<div className="w-full h-full relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${p}, ${p}AA, ${p})` }}><div className="absolute inset-x-[6%] top-[6%]"><BrandLogo brand={brand} size="xs" color="#fff" /></div><div className="absolute inset-0 flex items-center justify-center"><div className="text-center text-white"><div className="text-[20px] font-light leading-none">{Name}</div><div className="h-[1px] mx-auto w-[40%] mt-2 bg-white/40" /><div className="text-[5px] uppercase tracking-[0.32em] mt-2 opacity-90">VP · {brand.name} · 2026</div></div></div></div>),
-
-    // ─── EDITORIAL / EEXTRA — 15
-    ...Array.from({length:15}).map((_,i)=>(<div className="w-full h-full bg-white relative p-[6%]"><div className="text-[3.5px] uppercase tracking-[0.4em] text-gray-400">{brand.name} · {String(i+1).padStart(2,'0')} · spring 2026</div><div className="absolute inset-x-[6%] top-[34%]"><div className="text-[5px] font-serif italic" style={{color:p}}>{[TITLE_LOWER,'operations','executive','board','partner','chief of staff','head of growth','strategy','partnerships','communications','people ops','design','engineering','marketing','customer'][i%15]}</div><div className="text-[16px] font-serif font-black leading-tight">{Name}</div></div><div className="absolute inset-x-[6%] bottom-[6%] text-[3.5px] uppercase tracking-[0.32em] flex justify-between text-gray-500"><span>{Email}</span><span>{Phone}</span></div></div>)),
-  ];
-
-  return designs[templateIndex] ?? designs[0];
+  const ctx = cardContext(brand, content);
+  const design = DESIGNS[templateIndex] ?? DESIGNS[templateIndex % DESIGNS.length] ?? DESIGNS[0];
+  const { front, back } = design(ctx);
+  return <CardStage theme={ctx.theme} front={front} back={back} />;
 }
 
-export const BUSINESS_CARDS_EXTENDED_2 = Array.from({ length: 100 }, (_, i) => ({
-  idSuffix: `ext-${i + 19}`,
-  name: `Wave 2 · ${String(i + 1).padStart(2, '0')}`,
-  category: 'Modern',
-}));
+/** The kept Wave-2 ids. Six entries where there were a hundred. */
+export const BUSINESS_CARDS_EXTENDED_2 = [
+  { idSuffix: 'ext-19', name: 'Diagonal Cut', category: 'Bold' },
+  { idSuffix: 'ext-20', name: 'Contact Rail', category: 'Modern' },
+  { idSuffix: 'ext-21', name: 'Centre Split', category: 'Minimalist' },
+  { idSuffix: 'ext-22', name: 'Three Panels', category: 'Modern' },
+  { idSuffix: 'ext-23', name: 'Perforation', category: 'Editorial' },
+  { idSuffix: 'ext-24', name: 'Edge Type', category: 'Lux' },
+] as const;
+
+/** The ids this file used to emit and no longer does, for the curation record. */
+export const BUSINESS_CARDS_WAVE_2_ARCHIVED_IDS: ReadonlyArray<string> = Array.from(
+  { length: 94 },
+  (_, i) => `business-cards-ext-${25 + i}`,
+);

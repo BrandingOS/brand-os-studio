@@ -9,8 +9,14 @@ import type { KitSectionKey } from './BrandKitSidebar';
 import type { EditorTarget } from './BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
-import type { KitEntry } from '../catalog/catalog';
+import { getEntryFor, type KitEntry } from '../catalog/catalog';
+import { downloadOptionsFor } from '../data/exportFormats';
+import { photosUnavailableReason } from '../data/photoExport';
+import { usePhotoSources } from '../data/usePhotoSources';
+import type { SavedCardCustomization } from '../data/cardCustomizations';
+import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
 import { DeliverableCard } from './DeliverableCard';
+import { CardCover } from './CardCover';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -120,6 +126,10 @@ const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
     { label: 'Fade' },
     { label: 'Rotate' },
   ],
+  // Mockups has no legacy section grid — it is reached through the
+  // catalog's own `EntryGrid`, never through `SECTION_ORDER`. Empty here
+  // so `Record<KitSectionKey, …>` stays total.
+  mockups: [],
 };
 
 /** Cap any section at 5 cards regardless of source data. */
@@ -207,10 +217,6 @@ export function coversFor(sectionKey: KitSectionKey, label: string): string[] {
   if (!override) return pooled;
   // Replace the primary with the override; keep the other two alternatives.
   return [override, ...pooled.slice(1)];
-}
-
-function coverFor(sectionKey: KitSectionKey, label: string): string {
-  return coversFor(sectionKey, label)[0];
 }
 
 function EditIcon() {
@@ -315,22 +321,47 @@ type CardProps = {
   /** Hover pencil — opens the card editor directly (KIT-06). When
    *  absent the pencil falls back to the card-open behaviour. */
   onEditAction?: (item: GridItem) => void;
-  onDownload?: (item: GridItem) => void;
+  onDownload?: (item: GridItem, choice: DownloadChoice) => void;
   onOpenMenu: (e: React.MouseEvent, item: GridItem) => void;
+  /** Everything the cover needs to paint the brand's own artwork. */
+  cover: React.ReactNode;
+  /** Why this card has nothing to export, when it has nothing. */
+  downloadUnavailable?: string;
 };
 
-function BrandKitCard({ item, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
+function BrandKitCard({
+  item,
+  onEdit,
+  onEditAction,
+  onDownload,
+  onOpenMenu,
+  cover,
+  downloadUnavailable,
+}: CardProps) {
+  // The ⬇ button opens the shared Download menu rather than firing a
+  // download: For web · For print · Vector · Flattened · Custom size, the
+  // same five words on every surface of the kit.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const entry = getEntryFor(item.sectionKey, item.storageLabel);
   return (
+    // A card is a control, so it says so and can be reached with Tab. It is
+    // NOT a <button>: it contains buttons (edit · download), and a button
+    // inside a button is not a button.
     <figure
       className="bk-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${item.displayLabel}`}
       onContextMenu={(e) => onOpenMenu(e, item)}
       onClick={(e) => onEdit(item, rectCenter(e.currentTarget as HTMLElement))}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        onEdit(item, rectCenter(e.currentTarget as HTMLElement));
+      }}
     >
       <div className="bk-card-cover">
-        <div
-          className="bk-card-cover-image"
-          style={{ backgroundImage: `url(${coverFor(item.sectionKey, item.storageLabel)})` }}
-        />
+        {cover}
         <div className="bk-card-actions">
           <button
             type="button"
@@ -354,15 +385,25 @@ function BrandKitCard({ item, onEdit, onEditAction, onDownload, onOpenMenu }: Ca
               className="bk-card-action"
               aria-label={`Download ${item.displayLabel}`}
               title={`Download ${item.displayLabel}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
               onClick={(e) => {
                 e.stopPropagation();
-                onDownload(item);
+                setMenuOpen((v) => !v);
               }}
             >
               <DownloadIcon />
             </button>
           )}
         </div>
+        {menuOpen && onDownload && entry && (
+          <DownloadMenu
+            options={downloadOptionsFor(entry, downloadUnavailable)}
+            anchor={{ top: 44, left: 12 }}
+            onClose={() => setMenuOpen(false)}
+            onChoose={(choice) => onDownload(item, choice)}
+          />
+        )}
       </div>
       <figcaption className="bk-card-label">{item.displayLabel}</figcaption>
     </figure>
@@ -395,10 +436,19 @@ type CardGridProps = {
   /** Right-click "Edit" — opens the editor directly, skipping the
    *  variants drilldown. */
   onEditCard?: (target: EditorTarget) => void;
-  onDownloadCard?: (target: EditorTarget) => void;
+  onDownloadCard?: (target: EditorTarget, choice: DownloadChoice) => void;
   /** MockBrand from the page — required for brand-assets cards so
    *  variantsForCard can emit one template per real asset. */
   brand?: MockBrand;
+  /** Canonical brand — what lets a cover paint the REAL renderer rather
+   *  than the brand's identity mark. Absent (the standalone Setup mock,
+   *  a test) every cover falls back to the identity composition. */
+  sourceBrand?: Brand;
+  /** The user's own featured picks, so a card's face is the variant they
+   *  chose rather than the library's first. */
+  featuredIdsByLabel?: Record<string, string[]>;
+  /** The user's saved Quick Edits, so a cover says what they wrote. */
+  savedContent?: Record<string, SavedCardCustomization>;
   kit?: KitGridProps;
 };
 
@@ -416,9 +466,17 @@ export function CardGrid({
   onEditCard,
   onDownloadCard,
   brand,
+  sourceBrand,
+  featuredIdsByLabel,
+  savedContent,
   kit,
 }: CardGridProps) {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  // The Photos menu's disabled state is only as honest as the photo-source
+  // cache behind it, and that cache is optimistic until something measures
+  // it (QA Q15). Asking here means the menu is right the first time it is
+  // opened rather than after a tile has failed to load.
+  usePhotoSources(brand);
 
   // Keep the card visually raised (actions visible) while its menu is open,
   // mirroring SetupBoard's `.is-ctx-active` pattern.
@@ -464,7 +522,7 @@ export function CardGrid({
       if (onDownloadCard) {
         menuItems.push({
           label: 'Download',
-          onSelect: () => onDownloadCard(targetFor(item)),
+          onSelect: () => onDownloadCard(targetFor(item), { format: 'png' }),
           icon: <DownloadIcon />,
         });
       }
@@ -512,8 +570,31 @@ export function CardGrid({
                     }
                   : undefined
               }
-              onDownload={onDownloadCard ? (it) => onDownloadCard(targetFor(it)) : undefined}
+              onDownload={
+                onDownloadCard ? (it, choice) => onDownloadCard(targetFor(it), choice) : undefined
+              }
               onOpenMenu={openMenu}
+              // A card whose material does not exist offers a menu that
+              // says so rather than five rows that quietly do nothing
+              // (QA Q13/Q14). Photos is the only such family today.
+              downloadUnavailable={
+                item.sectionKey === 'brand-assets' && item.storageLabel === 'Photos'
+                  ? photosUnavailableReason(brand)
+                  : undefined
+              }
+              cover={
+                brand ? (
+                  <CardCover
+                    sectionKey={item.sectionKey}
+                    storageLabel={item.storageLabel}
+                    brand={brand}
+                    sourceBrand={sourceBrand}
+                    templates={variantsForCard(item.sectionKey, item.storageLabel, brand)}
+                    featuredIdsByLabel={featuredIdsByLabel}
+                    saved={savedContent}
+                  />
+                ) : null
+              }
             />
           );
         })}

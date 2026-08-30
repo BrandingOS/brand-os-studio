@@ -1,16 +1,17 @@
 /**
  * Application use-case: change a brand's typography families (Batch A2).
  *
- * The canonical typography mutation. Font FAMILIES are the persisted authority
- * today (weights are not written by any current surface; type-scale is
- * preview-only — see docs/phase-2 discovery). This operation updates the
- * canonical TypographySystem; `toLegacyBrandPatch` projects the family back to
- * the legacy `fonts.*` scalars one-way for un-migrated readers.
+ * The canonical typography mutation. Families, weights, uploaded files AND the
+ * type scale are all persisted authority — the scale stopped being
+ * "preview-only" the moment a panel offered to save one (QA Q5). This operation
+ * updates the canonical TypographySystem; `toLegacyBrandPatch` projects the
+ * family back to the legacy `fonts.*` scalars one-way for un-migrated readers.
  */
 import type { BrandRepository } from '@/domain/brand/repository';
 import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import { withCoreWrites, type CoreWriteOptions } from './coreWrite';
 import { assertCanonicalBrand, type CanonicalBrand, type FontToken } from '@/domain/brand';
+import type { FontScaleTokens } from '@/shared/types/brandAssets';
 
 export interface TypographyFamilyChanges {
   primary?: string;
@@ -27,6 +28,18 @@ export interface TypographyChanges {
   primary?: TypographySlotChange;
   /** `null` clears the secondary slot. */
   secondary?: TypographySlotChange | null;
+  /**
+   * The eleven sizes the brand sets its type at.
+   *
+   * `typography.scale` has been a declared Core field since the registry was
+   * written, and `TypographySystem` has always had somewhere to keep it — but
+   * this operation had no parameter for it, so the one caller that sends a
+   * scale (the Brand Kit's Typography editor) watched its patch reach the
+   * router, get filtered down to two families, and vanish. The confirmation
+   * still appeared, because nothing failed: a value with nowhere to live is
+   * dropped silently (QA Q5, the same shape as the Colors bug in c6008578).
+   */
+  scale?: FontScaleTokens;
 }
 
 /**
@@ -56,6 +69,7 @@ export async function changeBrandTypography(
   const touched: CoreFieldPath[] = [];
   if (changes.primary) touched.push('typography.primary');
   if (changes.secondary !== undefined) touched.push('typography.secondary');
+  if (changes.scale) touched.push('typography.scale');
 
   const next: CanonicalBrand = withCoreWrites({
     ...brand,
@@ -72,6 +86,9 @@ export async function changeBrandTypography(
                   : applySlot(t.secondary, changes.secondary),
             }
           : {}),
+        // MERGED, never assigned: a caller that sends only the sizes it
+        // changed must not silently drop the roles it did not name.
+        ...(changes.scale ? { scale: { ...t.scale, ...changes.scale } } : {}),
       },
     },
   }, touched, opts);

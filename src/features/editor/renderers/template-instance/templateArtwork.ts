@@ -13,7 +13,8 @@
 import type { ReactNode } from 'react';
 import { renderCosmosTemplate } from '@/features/brand-kit/renderers';
 import { variantsForCard } from '@/features/brand-kit/data/legacy-mapping';
-import { DELIVERABLES } from '@/features/brand-kit/kit/registry';
+import { DELIVERABLES, aspectForType } from '@/features/brand-kit/kit/registry';
+import { snapshotElementPng } from '@/features/brand-kit/data/templateSnapshot';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import type { DeliverableContent } from '@/features/brandkit/content';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
@@ -43,4 +44,14 @@ export function renderArtwork(
   content: DeliverableContent,
 ): ReactNode {
   return renderCosmosTemplate(template, brand, mockBrand, content);
+}
+
+/** The aspect ratio a template type paints at — for `ScalingStage`. */
+export function resolveAspect(templateType: string): number {
+  return aspectForType(templateType);
+}
+
+/** Rasterize the live artwork DOM to a PNG blob, for export. */
+export function exportArtworkPng(el: HTMLElement, scale: number): Promise<Blob | null> {
+  return snapshotElementPng(el, scale);
 }

@@ -1,928 +1,1397 @@
+/**
+ * Business cards — the curated set, and the machinery every one of them
+ * shares.
+ *
+ * WHAT CHANGED, AND WHY
+ *
+ * This family advertised 130 variants. `.audit/CODE.md` §2 measured what
+ * they actually were: ~55 of the hundred Wave-2 designs printed "VP" over
+ * the bound job title, five of them tiled the letters "JN / SM / XX", one
+ * printed `> jane_smith`, one an issue number "N° 013" and one a founding
+ * year computed from the length of the brand's name. None of that is
+ * content a customer can reach, and all of it is content a customer reads.
+ *
+ * So the family is now 24 designs, and the bar every one of them clears is
+ * the same:
+ *
+ *   • **Ten fields, every card.** A business card is the `person` kind, and
+ *     the whole of it — name, pronouns, role, company, tagline, e-mail,
+ *     phone, website, social handle, address — is declared through `<Bind>`.
+ *     There is no design here that shows something the panel cannot edit,
+ *     and none that hides a field the panel offers.
+ *   • **Two sides.** A business card has a back, and pretending otherwise
+ *     is why every previous design had to cram the brand and the person
+ *     onto one face. The back is the brand's: its logo, chosen for the
+ *     ground it sits on by `logoOn`, on a brand-coloured card. The tile
+ *     shows the pair the way a printer's proof does — the front resting on
+ *     the back — which is also why the front is the larger of the two.
+ *   • **The brand's own type and colour.** Every family, surface and
+ *     foreground comes from `brandStyle`. There is not one hex in this
+ *     file, and not one typeface name.
+ *   • **Readable at 260px.** The renderers are authored against
+ *     `RENDERER_BASE_WIDTH`; nothing here is smaller than 5px at that
+ *     width, and a colour that would not clear WCAG AA on its own ground is
+ *     moved until it does (`accentOn`) rather than being printed anyway.
+ *     That last rule is the fix for the one violation the contrast guard
+ *     shipped with: the brand's violet job title on a near-black panel.
+ *
+ * The 94 Wave-2 designs and the 12 legacy ones are ARCHIVED, not deleted —
+ * see `renderers/curation/businessCards.ts`. Their ids stay reserved so a
+ * saved customization keyed to one still resolves.
+ *
+ * This module also exports the machinery (`cardTheme`, `CardStage`,
+ * `CardBack`, `fragments`, …) that `BusinessCardsExtended2.tsx` builds its
+ * six designs from, so the two waves cannot drift into two opinions about
+ * what a card is.
+ */
+import { useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
-import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
 import { Bind } from '@/features/brandkit/content/Bind';
+import { hydrateContent, isPerson, type PersonContent } from '@/features/brandkit/content/kinds';
+import type { TemplateDesignPicks } from '@/features/brandkit/content/schema';
+import {
+  brandColors,
+  contrastOf,
+  fgOn,
+  fontStack,
+  logoOn,
+  normalizeHex,
+  surface,
+} from './brandStyle';
+import { typePx } from './typeFloor';
+
+/* ── What a renderer is handed ────────────────────────────────────── */
 
 /**
- * Extended business-card designs for the cosmos Brand Kit.
+ * The content a card paints from.
  *
- * These live OUTSIDE `@/features/brandkit/components/renderers/` on
- * purpose — the legacy renderers there are off-limits for edits.
- * The cosmos drilldown wraps `renderTemplateDesign` and routes
- * templates whose id starts with `business-cards-ext-` to this
- * renderer instead.
- *
- * Each design is brand-aware (`brand.primaryColor`, `brand.name`,
- * `BrandLogo`) and renders into the same aspect-ratio frame the
- * legacy cards use, so they slot into the variant grid without any
- * extra CSS. With 18 designs here + 12 legacy = 30 total in the
- * business-cards drilldown.
- *
- *    0  Editorial Index   — magazine-style, numbered, type-stacked
- *    1  Color Block Diptych — clean two-color split, modular feel
- *    2  Brute Force Ticker — heavy stacked type + spreadsheet grid
- *    3  Frosted Layer     — translucent overlay over a color glow
- *    4  Halftone Portrait — gradient halftone wash, art-school
- *    5  Passport Stamp    — vintage rubber-stamp aesthetic
- *    6  Type Mosaic       — letterforms tiled into a composition
- *    7  Calendar Grid     — datebook layout, name as a "today"
- *    8  Blueprint Lines   — architectural / technical drawing
- *    9  Sticker Stack     — overlapping sticker shapes, playful
- *   10  Diagonal Slash    — bold diagonal color cut across card
- *   11  Scanline Retro    — CRT scanline, retro-future hardware
- *   12  Mountain Stack    — stacked horizontal lines as landscape
- *   13  Window Pane       — multi-pane grid with logo in one cell
- *   14  Sunburst Mark     — radiating rays from a brand-color sun
- *   15  Wax Seal          — circular wax-stamp seal, formal
- *   16  Iceberg Layer     — color band rises from bottom edge
- *   17  Ribbon Title      — diagonal ribbon carrying the name
+ * Partial because every caller supplies a different amount: the drilldown
+ * grid and every offscreen export pass nothing at all, the editor passes a
+ * whole hydrated `person`. `hydrateContent` fills the rest from the brand.
  */
-interface BusinessCardExtendedProps {
+export type PersonCardContent = Partial<PersonContent> & {
+  kind?: 'person';
+  picks?: TemplateDesignPicks;
+};
+
+export interface BusinessCardProps {
   brand: Brand;
   templateIndex: number;
-  /** Optional prop-driven content — when present, replaces the
-   *  old hardcoded literals ({c.fullName} / {c.jobTitle} / phone /
-   *  email / website). Empty fields fall back to brand defaults
-   *  via `deriveBusinessCardContent`, so the design never paints
-   *  blank text. */
-  content?: Partial<BusinessCardContent>;
+  content?: PersonCardContent;
 }
 
-export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: BusinessCardExtendedProps) {
-  const p = brand.primaryColor;
-  const s = brand.secondaryColor || '#0F1216';
-  const c = deriveBusinessCardContent(brand, content);
-  // Bound fragments. The designs were already prop-driven — this adds the
-  // editor contract on top, so each piece of identity is a region the
-  // user can click on the card itself.
-  //
-  // `firstName` and `initials` are NOT bound, deliberately. They are
-  // derived from the full name, so binding them would mean committing
-  // "JS" as the person's whole name the moment someone tidied up a
-  // monogram. They still update the instant the name does, because they
-  // are recomputed from it; the name itself is edited on the card
-  // wherever it appears in full, or in the panel.
-  const Name = <Bind path="fullName" value={c.fullName} fit="shrink" />;
-  const First = <>{c.firstName}</>;
-  const Initials = <>{c.initials}</>;
-  const Title = <Bind path="jobTitle" value={c.jobTitle} />;
-  const Email = <Bind path="email" value={c.email} />;
-  const Phone = <Bind path="phone" value={c.phone} />;
-  const Site = <Bind path="website" value={c.website} />;
-  const designs = [
-    // 0 — Editorial Index. Oversized ordinal in the corner, name
-    // stacked editorial-style on the right; the brand mark lives
-    // small under the index. Reads like a magazine masthead.
-    (
-      <div className="w-full h-full bg-[#FAF7F2] flex relative overflow-hidden p-[6%]">
-        <div className="flex flex-col justify-between w-[40%]">
-          <div>
-            <div
-              className="text-[24px] leading-none font-bold tabular-nums"
-              style={{ color: p }}
-            >
-              N°
-              <br />
-              013
-            </div>
-            <div className="mt-1 text-[4.5px] uppercase tracking-[0.18em] text-gray-500">
-              Issue / Spring
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <BrandLogo brand={brand} size="xs" />
-            <span className="text-[5px] tracking-wider text-gray-700 uppercase">
-              {brand.name}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-col justify-between w-[60%] items-end text-right">
-          <div>
-            <div
-              className="text-[8px] font-serif italic"
-              style={{ color: p }}
-            >
-              {Title}
-            </div>
-            <div className="text-[14px] font-serif font-semibold text-gray-900 leading-[1.05] mt-0.5">
-              {First}
-              <br />
-              {c.lastName || ''}
-            </div>
-          </div>
-          <div className="space-y-[1px] text-[4.5px] text-gray-600">
-            <div>{Email}</div>
-            <div>{Phone}</div>
-            <div className="font-medium" style={{ color: p }}>
-              {Site}
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
+/* ── Colour arithmetic ────────────────────────────────────────────── */
 
-    // 1 — Color Block Diptych. Left: full-bleed brand color with
-    // logo monogram. Right: clean white with name + contact.
-    // Modular, very printable, color-led.
-    (
-      <div className="w-full h-full bg-white flex relative overflow-hidden">
-        <div
-          className="w-[44%] h-full flex flex-col justify-between p-[8%] relative"
-          style={{ backgroundColor: p }}
-        >
-          <div className="text-[5px] tracking-[0.2em] uppercase text-white/70">
-            {brand.name}
-          </div>
-          <div className="text-white/95 leading-none">
-            <BrandLogo brand={brand} size="lg" color="#ffffff" />
-          </div>
-          <div className="text-[4.5px] text-white/60 uppercase tracking-[0.16em]">
-            Est. {brand.name.length > 0 ? '20' + (brand.name.length * 2 + 8).toString().padStart(2, '0') : '2024'}
-          </div>
-        </div>
-        <div className="w-[56%] flex flex-col justify-between p-[8%]">
-          <div className="text-[5px] tracking-[0.18em] uppercase text-gray-400">
-            Studio · Brand
-          </div>
-          <div>
-            <div className="text-[10px] font-semibold text-gray-900 tracking-tight">
-              {Name}
-            </div>
-            <div className="text-[6px] mt-0.5" style={{ color: p }}>
-              {Title}
-            </div>
-          </div>
-          <div className="space-y-[1px] text-[4.5px] text-gray-700">
-            <div>{Phone}</div>
-            <div>{Email}</div>
-            <div>{Site}</div>
-          </div>
-        </div>
-      </div>
-    ),
+function channels(hex: string): [number, number, number] {
+  const h = normalizeHex(hex) ?? '#000000';
+  return [
+    Number.parseInt(h.slice(1, 3), 16),
+    Number.parseInt(h.slice(3, 5), 16),
+    Number.parseInt(h.slice(5, 7), 16),
+  ];
+}
 
-    // 2 — Brute Force Ticker. Heavy stacked typography on a thin
-    // grid, deadpan composition. Mostly black & white with a
-    // single brand-color hit on the role line.
-    (
-      <div className="w-full h-full bg-[#0F1216] text-white relative overflow-hidden font-mono">
-        {/* faint grid */}
-        <div
-          className="absolute inset-0 opacity-[0.08] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
-            backgroundSize: '14px 14px',
-          }}
-        />
-        <div className="relative w-full h-full flex flex-col justify-between p-[7%]">
-          <div className="flex justify-between items-start text-[4.5px] uppercase tracking-[0.2em] text-white/60">
-            <span>{brand.name} / Index</span>
-            <span>NYC · 2026</span>
-          </div>
-          <div className="space-y-[2px] uppercase">
-            <div
-              className="text-[18px] font-extrabold leading-[0.92] tracking-tight"
-              style={{ fontStretch: 'condensed' }}
-            >
-              {First}
-            </div>
-            <div className="text-[18px] font-extrabold leading-[0.92] tracking-tight">
-              {c.lastName || ''}
-            </div>
-            <div
-              className="text-[5.5px] mt-1.5 tracking-[0.22em]"
-              style={{ color: p }}
-            >
-              ▉ VICE PRESIDENT · OPS
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] uppercase tracking-[0.16em]">
-            <div className="space-y-[1px] text-white/70">
-              <div>{Email}</div>
-              <div>{Phone}</div>
-            </div>
-            <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          </div>
-        </div>
-      </div>
-    ),
+/** `t` of the way from `a` to `b`. */
+export function mixHex(a: string, b: string, t: number): string {
+  const [r1, g1, b1] = channels(a);
+  const [r2, g2, b2] = channels(b);
+  const pair = (n: number) =>
+    Math.round(Math.max(0, Math.min(255, n)))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${pair(r1 + (r2 - r1) * t)}${pair(g1 + (g2 - g1) * t)}${pair(b1 + (b2 - b1) * t)}`;
+}
 
-    // 3 — Frosted Layer. Soft brand-color glow behind a translucent
-    // panel that holds the type. Captures the 2026 "frosted /
-    // semi-transparent" trend without needing real glass.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-white">
-        {/* Color glow */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(140% 80% at 18% 30%, ${p} 0%, ${p}AA 35%, ${s}55 65%, transparent 80%)`,
-          }}
-        />
-        {/* Frosted panel */}
-        <div className="absolute inset-[8%] rounded-[14px] backdrop-blur-[3px] bg-white/55 border border-white/70 flex flex-col justify-between p-[7%]">
-          <div className="flex items-start justify-between">
-            <BrandLogo brand={brand} size="sm" />
-            <div className="text-right">
-              <div className="text-[5px] tracking-[0.2em] uppercase text-gray-700">
-                {brand.name}
-              </div>
-              <div className="text-[4.5px] mt-0.5 text-gray-500">
-                Studio · 2026
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] font-semibold text-gray-900 leading-tight">
-              {Name}
-            </div>
-            <div
-              className="text-[5.5px] uppercase tracking-[0.18em] mt-0.5 font-medium"
-              style={{ color: p }}
-            >
-              {Title}
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div className="space-y-[1px]">
-              <div>{Email}</div>
-              <div>{Site}</div>
-            </div>
-            <div className="text-right">{Phone}</div>
-          </div>
-        </div>
-      </div>
-    ),
+/**
+ * A quieter ink that still reads.
+ *
+ * Secondary text on a card is quieter than the heading, and the cheap way
+ * to say that is opacity — which is exactly how a "subtle" caption becomes
+ * an unreadable one, because the contrast guard composites translucent ink
+ * and so does a human eye. This walks toward the ground only as far as AA
+ * still holds, so "quieter" can never become "gone".
+ */
+export function mutedOn(bg: string, ink: string): string {
+  for (const t of [0.45, 0.36, 0.28, 0.2, 0.12]) {
+    const candidate = mixHex(ink, bg, t);
+    if (contrastOf(candidate, bg) >= 4.6) return candidate;
+  }
+  return ink;
+}
 
-    // 4 — Halftone Portrait. Gradient + radial-dot mask sells a
-    // halftone print feel. Dot pattern lives in a CSS background;
-    // the brand color tints the gradient underneath.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-[#F5F2EC]">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(135deg, ${p}EE 0%, ${p}66 55%, transparent 100%)`,
-          }}
-        />
-        <div
-          className="absolute inset-0 mix-blend-multiply opacity-70"
-          style={{
-            backgroundImage: `radial-gradient(circle, #111 0.6px, transparent 0.7px)`,
-            backgroundSize: '4px 4px',
-          }}
-        />
-        <div className="relative w-full h-full p-[7%] flex flex-col justify-between text-[#111]">
-          <div className="text-[5px] tracking-[0.2em] uppercase">
-            Type Foundry / {brand.name}
-          </div>
-          <div>
-            <div className="text-[4.5px] uppercase tracking-[0.16em] opacity-70">
-              {Title} · Operations
-            </div>
-            <div className="text-[14px] font-bold leading-[1.02] mt-1">
-              {Name}
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px]">
-            <div className="space-y-[1px]">
-              <div>{Email}</div>
-              <div className="opacity-70">{Phone}</div>
-            </div>
-            <BrandLogo brand={brand} size="xs" />
-          </div>
-        </div>
-      </div>
-    ),
+/**
+ * The brand's colour, moved only as far as it must be to read on `bg`.
+ *
+ * The alternative — printing the brand hex whatever the ground — is the
+ * defect the contrast guard shipped with, and it is not a string bug: the
+ * job title said the right thing, in a colour nobody could see.
+ */
+export function accentOn(bg: string, colour: string, min = 4.5): string {
+  if (contrastOf(colour, bg) >= min) return colour;
+  const target = fgOn(bg);
+  for (let step = 1; step <= 10; step += 1) {
+    const candidate = mixHex(colour, target, step / 10);
+    if (contrastOf(candidate, bg) >= min) return candidate;
+  }
+  return target;
+}
 
-    // 5 — Passport Stamp. Off-white stock with concentric rings,
-    // a stamped role badge, and serif type. Reads like a vintage
-    // travel document.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-[#F4EFE3] p-[6%]">
-        {/* concentric stamp rings, top-left */}
-        <div
-          className="absolute -left-3 -top-3 w-[38%] aspect-square rounded-full border-2 opacity-80"
-          style={{ borderColor: p }}
-        />
-        <div
-          className="absolute -left-1 -top-1 w-[34%] aspect-square rounded-full border opacity-60"
-          style={{ borderColor: p }}
-        />
-        {/* role stamp, bottom-right, tilted */}
-        <div
-          className="absolute right-[6%] bottom-[20%] border-2 px-2 py-0.5 -rotate-6 text-[5.5px] uppercase tracking-[0.22em] font-bold"
-          style={{ borderColor: p, color: p }}
-        >
-          Approved
-        </div>
-        <div className="relative w-full h-full flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <BrandLogo brand={brand} size="sm" />
-            <div className="text-right text-[4.5px] uppercase tracking-[0.18em] text-gray-600">
-              Series A · 2026
-            </div>
-          </div>
-          <div>
-            <div className="text-[5px] uppercase tracking-[0.2em] text-gray-500">
-              Holder
-            </div>
-            <div className="font-serif text-[13px] leading-tight font-semibold text-gray-900">
-              {Name}
-            </div>
-            <div
-              className="text-[5px] uppercase tracking-[0.18em] mt-0.5 font-medium"
-              style={{ color: p }}
-            >
-              {Title}
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div>{Email}</div>
-            <div>{Phone}</div>
-          </div>
-        </div>
-      </div>
-    ),
+/* ── The theme a card paints with ─────────────────────────────────── */
 
-    // 6 — Type Mosaic. Tiled grid of large letterforms forming the
-    // brand initial. The actual contact info sits as a small block
-    // inside the mosaic — a "name finder" reading puzzle.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-white">
-        <div
-          className="absolute inset-0 grid"
-          style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridTemplateRows: 'repeat(5, 1fr)' }}
-        >
-          {Array.from({ length: 40 }).map((_, i) => {
-            const row = Math.floor(i / 8);
-            const col = i % 8;
-            const isAccent =
-              (row + col) % 5 === 0 || (row === 1 && col === 4) || (row === 3 && col === 2);
-            const isInitial = i === 18; // ~middle
-            return (
-              <div
-                key={i}
-                className="flex items-center justify-center text-[10px] font-black leading-none"
-                style={{
-                  backgroundColor: isInitial ? p : isAccent ? `${p}22` : 'transparent',
-                  color: isInitial ? '#fff' : '#111',
-                }}
-              >
-                {isInitial ? brand.name.charAt(0).toUpperCase() : ''}
-              </div>
-            );
-          })}
-        </div>
-        <div className="absolute right-[6%] bottom-[10%] bg-white/95 backdrop-blur-sm rounded-md px-2 py-1 text-right">
-          <div className="text-[7px] font-bold text-gray-900 leading-tight">
-            {Name}
-          </div>
-          <div className="text-[4px]" style={{ color: p }}>
-            VP · {brand.name}
-          </div>
-          <div className="text-[3.5px] text-gray-600 mt-0.5">
-            {Email}
-          </div>
-        </div>
-      </div>
-    ),
+export type CardTheme = {
+  /** The stage the two cards rest on. */
+  ground: string;
+  groundLine: string;
+  /** The ordinary card face. */
+  paper: string;
+  paperInk: string;
+  paperMuted: string;
+  paperLine: string;
+  paperAccent: string;
+  /** A tinted face — the brand's hue, at page weight. */
+  tint: string;
+  tintInk: string;
+  tintMuted: string;
+  tintLine: string;
+  tintAccent: string;
+  /** The brand's own colour as a ground. */
+  brandBg: string;
+  brandInk: string;
+  brandMuted: string;
+  brandLine: string;
+  /** The brand's secondary as a ground. */
+  secondBg: string;
+  secondInk: string;
+  secondMuted: string;
+  /** Near-black (or near-white in a dark palette). */
+  darkBg: string;
+  darkInk: string;
+  darkMuted: string;
+  darkAccent: string;
+  /** Raw brand colours, for rules and blocks — never for small text. */
+  primary: string;
+  secondary: string;
+  heading: string;
+  body: string;
+  mono: string;
+};
 
-    // 7 — Calendar Grid. Datebook layout — 7-column grid, today's
-    // cell colored with the brand and holding the name. Plays with
-    // editorial / utility aesthetic.
-    (
-      <div className="w-full h-full bg-white p-[6%] relative overflow-hidden font-mono">
-        <div className="flex items-center justify-between text-[4.5px] uppercase tracking-[0.18em] text-gray-500 mb-1">
-          <div>April · 2026</div>
-          <div className="flex items-center gap-1">
-            <BrandLogo brand={brand} size="xs" />
-            <span>{brand.name}</span>
-          </div>
-        </div>
-        <div
-          className="grid gap-[1px] mb-1.5"
-          style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}
-        >
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-            <div
-              key={i}
-              className="text-center text-[3.5px] uppercase tracking-wider text-gray-400"
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-        <div
-          className="grid gap-[1px]"
-          style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}
-        >
-          {Array.from({ length: 28 }).map((_, i) => {
-            const isToday = i === 14; // mid-cell holds the name
-            return (
-              <div
-                key={i}
-                className="aspect-square flex items-center justify-center text-[4px] border border-gray-100"
-                style={{
-                  backgroundColor: isToday ? p : '#FAFAFA',
-                  color: isToday ? '#fff' : '#888',
-                }}
-              >
-                {!isToday ? i + 1 : ''}
-                {isToday && (
-                  <div className="text-center leading-tight">
-                    <div className="text-[4px] font-bold">{Initials}</div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="absolute right-[6%] bottom-[6%] text-right">
-          <div className="text-[7px] font-bold text-gray-900">{Name}</div>
-          <div className="text-[4px]" style={{ color: p }}>
-            {Title}
-          </div>
-          <div className="text-[3.5px] text-gray-600 mt-0.5">
-            {Email}
-          </div>
-        </div>
-      </div>
-    ),
+/**
+ * Project the design picks onto the brand before any surface is asked for.
+ *
+ * A pick is the customer's answer to "what colour is this card", so it has
+ * to arrive BEFORE `surfacePalette` derives grounds, borders and readable
+ * foregrounds from it — applying it afterwards would paint the pick on top
+ * of a palette built from a colour the card no longer uses.
+ */
+function withPicks(brand: Brand, picks?: TemplateDesignPicks): Brand {
+  const primary = normalizeHex(picks?.primaryColor);
+  const secondary = normalizeHex(picks?.secondaryColor);
+  if (!primary && !secondary) return brand;
+  const system: Partial<NonNullable<Brand['colorSystem']>> = brand?.colorSystem ?? {};
+  return {
+    ...brand,
+    primaryColor: primary ?? brand?.primaryColor,
+    secondaryColor: secondary ?? brand?.secondaryColor,
+    colorSystem: {
+      ...system,
+      primary: { ...(system.primary ?? {}), hex: primary ?? system.primary?.hex ?? brand?.primaryColor },
+      secondary: {
+        ...(system.secondary ?? {}),
+        hex: secondary ?? system.secondary?.hex ?? brand?.secondaryColor,
+      },
+    },
+  } as Brand;
+}
 
-    // 8 — Blueprint Lines. Technical drawing aesthetic — graph-paper
-    // background, angle markers, dotted measurement lines around the
-    // name. Brand color = the construction line.
-    (
-      <div className="w-full h-full bg-[#F0F4F2] relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-50"
-          style={{
-            backgroundImage: `linear-gradient(to right, ${p}33 1px, transparent 1px), linear-gradient(to bottom, ${p}33 1px, transparent 1px)`,
-            backgroundSize: '12px 12px',
-          }}
-        />
-        {/* dimension marks */}
-        <div
-          className="absolute top-[20%] left-[10%] right-[10%] border-t border-dashed"
-          style={{ borderColor: p }}
-        />
-        <div
-          className="absolute bottom-[28%] left-[10%] right-[10%] border-t border-dashed"
-          style={{ borderColor: p }}
-        />
-        <div
-          className="absolute top-[20%] left-[10%] bottom-[28%] border-l border-dashed"
-          style={{ borderColor: p }}
-        />
-        <div
-          className="absolute top-[20%] right-[10%] bottom-[28%] border-l border-dashed"
-          style={{ borderColor: p }}
-        />
-        <div className="relative w-full h-full p-[6%] flex flex-col justify-between">
-          <div className="flex items-start justify-between text-[4.5px] uppercase tracking-[0.18em] text-gray-700">
-            <span>Drawing 01 · {brand.name}</span>
-            <span style={{ color: p }}>SCALE 1:1</span>
-          </div>
-          <div className="text-center">
-            <div className="text-[12px] font-bold text-gray-900 leading-tight">
-              {Name}
-            </div>
-            <div className="text-[5px] uppercase tracking-[0.22em] text-gray-600 mt-0.5">
-              {Title} — Ops
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div className="space-y-[1px]">
-              <div>{Phone}</div>
-              <div>{Email}</div>
-            </div>
-            <BrandLogo brand={brand} size="xs" />
-          </div>
-        </div>
-      </div>
-    ),
+export function cardTheme(brand: Brand): CardTheme {
+  const page = surface(brand, 'page');
+  const card = surface(brand, 'card');
+  const subtle = surface(brand, 'subtle');
+  const brandS = surface(brand, 'brand');
+  const second = surface(brand, 'brand-secondary');
+  const dark = surface(brand, 'inverted');
+  const colours = brandColors(brand);
+  return {
+    ground: page.bg,
+    groundLine: page.border,
+    paper: card.bg,
+    paperInk: card.text,
+    paperMuted: mutedOn(card.bg, card.text),
+    paperLine: card.border,
+    paperAccent: accentOn(card.bg, colours.primary),
+    tint: subtle.bg,
+    tintInk: subtle.text,
+    tintMuted: mutedOn(subtle.bg, subtle.text),
+    tintLine: subtle.border,
+    tintAccent: accentOn(subtle.bg, colours.primary),
+    brandBg: brandS.bg,
+    brandInk: brandS.text,
+    brandMuted: mutedOn(brandS.bg, brandS.text),
+    brandLine: mixHex(brandS.text, brandS.bg, 0.62),
+    secondBg: second.bg,
+    secondInk: second.text,
+    secondMuted: mutedOn(second.bg, second.text),
+    darkBg: dark.bg,
+    darkInk: dark.text,
+    darkMuted: mutedOn(dark.bg, dark.text),
+    darkAccent: accentOn(dark.bg, colours.primary),
+    primary: colours.primary,
+    secondary: colours.secondary,
+    heading: fontStack(brand, 'heading'),
+    body: fontStack(brand, 'body'),
+    mono: fontStack(brand, 'mono'),
+  };
+}
 
-    // 9 — Sticker Stack. Overlapping rounded shapes give a playful,
-    // tactile feel. Each sticker carries a piece of the contact
-    // info; the largest sticker is the brand color.
-    (
-      <div className="w-full h-full bg-[#FFFBF2] relative overflow-hidden p-[5%]">
-        <div
-          className="absolute -left-[6%] top-[10%] w-[58%] aspect-square rounded-full -rotate-12"
-          style={{ backgroundColor: p }}
-        />
-        <div className="absolute left-[26%] bottom-[6%] w-[34%] aspect-square rounded-full bg-[#0F1216] rotate-6" />
-        <div className="absolute right-[6%] top-[8%] w-[28%] aspect-square rounded-full bg-white border-2 border-[#0F1216] -rotate-3 flex items-center justify-center">
-          <BrandLogo brand={brand} size="sm" />
-        </div>
-        <div className="relative w-full h-full flex flex-col justify-between text-[#0F1216]">
-          <div className="text-[5px] uppercase tracking-[0.2em] text-white/90 mt-[18%] ml-[6%]">
-            {brand.name} Studio
-          </div>
-          <div className="ml-[8%] mb-[4%]">
-            <div className="text-[12px] font-bold leading-tight text-white">
-              {First}
-              <br />
-              {c.lastName || ''}
-            </div>
-            <div className="text-[5px] uppercase tracking-[0.18em] text-white/80 mt-1">
-              {Title}
-            </div>
-            <div className="text-[4px] text-white/70 mt-1">
-              {Email} · {Phone}
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
+/* ── The mark ─────────────────────────────────────────────────────── */
 
-    // 10 — Diagonal Slash. A brand-colored slash cuts the card
-    // edge-to-edge; the name lives on top of it, the contact below.
-    // High-contrast, instant brand presence.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-white">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(105deg, transparent 0%, transparent 38%, ${p} 38.5%, ${p} 62%, transparent 62.5%, transparent 100%)`,
-          }}
-        />
-        <div className="relative w-full h-full p-[7%] flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <BrandLogo brand={brand} size="sm" />
-            <div className="text-right text-[4.5px] uppercase tracking-[0.2em] text-gray-500">
-              {brand.name} · Studio
-            </div>
-          </div>
-          <div className="text-center text-white">
-            <div className="text-[14px] font-bold leading-none tracking-tight">
-              {Name}
-            </div>
-            <div className="text-[5.5px] uppercase tracking-[0.22em] mt-1 opacity-90">
-              {Title}
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div>{Email}</div>
-            <div>{Phone}</div>
-          </div>
-        </div>
-      </div>
-    ),
+/** Up to two letters from whatever the customer called the company. */
+function monogram(company: string): string {
+  const words = company
+    .split(/[\s·—–-]+/)
+    .map((w) => w.replace(/[^A-Za-z0-9]/g, ''))
+    .filter(Boolean);
+  if (words.length === 0) return '';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return words
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('');
+}
 
-    // 11 — Scanline Retro. CRT scanlines + glowing brand-color
-    // chrome. Reads like a retro terminal screen.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-[#0A0F12] text-white font-mono">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 3px)',
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-50"
-          style={{
-            background: `radial-gradient(80% 50% at 50% 50%, ${p}55 0%, transparent 70%)`,
-          }}
-        />
-        <div className="relative w-full h-full p-[6%] flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[4.5px] uppercase tracking-[0.22em]">
-            <span style={{ color: p }}>● {brand.name.toUpperCase()}.SYS</span>
-            <span className="opacity-70">v2.026</span>
-          </div>
-          <div>
-            <div className="text-[5px] mb-1 opacity-70 uppercase tracking-[0.2em]">
-              user.profile
-            </div>
-            <div
-              className="text-[14px] font-bold leading-[1.02] uppercase tracking-tight"
-              style={{ textShadow: `0 0 8px ${p}` }}
-            >
-              {First}_{c.lastName || c.firstName}
-            </div>
-            <div
-              className="text-[5px] uppercase tracking-[0.2em] mt-1"
-              style={{ color: p }}
-            >
-              ▸ vice_president
-            </div>
-          </div>
-          <div className="space-y-[1px] text-[4.5px] uppercase tracking-[0.16em] opacity-80">
-            <div>&gt; {Email}</div>
-            <div>&gt; {Phone}</div>
-            <div>&gt; {Site}</div>
-          </div>
-        </div>
-      </div>
-    ),
+/**
+ * The brand's mark, on a known ground.
+ *
+ * `logoOn` answers with the variant that READS on this background, or with
+ * nothing — and nothing is a real answer, not a failure: a brand with no
+ * usable variant gets its monogram rather than an invisible logo. The
+ * monogram's letters come from the bound company name, so it follows an
+ * edit like everything else on the card.
+ *
+ * `picks.showLogo === false` removes the mark entirely; `picks.logoColor`
+ * inks the monogram. A logo IMAGE is recoloured upstream, by the editor,
+ * before the brand ever reaches a renderer.
+ *
+ * A url that FAILS falls back to the monogram rather than leaving a hole,
+ * and this is not hypothetical: the card editor's preview brand hands us a
+ * `data:image/svg+xml` wrapper containing `<image href="/brands/…/logo.svg">`,
+ * and a data-URI document is an opaque origin that may not load an external
+ * subresource — so the mark silently vanished on the one surface where the
+ * customer is looking hardest. Fixing the wrapper belongs to the editor;
+ * surviving a broken url belongs here.
+ */
+export function Mark({
+  brand,
+  theme,
+  on,
+  height,
+  picks,
+  company,
+}: {
+  brand: Brand;
+  theme: CardTheme;
+  on: string;
+  height: number;
+  picks?: TemplateDesignPicks;
+  company: string;
+}) {
+  // The url that failed, not a boolean: a new logo must be given its own
+  // chance to load rather than inheriting the last one's failure.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  if (picks?.showLogo === false) return null;
+  const resolved = logoOn(brand, on);
+  if (resolved?.url && resolved.url !== failedUrl) {
+    return (
+      <img
+        src={resolved.url}
+        alt=""
+        onError={() => setFailedUrl(resolved.url!)}
+        style={{
+          height: `${height}px`,
+          width: 'auto',
+          maxWidth: '100%',
+          objectFit: 'contain',
+          display: 'block',
+        }}
+      />
+    );
+  }
+  const picked = normalizeHex(picks?.logoColor);
+  const ink = picked ? accentOn(on, picked) : fgOn(on);
+  const letters = monogram(company);
+  if (!letters) return null;
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        fontFamily: theme.heading,
+        fontSize: typePx(Math.max(6, height * 0.78)),
+        lineHeight: 1,
+        fontWeight: 700,
+        letterSpacing: '-0.02em',
+        color: ink,
+      }}
+    >
+      {letters}
+    </span>
+  );
+}
 
-    // 12 — Mountain Stack. Stacked horizontal bands of varying
-    // heights form an abstract landscape. Brand color anchors the
-    // foreground; the type sits in the sky.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-[#FBF8F1]">
-        {/* layered "mountains" */}
-        <div
-          className="absolute left-0 right-0 bottom-0 h-[40%]"
-          style={{ backgroundColor: p }}
-        />
-        <div
-          className="absolute left-0 right-0 bottom-[40%] h-[14%]"
-          style={{ backgroundColor: `${p}77` }}
-        />
-        <div
-          className="absolute left-0 right-0 bottom-[54%] h-[10%]"
-          style={{ backgroundColor: `${p}44` }}
-        />
-        {/* sun */}
-        <div
-          className="absolute right-[14%] top-[14%] w-[18%] aspect-square rounded-full"
-          style={{ backgroundColor: '#fff', mixBlendMode: 'soft-light', opacity: 0.7 }}
-        />
-        <div className="relative w-full h-full p-[6%] flex flex-col justify-between">
-          <div>
-            <div className="text-[5px] uppercase tracking-[0.22em] text-gray-700">
-              {brand.name} · Studio
-            </div>
-            <div className="text-[12px] font-serif font-semibold text-gray-900 leading-tight mt-1">
-              {Name}
-            </div>
-            <div
-              className="text-[5px] uppercase tracking-[0.2em] mt-0.5"
-              style={{ color: p, filter: 'brightness(0.6)' }}
-            >
-              {Title}
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] text-white">
-            <div className="space-y-[1px]">
-              <div>{Email}</div>
-              <div>{Phone}</div>
-            </div>
-            <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          </div>
-        </div>
-      </div>
-    ),
+/* ── The stage: a front card resting on its back ──────────────────── */
 
-    // 13 — Window Pane. 4-pane window grid; logo lives in one cell,
-    // name in another, contact in a third — like a contact-sheet
-    // grid frozen on the card.
-    (
-      <div className="w-full h-full bg-[#F8F6F1] relative overflow-hidden">
-        <div className="absolute inset-[5%] grid grid-cols-3 grid-rows-2 gap-[1.5%]">
+/**
+ * The two sides, laid out the way a proof sheet shows them.
+ *
+ * The stage is 1.6:1 (`PICKER_ASPECT_BY_LABEL['Business Card']`), so a box
+ * whose width and height percentages are EQUAL is itself 1.6:1. That is
+ * why there is no `aspect-ratio` here: html2canvas — which is what every
+ * export in the kit rasterises through — does not implement it, and a card
+ * that collapsed only in the download would be the worst possible place to
+ * find out.
+ *
+ * The geometry is chosen so the back's mark is never under the front: the
+ * front's top edge sits at 30% of the stage, and the back's mark sits above
+ * it.
+ */
+export function CardStage({
+  theme,
+  front,
+  back,
+}: {
+  theme: CardTheme;
+  front: ReactNode;
+  back: ReactNode;
+}) {
+  const shell: CSSProperties = {
+    position: 'absolute',
+    borderRadius: '4px',
+    overflow: 'hidden',
+  };
+  return (
+    <div
+      data-bk-card-stage
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background: theme.ground,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        data-bk-card-side="back"
+        style={{
+          ...shell,
+          right: '1.5%',
+          top: '2%',
+          width: '46%',
+          height: '46%',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+        }}
+      >
+        {back}
+      </div>
+      <div
+        data-bk-card-side="front"
+        style={{
+          ...shell,
+          left: '1.5%',
+          bottom: '2%',
+          width: '70%',
+          height: '70%',
+          boxShadow: '0 3px 9px rgba(0,0,0,0.22)',
+        }}
+      >
+        {front}
+      </div>
+    </div>
+  );
+}
+
+/** A card face — the opaque ground every text node on it is measured against. */
+export function Face({
+  bg,
+  children,
+  pad = '9% 8%',
+  style,
+}: {
+  bg: string;
+  children: ReactNode;
+  pad?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: bg,
+        padding: pad,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The back of the card: the brand's mark on a brand ground.
+ *
+ * Deliberately says nothing else. The back is where the person stops and
+ * the brand starts, and a back with a second copy of the phone number is a
+ * front that ran out of room.
+ *
+ * The mark sits at 22% down rather than centred because the front rests
+ * over the back's lower half in the stage above — a centred mark would be
+ * a mark you cannot see.
+ */
+export function CardBack({
+  brand,
+  theme,
+  picks,
+  company,
+  tone = 'brand',
+}: {
+  brand: Brand;
+  theme: CardTheme;
+  picks?: TemplateDesignPicks;
+  company: string;
+  tone?: 'brand' | 'second' | 'dark' | 'paper';
+}) {
+  const bg =
+    tone === 'second'
+      ? theme.secondBg
+      : tone === 'dark'
+        ? theme.darkBg
+        : tone === 'paper'
+          ? theme.paper
+          : theme.brandBg;
+  return (
+    <div
+      data-bk-card-back
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: bg,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        paddingTop: '20%',
+      }}
+    >
+      <Mark brand={brand} theme={theme} on={bg} height={17} picks={picks} company={company} />
+    </div>
+  );
+}
+
+/* ── Type helpers ─────────────────────────────────────────────────── */
+
+/** Nothing on a card is smaller than this at the 260px base width. */
+const MIN_TEXT = 5;
+
+const UPPER: CSSProperties = { textTransform: 'uppercase', letterSpacing: '0.13em' };
+
+function text(size: number, color: string, font: string, extra: CSSProperties = {}): CSSProperties {
+  return {
+    fontSize: typePx(Math.max(MIN_TEXT, size)),
+    lineHeight: 1.3,
+    color,
+    fontFamily: font,
+    ...extra,
+  };
+}
+
+/** The contact block — four lines, in one column. */
+function Contacts({
+  f,
+  color,
+  font,
+  size = 5.6,
+  align = 'left',
+  gap = 1.6,
+}: {
+  f: Frag;
+  color: string;
+  font: string;
+  size?: number;
+  align?: CSSProperties['textAlign'];
+  gap?: number;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: `${gap}px`,
+        textAlign: align,
+        ...text(size, color, font),
+      }}
+    >
+      <div>{f.Email}</div>
+      <div>{f.Phone}</div>
+      <div>{f.Site}</div>
+      <div>{f.Social}</div>
+    </div>
+  );
+}
+
+/** The same four, as two columns — for faces that are wider than they are tall. */
+function ContactsSplit({
+  f,
+  color,
+  font,
+  size = 5.6,
+  gap = 1.6,
+}: {
+  f: Frag;
+  color: string;
+  font: string;
+  size?: number;
+  gap?: number;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: '8%', ...text(size, color, font) }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: `${gap}px`, minWidth: 0 }}>
+        <div>{f.Email}</div>
+        <div>{f.Phone}</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: `${gap}px`, minWidth: 0 }}>
+        <div>{f.Site}</div>
+        <div>{f.Social}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The shared type helpers, published for Wave 2.
+ *
+ * `BusinessCardsExtended2.tsx` draws its six designs from exactly these —
+ * the same minimum size, the same uppercase tracking, the same contact
+ * ladders — so the two waves cannot drift into two opinions about what a
+ * card is. Renamed on the way out (`text` → `cardText`) only because a
+ * three-letter name is fine inside one module and not across two.
+ */
+export { Contacts, ContactsSplit, UPPER, text as cardText };
+
+/* ── The bound fragments ──────────────────────────────────────────── */
+
+export type Frag = {
+  Name: ReactNode;
+  Pron: ReactNode;
+  Role: ReactNode;
+  Company: ReactNode;
+  Tagline: ReactNode;
+  Email: ReactNode;
+  Phone: ReactNode;
+  Site: ReactNode;
+  Social: ReactNode;
+  Address: ReactNode;
+};
+
+/**
+ * Every field the `person` kind offers, declared once.
+ *
+ * Each design places these; none of them re-declares a path, and none of
+ * them prints a string that is not one of these. That is what makes the
+ * bind sweep an assertion about the family rather than about one design.
+ *
+ * Pronouns carry their own separator so an unanswered field leaves no
+ * orphaned middot behind — but the region is still declared, so filling it
+ * in later paints it on all 24 designs with no further work.
+ */
+export function fragments(c: PersonContent): Frag {
+  const pronouns = c.pronouns ?? '';
+  return {
+    Name: <Bind path="fullName" value={c.fullName} fit="shrink" />,
+    Pron: (
+      <>
+        {pronouns ? ' · ' : ''}
+        <Bind path="pronouns" value={pronouns} />
+      </>
+    ),
+    Role: <Bind path="jobTitle" value={c.jobTitle} fit="shrink" />,
+    Company: <Bind path="company" value={c.company} fit="shrink" />,
+    Tagline: <Bind path="tagline" value={c.tagline} />,
+    Email: <Bind path="email" value={c.email} />,
+    Phone: <Bind path="phone" value={c.phone} />,
+    Site: <Bind path="website" value={c.website} />,
+    Social: <Bind path="socialHandle" value={c.socialHandle ?? ''} />,
+    Address: <Bind path="address" value={c.address} />,
+  };
+}
+
+/* ── Designs ──────────────────────────────────────────────────────── */
+
+export type CardCtx = {
+  brand: Brand;
+  theme: CardTheme;
+  f: Frag;
+  picks?: TemplateDesignPicks;
+  company: string;
+};
+
+export type CardDesign = (ctx: CardCtx) => { front: ReactNode; back: ReactNode };
+
+const DESIGNS: CardDesign[] = [
+  // 1 — Editorial Rule. A masthead: the company above a hairline, the
+  // person below it, the contacts set as a two-column footer.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={text(5.4, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+          <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
+        </div>
+        <div style={{ height: '1px', background: t.paperLine, margin: '4px 0 5px' }} />
+        <div style={text(12, t.paperInk, t.heading, { fontWeight: 600, letterSpacing: '-0.015em' })}>
+          {f.Name}
+          <span style={text(5.4, t.paperMuted, t.body)}>{f.Pron}</span>
+        </div>
+        <div style={text(6, t.paperAccent, t.body, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
+        <div style={text(5.4, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+        <div style={{ marginTop: 'auto' }}>
+          <ContactsSplit f={f} color={t.paperInk} font={t.body} />
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: '3px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 2 — Colour Block. A brand panel down the left carrying the mark and
+  // the tagline; the person's details on paper to the right of it.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ display: 'flex', height: '100%' }}>
           <div
-            className="row-span-2 flex items-end justify-start p-[8%]"
-            style={{ backgroundColor: p }}
+            style={{
+              width: '33%',
+              background: t.brandBg,
+              padding: '9% 6%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
           >
-            <BrandLogo brand={brand} size="md" color="#ffffff" />
-          </div>
-          <div className="bg-white flex items-end p-[8%]">
-            <div>
-              <div className="text-[10px] font-bold text-gray-900 leading-tight">
-                {First}
-              </div>
-              <div className="text-[10px] font-bold text-gray-900 leading-tight">
-                {c.lastName || ''}
-              </div>
-            </div>
-          </div>
-          <div className="bg-white flex items-start justify-end p-[8%]">
-            <div className="text-right">
-              <div className="text-[4px] uppercase tracking-[0.2em] text-gray-500">
-                Role
-              </div>
-              <div
-                className="text-[5px] uppercase tracking-[0.18em] font-semibold mt-0.5"
-                style={{ color: p }}
-              >
-                {Title}
-              </div>
-            </div>
+            <Mark brand={brand} theme={t} on={t.brandBg} height={13} picks={picks} company={company} />
+            <div style={text(5.2, t.brandInk, t.body)}>{f.Tagline}</div>
           </div>
           <div
-            className="col-span-2 flex items-end justify-between p-[5%] text-[4.5px] text-gray-800"
-            style={{ backgroundColor: '#FFFFFF', borderTop: `2px solid ${p}` }}
+            style={{
+              flex: 1,
+              padding: '9% 7%',
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: 0,
+            }}
           >
-            <div className="space-y-[1px]">
-              <div className="font-medium">{Email}</div>
-              <div>{Phone}</div>
+            <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+            <div
+              style={text(11, t.paperInk, t.heading, {
+                fontWeight: 600,
+                marginTop: '4px',
+                letterSpacing: '-0.015em',
+              })}
+            >
+              {f.Name}
+              <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
             </div>
-            <div className="text-right" style={{ color: p }}>
-              {Site}
+            <div style={text(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+            <div style={{ marginTop: 'auto' }}>
+              <Contacts f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.2} />
+              <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
             </div>
           </div>
         </div>
-      </div>
+      </Face>
     ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
+  }),
 
-    // 14 — Sunburst Mark. Radiating rays from a brand-color sun
-    // anchor the card; type wraps around it. Heroic, almost
-    // crest-like.
-    (
-      <div className="w-full h-full bg-white relative overflow-hidden">
+  // 3 — Brute Slab. Near-black, the name set as large as the face allows,
+  // contacts in the mono ladder. The accent is moved onto the panel rather
+  // than printed at the brand's own value — the whole point of `accentOn`.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.darkBg}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={text(5.3, t.darkMuted, t.mono, UPPER)}>{f.Company}</div>
+          <Mark brand={brand} theme={t} on={t.darkBg} height={11} picks={picks} company={company} />
+        </div>
         <div
-          className="absolute -left-[18%] -bottom-[40%] w-[80%] aspect-square rounded-full"
+          style={text(13.5, t.darkInk, t.heading, {
+            fontWeight: 700,
+            marginTop: '6px',
+            lineHeight: 1.02,
+            ...UPPER,
+            letterSpacing: '-0.01em',
+          })}
+        >
+          {f.Name}
+        </div>
+        <div style={text(5.8, t.darkAccent, t.mono, { marginTop: '3px', ...UPPER })}>
+          {f.Role}
+          <span style={text(5.4, t.darkMuted, t.mono)}>{f.Pron}</span>
+        </div>
+        <div style={text(5.4, t.darkMuted, t.body, { marginTop: '3px' })}>{f.Tagline}</div>
+        <div style={{ marginTop: 'auto' }}>
+          <ContactsSplit f={f} color={t.darkInk} font={t.mono} size={5.4} gap={1.3} />
+          <div style={text(5.1, t.darkMuted, t.mono, { marginTop: '3px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 4 — Soft Layer. A tinted face with a solid brand shelf along the
+  // bottom; the contacts live on the shelf, so they are measured against
+  // it and not against the tint above.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.tint} pad="0">
+        <div style={{ padding: '9% 8% 6%', display: 'flex', flexDirection: 'column', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Mark brand={brand} theme={t} on={t.tint} height={12} picks={picks} company={company} />
+            <div style={text(5.3, t.tintMuted, t.body, UPPER)}>{f.Company}</div>
+          </div>
+          <div
+            style={text(11.5, t.tintInk, t.heading, {
+              fontWeight: 600,
+              marginTop: 'auto',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={text(5.3, t.tintMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={text(5.9, t.tintAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+          <div style={text(5.2, t.tintMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+        </div>
+        <div style={{ background: t.brandBg, padding: '5% 8%' }}>
+          <ContactsSplit f={f} color={t.brandInk} font={t.body} size={5.3} gap={1.1} />
+          <div style={text(5.1, t.brandMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="paper" />,
+  }),
+
+  // 5 — Centre Stack. Symmetrical, formal: mark, name, rule, contacts.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="6% 8%" style={{ alignItems: 'center', textAlign: 'center' }}>
+        <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+        <div style={text(5.3, t.paperMuted, t.body, { marginTop: '3px', ...UPPER })}>
+          {f.Company}
+        </div>
+        <div
+          style={text(10, t.paperInk, t.heading, {
+            fontWeight: 600,
+            marginTop: '1px',
+            letterSpacing: '-0.01em',
+          })}
+        >
+          {f.Name}
+          <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+        </div>
+        <div style={text(5.6, t.paperAccent, t.body, { ...UPPER })}>{f.Role}</div>
+        <div style={{ width: '22%', height: '1px', background: t.paperLine, margin: '3px 0' }} />
+        <div style={text(5.2, t.paperMuted, t.body)}>{f.Tagline}</div>
+        <div style={{ marginTop: 'auto', width: '100%' }}>
+          <Contacts f={f} color={t.paperInk} font={t.body} size={5.3} align="center" gap={0.5} />
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: '1px', textAlign: 'center' })}>
+            {f.Address}
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 6 — Corner Mark. Everything pushed to the four corners, the middle
+  // left empty. The most conservative layout in the set, on purpose.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Mark brand={brand} theme={t} on={t.paper} height={12} picks={picks} company={company} />
+          <div style={{ textAlign: 'right' }}>
+            <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+            <div style={text(5.1, t.paperMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
+          </div>
+        </div>
+        <div
           style={{
-            background: `conic-gradient(from 180deg, ${p} 0deg, ${p}99 30deg, transparent 60deg, ${p} 90deg, ${p}99 120deg, transparent 150deg, ${p} 180deg)`,
-            opacity: 0.85,
+            marginTop: 'auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            gap: '6%',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={text(11, t.paperInk, t.heading, { fontWeight: 600, letterSpacing: '-0.015em' })}>
+              {f.Name}
+              <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+            </div>
+            <div style={text(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+            <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+          </div>
+          <Contacts f={f} color={t.paperInk} font={t.body} size={5.4} align="right" gap={1.1} />
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="second" />,
+  }),
+
+  // 7 — Full Brand. The face is the brand's colour and the back is the
+  // paper — the reverse of every other card here, which is the point.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.brandBg}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <div style={text(5.4, t.brandMuted, t.body, UPPER)}>{f.Company}</div>
+            <div style={text(5.2, t.brandMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
+          </div>
+          <Mark brand={brand} theme={t} on={t.brandBg} height={12} picks={picks} company={company} />
+        </div>
+        <div
+          style={text(12, t.brandInk, t.heading, {
+            fontWeight: 600,
+            marginTop: 'auto',
+            letterSpacing: '-0.015em',
+          })}
+        >
+          {f.Name}
+          <span style={text(5.3, t.brandMuted, t.body)}>{f.Pron}</span>
+        </div>
+        <div style={text(5.9, t.brandInk, t.body, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
+        <div style={{ height: '1px', background: t.brandLine, margin: '5px 0' }} />
+        <ContactsSplit f={f} color={t.brandInk} font={t.body} size={5.4} gap={1.1} />
+        <div style={text(5.1, t.brandMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="paper" />,
+  }),
+
+  // 8 — Drafting Grid. A faint measured grid, drawn as a SIBLING layer so
+  // the text is still measured against the paper it sits on rather than
+  // being skipped as "text on an image".
+  ({ brand, theme: t, f, picks, company }) => {
+    const gridLine = mixHex(t.paperLine, t.paper, 0.45);
+    return {
+    front: (
+      <div style={{ position: 'absolute', inset: 0, background: t.paper, overflow: 'hidden' }}>
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            // `to bottom` / `to right`, never `0deg` / `90deg`: measured in
+            // Chromium, `repeating-linear-gradient(0deg, …)` with a
+            // sub-pixel first stop draws NOTHING, so the grid shipped as a
+            // set of vertical stripes — ruled paper, not a drafting grid.
+            // The 0.8px rule survives the ScalingStage's transform; 0.5px
+            // did not.
+            backgroundImage: `repeating-linear-gradient(to bottom, ${gridLine} 0 0.8px, transparent 0.8px 7px), repeating-linear-gradient(to right, ${gridLine} 0 0.8px, transparent 0.8px 7px)`,
           }}
         />
-        <div
-          className="absolute -left-[14%] -bottom-[36%] w-[72%] aspect-square rounded-full bg-white"
-        />
-        <div
-          className="absolute -left-[6%] -bottom-[30%] w-[60%] aspect-square rounded-full"
-          style={{ backgroundColor: p }}
-        />
-        <div className="relative w-full h-full p-[6%] flex flex-col justify-between">
-          <div className="flex items-start justify-between text-[4.5px] uppercase tracking-[0.2em] text-gray-700">
-            <span>{brand.name} · Studio</span>
-            <span>Card 014 / 016</span>
+        <Face bg="transparent">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
+            <div style={text(5.3, t.paperMuted, t.mono, UPPER)}>{f.Company}</div>
           </div>
-          <div className="self-end text-right">
-            <div className="text-[12px] font-serif font-semibold text-gray-900 leading-tight">
-              {Name}
-            </div>
-            <div
-              className="text-[5px] uppercase tracking-[0.22em] mt-0.5 font-medium"
-              style={{ color: p }}
-            >
-              {Title}
-            </div>
+          <div
+            style={text(11, t.paperInk, t.heading, {
+              fontWeight: 600,
+              marginTop: '7px',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={text(5.2, t.paperMuted, t.mono)}>{f.Pron}</span>
           </div>
-          <div className="self-end text-right text-[4.5px] text-gray-700">
-            <div>{Email}</div>
-            <div>{Phone}</div>
+          <div style={text(5.7, t.paperAccent, t.mono, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
+          <div style={text(5.2, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+          <div style={{ marginTop: 'auto' }}>
+            <ContactsSplit f={f} color={t.paperInk} font={t.mono} size={5.3} gap={1.2} />
+            <div style={text(5.1, t.paperMuted, t.mono, { marginTop: '2px' })}>{f.Address}</div>
           </div>
-        </div>
+        </Face>
       </div>
     ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
+    };
+  },
 
-    // 15 — Wax Seal. Centered circular wax-stamp seal in brand
-    // color, with the brand initial debossed inside. Surrounding
-    // type is restrained, formal — proposal/contract feel.
-    (
-      <div className="w-full h-full bg-[#FAF6EE] relative overflow-hidden p-[6%]">
-        <div className="relative w-full h-full flex flex-col justify-between">
-          <div className="flex items-start justify-between text-[4.5px] uppercase tracking-[0.22em] text-gray-600">
-            <span>Office of the President</span>
-            <span>{brand.name}</span>
-          </div>
-          <div className="flex items-center gap-3 mx-auto">
+  // 9 — Spine. A brand rule down the left edge; the type indented off it.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ display: 'flex', height: '100%' }}>
+          <div style={{ width: '7%', background: t.brandBg }} />
+          <div
+            style={{
+              flex: 1,
+              padding: '9% 8% 9% 6%',
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+              <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
+            </div>
             <div
-              className="w-[60px] h-[60px] rounded-full flex items-center justify-center relative"
+              style={text(11.5, t.paperInk, t.heading, {
+                fontWeight: 600,
+                marginTop: 'auto',
+                letterSpacing: '-0.015em',
+              })}
+            >
+              {f.Name}
+              <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+            </div>
+            <div style={text(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+            <div style={text(5.2, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+            <div style={{ marginTop: '6px' }}>
+              <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
+              <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+            </div>
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 10 — Base Band. A solid brand band along the foot of the card holding
+  // the contact ladder, the person above it on paper.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ flex: 1, padding: '9% 8% 5%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Mark brand={brand} theme={t} on={t.paper} height={12} picks={picks} company={company} />
+            <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+          </div>
+          <div
+            style={text(11.5, t.paperInk, t.heading, {
+              fontWeight: 600,
+              marginTop: 'auto',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={text(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+          <div style={text(5.2, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+        </div>
+        <div style={{ background: t.brandBg, padding: '4.5% 8%' }}>
+          <ContactsSplit f={f} color={t.brandInk} font={t.body} size={5.3} gap={1} />
+          <div style={text(5.1, t.brandMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="dark" />,
+  }),
+
+  // 11 — Monogram Tile. A square brand tile holding the mark, the details
+  // ranged beside it.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper}>
+        <div style={{ display: 'flex', gap: '7%', alignItems: 'flex-start' }}>
+          <div
+            style={{
+              width: '26%',
+              paddingBottom: '26%',
+              position: 'relative',
+              borderRadius: '3px',
+              background: t.brandBg,
+              flex: '0 0 auto',
+            }}
+          >
+            <span
               style={{
-                background: `radial-gradient(circle at 30% 30%, ${p}EE, ${p} 60%, ${p}AA 100%)`,
-                boxShadow: `inset 0 -4px 8px rgba(0,0,0,0.18), 0 2px 4px rgba(0,0,0,0.12)`,
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <span className="text-white text-[18px] font-serif font-bold leading-none">
-                {brand.name.charAt(0).toUpperCase()}
-              </span>
-              <div
-                className="absolute inset-1 rounded-full border opacity-50"
-                style={{ borderColor: '#fff' }}
-              />
-            </div>
-            <div>
-              <div className="text-[10px] font-serif font-semibold text-gray-900 leading-tight">
-                {Name}
-              </div>
-              <div
-                className="text-[5px] uppercase tracking-[0.22em] mt-0.5"
-                style={{ color: p }}
-              >
-                {Title}
-              </div>
-              <div className="text-[4.5px] text-gray-600 mt-1">
-                {Email}
-              </div>
-            </div>
+              <Mark brand={brand} theme={t} on={t.brandBg} height={13} picks={picks} company={company} />
+            </span>
           </div>
-          <div className="flex items-end justify-between text-[4.5px] uppercase tracking-[0.18em] text-gray-600">
-            <span>Sealed · 2026</span>
-            <span>{Site}</span>
-          </div>
-        </div>
-      </div>
-    ),
-
-    // 16 — Iceberg Layer. Vertical brand-color band rises from the
-    // bottom edge — like an iceberg cross-section. Type rests on
-    // the white ice above; contact info etched into the colored
-    // depth below.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-white">
-        <div
-          className="absolute left-0 right-0 bottom-0 h-[55%]"
-          style={{
-            background: `linear-gradient(180deg, ${p} 0%, ${p}DD 60%, ${p}99 100%)`,
-            clipPath: 'polygon(0 22%, 18% 12%, 32% 18%, 48% 8%, 64% 16%, 80% 6%, 100% 14%, 100% 100%, 0 100%)',
-          }}
-        />
-        <div className="relative w-full h-full p-[6%] flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <BrandLogo brand={brand} size="sm" />
-            <div className="text-right text-[4.5px] uppercase tracking-[0.2em] text-gray-500">
-              {brand.name} · Studio
-            </div>
-          </div>
-          <div className="text-center mt-[-6%]">
-            <div className="text-[12px] font-bold text-gray-900 leading-tight">
-              {Name}
-            </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
             <div
-              className="text-[5px] uppercase tracking-[0.22em] mt-0.5"
-              style={{ color: p, filter: 'brightness(0.6)' }}
+              style={text(11, t.paperInk, t.heading, {
+                fontWeight: 600,
+                marginTop: '3px',
+                letterSpacing: '-0.015em',
+              })}
             >
-              {Title}
+              {f.Name}
+              <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
             </div>
+            <div style={text(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
           </div>
-          <div className="flex items-end justify-between text-[4.5px] text-white">
-            <div className="space-y-[1px]">
-              <div>{Email}</div>
-              <div>{Phone}</div>
-            </div>
-            <div className="text-right opacity-90">
-              {Site}
-            </div>
+        </div>
+        <div style={text(5.3, t.paperMuted, t.body, { marginTop: '5px' })}>{f.Tagline}</div>
+        <div style={{ marginTop: 'auto' }}>
+          <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 12 — Ledger. Ruled rows, one value to a row — the card as a record.
+  ({ brand, theme: t, f, picks, company }) => {
+    const row: CSSProperties = { borderTop: `1px solid ${t.paperLine}`, padding: '1.1px 0' };
+    return {
+      front: (
+        <Face bg={t.paper} pad="6% 8%">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={text(5.3, t.paperMuted, t.mono, UPPER)}>{f.Company}</div>
+            <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+          </div>
+          <div
+            style={text(9.5, t.paperInk, t.heading, {
+              fontWeight: 600,
+              margin: '3px 0 2px',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={text(5.2, t.paperMuted, t.mono)}>{f.Pron}</span>
+          </div>
+          <div style={{ ...row, ...text(5.6, t.paperAccent, t.mono) }}>{f.Role}</div>
+          <div style={{ ...row, ...text(5.4, t.paperInk, t.mono) }}>{f.Email}</div>
+          <div style={{ ...row, ...text(5.4, t.paperInk, t.mono) }}>{f.Phone}</div>
+          <div style={{ ...row, ...text(5.4, t.paperInk, t.mono) }}>
+            {f.Site}
+            <span style={{ color: t.paperMuted }}> · </span>
+            {f.Social}
+          </div>
+          <div style={{ ...row, ...text(5.2, t.paperMuted, t.mono) }}>{f.Address}</div>
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: 'auto', paddingTop: '2px' })}>
+            {f.Tagline}
+          </div>
+        </Face>
+      ),
+      back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+    };
+  },
+
+  // 13 — Seal. A ruled ring around the mark; formal, centred, quiet.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.tint} pad="5% 8%" style={{ alignItems: 'center', textAlign: 'center' }}>
+        <div
+          style={{
+            width: '11%',
+            paddingBottom: '11%',
+            position: 'relative',
+            borderRadius: '50%',
+            border: `0.8px solid ${t.tintAccent}`,
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Mark brand={brand} theme={t} on={t.tint} height={9} picks={picks} company={company} />
+          </span>
+        </div>
+        <div style={text(5.3, t.tintMuted, t.body, { marginTop: '2px', ...UPPER })}>{f.Company}</div>
+        <div
+          style={text(10, t.tintInk, t.heading, {
+            fontWeight: 600,
+            marginTop: '1px',
+            letterSpacing: '-0.01em',
+          })}
+        >
+          {f.Name}
+          <span style={text(5.2, t.tintMuted, t.body)}>{f.Pron}</span>
+        </div>
+        <div style={text(5.6, t.tintAccent, t.body)}>{f.Role}</div>
+        <div style={text(5.2, t.tintMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
+        <div style={{ marginTop: 'auto', width: '100%' }}>
+          <Contacts f={f} color={t.tintInk} font={t.body} size={5.3} align="center" gap={0.6} />
+          <div style={text(5.1, t.tintMuted, t.body, { marginTop: '1px', textAlign: 'center' })}>
+            {f.Address}
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 14 — Banner. The name rides a brand band straight across the face.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div style={{ padding: '6% 8% 3%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
+          <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+        </div>
+        <div style={{ background: t.brandBg, padding: '3.5% 8%' }}>
+          <div style={text(11, t.brandInk, t.heading, { fontWeight: 600, letterSpacing: '-0.015em' })}>
+            {f.Name}
+            <span style={text(5.2, t.brandMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={text(5.7, t.brandInk, t.body, { marginTop: '1px', ...UPPER })}>{f.Role}</div>
+        </div>
+        <div style={{ padding: '3.5% 8% 6%', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={text(5.2, t.paperMuted, t.body)}>{f.Tagline}</div>
+          <div style={{ marginTop: 'auto' }}>
+            <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
+            <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="paper" />,
+  }),
+
+  // 15 — Quiet Type. No rules, no blocks, nothing but the setting.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="11% 10%">
+        <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+        <div
+          style={text(12.5, t.paperInk, t.heading, {
+            fontWeight: 500,
+            marginTop: 'auto',
+            letterSpacing: '-0.02em',
+          })}
+        >
+          {f.Name}
+          <span style={text(5.3, t.paperMuted, t.body)}>{f.Pron}</span>
+        </div>
+        <div style={text(6, t.paperMuted, t.body, { marginTop: '1px' })}>{f.Role}</div>
+        <div style={text(5.3, t.paperAccent, t.body, { marginTop: '3px' })}>{f.Tagline}</div>
+        <div
+          style={{
+            marginTop: 'auto',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: '5%',
+          }}
+        >
+          <div>
+            <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.3} gap={1} />
+            <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+          </div>
+          <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 16 — Duo Tone. A secondary-coloured head, a paper body.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper} pad="0">
+        <div
+          style={{
+            background: t.secondBg,
+            padding: '7% 8% 6%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '5%',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={text(5.9, t.secondInk, t.body, UPPER)}>{f.Company}</div>
+            <div style={text(5.2, t.secondMuted, t.body, { marginTop: '1px' })}>{f.Tagline}</div>
+          </div>
+          <Mark brand={brand} theme={t} on={t.secondBg} height={12} picks={picks} company={company} />
+        </div>
+        <div style={{ padding: '6% 8% 8%', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={text(11, t.paperInk, t.heading, { fontWeight: 600, letterSpacing: '-0.015em' })}>
+            {f.Name}
+            <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={text(5.8, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+          <div style={{ marginTop: 'auto' }}>
+            <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
+            <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+          </div>
+        </div>
+      </Face>
+    ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
+
+  // 17 — Framed. An inset keyline; everything inside it.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <div style={{ position: 'absolute', inset: 0, background: t.paper, padding: '4.5%' }}>
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            border: `0.8px solid ${t.paperAccent}`,
+            padding: '6% 6.5%',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={text(5.3, t.paperMuted, t.body, UPPER)}>{f.Company}</div>
+            <Mark brand={brand} theme={t} on={t.paper} height={10} picks={picks} company={company} />
+          </div>
+          <div
+            style={text(11, t.paperInk, t.heading, {
+              fontWeight: 600,
+              marginTop: 'auto',
+              letterSpacing: '-0.015em',
+            })}
+          >
+            {f.Name}
+            <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+          </div>
+          <div style={text(5.7, t.paperAccent, t.body, { marginTop: '1px' })}>{f.Role}</div>
+          <div style={text(5.2, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Tagline}</div>
+          <div style={{ marginTop: 'auto' }}>
+            <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.3} gap={1} />
+            <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
           </div>
         </div>
       </div>
     ),
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} />,
+  }),
 
-    // 17 — Ribbon Title. A wide brand-color ribbon sweeps across the
-    // middle of the card carrying the name; corners hold logo +
-    // contact in a quiet serif voice.
-    (
-      <div className="w-full h-full relative overflow-hidden bg-[#F8F5EE]">
-        <div
-          className="absolute left-[-4%] right-[-4%] top-[42%] h-[24%] -rotate-3"
-          style={{
-            background: `linear-gradient(90deg, ${p}DD 0%, ${p} 50%, ${p}DD 100%)`,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          }}
-        />
-        {/* ribbon notches */}
-        <div
-          className="absolute left-[-4%] top-[64%] w-[14px] h-[10px] -rotate-3"
-          style={{
-            background: `linear-gradient(45deg, transparent 50%, ${p}77 50%)`,
-          }}
-        />
-        <div className="relative w-full h-full p-[6%] flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <BrandLogo brand={brand} size="sm" />
-            <div className="text-right text-[4.5px] uppercase tracking-[0.22em] text-gray-700">
-              Class of 2026
-            </div>
-          </div>
-          <div className="text-center -rotate-3 text-white">
-            <div className="text-[5px] uppercase tracking-[0.24em] opacity-80 mb-0.5">
-              {brand.name}
-            </div>
-            <div className="text-[14px] font-serif italic font-semibold leading-none">
-              {Name}
-            </div>
-            <div className="text-[5px] uppercase tracking-[0.22em] mt-1 opacity-90">
-              {Title}
-            </div>
-          </div>
-          <div className="flex items-end justify-between text-[4.5px] text-gray-700 font-serif">
-            <div>{Email}</div>
-            <div>{Phone}</div>
-          </div>
+  // 18 — Tag. The role sits in a brand pill above the name.
+  ({ brand, theme: t, f, picks, company }) => ({
+    front: (
+      <Face bg={t.paper}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span
+            style={{
+              display: 'inline-block',
+              background: t.brandBg,
+              borderRadius: '999px',
+              padding: '2px 6px',
+              ...text(5.4, t.brandInk, t.body, UPPER),
+            }}
+          >
+            {f.Role}
+          </span>
+          <Mark brand={brand} theme={t} on={t.paper} height={11} picks={picks} company={company} />
         </div>
-      </div>
+        <div
+          style={text(12, t.paperInk, t.heading, {
+            fontWeight: 600,
+            marginTop: 'auto',
+            letterSpacing: '-0.015em',
+          })}
+        >
+          {f.Name}
+          <span style={text(5.2, t.paperMuted, t.body)}>{f.Pron}</span>
+        </div>
+        <div style={text(5.6, t.paperMuted, t.body, { marginTop: '1px' })}>
+          {f.Company}
+          <span> · </span>
+          {f.Tagline}
+        </div>
+        <div style={{ marginTop: 'auto' }}>
+          <ContactsSplit f={f} color={t.paperInk} font={t.body} size={5.4} gap={1.1} />
+          <div style={text(5.1, t.paperMuted, t.body, { marginTop: '2px' })}>{f.Address}</div>
+        </div>
+      </Face>
     ),
-  ];
+    back: <CardBack brand={brand} theme={t} picks={picks} company={company} tone="second" />,
+  }),
+];
 
-  return designs[templateIndex] ?? designs[0];
+/* ── The renderer ─────────────────────────────────────────────────── */
+
+/**
+ * Build the context every design shares.
+ *
+ * Exported because Wave 2 renders from the same context — one place that
+ * knows how a card resolves its content, its picks and its palette.
+ */
+export function cardContext(brand: Brand, content?: PersonCardContent): CardCtx {
+  const hydrated = hydrateContent('person', brand ?? { name: '' }, content);
+  const c = (isPerson(hydrated) ? hydrated : null) as PersonContent;
+  const picks = content?.picks;
+  const themed = withPicks(brand, picks);
+  return {
+    brand: themed,
+    theme: cardTheme(themed),
+    f: fragments(c),
+    picks,
+    company: c.company,
+  };
 }
 
-/** Metadata for the extended designs — id suffix maps to index above. */
+export function BusinessCardExtendedRenderer({
+  brand,
+  templateIndex,
+  content,
+}: BusinessCardProps) {
+  const ctx = cardContext(brand, content);
+  // An index outside the curated set can only arrive from a saved
+  // customization pointing at an archived design. Painting the first card
+  // is better than painting nothing: the customer's own content still
+  // shows, on a design that still reads.
+  const design = DESIGNS[templateIndex] ?? DESIGNS[0];
+  const { front, back } = design(ctx);
+  return <CardStage theme={ctx.theme} front={front} back={back} />;
+}
+
+/**
+ * The kept Wave-1 ids.
+ *
+ * Ids are persistence keys and never move; the names here are the ones a
+ * designer would use, and `renderers/curation/businessCards.ts` carries
+ * the same names plus the tags the drilldown filters on.
+ */
 export const BUSINESS_CARDS_EXTENDED = [
-  { idSuffix: 'ext-1', name: 'Editorial Index', category: 'Editorial' },
-  { idSuffix: 'ext-2', name: 'Color Block Diptych', category: 'Modern' },
-  { idSuffix: 'ext-3', name: 'Brute Force', category: 'Brutalist' },
-  { idSuffix: 'ext-4', name: 'Frosted Layer', category: 'Modern' },
-  { idSuffix: 'ext-5', name: 'Halftone Portrait', category: 'Editorial' },
-  { idSuffix: 'ext-6', name: 'Passport Stamp', category: 'Vintage' },
-  { idSuffix: 'ext-7', name: 'Type Mosaic', category: 'Modern' },
-  { idSuffix: 'ext-8', name: 'Calendar Grid', category: 'Modern' },
-  { idSuffix: 'ext-9', name: 'Blueprint Lines', category: 'Modern' },
-  { idSuffix: 'ext-10', name: 'Sticker Stack', category: 'Bold' },
-  { idSuffix: 'ext-11', name: 'Diagonal Slash', category: 'Bold' },
-  { idSuffix: 'ext-12', name: 'Scanline Retro', category: 'Modern' },
-  { idSuffix: 'ext-13', name: 'Mountain Stack', category: 'Modern' },
-  { idSuffix: 'ext-14', name: 'Window Pane', category: 'Modern' },
-  { idSuffix: 'ext-15', name: 'Sunburst Mark', category: 'Lux' },
-  { idSuffix: 'ext-16', name: 'Wax Seal', category: 'Lux' },
-  { idSuffix: 'ext-17', name: 'Iceberg Layer', category: 'Modern' },
-  { idSuffix: 'ext-18', name: 'Ribbon Title', category: 'Vintage' },
+  { idSuffix: 'ext-1', name: 'Editorial Rule', category: 'Editorial' },
+  { idSuffix: 'ext-2', name: 'Colour Block', category: 'Modern' },
+  { idSuffix: 'ext-3', name: 'Brute Slab', category: 'Bold' },
+  { idSuffix: 'ext-4', name: 'Soft Layer', category: 'Modern' },
+  { idSuffix: 'ext-5', name: 'Centre Stack', category: 'Minimalist' },
+  { idSuffix: 'ext-6', name: 'Corner Mark', category: 'Minimalist' },
+  { idSuffix: 'ext-7', name: 'Full Brand', category: 'Bold' },
+  { idSuffix: 'ext-8', name: 'Drafting Grid', category: 'Modern' },
+  { idSuffix: 'ext-9', name: 'Spine', category: 'Modern' },
+  { idSuffix: 'ext-10', name: 'Base Band', category: 'Bold' },
+  { idSuffix: 'ext-11', name: 'Monogram Tile', category: 'Modern' },
+  { idSuffix: 'ext-12', name: 'Ledger', category: 'Editorial' },
+  { idSuffix: 'ext-13', name: 'Seal', category: 'Lux' },
+  { idSuffix: 'ext-14', name: 'Banner', category: 'Bold' },
+  { idSuffix: 'ext-15', name: 'Quiet Type', category: 'Minimalist' },
+  { idSuffix: 'ext-16', name: 'Duo Tone', category: 'Modern' },
+  { idSuffix: 'ext-17', name: 'Framed', category: 'Lux' },
+  { idSuffix: 'ext-18', name: 'Tag', category: 'Modern' },
 ] as const;

@@ -61,6 +61,14 @@ describe('kit catalog — storage identity', () => {
       'animations::Slide In',
       'animations::Fade',
       'animations::Rotate',
+      'mockups::Signage',
+      'mockups::Apparel',
+      'mockups::Mug',
+      'mockups::Tote',
+      'mockups::Sticker',
+      'mockups::Business Card Stack',
+      'mockups::Device Screen',
+      'mockups::Billboard',
     ];
     const keys = new Set(KIT_CATALOG.map((e) => e.key));
     for (const key of expected) expect(keys).toContain(key);
@@ -104,6 +112,19 @@ describe('kit catalog — every entry resolves to something renderable', () => {
     }
   });
 
+  it('keeps the eight mockups experimental until they are promoted', () => {
+    // The section used to be exempt from the assertion above, because its
+    // renderers existed and its labels were not routed. They are routed
+    // now (`legacy-mapping.ts`'s `MAP.mockups`), so the exemption is gone
+    // and each of the eight resolves like every other card. What stays is
+    // the capability gate: routed is not the same as released, and the
+    // promote-to-active decision belongs to the chrome wave, not here.
+    const mockups = KIT_CATALOG.filter((e) => e.sectionKey === 'mockups');
+    expect(mockups.length).toBe(8);
+    for (const e of mockups) expect(e.state).toBe('experimental');
+    expect(visibleEntries(NOBODY).some((e) => e.sectionKey === 'mockups')).toBe(false);
+  });
+
   it('gives every entry a group that exists', () => {
     const groups = new Set(KIT_GROUPS.map((g) => g.id));
     for (const e of KIT_CATALOG) expect(groups).toContain(e.group);
@@ -135,8 +156,22 @@ describe('kit catalog — capability visibility', () => {
     expect(isVisible('admin-only', ADMIN)).toBe(true);
   });
 
+  it('never shows archived, to anyone — not even an admin on a dev build', () => {
+    // `archived` is where a CULLED design's persistence key is retired.
+    // A developer who can still demo it will demo it.
+    for (const viewer of [NOBODY, DEV, ADMIN, { isDev: true, isAdmin: true }]) {
+      expect(isVisible('archived', viewer)).toBe(false);
+    }
+  });
+
   it('covers every capability state', () => {
-    const states: CapabilityState[] = ['active', 'experimental', 'admin-only', 'hidden'];
+    const states: CapabilityState[] = [
+      'active',
+      'experimental',
+      'admin-only',
+      'hidden',
+      'archived',
+    ];
     for (const s of states) expect(typeof isVisible(s, ADMIN)).toBe('boolean');
   });
 });
@@ -180,6 +215,8 @@ describe('kit catalog — what a normal user actually sees', () => {
 
   it('groups them in display order with no empty group', () => {
     const groups = visibleGroups(NOBODY);
+    // Mockups is absent for a normal user because every entry in it is
+    // experimental — `visibleGroups` drops a group with nothing in it.
     expect(groups.map((g) => g.label)).toEqual([
       'Brand Assets',
       'Brand Applications',
@@ -187,6 +224,36 @@ describe('kit catalog — what a normal user actually sees', () => {
       'Presentations',
     ]);
     for (const g of groups) expect(g.entries.length).toBeGreaterThan(0);
+  });
+
+  it('puts Mockups directly after Brand Applications for a developer', () => {
+    // Same brand on the same things, photographed rather than printed —
+    // somebody looking for "our logo on a tote" looks near the card.
+    expect(KIT_GROUPS.map((g) => g.id)).toEqual([
+      'assets',
+      'applications',
+      'mockups',
+      'social',
+      'presentations',
+    ]);
+    expect(visibleGroups(DEV).map((g) => g.label)).toEqual([
+      'Brand Assets',
+      'Brand Applications',
+      'Mockups',
+      'Social Media',
+      'Presentations',
+    ]);
+    const mockups = visibleGroups(DEV).find((g) => g.label === 'Mockups')!;
+    expect(mockups.entries.map((e) => e.label)).toEqual([
+      'Signage',
+      'Apparel',
+      'Mug',
+      'Tote',
+      'Sticker',
+      'Business Card Stack',
+      'Device Screen',
+      'Billboard',
+    ]);
   });
 
   it('keeps the retired work reachable for a developer or admin', () => {

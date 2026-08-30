@@ -19,6 +19,17 @@
   gap: 10px;
   margin: 0;
   cursor: pointer;
+  border-radius: 14px;
+}
+/* Focus is a 3px charcoal ring, never blue. The card is a `role="button"`
+   figure, so with no rule of its own it wore Chrome's default
+   `outline: 1px auto rgb(0,95,204)` (QA Q20) — the one colour the DS says a
+   focus ring is never. The ring goes on the CARD, not the cover, so the
+   label is inside it: same relationship `.panel-item` already has with
+   `.panel-item-body`. */
+[data-workspace] .bk-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }
 
 /* Frame — border + radius + shadow, transparent inside. The
@@ -163,6 +174,64 @@
 @keyframes bk-editor-rise {
   from { opacity: 0; transform: translateY(8px) scale(0.99); }
   to   { opacity: 1; transform: none; }
+}
+
+/* ── Left column: preview + variant switcher ──
+   Grid col 1 is now this column rather than the preview card directly,
+   so a deliverable can show its OTHER layouts underneath the preview
+   without the rail's own column stealing the strip (a bare 2-column
+   grid would place the strip in the rail's track, one row down from
+   where the preview sits — this wrapper keeps both preview and strip
+   in column 1). */
+.bk-editor-preview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+.bk-editor-preview-col > .bk-editor-preview-card {
+  flex: 1 1 auto;
+}
+
+/* Variant switcher — reuses the drilldown grid's own tile classes
+   (.bk-variant-card / .bk-variant-tile / .bk-variant-tile-render /
+   .bk-variant-tile-cover / .bk-variant-label) so a variant reads as
+   the same artifact in both places. Those classes' CONTAINER rules
+   are declared `[data-workspace] .bk-variant-card` / `[data-workspace]
+   .bk-variant-label` on the page, which never reaches this portal (see
+   the Radix-portal note in CLAUDE.md) — so the sizing for THIS context
+   is scoped here instead, unscoped, the same way every other
+   `.bk-editor-*` rule in this file already is. */
+.bk-editor-variants {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  flex: 0 0 auto;
+  padding-bottom: 2px;
+}
+.bk-editor-variants .bk-variant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  width: 128px;
+  flex: 0 0 auto;
+}
+.bk-editor-variants .bk-variant-tile {
+  aspect-ratio: 1.6 / 1;
+}
+.bk-editor-variants .bk-variant-tile.is-selected {
+  border-color: var(--bke-text);
+  box-shadow: 0 0 0 2px var(--bke-text), var(--ds-shadow-xs);
+}
+.bk-editor-variants .bk-variant-label {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--bke-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Left card: preview ──
@@ -529,23 +598,12 @@
 .bk-editor-icon-weight.is-selected .bk-editor-icon-weight-label {
   color: #111113;
 }
-.bk-editor-preview-frame {
-  width: 100%;
-  max-width: 720px;
-  display: block;
-}
-/* Host owns the visible border-radius + drop-shadow + aspect ratio
-   (set inline by ScalingStage from the per-template aspectFor map).
-   The inner stage scales the renderer up from its native ~360px
-   canonical width so absolute pixel sizes (text-[4.5px], etc.) read
-   correctly at any preview size. */
-.bk-preview-host {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  border-radius: 12px;
-  box-shadow: 0 18px 48px -16px rgba(15, 18, 22, 0.35);
-}
+/* `.bk-editor-preview-frame` / `.bk-preview-host` / `.bk-preview-stage`
+   (and the font-override / hide-logo host attributes) moved to
+   `src/shared/brand/ScalingStage.css` on 2026-08-20 — ScalingStage is a
+   shared component with consumers outside Brand Kit (the Design editor's
+   template-instance canvas), and this stylesheet only reaches Brand Kit
+   pages. See that file's header for the full story. */
 /* Offscreen mount used by templateSnapshot.tsx to rasterize a template
    for download. Mirrors the drilldown tile contract: the renderer's
    root fills the host. Kept in-flow (fixed, offscreen-left) so fonts
@@ -571,30 +629,6 @@
 }
 .bk-snapshot-host--auto > * {
   height: auto;
-}
-.bk-preview-stage {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: top left;
-}
-.bk-preview-stage > * {
-  width: 100%;
-  height: 100%;
-}
-/* Font override — wins over Tailwind utilities (font-mono / font-serif)
-   that individual designs apply, so swapping the typography pick is
-   truly global across the rendered preview. */
-.bk-preview-host[data-font-override],
-.bk-preview-host[data-font-override] * {
-  font-family: var(--bk-preview-font) !important;
-}
-/* Show Logo toggle — BrandLogo renders itself as <img>, so hiding
-   <img> covers the common case without per-renderer changes.
-   `visibility: hidden` keeps the layout box, so designs that
-   reserve space for the logo don't reflow. */
-.bk-preview-host[data-hide-logo] img {
-  visibility: hidden;
 }
 .bk-editor-eyebrow {
   font-size: 10.5px;
@@ -905,12 +939,23 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  /* Wraps so a reason for an unavailable action can sit on its own line
+     above the buttons it explains. */
+  flex-wrap: wrap;
   gap: 6px;
   /* Tighter side padding: four DS buttons (Reset · Cancel · Download ·
      Save) need the full 320px rail width. */
   padding: 12px 10px;
   border-top: 1px solid var(--bke-border);
   background: var(--bke-surface);
+}
+.bk-editor-rail-note {
+  flex: 1 1 100%;
+  margin: 0 2px 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--bke-text-muted);
 }
 .bk-editor-rail-footer .ds-btn--sm {
   padding-left: 12px;
@@ -1109,6 +1154,18 @@
   box-shadow: var(--ds-shadow-md);
   border-color: var(--ds-border-strong);
 }
+/* A tile that is not a control. The Photos empty tile is a STATEMENT —
+   there is nothing behind it to open — so it must not offer a pointer or
+   lift under the cursor. Two rules, because the drilldown also raises a
+   tile from its CARD (`.bk-variant-card:hover`). */
+.bk-variant-tile--static,
+.bk-variant-tile--static:hover,
+[data-workspace] .bk-variant-card:hover .bk-variant-tile--static,
+[data-workspace] .bk-variant-card:focus-within .bk-variant-tile--static {
+  cursor: default;
+  box-shadow: var(--ds-shadow-xs);
+  border-color: var(--ds-border);
+}
 .bk-variant-tile:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ds-focus-ring), var(--ds-shadow-xs);
@@ -1140,6 +1197,40 @@
 .bk-variant-tile-render > * {
   width: 100%;
   height: 100%;
+}
+
+/*
+  THE TILE DECLARES A LEGIBLE MINIMUM FOR TYPE.
+
+  Renderers are authored against a 260px stage and the tile draws them at
+  ~347px with no scaling, so the smallest roles paint at their authored pixel
+  size: QA measured 3.0px on an Envelope's "Postage", 3.4px on a deck footer
+  and 3.9px on a Letterhead's date (Q19). Choosing between three variants is
+  the tile's only job, and it cannot be done on type nobody can see.
+
+  `--bk-type-floor` is read by `renderers/typeFloor.ts` `typePx()`, which
+  every renderer's font size now passes through as `max(floor, authored)`.
+  Only this surface sets it: the offscreen export host, the card covers and
+  the editor preview leave it unset, `max()` falls back to `0px`, and every
+  exported pixel is exactly what it was.
+*/
+.bk-variant-tile-render {
+  --bk-type-floor: 7px;
+}
+
+/*
+  The same floor for the type that is sized by a Tailwind class rather than a
+  style object. `BrandGuidesExtended` alone carries 71 `text-[3.5px]` — the
+  guide pages are dense by design and they are unreadable at tile size for
+  exactly the same reason. Written as an override on the class inside the tile
+  rather than rewritten in the markup, so the CLASS still means 3.5px
+  everywhere else, and the export (which has no `.bk-variant-tile-render`
+  above it) is untouched. Kept in step with `--bk-type-floor` by
+  `renderers/__tests__/tileTypeFloor.browser.test.tsx`, which measures the
+  rendered tiles rather than trusting this list.
+*/
+.bk-variant-tile-render :is(.text-\[3px\], .text-\[3\.5px\], .text-\[4px\], .text-\[5px\], .text-\[6px\]) {
+  font-size: 7px;
 }
 .bk-variant-tile-index {
   position: absolute;
@@ -1822,6 +1913,16 @@
 .bk-card-picker-close:hover {
   background: var(--ds-surface-hover);
   color: var(--ds-text);
+}
+/* The picker's filter row. It sits between the head and the scrolling
+   grid, so it takes the modal's own gutters and never scrolls with the
+   designs it filters. Both selectors, because `.bk-drilldown-filter` is
+   `[data-workspace]`-scoped and would otherwise out-specify the margin. */
+.bk-drilldown-filter.bk-card-picker-filter,
+[data-workspace] .bk-drilldown-filter.bk-card-picker-filter {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 14px 22px 0;
 }
 .bk-card-picker-grid {
   flex: 1;
@@ -2977,312 +3078,16 @@
   color: var(--ds-text-muted);
 }
 
-/* ============================================================
- * Quick Edit — the artifact as the editing surface, and a panel
- * that depends on what you are editing.
- *
- * These rules are DELIBERATELY UNSCOPED. The editor portals to
- * document.body, so it renders outside `[data-workspace]` and a
- * scoped selector would never match it — the same trap the Radix
- * popovers hit, reached from the other direction. The rest of
- * `.bk-editor-*` in this file is unscoped for exactly this reason.
- *
- * Two halves:
- *   .bk-bind-*  regions ON the artifact. These sit inside a
- *               transform-scaled stage rendering at a 260px base,
- *               so everything here is in relative units — a fixed
- *               px outline would be scaled with the artwork and
- *               read as a hairline on one deliverable and a slab
- *               on another.
- *   .bk-qe-*    the contextual panel.
- * ============================================================ */
-
-/* ─── Bound regions on the artifact ────────────────────────── */
-.bk-bind {
-  /* Not inline: an inline box cannot be clipped, and clipping is how
-     a long value is stopped from running through its neighbour. */
-  display: inline-block;
-  max-width: 100%;
-  vertical-align: bottom;
-  border-radius: 0.15em;
-  /* Outlines rather than borders — a border is in flow and would
-     shift the design by its own width the moment editing began. */
-  outline: 0.08em solid transparent;
-  outline-offset: 0.08em;
-  transition: outline-color 140ms var(--ds-ease), background 140ms var(--ds-ease);
-}
-/* Drawn in `currentColor`, NOT a chrome token.
- *
- * A bound region sits on the customer's artwork, which can be any
- * colour — a charcoal ring is invisible on a black invoice and a white
- * one is invisible on a letterhead. `currentColor` is the design's own
- * text colour, which by construction contrasts with what it sits on,
- * because otherwise the text itself would be unreadable. So the
- * affordance inherits the contrast the design already guarantees, and
- * the three states are told apart by WEIGHT and DASH rather than hue. */
-.bk-editor-preview-frame .bk-bind {
-  cursor: text;
-}
-.bk-editor-preview-frame .bk-bind:hover {
-  outline-style: dashed;
-  outline-color: color-mix(in srgb, currentColor 45%, transparent);
-}
-.bk-editor-preview-frame .bk-bind[data-bind-selected] {
-  outline-color: color-mix(in srgb, currentColor 75%, transparent);
-  background: color-mix(in srgb, currentColor 12%, transparent);
-}
-.bk-editor-preview-frame .bk-bind[data-bind-editing] {
-  outline-style: solid;
-  outline-width: 0.12em;
-  outline-color: currentColor;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-.bk-editor-preview-frame .bk-bind:focus-visible {
-  outline-color: currentColor;
-}
-
-/* Fit behaviours. One line that cannot push a neighbour is the
-   default, because that push is exactly what the old string-
-   substitution editor did to an invoice. */
-.bk-bind--clamp {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bk-bind--shrink {
-  white-space: nowrap;
-  /* --bk-bind-fit is measured against the parent by useFitToParent. */
-  font-size: calc(1em * var(--bk-bind-fit, 1));
-}
-.bk-bind--wrap {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* ─── The contextual panel ─────────────────────────────────── */
-.bk-qe-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-.bk-qe-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bk-qe-group-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-.bk-qe-group-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.bk-qe-group-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ds-text);
-}
-.bk-qe-group-hint {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--ds-text-muted);
-}
-.bk-qe-group-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.bk-qe-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-/* The panel's answer to the artifact's selection ring: the control for
-   whatever was clicked is findable without reading every label.
- *
- * The ring belongs to the CONTROL, not to the <label> that wraps it.
- * On the wrapper it drew a second box around the field's name as well,
- * so a selected field read as a box inside a box with the caption
- * caught between them.
- *
- * `:not(:focus)` because focus is the browser's own affordance and says
- * everything already — two rings stacked on one box is noise, and the
- * descendant selector would otherwise out-specify the focus rule. */
-.bk-qe-field.is-selected .bk-qe-input:not(:focus) {
-  border-color: var(--ds-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-accent) 45%, transparent);
-}
-.bk-qe-field-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--ds-text-muted);
-}
-.bk-qe-field-suffix {
-  font-size: 10px;
-  color: var(--ds-text-placeholder);
-}
-.bk-qe-input {
-  width: 100%;
-  font: inherit;
-  font-size: 12px;
-  color: var(--ds-text);
-  background: var(--ds-bg);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-control);
-  padding: 7px 9px;
-  transition: border-color 140ms var(--ds-ease), box-shadow 140ms var(--ds-ease);
-}
-.bk-qe-input:hover {
-  border-color: var(--ds-border-strong);
-}
-.bk-qe-input:focus {
-  outline: none;
-  border-color: var(--ds-focus-border);
-  box-shadow: 0 0 0 3px var(--ds-focus-ring);
-}
-.bk-qe-input--area {
-  resize: vertical;
-  min-height: 68px;
-  line-height: 1.5;
-}
-
-/* ─── Line items ───────────────────────────────────────────── */
-.bk-qe-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.bk-qe-item {
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-control);
-  background: var(--ds-surface-subtle);
-  padding: 9px 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.bk-qe-item.is-selected {
-  border-color: var(--ds-accent);
-}
-.bk-qe-item-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bk-qe-item-index {
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: var(--ds-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.bk-qe-item-actions {
-  display: flex;
-  gap: 2px;
-}
-.bk-qe-icon-btn {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--ds-text-muted);
-  cursor: pointer;
-  transition: background 140ms var(--ds-ease), color 140ms var(--ds-ease);
-}
-.bk-qe-icon-btn:hover:not(:disabled) {
-  background: var(--ds-surface-hover);
-  color: var(--ds-text);
-}
-.bk-qe-icon-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-.bk-qe-icon-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ds-focus-ring);
-}
-/* Description takes the room; qty and price take what they need. */
-.bk-qe-item-fields {
-  display: grid;
-  grid-template-columns: 1fr 54px 84px;
-  gap: 8px;
-  align-items: end;
-}
-.bk-qe-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  font-size: 12px;
-  color: var(--ds-text);
-  background: transparent;
-  border: 1px dashed var(--ds-dash-strong);
-  border-radius: var(--ds-radius-control);
-  cursor: pointer;
-  transition: background 140ms var(--ds-ease), border-color 140ms var(--ds-ease);
-}
-.bk-qe-add:hover {
-  background: var(--ds-surface-hover);
-  border-color: var(--ds-border-strong);
-}
-.bk-qe-add:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--ds-focus-ring);
-}
-
-/* ─── Totals ───────────────────────────────────────────────── */
-/* Read-only by design: a total you can type into is a total that can
-   disagree with its own line items. */
-.bk-qe-totals {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 12px 14px;
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-card);
-  background: var(--ds-surface);
-}
-.bk-qe-total-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--ds-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.bk-qe-total-row.is-grand {
-  margin-top: 4px;
-  padding-top: 7px;
-  border-top: 1px solid var(--ds-border);
-  color: var(--ds-text);
-  font-weight: 500;
-  font-size: 13px;
-}
-
-/* ─── Export picker ────────────────────────────────────────────────
-   The sheet the Export button opens. Layout only — every control in it
-   is a DS primitive, and every colour is a --ds-* token. */
+/* Export kit dialog — the picker of catalog entries + the estimate. */
 .bk-export-picker {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  max-height: min(52vh, 420px);
-  overflow-y: auto;
-  padding-right: 4px;
+  /* No nested scroll region. The list used to cap itself at 420px and
+     scroll inside the modal, so at a 900px viewport the last group's row
+     was cut off with nothing to say more was below. `DsModal` already
+     scrolls its whole body (`max-height: calc(100vh - 48px)`), which is the
+     one scrollbar a dialog should have. */
 }
 .bk-export-group-head {
   display: flex;
@@ -3319,4 +3124,390 @@
   display: flex;
   justify-content: flex-start;
   margin: 0 0 16px;
+}
+
+/* ─── Download menu ───────────────────────────────────────────────
+   Layout only; the menu and its items are DsMenu / DsMenuItem. */
+.bk-dl-menu {
+  z-index: 60;
+}
+.bk-dl-menu .ds-menu-item {
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 200px;
+}
+.bk-dl-chip {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.bk-dl-custom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.bk-dl-custom > :last-child {
+  grid-column: 1 / -1;
+}
+.bk-card-cover {
+  position: relative;
+}
+
+/* ─── Card covers ─────────────────────────────────────────────────
+   `CardCover` paints the customer's OWN artwork into `.bk-card-cover`.
+   It shipped with no stylesheet at all, and every one of its failures
+   followed from that:
+
+     • the art was a STATIC block in flow, so it sized to its content —
+       a palette of `flexGrow` spans with no flex parent collapsed to
+       0px (an empty Colors card), a 260×368 letterhead stage overflowed
+       a 209px box, and the type/icon rows were 24px slivers;
+     • being in flow it also sat in the same stacking context as the
+       hover actions with nothing above it, so `elementFromPoint` at the
+       ⬇ button answered `DIV.bk-cover-art` and Playwright refused the
+       click with "subtree intercepts pointer events".
+
+   Two rules fix the class of bug rather than the instances: the art is
+   an ABSOLUTE FILL (it can never change the card's size, and can never
+   overflow it), and the art is a PICTURE — `pointer-events: none`, so
+   every control on a card is above it and nothing it contains can eat a
+   click. The controls opt back in explicitly.
+   ────────────────────────────────────────────────────────────────── */
+
+[data-workspace] .bk-card-cover-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Above the art, and above the DownloadMenu's own stacking. */
+[data-workspace] .bk-card-actions {
+  z-index: 3;
+}
+[data-workspace] .bk-card-cover .bk-dl-menu {
+  z-index: 4;
+}
+
+/* A renderer laid out at its canonical 260px and scaled to fit. The
+   host is the measured box, so it must BE the cover box — measuring a
+   content-sized host is what produced a scale of 1 on a 368px-tall
+   letterhead. */
+[data-workspace] .bk-cover-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--ds-surface-subtle);
+}
+/* Pinned to the stage's centre and pulled back by half of itself, so the
+   scale happens around a point that is really the middle. Layout
+   alignment cannot do this here — see the comment in `ScaledArtwork`. */
+[data-workspace] .bk-cover-stage-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+}
+
+/* Every composed brand-asset cover fills the card. */
+[data-workspace] .bk-cover-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Logo / identity — the mark, whole, never cropped or stretched.
+   A percentage cap on both axes because an SVG with no intrinsic size
+   resolves `width: auto` to the CSS default, not to the drawing
+   (CLAUDE.md, the dashboard band). */
+[data-workspace] .bk-cover-logo {
+  max-width: 62%;
+  max-height: 58%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+[data-workspace] .bk-cover-logo-svg {
+  display: block;
+  width: 62%;
+  max-height: 58%;
+}
+[data-workspace] .bk-cover-logo-svg svg {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+[data-workspace] .bk-cover-initial {
+  font-size: 64px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Palette — the swatches ARE the cover, in proportion. */
+[data-workspace] .bk-cover-art--palette {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+[data-workspace] .bk-cover-swatch {
+  display: block;
+  flex-basis: 0;
+  min-width: 0;
+  align-self: stretch;
+}
+
+/* Typography — the specimen, then the pairing under it. They used to
+   run together ("AaInterDM Sans") because neither the column nor the
+   gap existed. */
+[data-workspace] .bk-cover-art--type {
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--ds-space-4);
+  text-align: center;
+}
+[data-workspace] .bk-cover-aa {
+  font-size: 58px;
+  line-height: 0.9;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+[data-workspace] .bk-cover-type-names {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  font-size: 11.5px;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+/* A middle dot between the two families, so "Inter" and "DM Sans" read
+   as a PAIRING rather than one impossible typeface name. */
+[data-workspace] .bk-cover-type-name + .bk-cover-type-name::before {
+  content: '·';
+  margin-right: 8px;
+  opacity: 0.6;
+}
+[data-workspace] .bk-cover-type-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Icons — six glyphs at a size a person can recognise. */
+[data-workspace] .bk-cover-art--icons {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 18px 26px;
+  place-content: center;
+}
+[data-workspace] .bk-cover-icon {
+  font-size: 26px;
+  line-height: 1;
+  display: block;
+}
+
+[data-workspace] .bk-cover-art--photo {
+  /* A photograph can be a near-white texture; give it the kit's own
+     surface underneath so it reads as a card rather than a hole. */
+  background-color: var(--ds-surface-subtle);
+}
+/* An <img>, not a background: only an element can report that its source
+   failed, and a 404 painted as a blank white card is the defect this
+   replaced. */
+[data-workspace] .bk-cover-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Strategy — one line of what the brand says it is. It CANNOT run past
+   the band: a cover is a glance, and an unclamped paragraph painted
+   over the card's own edge. */
+[data-workspace] .bk-cover-art--strategy {
+  padding: 18px 20px;
+}
+[data-workspace] .bk-cover-quote {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* An honest empty — the brand's own quiet surface, and what is missing. */
+[data-workspace] .bk-cover-art--empty {
+  border: 1px dashed currentColor;
+  border-radius: 13px;
+}
+[data-workspace] .bk-cover-empty-note {
+  font-size: 12px;
+  letter-spacing: -0.005em;
+}
+
+/* ─── Variant tile actions ────────────────────────────────────────
+   What you can do to ONE design, from the design itself. Before this a
+   tile was a single click into the editor plus a two-item right-click
+   menu on the few families wired to Design; downloading the design you
+   were actually looking at went through the CARD, which acted on its
+   FIRST variant instead (`.audit/OURS.md` D53).
+
+   The cluster is a SIBLING of the tile, inside `.bk-variant-card`. The
+   tile is a `<button>` — a button inside a button is not a button — and
+   it clips its own overflow, so a menu mounted inside it could never
+   escape. Hover therefore belongs to the CARD, so reaching for an action
+   raises the tile too and the two read as one thing (the same rule the
+   dashboard's card menu keeps).
+   ────────────────────────────────────────────────────────────────── */
+
+[data-workspace] .bk-variant-card {
+  position: relative;
+}
+[data-workspace] .bk-variant-card:hover .bk-variant-tile,
+[data-workspace] .bk-variant-card:focus-within .bk-variant-tile {
+  box-shadow: var(--ds-shadow-md);
+  border-color: var(--ds-border-strong);
+}
+
+[data-workspace] .bk-tile-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition:
+    opacity 180ms var(--ds-ease),
+    transform 180ms var(--ds-ease);
+}
+/* Focus-within as well as hover: the actions have to be reachable with
+   Tab, and a control you can focus but cannot see is worse than none. */
+[data-workspace] .bk-variant-card:hover .bk-tile-actions,
+[data-workspace] .bk-variant-card:focus-within .bk-tile-actions,
+[data-workspace] .bk-tile-actions:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+[data-workspace] .bk-tile-action {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(17, 17, 20, 0.72);
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 180ms var(--ds-ease);
+}
+[data-workspace] .bk-tile-action:hover {
+  background: rgba(17, 17, 20, 0.92);
+}
+[data-workspace] .bk-tile-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+/* Both menus hang off the cluster, which is why it is the positioning
+   context. `DownloadMenu` is given its own anchor offsets in JS. */
+[data-workspace] .bk-tile-actions {
+  /* `position: absolute` above already establishes it — restated here so
+     the menu rules below cannot be read as depending on an ancestor. */
+  isolation: isolate;
+}
+[data-workspace] .bk-tile-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  z-index: 60;
+}
+
+/* ─── Drilldown filter row ────────────────────────────────────────
+   A library you can only scroll is a pile. The chips are the curation's
+   own tags, so a chip can only offer a word a designer really filed a
+   design under.
+   ────────────────────────────────────────────────────────────────── */
+
+[data-workspace] .bk-drilldown-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 8px;
+  margin: 0 0 20px;
+}
+[data-workspace] .bk-drilldown-search {
+  flex: 0 1 320px;
+  min-width: 200px;
+}
+[data-workspace] .bk-drilldown-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+[data-workspace] .bk-chip-count {
+  margin-left: 6px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The drilldown header's Download menu anchors to its own button, which is
+   the only positioned box in the header's action cluster. */
+[data-workspace] .bk-drilldown-dl {
+  position: relative;
+  display: inline-flex;
+}
+
+/* A neutral is a step of the generated ladder, not a colour the brand chose,
+   so it is a second ROW with its own word — a margin inside a wrapping flex
+   row lands wherever the wrap happens to fall, which reads as an accident. */
+.bk-editor-swatch-group-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-text-tertiary, var(--ds-text-secondary));
+}
+
+/* The running / finished export, pinned above the picker so a half-minute
+   wait never ends with the answer below the fold. */
+.bk-export-status {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.bk-export-status[data-done] {
+  border-color: var(--ds-text);
+  color: var(--ds-text);
+  font-weight: 600;
 }

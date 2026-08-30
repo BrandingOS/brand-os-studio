@@ -8,6 +8,11 @@ import {
   type ReactNode,
 } from 'react';
 import type { ContentPath } from './paths';
+// The `.bk-bind*` rules this component's classNames rely on — moved
+// here (2026-08-20) from `brand-kit.css` so they travel with `<Bind>`
+// into every consumer, not just the Brand Kit pages that happened to
+// import that stylesheet. See content.css's own header for why.
+import './content.css';
 
 /**
  * `<Bind>` — the contract between a renderer and the editor.
@@ -33,9 +38,14 @@ import type { ContentPath } from './paths';
  *     `onCommit`. The transient DOM text is never read as data by anyone
  *     else, and never survives a render.
  *
- * With no provider above it (the drilldown grid, an offscreen export)
- * a Bind is an ordinary span. Bound designs therefore render and
- * rasterise exactly as they did before they were bound.
+ * With no provider above it (the drilldown grid, an offscreen export, Brand
+ * Kit's own preview of a master template) a Bind is an ordinary span. Bound
+ * designs therefore render and rasterise exactly as they did before they
+ * were bound. Only the ctx-present span carries `data-bind-editable` — the
+ * hook the editable-only affordances (hover outline, text cursor) key off,
+ * since `.bk-editor-preview-frame` wraps BOTH an editable canvas (Design)
+ * and a non-editable preview (Brand Kit) and the class alone can't tell
+ * them apart.
  */
 
 export type BindContextValue = {
@@ -161,6 +171,7 @@ export function Bind({
       className={classes}
       style={style}
       data-bind={path}
+      data-bind-editable=""
       data-bind-selected={selected ? '' : undefined}
       role="textbox"
       tabIndex={0}

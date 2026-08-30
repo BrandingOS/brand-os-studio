@@ -23,6 +23,19 @@ export type DesignCanvasProps = {
 export type DesignPropertiesProps = {
   adapter: DocumentAdapter;
   brand?: Brand;
+  /**
+   * The document the shell is about to load (symmetric with
+   * `DesignCanvasProps.initialDocument`). The panel and the canvas are
+   * SIBLINGS mounted by the same parent, and `loadDocument` sets the
+   * adapter's document without emitting a `change` event (deliberately —
+   * emitting one would fire the shell's autosave on load, writing a
+   * document the moment it opens). A panel that seeds its state only
+   * from `adapter.getBody()` at mount therefore reads `undefined`
+   * whenever it happens to mount before the canvas's load effect runs,
+   * which is the real app's ordering. Seeding from this prop as a
+   * fallback removes the dependency on sibling mount order entirely.
+   */
+  initialDocument?: BrandOSDocument;
 };
 
 export type DesignRenderer = {

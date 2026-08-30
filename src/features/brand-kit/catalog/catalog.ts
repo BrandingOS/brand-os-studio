@@ -146,6 +146,39 @@ export const KIT_CATALOG: ReadonlyArray<KitEntry> = [
   entry({ sectionKey: 'animations', storageLabel: 'Fade', group: 'presentations', state: 'experimental' }),
   entry({ sectionKey: 'animations', storageLabel: 'Rotate', group: 'presentations', state: 'experimental' }),
 
+  /* ── Mockups: the brand on real objects ───────────────────────────
+   * A NEW family (spec §3). Vector scenes with the logo composited
+   * through `pickLogoOnBackground`, not photographs — so they restyle with
+   * the brand instead of aging into stock art.
+   *
+   * `mockups::` is a section key of its own because these are not
+   * stationery and not social: filing them under an existing section would
+   * make the storage key lie about what the deliverable is, and the key is
+   * the one thing that can never be changed afterwards.
+   *
+   * All `experimental` on purpose. The renderers exist (MockupMug /
+   * TShirt / Billboard / Tote / Sticker) but the family has not been
+   * curated, bound or contrast-swept yet, so nobody but a developer sees
+   * it until it clears the bar in §1. */
+  entry({ sectionKey: 'mockups', storageLabel: 'Signage', group: 'mockups', state: 'experimental' }),
+  entry({ sectionKey: 'mockups', storageLabel: 'Apparel', group: 'mockups', state: 'experimental' }),
+  entry({ sectionKey: 'mockups', storageLabel: 'Mug', group: 'mockups', state: 'experimental' }),
+  entry({ sectionKey: 'mockups', storageLabel: 'Tote', group: 'mockups', state: 'experimental' }),
+  entry({ sectionKey: 'mockups', storageLabel: 'Sticker', group: 'mockups', state: 'experimental' }),
+  entry({
+    sectionKey: 'mockups',
+    storageLabel: 'Business Card Stack',
+    group: 'mockups',
+    state: 'experimental',
+  }),
+  entry({
+    sectionKey: 'mockups',
+    storageLabel: 'Device Screen',
+    group: 'mockups',
+    state: 'experimental',
+  }),
+  entry({ sectionKey: 'mockups', storageLabel: 'Billboard', group: 'mockups', state: 'experimental' }),
+
   /* ── Hidden: superseded by a surface that shipped elsewhere ───────
    * The Brand Guidelines BUILDER at /b/:slug/guideline is the guideline
    * surface now. These five cards are the duplicate. Their renderers stay
@@ -177,10 +210,11 @@ export function getEntryFor(
 /**
  * What a viewer with these privileges may see.
  *
- * `hidden` is invisible to everyone — that is what makes it a safe place
- * to park a superseded surface. `admin-only` is never revealed by a dev
- * build alone, so a developer cannot accidentally demo something meant to
- * stay internal.
+ * `hidden` and `archived` are invisible to everyone — that is what makes
+ * them safe places to park a superseded surface and a culled design
+ * respectively, each keeping its persistence key reserved. `admin-only` is
+ * never revealed by a dev build alone, so a developer cannot accidentally
+ * demo something meant to stay internal.
  */
 export function isVisible(
   state: CapabilityState,
@@ -194,6 +228,11 @@ export function isVisible(
     case 'admin-only':
       return viewer.isAdmin;
     case 'hidden':
+      return false;
+    // Invisible to admins and to dev builds alike — see `CapabilityState`
+    // in ./types.ts. A culled design a developer can still demo is a
+    // culled design that comes back in a screenshot.
+    case 'archived':
       return false;
   }
 }

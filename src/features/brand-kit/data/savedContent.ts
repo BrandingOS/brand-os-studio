@@ -11,11 +11,59 @@ import type { BrandKitTemplate } from '@/features/brandkit/types';
 import {
   contentKindForTemplateType,
   hydrateContent,
+  type ContentKind,
   type DeliverableContent,
 } from '@/features/brandkit/content/kinds';
 import { loadBrandCustomizations, type SavedCardCustomization } from './cardCustomizations';
 
 type BrandLike = { name: string };
+
+/**
+ * Resolve ONE saved customization record into structured content for the
+ * given kind — the single rule "what does this card say" defers to,
+ * whatever record the caller already has in hand.
+ *
+ * `contentForTemplate` (a map + template lookup, for the download paths)
+ * and `BrandKitCardEditor`'s preview (which already holds the ONE record
+ * it cares about — `initialCustomization`) both call this rather than
+ * each encoding the resolution rule separately.
+ *
+ * `strictNullChecks` is off, so a stored value belonging to a DIFFERENT
+ * kind (e.g. a person record read against an invoice) is not something
+ * the type system will catch — guarded explicitly here rather than
+ * trusted to `hydrateContent`'s own (also-present) guard.
+ */
+export function contentFromCustomization(
+  record: SavedCardCustomization | null | undefined,
+  kind: ContentKind | null,
+  brand: BrandLike,
+  /**
+   * The template's TYPE, so a kind whose defaults differ per family fills
+   * in as the document this template actually is. Only `deck` reads it —
+   * a business plan and a pitch are two documents, not one (QA Q10).
+   */
+  variant?: string,
+): DeliverableContent | undefined {
+  if (!kind || !record) return undefined;
+  if (record.content && record.content.kind === kind) {
+    return hydrateContent(kind, brand, record.content, variant);
+  }
+  if (!record.content && kind === 'person') {
+    // Saved before the content model existed — read the person forward
+    // out of the flat overrides so an old export still says the name it
+    // was saved with.
+    const o = record.overrides;
+    return hydrateContent(kind, brand, {
+      kind: 'person',
+      fullName: o.title,
+      jobTitle: o.subtitle,
+      email: o.email,
+      phone: o.phone,
+      website: o.website,
+    });
+  }
+  return undefined;
+}
 
 /**
  * Resolve one template's saved content from an already-loaded map.
@@ -31,24 +79,7 @@ export function contentForTemplate(
   if (!template) return undefined;
   const kind = contentKindForTemplateType(template.type as string);
   if (!kind) return undefined;
-  const record = saved[template.id];
-  if (!record) return undefined;
-  if (record.content) return hydrateContent(kind, brand, record.content);
-  if (kind === 'person') {
-    // Saved before the content model existed — read the person forward
-    // out of the flat overrides so an old export still says the name it
-    // was saved with.
-    const o = record.overrides;
-    return hydrateContent(kind, brand, {
-      kind: 'person',
-      fullName: o.title,
-      jobTitle: o.subtitle,
-      email: o.email,
-      phone: o.phone,
-      website: o.website,
-    });
-  }
-  return undefined;
+  return contentFromCustomization(saved[template.id], kind, brand, template.type as string);
 }
 
 /** Convenience for a single artifact. Reads storage once. */

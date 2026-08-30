@@ -40,17 +40,7 @@ describe('logoCombosFor', () => {
     expect(combos.length).toBeLessThan(20);
   });
 
-  it('keeps a curated brand palette intact (no spurious dedup)', () => {
-    // Distinct brand colors should all survive — the dedup is for
-    // collapsing near-identical neutrals, not for trimming a designer's
-    // intentional palette.
-    //
-    // NOTE: neutrals are deliberately NOT backgrounds (CLAUDE.md, commit
-    // 90d8eb6 — greys were removed from the Logos/Colors drilldown grids).
-    // This test previously asserted a hard-coded count that assumed White and
-    // Black WERE backgrounds, so it broke when that product decision landed.
-    // Asserting the actual invariant — every distinct brand colour survives —
-    // says what the test means and does not re-break on the next count change.
+  it('pairs every brand ground the primary can read on, and none it cannot', () => {
     const combos = logoCombosFor({
       logos: oneLogo,
       colors: {
@@ -65,21 +55,14 @@ describe('logoCombosFor', () => {
         ],
       },
     });
-
-    // Backgrounds are core + accent only: all three must appear, none deduped.
-    const backgrounds = new Set(combos.map((c) => c.bg.hex));
-    expect([...backgrounds].sort()).toEqual(['#00D4AA', '#7231FF', '#F59E0B'].sort());
-
-    // Neutrals must NOT have leaked back in as backgrounds.
-    expect(backgrounds.has('#FFFFFF')).toBe(false);
-    expect(backgrounds.has('#000000')).toBe(false);
-
-    // Marks are Primary, Secondary and White; each pairs with every background
-    // it has enough contrast against, so a curated palette yields real variety.
-    expect(new Set(combos.map((c) => c.mark.name))).toEqual(
-      new Set(['Primary', 'Secondary', 'White']),
-    );
-    expect(combos.length).toBeGreaterThan(4);
+    // Pairings are drawn only on the brand's own grounds; the rule tiles
+    // (clear space, minimum size, misuse) sit on a stage the primary
+    // silhouette reads on, which may be a universal light/dark ground.
+    const pairings = combos.filter((c) => c.kind === 'pairing');
+    for (const p of pairings) expect(p.contrast).toBeGreaterThanOrEqual(3);
+    expect(combos.some((c) => c.kind === 'clear-space')).toBe(true);
+    expect(combos.some((c) => c.kind === 'min-size')).toBe(true);
+    expect(combos.filter((c) => c.kind === 'misuse')).toHaveLength(3);
   });
 
   it('returns empty when there are no logos', () => {
@@ -143,7 +126,7 @@ describe('logoCombosFor — no duplicate tiles', () => {
     grey: [],
   };
 
-  it('never draws the same (mark, background) twice for one silhouette', () => {
+  it('never draws the same (kind, mark, background) twice', () => {
     const combos = logoCombosFor({
       logos: [
         { id: 'p', label: 'Primary', svg: '<svg/>', role: 'primary' },
@@ -152,36 +135,34 @@ describe('logoCombosFor — no duplicate tiles', () => {
       ],
       colors,
     });
-    // What the eye sees is (mark, bg) — the mask discards everything else.
-    const seen = combos.map((c) => `${c.mark.hex}|${c.bg.hex}`);
+    // What the eye sees is (kind, mark, bg) — a mask discards everything else.
+    const seen = combos.map((c) => `${c.kind}|${c.misuse ?? ''}|${c.mark.hex}|${c.bg.hex}`);
     expect(new Set(seen).size).toBe(seen.length);
   });
 
-  it('still varies the silhouette when the logos really are different', () => {
+  it('offers one pairing per ground, chosen for contrast, never below the floor', () => {
     const combos = logoCombosFor({
       logos: [
         { id: 'p', label: 'Primary', svg: '<svg/>', role: 'primary' },
-        { id: 'i', label: 'Icon', svg: '<svg/>', role: 'iconmark' },
+        { id: 'd', label: 'On dark', svg: '<svg/>', role: 'mono.white' },
       ],
       colors,
     });
-    expect(new Set(combos.map((c) => c.logoIndex))).toEqual(new Set([0, 1]));
-    const seen = combos.map((c) => `${c.logoIndex}|${c.mark.hex}|${c.bg.hex}`);
-    expect(new Set(seen).size).toBe(seen.length);
+    const pairings = combos.filter((c) => c.kind === 'pairing');
+    const grounds = pairings.map((c) => c.bg.hex);
+    expect(new Set(grounds).size).toBe(grounds.length);
+    for (const p of pairings) expect(p.contrast).toBeGreaterThanOrEqual(3);
   });
 
-  it('collapses a secondary that is visually white into the White mark', () => {
+  it('does not put a treatment where the pairing already used that ink', () => {
     const combos = logoCombosFor({
       logos: [{ id: 'p', label: 'Primary', svg: '<svg/>', role: 'primary' }],
-      colors: {
-        core: [{ hex: '#7231FF', name: 'Iris' }, { hex: '#FEFEFE', name: 'Paper' }],
-        accent: [],
-        grey: [],
-      },
+      colors,
     });
-    const markHexes = new Set(combos.map((c) => c.mark.hex.toLowerCase()));
-    expect(markHexes.has('#ffffff')).toBe(false);
-    expect(markHexes.has('#fefefe')).toBe(true);
-    expect(markHexes.size).toBe(2);
+    const byGround = new Map<string, string[]>();
+    for (const c of combos.filter((x) => x.kind === 'pairing' || x.kind === 'treatment')) {
+      byGround.set(c.bg.hex, [...(byGround.get(c.bg.hex) ?? []), c.mark.hex.toLowerCase()]);
+    }
+    for (const inks of byGround.values()) expect(new Set(inks).size).toBe(inks.length);
   });
 });

@@ -179,52 +179,158 @@ export function visuallyClose(a: string, b: string): boolean {
   return rgbDistanceSquared(a, b) <= 60 * 60;
 }
 
+
+/* ─── The logo SYSTEM ─────────────────────────────────────────────── */
+
 /**
- * Build the (logoIndex, markHex, bgHex) triples for the Brand Assets
- * Logos drilldown.
+ * A logo is not a picture; it is a set of rules about a picture. This
+ * section builds the ordered list of tiles the Logos drilldown shows and
+ * `logoExport` writes — one list, so a tile and its file cannot disagree.
  *
- * Mark colors are restricted to {Primary, Secondary, White} — the
- * three logo treatments every brand kit needs. Backgrounds span the
- * brand's core + accent colors only — neutrals are intentionally
- * excluded so the kit shows on-brand pairings, not grey-on-grey
- * variations. Pairs where the mark would be invisible against the
- * bg (exact match or low contrast) are skipped.
+ * The list is, in order:
  *
- * Used both to enumerate synthetic templates and to look up a combo
- * by index from the renderer.
+ *   1. **Pairings** — the variants the brand actually owns, each on the
+ *      brand grounds it can be READ on. The ground is not decorative: a
+ *      pairing that fails `MIN_PAIRING_CONTRAST` is not offered at all.
+ *      (`.audit/OURS.md` D27: Iris-on-Orange at ~1.5:1 and Turquoise-on-Grey
+ *      at ~2.6:1 were shipped as valid pairings.)
+ *   2. **Treatments** — the mono cut (black or white) for every ground the
+ *      owned variants cannot cover. Same drawing, one flat colour.
+ *   3. **Rules** — clear space, minimum size, and three misuses. These are
+ *      the half of a logo system that a wall of colour swatches has never
+ *      been able to express, and the audit's flat "no clear-space, min-size
+ *      or misuse guidance".
+ *
+ * ### Why `logoIndex` is always 0
+ *
+ * `legacy-mapping.ts` (which this agent does not own) names a tile
+ * `${mark.name} on ${bg.name}`, and prefixes it with the logo's label only
+ * when the combos span more than one `logoIndex`. Every tile here already
+ * names its own subject in `mark.name` — "Primary on Sand", "Black on
+ * Ink", "Clear space on every side" — so a prefix would read "Primary ·
+ * Primary on Sand". Sharing one `logoIndex` keeps the caption the tile
+ * wrote. The artwork the tile actually draws is `sourceIndex`.
  */
+
+/**
+ * The floor a pairing has to clear to be OFFERED.
+ *
+ * WCAG's 3:1 for non-text content. `pickLogoOnBackground`'s own default is
+ * 1.8 — deliberately permissive, because that picker's job is "show the
+ * brand SOMEWHERE" on a card that already exists. A brand kit is the
+ * opposite job: it publishes the pairings a designer is allowed to use, so
+ * the marginal ones must be absent rather than dim.
+ */
+export const MIN_PAIRING_CONTRAST = 3;
+
+export type LogoTileKind =
+  | 'pairing'
+  | 'treatment'
+  | 'clear-space'
+  | 'min-size'
+  | 'misuse';
+
+/** Which rule a misuse tile is showing broken. */
+export type LogoMisuse = 'stretch' | 'contrast' | 'recolor';
+
+export type LogoTile = {
+  /** Always 0 — see the section note above. */
+  logoIndex: number;
+  /** The label of the artwork this tile draws. */
+  logoLabel: string;
+  /** Reads as the SUBJECT of the tile's caption. */
+  mark: { hex: string; name: string };
+  /** Reads as the OBJECT of the tile's caption. */
+  bg: { hex: string; name: string };
+  kind: LogoTileKind;
+  /** Index into `brand.logos` of the artwork drawn. */
+  sourceIndex: number;
+  /**
+   * A flat colour to redraw the silhouette in, or null to draw the
+   * artwork exactly as uploaded. Only treatments and the recolour misuse
+   * set this — a pairing that had to be recoloured would not be a pairing.
+   */
+  recolor: string | null;
+  /** Measured ink-vs-ground ratio. 0 where the tile is not a pairing. */
+  contrast: number;
+  misuse?: LogoMisuse;
+  /** The rule, in the tile's own words. */
+  note?: string;
+};
+
+/**
+ * The order a guideline names its variants in when more than one reads on a
+ * ground.
+ *
+ * Contrast alone decided this, and on every brand measured the answer was a
+ * mono cut: black beats a brand colour on white, white beats it on ink, and
+ * the coloured logo — the brand's actual face — appeared nowhere on the wall
+ * except in the Originals row. Raqm's violet lockup reads at 5.9:1 on white
+ * and was shown as a black one; SKAM's red mark reads at 3.8:1 on white and
+ * was shown as a black one. A brand kit whose logo wall is monochrome has
+ * answered the question "what is most legible" instead of "what is the logo".
+ *
+ * So priority decides and contrast only VETOES — the same shape as
+ * `shared/brand/logoOnBackground.ts`'s `variantsInPriorityOrder`, which is
+ * where this rule already lives for the dashboard card. Nothing below the
+ * floor is promoted, so the veto is never overruled.
+ */
+const PAIRING_PRIORITY: ReadonlyArray<string> = [
+  'primary',
+  'secondary',
+  'wordmark',
+  'iconmark',
+  'horizontal',
+  'stacked',
+  'mono.black',
+  'mono.white',
+];
+
+/** Lower is preferred. A role the vocabulary does not know sorts last. */
+function pairingRank(role: string | undefined): number {
+  const at = PAIRING_PRIORITY.indexOf(role ?? '');
+  return at < 0 ? PAIRING_PRIORITY.length : at;
+}
+
+/**
+ * The ratio a variant has to clear before its NAME is allowed to outrank its
+ * legibility.
+ *
+ * `MIN_PAIRING_CONTRAST` is the line below which a pairing is not published at
+ * all; this is the line above which a pairing is comfortable enough that
+ * choosing between two of them becomes a question of which logo the brand
+ * meant. Straight priority, with only the 3:1 veto, promoted Raqm's violet
+ * lockup onto turquoise at 3.15:1 and onto near-black at 3.34:1 — legal, and
+ * both of them wince. 4.5:1 is the number the rest of this codebase already
+ * calls readable (`isPaletteReadable`, the contrast guards, WCAG for body
+ * text), so it is one line rather than a fourth.
+ *
+ * Below it, contrast decides again, which is why SKAM — whose red reads on
+ * white at only 3.8:1 and which owns a black cut for exactly that case —
+ * keeps its black lockup on white, while its red one takes the black ground
+ * it reads on at 5.6:1.
+ */
+export const COMFORTABLE_PAIRING_CONTRAST = 4.5;
+
 /**
  * Roles that are the SAME DRAWING as another logo, in one flat colour.
  *
- * A mono cut is not a second logo — it is the logo, redrawn in black or
- * in white so it can sit on a ground that the coloured original cannot.
+ * A mono cut is not a second logo — it is the logo, redrawn in black or in
+ * white so it can sit on a ground the coloured original cannot.
  */
 const MONO_ROLES: ReadonlySet<string> = new Set(['mono.white', 'mono.black']);
 
 /**
  * Which logos may act as a RECOLOURING SOURCE, by index into `logos`.
  *
- * The gallery paints every combo tile as a CSS mask filled with the mark
- * colour, which discards the source artwork's own colour completely. So
- * two logos that share a SILHOUETTE produce pixel-identical tiles, and a
- * brand's mono cuts share the silhouette of the logo they were cut from
- * by definition.
+ * Two logos that share a SILHOUETTE produce identical treatment tiles, and
+ * a brand's mono cuts share the silhouette of the logo they were cut from
+ * by definition. Measured on Raqm — Primary, On dark, On light: one drawing
+ * in three colours — the old gallery generated 51 recoloured tiles of which
+ * 34 were exact duplicates under duplicate names.
  *
- * Measured on Raqm, whose three logos are Primary, On dark (mono.white)
- * and On light (mono.black) — one drawing in three colours: the drilldown
- * generated 51 recoloured tiles of which only 17 were distinct. **34 of
- * 54 tiles were exact duplicates**, and because the tile name carried no
- * logo, they were duplicates under duplicate names too.
- *
- * A brand that has ONLY mono cuts still gets tiles — the first one is
- * kept as the source rather than leaving the gallery empty.
- *
- * This does not claim to catch every shape collision: two genuinely
- * different roles could still hold the same artwork (the same file
- * uploaded as both Primary and Wordmark). Proving that needs the pixel
- * comparison in `onboarding/understanding/artwork.ts`, which is async and
- * cannot run inside this synchronous list. Role covers the case every
- * brand actually has.
+ * A brand that has ONLY mono cuts still gets tiles: the first is kept as
+ * the source rather than leaving the gallery empty.
  */
 export function recolorSourceIndexes(
   logos: ReadonlyArray<{ role?: string }>,
@@ -236,65 +342,464 @@ export function recolorSourceIndexes(
   return logos.length > 0 ? [0] : [];
 }
 
-export function logoCombosFor(brand: {
-  logos: Array<{ id: string; label: string; svg: string; role?: string }>;
-  colors: { core: { hex: string; name: string }[]; accent: { hex: string; name: string }[]; grey: { hex: string; name: string }[] };
-}): Array<{
-  logoIndex: number;
-  logoLabel: string;
-  mark: { hex: string; name: string };
-  bg: { hex: string; name: string };
-}> {
-  // Dedupe backgrounds by perceptual proximity. `brandToMockBrand`
-  // generates a 32-step grayscale ramp for every brand, which —
-  // multiplied by 3 mark colors — used to produce ~93 logo tiles, most
-  // of them visually identical near-black variants. Iterate in
-  // priority order (core → accent → grey) so brand-specific colors
-  // win over generic neutrals when two backgrounds are close.
-  const allBackgrounds = [
-    ...brand.colors.core,
-    ...brand.colors.accent,
-  ];
-  const backgrounds: typeof allBackgrounds = [];
-  for (const bg of allBackgrounds) {
-    if (backgrounds.some((kept) => visuallyClose(kept.hex, bg.hex))) continue;
-    backgrounds.push(bg);
+/** The shape this module needs from a MockBrand logo tile. */
+export type LogoLike = {
+  label: string;
+  svg: string;
+  role?: string;
+  variant?: 'light' | 'dark';
+};
+
+/**
+ * The colour a variant is DRAWN IN, as well as it can be known without
+ * looking at pixels.
+ *
+ * Certain for the mono roles (that is what the role means) and for an
+ * inline-vector logo (its own first fill). Everything else is a brand's
+ * uploaded raster wrapped in `<svg><image href="…"/></svg>` — the wrapper's
+ * only colours are the preview ground and a hidden fallback label, neither
+ * of which is the artwork. For those, `variant` is the one honest signal
+ * the record carries: a tile drawn for a DARK ground holds LIGHT artwork.
+ * Failing all that, the brand's primary — the colour a coloured logo is
+ * most often inked in.
+ *
+ * This is a floor for OFFERING a pairing, never a claim about the file.
+ * `shared/brand/logoInk.ts` measures the real thing, asynchronously, and
+ * cannot run inside this synchronous list.
+ */
+export function logoInkOf(logo: LogoLike, fallback: string): string {
+  if (logo.role === 'mono.black') return '#000000';
+  if (logo.role === 'mono.white') return '#ffffff';
+  if (!extractWrappedImageUrl(logo.svg)) {
+    const painted = firstLogoColor(logo.svg);
+    if (painted && /^#[0-9a-f]{3,8}$/i.test(painted.trim())) return painted.trim();
   }
+  if (logo.variant === 'dark') return '#ffffff';
+  return fallback;
+}
 
-  // Marks: Primary (core[0]), Secondary (core[1]), White. Dedupe by
-  // hex so a brand whose secondary IS white doesn't yield a duplicate
-  // mark entry.
-  const primary = brand.colors.core[0];
-  const secondary = brand.colors.core[1];
-  const marks: Array<{ hex: string; name: string }> = [];
-  const seenMarks = new Set<string>();
-  const pushMark = (m: { hex: string; name: string } | undefined) => {
-    if (!m) return;
-    const key = m.hex.trim().toLowerCase();
-    if (seenMarks.has(key)) return;
-    // Backgrounds are deduped perceptually; marks were deduped only by
-    // exact hex, so a brand whose secondary is #FEFEFE drew a tile
-    // indistinguishable from its White one.
-    if (marks.some((kept) => visuallyClose(kept.hex, m.hex))) return;
-    seenMarks.add(key);
-    marks.push(m);
+/**
+ * The name a PAIRING's caption should read for its artwork.
+ *
+ * `legacy-mapping.ts` composes a tile's name as "`mark.name` on `bg.name`",
+ * and the variant vocabulary names a mono cut by its USE — "On dark", "On
+ * light" (`shared/brand/logoRoles.ts`, and the naming trap is documented
+ * there). Composed, that produced "On dark on Iris" and "On light on White":
+ * two prepositions, one of them describing a ground that is not the ground in
+ * the tile. A guideline names the INK on that line — "White on Iris" — which
+ * is also exactly how the treatment tiles beside it already read, so the two
+ * halves of the wall stop speaking different languages.
+ *
+ * Only the mono roles are renamed. Every other variant is a lockup with a
+ * name of its own, and "Wordmark on Sand" was never ambiguous.
+ */
+export function logoInkName(logo: LogoLike, index: number): string {
+  if (logo.role === 'mono.white') return 'White';
+  if (logo.role === 'mono.black') return 'Black';
+  return logo.label || `Logo ${index + 1}`;
+}
+
+/** Strip the preview ground a Setup logo tile bakes in behind its artwork. */
+export function stripLogoBackground(svg: string): string {
+  return svg.replace(/<rect\b[^>]*\bwidth="[^"]+"[^>]*\bheight="[^"]+"[^>]*\/>/, '');
+}
+
+export type BrandGround = { hex: string; name: string };
+
+/** The mono cuts a system may offer. */
+export type LogoTreatment = 'black' | 'white';
+
+/**
+ * The two decisions a guideline makes about its own logo system that no
+ * amount of measurement can make for it.
+ *
+ * `logoCombosFor` derives everything else — which variant reads on which
+ * ground, which cut covers what the coloured artwork cannot. But "we never
+ * put the logo on Sand" and "we do not publish a black cut" are POLICY, and
+ * a system that silently offers a pairing the brand has ruled out is a
+ * system the brand cannot publish. Absent means the derived answer stands:
+ * every ground that clears the floor, both cuts.
+ */
+type GroundBrand = {
+  colors: {
+    core: ReadonlyArray<{ hex: string; name: string }>;
+    /** Neutrals are accepted and ignored — a ground is a brand colour. */
+    grey?: ReadonlyArray<{ hex: string; name: string }>;
+    accent: ReadonlyArray<{ hex: string; name: string }>;
   };
-  pushMark(primary && { hex: primary.hex, name: 'Primary' });
-  pushMark(secondary && { hex: secondary.hex, name: 'Secondary' });
-  pushMark({ hex: '#FFFFFF', name: 'White' });
+  /** Hexes the logo may be published on. Absent = all of them. */
+  logoGrounds?: ReadonlyArray<string>;
+  /** Mono cuts the system offers. Absent = both. */
+  logoTreatments?: ReadonlyArray<LogoTreatment>;
+};
 
-  const out: ReturnType<typeof logoCombosFor> = [];
-  // One source per silhouette. `logoIndex` stays an index into
-  // `brand.logos` — the renderer looks the artwork up by it.
-  for (const logoIndex of recolorSourceIndexes(brand.logos)) {
-    const logo = brand.logos[logoIndex];
-    if (!logo) continue;
-    for (const mark of marks) {
-      for (const bg of backgrounds) {
-        if (colorsTooSimilar(mark.hex, bg.hex)) continue;
-        out.push({ logoIndex, logoLabel: logo.label, mark, bg });
-      }
-    }
+/** Case- and shorthand-insensitive hex identity, for matching a stored
+ *  allowlist against a palette that may have been re-cased since. */
+function sameHex(a: string, b: string): boolean {
+  const norm = (v: string) => {
+    const h = v.trim().toLowerCase().replace('#', '');
+    return h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
+  };
+  return norm(a) === norm(b);
+}
+
+/** Whether a ground is one the brand still publishes on. */
+export function groundAllowed(brand: GroundBrand, hex: string): boolean {
+  const allow = brand.logoGrounds;
+  if (!allow) return true;
+  return allow.some((h) => sameHex(h, hex));
+}
+
+/** Whether a mono cut is one the brand still publishes. */
+export function treatmentAllowed(brand: GroundBrand, cut: LogoTreatment): boolean {
+  const allow = brand.logoTreatments;
+  if (!allow) return true;
+  return allow.includes(cut);
+}
+
+/** Neutral extremes every logo system needs a lockup for. */
+const UNIVERSAL_GROUNDS: BrandGround[] = [
+  { hex: '#FFFFFF', name: 'White' },
+  { hex: '#111113', name: 'Ink' },
+];
+
+/**
+ * The grounds a logo may be published on: the brand's own colours, plus
+ * white and near-black.
+ *
+ * Perceptually deduped — `brandToMockBrand` generates a 32-step grey ramp
+ * for every brand, and even inside core+accent two colours can sit a few
+ * RGB units apart and produce two tiles nobody can tell apart. Brand
+ * colours are walked FIRST so a brand's own near-white wins the slot over
+ * the generic one.
+ */
+export function brandGrounds(brand: GroundBrand): BrandGround[] {
+  const out: BrandGround[] = [];
+  for (const g of [...brand.colors.core, ...brand.colors.accent, ...UNIVERSAL_GROUNDS]) {
+    if (!g?.hex) continue;
+    // The brand's own policy is applied BEFORE the perceptual dedupe: ruling
+    // out a brand's near-white should hand the slot back to the generic
+    // White, not delete both.
+    if (!groundAllowed(brand, g.hex)) continue;
+    if (out.some((kept) => visuallyClose(kept.hex, g.hex))) continue;
+    out.push({ hex: g.hex, name: g.name });
   }
   return out;
+}
+
+/** Every ground the brand COULD publish on, before its own policy is applied.
+ *  The editor offers this list; the system reads `brandGrounds`. */
+export function allBrandGrounds(brand: GroundBrand): BrandGround[] {
+  return brandGrounds({ colors: brand.colors });
+}
+
+type ComboBrand = GroundBrand & { logos: ReadonlyArray<LogoLike & { id?: string }> };
+
+/**
+ * The ordered tile list for the Logos drilldown — and, through
+ * `logoExport`, for every logo file the kit writes.
+ */
+export function logoCombosFor(brand: ComboBrand): LogoTile[] {
+  const logos = brand.logos ?? [];
+  if (logos.length === 0) return [];
+
+  const fallbackInk = brand.colors.core[0]?.hex ?? '#111113';
+  const inks = logos.map((logo) => logoInkOf(logo, fallbackInk));
+  const grounds = brandGrounds(brand);
+  const silhouette = recolorSourceIndexes(logos)[0] ?? 0;
+  const primary = logos[silhouette];
+  const tiles: LogoTile[] = [];
+
+  const push = (t: Omit<LogoTile, 'logoIndex'>) => tiles.push({ ...t, logoIndex: 0 });
+
+  /* 1 — Pairings. One tile per ground: the owned variant that reads
+     best on it. Anything below the floor is simply not offered. */
+  const pairedInk = new Map<string, string>();
+  for (const ground of grounds) {
+    let best: { index: number; ratio: number; rank: number } | undefined;
+    logos.forEach((logo, index) => {
+      const ratio = contrastRatio(inks[index], ground.hex);
+      // The veto comes first: a variant that cannot be seen is not a
+      // candidate, whatever it is called.
+      if (ratio < MIN_PAIRING_CONTRAST) return;
+      // A variant that is merely legal does not get to win on its name: below
+      // the comfort line every candidate ranks the same and contrast decides.
+      const rank =
+        ratio >= COMFORTABLE_PAIRING_CONTRAST
+          ? pairingRank(logo.role)
+          : PAIRING_PRIORITY.length + 1;
+      if (!best || rank < best.rank || (rank === best.rank && ratio > best.ratio)) {
+        best = { index, ratio, rank };
+      }
+    });
+    if (!best) continue;
+    const logo = logos[best.index];
+    pairedInk.set(ground.hex, inks[best.index]);
+    push({
+      logoLabel: logo.label,
+      mark: { hex: inks[best.index], name: logoInkName(logo, best.index) },
+      bg: ground,
+      kind: 'pairing',
+      sourceIndex: best.index,
+      recolor: null,
+      contrast: best.ratio,
+    });
+  }
+
+  /* 2 — Treatments. The mono cut for each ground, skipped where the
+     pairing already put that exact ink there. */
+  for (const ground of grounds) {
+    const candidates = ([
+      { hex: '#000000', name: 'Black', cut: 'black' as LogoTreatment },
+      { hex: '#FFFFFF', name: 'White', cut: 'white' as LogoTreatment },
+    ] as const)
+      .filter((c) => treatmentAllowed(brand, c.cut))
+      .map((c) => ({ ...c, ratio: contrastRatio(c.hex, ground.hex) }))
+      .filter((c) => c.ratio >= MIN_PAIRING_CONTRAST)
+      .sort((a, b) => b.ratio - a.ratio);
+    const cut = candidates[0];
+    if (!cut) continue;
+    if (colorsMatch(pairedInk.get(ground.hex) ?? '', cut.hex)) continue;
+    // The brand OWNS artwork in this ink and it reads here. A tile drawn by
+    // flat-filling the primary silhouette would then be a second, generated
+    // copy of a variant the brand already holds — captioned as a treatment,
+    // which is exactly the wrong thing to say about a file someone uploaded.
+    // (Before the pairing walk preferred the coloured variant this could not
+    // happen, because the mono variant always won the ground outright.)
+    const ownsCut = logos.some(
+      (_, i) =>
+        colorsMatch(inks[i], cut.hex) &&
+        contrastRatio(inks[i], ground.hex) >= MIN_PAIRING_CONTRAST,
+    );
+    if (ownsCut) continue;
+    push({
+      logoLabel: primary.label,
+      mark: { hex: cut.hex, name: cut.name },
+      bg: ground,
+      kind: 'treatment',
+      sourceIndex: silhouette,
+      recolor: cut.hex,
+      contrast: cut.ratio,
+    });
+  }
+
+  /* 3 — The rules. Drawn on the ground the primary silhouette reads on,
+     so the diagram itself is never the thing that fails. */
+  const ink = inks[silhouette];
+  const stage =
+    grounds.find((g) => contrastRatio(ink, g.hex) >= 4.5) ??
+    (contrastRatio(ink, '#FFFFFF') >= contrastRatio(ink, '#111113')
+      ? UNIVERSAL_GROUNDS[0]
+      : UNIVERSAL_GROUNDS[1]);
+
+  push({
+    logoLabel: primary.label,
+    mark: { hex: ink, name: 'Clear space' },
+    bg: { hex: stage.hex, name: 'every side' },
+    kind: 'clear-space',
+    sourceIndex: silhouette,
+    recolor: null,
+    contrast: contrastRatio(ink, stage.hex),
+    note: 'R = ⅓ of the smaller dimension',
+  });
+  push({
+    logoLabel: primary.label,
+    mark: { hex: ink, name: 'Minimum size' },
+    bg: { hex: stage.hex, name: 'screen and print' },
+    kind: 'min-size',
+    sourceIndex: silhouette,
+    recolor: null,
+    contrast: contrastRatio(ink, stage.hex),
+    note: '24 px · 48 px · 96 px — never smaller than 24 px',
+  });
+  push({
+    logoLabel: primary.label,
+    mark: { hex: ink, name: 'Never stretch' },
+    bg: { hex: stage.hex, name: 'any layout' },
+    kind: 'misuse',
+    misuse: 'stretch',
+    sourceIndex: silhouette,
+    recolor: null,
+    contrast: contrastRatio(ink, stage.hex),
+    note: 'Scale both axes together',
+  });
+  push({
+    logoLabel: primary.label,
+    mark: { hex: ink, name: 'Never place' },
+    bg: { hex: tooCloseTo(ink, stage.hex), name: 'a low-contrast ground' },
+    kind: 'misuse',
+    misuse: 'contrast',
+    sourceIndex: silhouette,
+    recolor: null,
+    contrast: contrastRatio(ink, tooCloseTo(ink, stage.hex)),
+    note: `Keep at least ${MIN_PAIRING_CONTRAST}:1`,
+  });
+  /* The recolour misuse has to be SEEN to say anything. Taking
+     `accent[0]` blindly drew SKAM's near-black accent on SKAM's black stage:
+     a tile that says "never recolour" and shows nothing at all, which is the
+     one thing worse than not shipping the rule. So the wrong colour is chosen
+     to be wrong AND visible — a brand colour that is not the ink and reads on
+     the stage; failing that, the ink itself pulled toward the stage's
+     foreground, which is unmistakably not an approved variant. */
+  const approved = [...inks, '#000000', '#FFFFFF'];
+  const wrongCandidates = [...brand.colors.accent, ...brand.colors.core]
+    // Not the ink of ANY variant, and neither mono cut. Filtering on the
+    // primary's ink alone let SKAM illustrate "never recolour" with a white
+    // mark on black — which is the mono treatment two tiles up, i.e. the tile
+    // told the reader that an approved variant was a mistake.
+    .filter((c) => c?.hex && !approved.some((a) => visuallyClose(a, c.hex)))
+    .map((c) => ({
+      hex: c.hex,
+      ratio: contrastRatio(c.hex, stage.hex),
+      chroma: chromaOf(c.hex),
+    }))
+    // 1.8:1 is a VISIBILITY floor, not a legibility one — a misuse tile is
+    // deliberately not a pairing, so it is not held to MIN_PAIRING_CONTRAST.
+    .filter((c) => c.ratio >= 1.8)
+    // Ranking by contrast alone reaches for the darkest or lightest colour
+    // the brand owns, which is exactly what a mono cut looks like: Raqm's
+    // "never recolour" tile drew a charcoal wordmark on white and read as an
+    // approved variant. A wrong colour has to look wrong, so the most
+    // CHROMATIC candidate wins and contrast is only the tie-break.
+    .sort((a, b) => b.chroma - a.chroma || b.ratio - a.ratio);
+  const wrong =
+    wrongCandidates[0]
+      ? wrongCandidates[0].hex
+      : nudgeToward(
+          ink,
+          contrastRatio('#FFFFFF', stage.hex) >= contrastRatio('#111113', stage.hex)
+            ? '#FFFFFF'
+            : '#111113',
+          0.45,
+        );
+  push({
+    logoLabel: primary.label,
+    mark: { hex: wrong, name: 'Never recolour' },
+    bg: { hex: stage.hex, name: 'any surface' },
+    kind: 'misuse',
+    misuse: 'recolor',
+    sourceIndex: silhouette,
+    recolor: wrong,
+    contrast: contrastRatio(wrong, stage.hex),
+    note: 'Use the approved variants only',
+  });
+
+  return tiles;
+}
+
+/** How far a colour is from grey, in [0, 255]. A hue the brand chose scores
+ *  high; a neutral, a near-black and a near-white all score near zero. */
+export function chromaOf(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+
+/**
+ * A ground the ink genuinely FAILS on.
+ *
+ * The misuse tile blended 72% toward the stage and called it low
+ * contrast — on Raqm's violet over cream that lands at 3.7:1, above the
+ * floor, so the tile illustrating "never place the logo on a
+ * low-contrast ground" was itself a legal pairing. It walks toward the
+ * ink until the ratio is really below the floor.
+ */
+export function tooCloseTo(ink: string, ground: string): string {
+  for (let t = 0.72; t <= 0.96; t += 0.04) {
+    const candidate = nudgeToward(ground, ink, t);
+    if (contrastRatio(ink, candidate) < MIN_PAIRING_CONTRAST) return candidate;
+  }
+  return nudgeToward(ground, ink, 0.96);
+}
+
+/** Blend `a` toward `b` by `t` (0 = a, 1 = b). Used to build the ground a
+ *  deliberately-illegible misuse tile needs. */
+export function nudgeToward(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const mix = (x: number, y: number) => Math.round(x + (y - x) * Math.max(0, Math.min(1, t)));
+  const hex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${hex(mix(ar, br))}${hex(mix(ag, bg))}${hex(mix(ab, bb))}`;
+}
+
+/* ─── Recolouring a raster silhouette ─────────────────────────────── */
+
+/**
+ * A treatment tile has to paint the SILHOUETTE in one flat colour, and
+ * most brands' artwork is a raster the regex recolour above cannot touch.
+ * A CSS `mask-image` looks right on screen and exports BLANK — html2canvas
+ * has no mask support, which is `.audit/OURS.md` D4: every colour-combo PNG
+ * in the Logos zip was a coloured rectangle with no logo in it.
+ *
+ * So the silhouette is recoloured on a canvas instead — `source-in` floods
+ * the fill wherever the artwork has alpha — and the result is an ordinary
+ * `<img src="data:image/png">`, which html2canvas draws like any other
+ * image. The cache is what makes it usable from a synchronous render: the
+ * drilldown grid warms it, and the offscreen snapshot of the same tile
+ * reads it back with no await.
+ */
+const recoloredCache = new Map<string, string>();
+
+function recolorKey(url: string, hex: string): string {
+  return `${hex.toLowerCase()}|${url}`;
+}
+
+/** The recoloured PNG for this pair if it has already been built. */
+export function cachedRecoloredLogo(url: string, hex: string): string | undefined {
+  return recoloredCache.get(recolorKey(url, hex));
+}
+
+/** Test seam. */
+export function clearRecoloredLogoCache(): void {
+  recoloredCache.clear();
+}
+
+export type RecolorDeps = {
+  loadImage?: (url: string) => Promise<HTMLImageElement>;
+  createCanvas?: () => HTMLCanvasElement;
+};
+
+function defaultLoadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    if (!url.startsWith('data:') && !url.startsWith('blob:')) img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('logo failed to load'));
+    img.src = url;
+  });
+}
+
+/**
+ * Flat-fill the artwork's silhouette. Resolves to null — never throws — on
+ * a load failure or a tainted canvas; the caller falls back to a CSS mask,
+ * which is right on screen and merely degraded in an export.
+ */
+export async function recolorLogoPng(
+  url: string,
+  hex: string,
+  deps: RecolorDeps = {},
+): Promise<string | null> {
+  const key = recolorKey(url, hex);
+  const hit = recoloredCache.get(key);
+  if (hit) return hit;
+  try {
+    const img = await (deps.loadImage ?? defaultLoadImage)(url);
+    const w = img.naturalWidth || img.width || 512;
+    const h = img.naturalHeight || img.height || 512;
+    const canvas = (deps.createCanvas ?? (() => document.createElement('canvas')))();
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = hex;
+    ctx.fillRect(0, 0, w, h);
+    const data = canvas.toDataURL('image/png');
+    if (!data.startsWith('data:image/png')) return null;
+    recoloredCache.set(key, data);
+    return data;
+  } catch {
+    return null;
+  }
 }

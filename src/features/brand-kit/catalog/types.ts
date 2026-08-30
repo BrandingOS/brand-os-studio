@@ -38,14 +38,51 @@ import type { DeliverableKey } from '../kit/types';
  *                      by a dev build alone.
  *   • `hidden`       — superseded or duplicated by a surface that shipped
  *                      elsewhere. Kept in the codebase, listed to nobody.
+ *   • `archived`     — culled during curation. Never visible to ANYONE,
+ *                      including admins and dev builds — see below.
  *
  * When an internal feature-management area lands, it overrides this field
  * and nothing else in the Brand Kit has to move.
  */
-export type CapabilityState = 'active' | 'experimental' | 'admin-only' | 'hidden';
+export type CapabilityState =
+  | 'active'
+  | 'experimental'
+  | 'admin-only'
+  | 'hidden'
+  | 'archived';
+
+/**
+ * Why `archived` exists beside `hidden`, when both are invisible.
+ *
+ * They mean different things to the person reading this file, and the
+ * difference is what stops the second one being deleted by mistake:
+ *
+ *   • `hidden` — a whole capability that another surface now owns. The
+ *     Brand Guides cards are hidden because `/b/:slug/guideline` is the
+ *     guideline. They may come back if that changes.
+ *   • `archived` — a design or a family CULLED during curation (spec §3:
+ *     "keep a design only if it is distinct, readable at tile size,
+ *     contrast-clean, and fully bound"). It is not coming back.
+ *
+ * **An archived entry keeps its `key`, and that is the entire point.**
+ * `${sectionKey}::${storageLabel}` is a persistence key: kit items in
+ * `brandos:brand-kit:state`, card customizations, saved featured-variant
+ * lists are all filed under it. Deleting the entry would free the key for
+ * something else to claim later and quietly inherit a stranger's saved
+ * work. Archiving retires the key while keeping it reserved.
+ *
+ * It is invisible to admins and to dev builds too, unlike `experimental`.
+ * A culled design that a developer can still demo is a culled design that
+ * comes back in a screenshot.
+ */
 
 /** A user-facing group in the Brand Kit. Purely presentational. */
-export type KitGroup = 'assets' | 'applications' | 'social' | 'presentations';
+export type KitGroup =
+  | 'assets'
+  | 'applications'
+  | 'social'
+  | 'presentations'
+  | 'mockups';
 
 /**
  * How an opened item paints.
@@ -88,6 +125,10 @@ export type KitEntry = {
 export const KIT_GROUPS: ReadonlyArray<{ id: KitGroup; label: string }> = [
   { id: 'assets', label: 'Brand Assets' },
   { id: 'applications', label: 'Brand Applications' },
+  // Mockups sit directly after applications: they are the same brand on
+  // the same things, photographed rather than printed, and a user looking
+  // for "our logo on a tote" is looking near "our logo on a card".
+  { id: 'mockups', label: 'Mockups' },
   { id: 'social', label: 'Social Media' },
   { id: 'presentations', label: 'Presentations' },
 ];

@@ -21,6 +21,8 @@ import {
   CubeOrganicIcon,
   PlayOrganicIcon,
 } from './brand-kit-organic-icons';
+import { hasRealPhotos } from '../data/photoExport';
+import { usePhotoSources } from '../data/usePhotoSources';
 import type { KitEntry, KitGroup } from '../catalog/catalog';
 import type { DeliverableKey } from '../kit/types';
 
@@ -77,6 +79,7 @@ const ICON_BY_GROUP: Record<KitGroup, OrganicIconComponent> = {
   applications: PaperStackOrganicIcon,
   social: ChatBubblesOrganicIcon,
   presentations: PlayOrganicIcon,
+  mockups: CubeOrganicIcon,
 };
 
 function iconFor(entry: KitEntry): OrganicIconComponent {
@@ -105,7 +108,10 @@ export function entryIsReady(entry: KitEntry, brand: MockBrand): boolean {
     case 'brand-assets::Icons':
       return brand.icons.length > 0;
     case 'brand-assets::Photos':
-      return brand.photos.length > 0;
+      // The ONE answer to "does this brand have photography?" — the same
+      // predicate the drilldown and the export read, so the counter cannot
+      // call a slot with a broken source done (D46).
+      return hasRealPhotos(brand);
     case 'brand-assets::About':
       // Strategy reads Setup's eleven answers first and the free-form
       // sections second, so either one makes it worth opening.
@@ -138,6 +144,12 @@ export function KitSidebar({
   onSelectOverview,
   onSelectEntry,
 }: Props) {
+  // The completion count is only as honest as the photo cache behind it:
+  // an unmeasured source counts as a photograph, so without this the
+  // sidebar reported Photos done for a brand whose only picture is a 404
+  // and never heard the correction (QA Q15). This asks for the
+  // measurement and re-renders when it lands.
+  usePhotoSources(brand);
   const all = groups.flatMap((g) => g.entries);
   const ready = all.filter((e) => entryIsReady(e, brand)).length;
 

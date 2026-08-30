@@ -152,6 +152,48 @@ describe('applyCorePatch', () => {
     expect(out?.identity.strategy.mission).toBe('Our mission');
   });
 
+  /**
+   * QA Q5 — a confirmed typography change did not persist.
+   *
+   * The Brand Kit's Typography editor sends a whole-brand patch whose
+   * `typography` carries the eleven sizes it just built. `typographyChangesFrom`
+   * unpacked two families out of it and dropped the rest, so the base size
+   * reached the router and was filtered out of its own patch — no error, a
+   * confirmation the user accepted, and 16 again on the next read. Exactly the
+   * shape of the Colors bug: a value with nowhere to live is dropped silently.
+   *
+   * Pinned at the router AND at the canonical brand, because those are the two
+   * places it was lost.
+   */
+  it('carries the type scale through to the canonical brand', async () => {
+    const { repo } = makeRepo();
+    const out = await applyCorePatch(repo, 'b1', {
+      typography: {
+        primary: { family: 'Inter' },
+        secondary: { family: 'Inter' },
+        scale: { body: '18px', h1: '68px' },
+      },
+    } as Partial<Brand>);
+
+    expect(out?.identity.typography.scale?.body).toBe('18px');
+    expect(out?.identity.typography.scale?.h1).toBe('68px');
+    expect(out?.identityMeta?.['typography.scale']).toBeDefined();
+  });
+
+  it('merges the scale onto the roles it does not name', async () => {
+    const { repo } = makeRepo();
+    await applyCorePatch(repo, 'b1', {
+      typography: { primary: { family: 'Inter' }, scale: { body: '16px', h1: '60px' } },
+    } as Partial<Brand>);
+    const out = await applyCorePatch(repo, 'b1', {
+      typography: { primary: { family: 'Inter' }, scale: { body: '18px' } },
+    } as Partial<Brand>);
+
+    expect(out?.identity.typography.scale?.body).toBe('18px');
+    // h1 was not in the second patch and must not be erased by it.
+    expect(out?.identity.typography.scale?.h1).toBe('60px');
+  });
+
   it('attributes the write to the supplied actor', async () => {
     const { repo } = makeRepo();
     const out = await applyCorePatch(

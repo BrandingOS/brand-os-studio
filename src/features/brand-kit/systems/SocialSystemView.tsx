@@ -65,8 +65,19 @@ function proportions(brand: MockBrand) {
   return rows.map((r) => ({ ...r, share: Math.round((r.share / total) * 100) }));
 }
 
-/** One applied example per format, using the extended social renderers. */
-const APPLIED: Array<{ caption: string; templateId: string; type: string }> = [
+/**
+ * One applied example per format, using the extended social renderers.
+ *
+ * Exported because these five ids are named here and nowhere else: they
+ * bypass `variantsForCard`, so a family curation that archived one of
+ * them would leave this page silently rendering `designs[0]` instead.
+ * `social.bind.test.tsx` holds them to the kept set.
+ */
+export const SOCIAL_SYSTEM_EXAMPLES: ReadonlyArray<{
+  caption: string;
+  templateId: string;
+  type: string;
+}> = [
   { caption: 'Profile', templateId: 'profile-icons-ext-2', type: 'profile-icons' },
   { caption: 'Cover', templateId: 'facebook-covers-ext-3', type: 'facebook-covers' },
   { caption: 'Post', templateId: 'instagram-posts-ext-2', type: 'instagram-posts' },
@@ -208,7 +219,7 @@ export function SocialSystemView({
           lede="Real output from the rules above — not a library, one worked example per format."
         >
           <SystemExamples min={220}>
-            {APPLIED.map((item, i) => (
+            {SOCIAL_SYSTEM_EXAMPLES.map((item, i) => (
               <SystemExample
                 key={`${item.templateId}-${i}`}
                 caption={item.caption}

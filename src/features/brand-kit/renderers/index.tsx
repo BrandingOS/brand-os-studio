@@ -76,6 +76,12 @@ export function renderCosmosTemplate(
   content?: DeliverableContent,
 ) {
   const person = content && isPerson(content) ? content : undefined;
+  // Every renderer receives the content object if one was supplied. A
+  // family that has not adopted its kind yet simply ignores the prop; a
+  // family that has, narrows it inside its own file. This is what keeps
+  // the family waves out of this dispatch: converting a renderer never
+  // needs an edit here.
+  const withContent = (c?: DeliverableContent) => (c ? { content: c } : {});
   const letter = content && isLetter(content) ? content : undefined;
   const invoice = content && isInvoice(content) ? content : undefined;
   const extMatch = template.id.match(/-ext-(\d+)$/);
@@ -122,31 +128,31 @@ export function renderCosmosTemplate(
           />
         );
       case 'mockups':
-        return <MockupsExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <MockupsExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'invoices':
         // Wave 1 (legacy 8 + 22 ext = 30 idx 0-21 in ext)
         // Wave 2 (idx 22+ → InvoicesExtended2 idx 0-99)
         if (idx >= 22) {
-          return <InvoicesExtended2Renderer brand={brand} templateIndex={idx - 22} />;
+          return <InvoicesExtended2Renderer brand={brand} templateIndex={idx - 22} {...withContent(content)} />;
         }
         return <InvoicesExtendedRenderer brand={brand} templateIndex={idx} content={invoice} />;
       case 'profile-icons':
         // Wave 1: 12 legacy + 18 ext = 30 total. ext-1..18 → idx 0-17
         // Wave 2: ext-19..118 → idx 0-99 in Extended2
         if (idx >= 18) {
-          return <SocialProfileExtended2Renderer brand={brand} templateIndex={idx - 18} />;
+          return <SocialProfileExtended2Renderer brand={brand} templateIndex={idx - 18} {...withContent(content)} />;
         }
-        return <SocialProfileExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <SocialProfileExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'facebook-covers':
-        return <SocialCoverExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <SocialCoverExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'instagram-posts':
-        return <SocialPostExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <SocialPostExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'instagram-stories':
-        return <SocialStoryExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <SocialStoryExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'favicon' as BrandKitTemplate['type']:
-        return <WebFaviconExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <WebFaviconExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'website' as BrandKitTemplate['type']:
-        return <WebWebsiteExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <WebWebsiteExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'email-sig' as BrandKitTemplate['type']:
         return (
           <WebEmailSignatureExtendedRenderer
@@ -156,53 +162,53 @@ export function renderCosmosTemplate(
           />
         );
       case 'landing' as BrandKitTemplate['type']:
-        return <WebLandingPageExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <WebLandingPageExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'mockup-mug' as BrandKitTemplate['type']:
-        return <MockupMugExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <MockupMugExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'mockup-tshirt' as BrandKitTemplate['type']:
-        return <MockupTShirtExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <MockupTShirtExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'mockup-billboard' as BrandKitTemplate['type']:
-        return <MockupBillboardExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <MockupBillboardExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'mockup-tote' as BrandKitTemplate['type']:
-        return <MockupToteExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <MockupToteExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'mockup-sticker' as BrandKitTemplate['type']:
-        return <MockupStickerExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <MockupStickerExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'guide-logo' as BrandKitTemplate['type']:
-        return <LogoGuideRenderer brand={brand} templateIndex={idx} />;
+        return <LogoGuideRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'guide-color' as BrandKitTemplate['type']:
-        return <ColorGuideRenderer brand={brand} templateIndex={idx} />;
+        return <ColorGuideRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'guide-typography' as BrandKitTemplate['type']:
-        return <TypographyGuideRenderer brand={brand} templateIndex={idx} />;
+        return <TypographyGuideRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'guide-voice' as BrandKitTemplate['type']:
-        return <VoiceGuideRenderer brand={brand} templateIndex={idx} />;
+        return <VoiceGuideRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'guide-imagery' as BrandKitTemplate['type']:
-        return <ImageryGuideRenderer brand={brand} templateIndex={idx} />;
+        return <ImageryGuideRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'pres-pitch' as BrandKitTemplate['type']:
-        return <PitchDeckRenderer brand={brand} templateIndex={idx} />;
+        return <PitchDeckRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'pres-plan' as BrandKitTemplate['type']:
-        return <BusinessPlanRenderer brand={brand} templateIndex={idx} />;
+        return <BusinessPlanRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'pres-portfolio' as BrandKitTemplate['type']:
-        return <PortfolioRenderer brand={brand} templateIndex={idx} />;
+        return <PortfolioRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'pres-proposal' as BrandKitTemplate['type']:
-        return <ProposalRenderer brand={brand} templateIndex={idx} />;
+        return <ProposalRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'pres-case' as BrandKitTemplate['type']:
-        return <CaseStudyRenderer brand={brand} templateIndex={idx} />;
+        return <CaseStudyRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'anim-reveal' as BrandKitTemplate['type']:
-        return <LogoRevealRenderer brand={brand} templateIndex={idx} />;
+        return <LogoRevealRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'anim-slide' as BrandKitTemplate['type']:
-        return <SlideInRenderer brand={brand} templateIndex={idx} />;
+        return <SlideInRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'anim-fade' as BrandKitTemplate['type']:
-        return <FadeRenderer brand={brand} templateIndex={idx} />;
+        return <FadeRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'anim-rotate' as BrandKitTemplate['type']:
-        return <RotateRenderer brand={brand} templateIndex={idx} />;
+        return <RotateRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'qr-branded' as BrandKitTemplate['type']:
-        return <BrandedQrRenderer brand={brand} templateIndex={idx} />;
+        return <BrandedQrRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'qr-minimal' as BrandKitTemplate['type']:
-        return <MinimalQrRenderer brand={brand} templateIndex={idx} />;
+        return <MinimalQrRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'qr-rounded' as BrandKitTemplate['type']:
-        return <RoundedQrRenderer brand={brand} templateIndex={idx} />;
+        return <RoundedQrRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'qr-square' as BrandKitTemplate['type']:
-        return <SquareQrRenderer brand={brand} templateIndex={idx} />;
+        return <SquareQrRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       // Synthetic types — no legacy moduleId. Cast through unknown
       // because the legacy `BrandKitTemplate['type']` union doesn't
       // know about these new artifact types.
@@ -221,14 +227,14 @@ export function renderCosmosTemplate(
         return <LetterheadExtendedRenderer brand={brand} templateIndex={idx} content={letter} />;
       case 'envelope' as BrandKitTemplate['type']:
         if (idx >= 30) {
-          return <EnvelopeExtended2Renderer brand={brand} templateIndex={idx - 30} />;
+          return <EnvelopeExtended2Renderer brand={brand} templateIndex={idx - 30} {...withContent(content)} />;
         }
-        return <EnvelopeExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <EnvelopeExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       case 'notecard' as BrandKitTemplate['type']:
         if (idx >= 30) {
-          return <NotecardExtended2Renderer brand={brand} templateIndex={idx - 30} />;
+          return <NotecardExtended2Renderer brand={brand} templateIndex={idx - 30} {...withContent(content)} />;
         }
-        return <NotecardExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <NotecardExtendedRenderer brand={brand} templateIndex={idx} {...withContent(content)} />;
       default:
         // Unknown extension type — fall through to legacy.
         return renderLegacyTemplate(template, brand);

@@ -5,30 +5,41 @@
 import * as opentype from 'opentype.js';
 import { triggerBlobDownload } from './colorPaletteExport';
 import type { ZipFolder } from './kitExport';
+import { zipAdd } from './zipFile';
+import { iconLabel } from './iconPacks';
+import { detectIconWeight, ICON_WEIGHTS } from './iconWeights';
 
 /**
- * Icons drilldown export pipeline. Produces a clean ZIP of editable
- * vector icons:
+ * The Icons download.
+ *
+ * ### What it used to weigh, and why
+ *
+ * 13.6–14.2 MB per download (`.audit/OURS.md` D42), of which 8.9 MB was a
+ * single PDF — a raster of a contact sheet nobody asked for — beside a JPG of
+ * every icon, which is a transparent line drawing flattened onto white, i.e. a
+ * worse copy of the PNG sitting next to it. The PNGs themselves were 1024²,
+ * four times bigger than the largest place an icon is ever drawn.
+ *
+ * So the bundle is LEAN by default and `full` is an explicit ask:
  *
  *   {brand}-icons.zip
- *     SVG/                one .svg per icon — REAL `<path>` data
- *                         extracted from the Flaticon webfont via
- *                         opentype.js. Opens fully editable in any
- *                         vector tool (Illustrator, Figma, Inkscape).
- *     {brand}-icons.svg   single combined-grid SVG — every icon laid
- *                         out as separate `<path>` elements. Drop
- *                         into Illustrator and each glyph is its
- *                         own selectable shape.
- *     {brand}-icons.ai    same combined SVG with the .ai extension
- *                         so users who expect "Adobe Illustrator"
- *                         find one. Illustrator opens SVG-based .ai
- *                         documents transparently.
+ *     SVG/<name>.svg      one per icon — REAL `<path>` data pulled out of the
+ *                         Flaticon webfont with opentype.js, so it opens fully
+ *                         editable in Illustrator, Figma or Inkscape.
+ *     PNG/64/<name>.png   the two sizes an icon is actually placed at.
+ *     PNG/128/<name>.png
+ *     sprite.svg          every icon as a `<symbol>`, ready to
+ *                         `<use href="sprite.svg#name">` on a web page.
+ *     icons.json          the manifest: what is in here, at what weight, in
+ *                         what tint, and which file is which icon.
  *
- * Why opentype.js: Flaticon UICONS ships as a webfont (woff/woff2),
- * so the actual artwork is locked inside glyph tables. opentype.js
- * parses the font and exposes `.toPathData()` for any glyph — that's
- * the raw SVG path string. No rasterization, no font dependency in
- * the exported file. The user's chosen tint is baked into `fill`.
+ * `full` adds what a print workflow occasionally wants and nobody wants by
+ * default: `JPG/`, the combined contact-sheet SVG and its PDF.
+ *
+ * Why opentype.js: UICONS ships as a webfont, so the artwork is locked inside
+ * glyph tables. opentype parses the font and `.toPathData()` gives the raw SVG
+ * path — no rasterisation, and no font dependency in the exported file. The
+ * user's chosen tint is baked into `fill`.
  */
 
 export type IconExportEntry = {
@@ -164,7 +175,10 @@ function readGlyphInfo(element: HTMLElement): GlyphInfo | null {
     before.getPropertyValue('color') ||
     window.getComputedStyle(i).color ||
     '#111113';
-  return { char: decoded, codepoint, family: stripQuotes(family), color };
+  // Normalised HERE, once. `getComputedStyle` answers `rgb(114, 49, 255)`,
+  // and an SVG that states the tint that way is a file whose colour a designer
+  // cannot match to the brand's own hex by looking at it.
+  return { char: decoded, codepoint, family: stripQuotes(family), color: normalizeCssColor(color) };
 }
 
 /* ─── SVG builders (real vector paths) ─────────────────────── */
@@ -304,6 +318,36 @@ async function svgToCanvas(
   }
 }
 
+/**
+ * The same vector, drawn at EXACTLY `px`.
+ *
+ * `svgToCanvas` multiplies by a fixed 2× DPI, which is right for a preview and
+ * wrong for a deliverable: it is how every icon PNG came out 1024² when the
+ * largest place one is ever placed is 128. A size the caller names is a size
+ * the caller gets.
+ */
+async function rasterizeIcon(svg: string, px: number): Promise<HTMLCanvasElement | null> {
+  const canvas = await svgToCanvas(svg, px / RASTER_DPI, px / RASTER_DPI);
+  return canvas;
+}
+
+/** `rgb(114, 49, 255)` → `#7231ff`. A manifest states a colour once. */
+function normalizeCssColor(value: string): string {
+  const raw = (value || '').trim();
+  const m = /^rgba?\(([^)]+)\)$/.exec(raw);
+  if (m) {
+    const [r, g, b] = m[1]!.split(/[\s,/]+/).filter(Boolean).map(Number);
+    return `#${[r, g, b]
+      .map((n) => Math.round(n ?? 0).toString(16).padStart(2, '0'))
+      .join('')}`;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw.slice(1).split('').map((c) => c + c).join('')}`.toLowerCase();
+  }
+  return raw;
+}
+
 function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality?: number): Promise<Blob | null> {
   if (!canvas.width || !canvas.height) return Promise.resolve(null);
   return new Promise((resolve) => canvas.toBlob((b) => resolve(b), mime, quality));
@@ -348,47 +392,174 @@ async function buildCombinedPdfBlob(svg: string, width: number, height: number):
   }
 }
 
+/* ─── The plan: pure, and therefore testable ───────────────── */
+
+/** The raster sizes an icon is actually placed at. 1024² was four times the
+ *  largest, and it was most of D42's megabytes. */
+export const ICON_PNG_SIZES = [64, 128] as const;
+
+/** One icon, as the manifest and the sprite describe it. */
+export type IconManifestEntry = {
+  /** The name a person reads — the SAME name as on the tile and in the editor. */
+  name: string;
+  /** The filename stem, unique within the bundle. */
+  slug: string;
+  /** What the brand stores: a UICONS class name, a url or inline SVG. */
+  source: string;
+  svg: string;
+  png: Record<string, string>;
+  jpg?: string;
+};
+
+export type IconsManifest = {
+  brand: string;
+  generated: string;
+  /** One weight for the whole set — it is the prefix on every class name. */
+  weight: string;
+  weightLabel: string;
+  /** The colour the set is drawn in, as it appears in every file here. */
+  tint: string;
+  variant: 'lean' | 'full';
+  count: number;
+  icons: IconManifestEntry[];
+};
+
+/**
+ * A filename stem for one icon, unique within the bundle.
+ *
+ * `used` is mutated, which is the point: two icons named "Star" must not both
+ * claim `star.svg` and silently become one file.
+ */
+export function iconSlug(name: string, used: Set<string>): string {
+  const base = (name || 'icon').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'icon';
+  let slug = base;
+  let n = 2;
+  while (used.has(slug)) {
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+  used.add(slug);
+  return slug;
+}
+
+/** Where each of an icon's files lives. Pure — this is the file PLAN. */
+export function planIconFiles(
+  name: string,
+  source: string,
+  used: Set<string>,
+  lean: boolean,
+): IconManifestEntry {
+  const slug = iconSlug(name, used);
+  const png: Record<string, string> = {};
+  for (const size of ICON_PNG_SIZES) png[String(size)] = `PNG/${size}/${slug}.png`;
+  return {
+    name,
+    slug,
+    source,
+    svg: `SVG/${slug}.svg`,
+    png,
+    ...(lean ? {} : { jpg: `JPG/${slug}.jpg` }),
+  };
+}
+
+/**
+ * The manifest.
+ *
+ * A zip of 30 files called `chart-line-up.svg` does not say what weight the set
+ * is, what colour it was drawn in, or which of them is the one on the tile. One
+ * small JSON file answers all three, and it is the thing a build step can read.
+ */
+export function buildIconsManifest(
+  icons: IconManifestEntry[],
+  meta: { brand: string; weight: string; tint: string; lean: boolean; now?: Date },
+): IconsManifest {
+  const weightLabel = ICON_WEIGHTS.find((w) => w.id === meta.weight)?.label ?? 'Regular';
+  return {
+    brand: meta.brand,
+    generated: (meta.now ?? new Date()).toISOString(),
+    weight: meta.weight,
+    weightLabel,
+    tint: meta.tint,
+    variant: meta.lean ? 'lean' : 'full',
+    count: icons.length,
+    icons,
+  };
+}
+
+/**
+ * Every icon as a `<symbol>`, so a web page can `<use>` one by name.
+ *
+ * The symbols carry NO fill: a sprite whose colour is baked in can only ever be
+ * one colour, and the whole point of a single file is that the page decides.
+ * The tint lives in the per-icon SVGs and in the manifest.
+ */
+export function buildIconSprite(
+  icons: { slug: string; name: string; path: string }[],
+): string {
+  const symbols = icons
+    .map(
+      ({ slug, name, path }) =>
+        `<symbol id="${escapeXml(slug)}" viewBox="0 0 ${ICON_SIZE} ${ICON_SIZE}">` +
+        `<title>${escapeXml(name)}</title><path d="${path}" fill="currentColor"/></symbol>`,
+    )
+    .join('');
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `style="display:none">${symbols}</svg>`
+  );
+}
+
 /* ─── Public entry point ───────────────────────────────────── */
 
-function slugify(value: string): string {
-  return (value || 'icon').replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
+
+export type IconBundleOptions = {
+  /**
+   * `lean` (the default) is SVG + two PNG sizes + a sprite + the manifest.
+   * `full` adds the JPG set, the combined contact-sheet SVG and its PDF —
+   * 13.6 MB of a 14 MB download, which is why it is not the default (D42).
+   */
+  variant?: 'lean' | 'full';
+  /** The older boolean, kept so existing call sites read unchanged. */
+  lean?: boolean;
+};
+
+/** `true` unless the caller explicitly asked for the full bundle. */
+function isLean(options: IconBundleOptions): boolean {
+  if (options.variant) return options.variant === 'lean';
+  return options.lean !== false;
 }
 
 export async function downloadIconsBundle(
   entries: IconExportEntry[],
   zipName: string,
+  options: IconBundleOptions = {},
 ): Promise<void> {
   if (entries.length === 0) return;
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
-  await addIconsToZip(zip, entries, zipName);
+  await addIconsToZip(zip, entries, zipName, options);
   triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${zipName}.zip`);
 }
 
 /**
  * Write the icon bundle into a folder of an EXISTING zip.
  *
- * The whole-kit export needs the same SVG/PNG/JPG set the Icons card
- * download produces, filed under `icons/` rather than in a zip of its
- * own — so the builder is the shared thing and the download is a wrapper
- * around it. Returns how many icons were written.
+ * The whole-kit export wants exactly what the Icons card download produces,
+ * filed under `icons/` rather than in a zip of its own — so the builder is the
+ * shared thing and the download is a wrapper around it. Returns how many icons
+ * were written.
  */
 export async function addIconsToZip(
   zip: ZipFolder,
   entries: IconExportEntry[],
   zipName: string,
-  options: { lean?: boolean } = {},
+  options: IconBundleOptions = {},
 ): Promise<number> {
   if (entries.length === 0) return 0;
-  // `lean` is the whole-kit cut: vector plus one raster per icon, and the
-  // editable combined SVG. What it drops is the JPG set (a white-backed
-  // duplicate of the PNG) and the combined PDF, which wraps a raster of
-  // the whole grid and was, on its own, 8.7 MB of a 18 MB brand kit.
-  const lean = options.lean === true;
+  const lean = isLean(options);
 
-  // Pre-load every font referenced by the icons. opentype.js parses
-  // each font once; results land in `fontCache` for the per-icon
-  // loop below.
+  // Pre-load every font referenced by the icons. opentype.js parses each font
+  // once; results land in `fontCache` for the per-icon loop below.
   const families = new Set<string>();
   for (const entry of entries) {
     const info = readGlyphInfo(entry.element);
@@ -396,57 +567,75 @@ export async function addIconsToZip(
   }
   await Promise.all(Array.from(families).map((f) => getFont(f)));
 
-  const svgDir = zip.folder('SVG');
-  const pngDir = zip.folder('PNG');
-  const jpgDir = lean ? null : zip.folder('JPG');
-  const usedNames = new Set<string>();
+  const used = new Set<string>();
+  const manifestIcons: IconManifestEntry[] = [];
+  const sprite: { slug: string; name: string; path: string }[] = [];
   const grid: { glyph: GlyphInfo; font: opentype.Font; name: string }[] = [];
+  let tint = '';
 
   for (const entry of entries) {
     const glyph = readGlyphInfo(entry.element);
     if (!glyph) continue;
     const font = await getFont(glyph.family);
     if (!font) continue;
+    const pathData = glyphPathData(font, glyph.codepoint);
+    if (!pathData) continue;
     const svg = buildIconSvg(font, glyph);
     if (!svg) continue;
-    const baseSlug = slugify(entry.name || entry.source);
-    let slug = baseSlug;
-    let n = 2;
-    while (usedNames.has(slug)) {
-      slug = `${baseSlug}-${n}`;
-      n += 1;
+    if (!tint) tint = glyph.color;
+
+    // ONE name for this icon everywhere — the tile, the editor, the file and
+    // the manifest — so a symbol can be found again outside the app.
+    const name = entry.name || iconLabel(entry.source);
+    const plan = planIconFiles(name, entry.source, used, lean);
+
+    zipAdd(zip, plan.svg, svg);
+    for (const size of ICON_PNG_SIZES) {
+      const canvas = await rasterizeIcon(svg, size);
+      const png = canvas ? await canvasToBlob(canvas, 'image/png') : null;
+      if (png) zipAdd(zip, plan.png[String(size)]!, png);
     }
-    usedNames.add(slug);
-    if (svgDir) svgDir.file(`${slug}.svg`, svg);
-    // Rasterize the same vector SVG for PNG (transparent) + JPG
-    // (white-backed). Same source means the raster art matches the
-    // vector art exactly — no DOM screenshotting drift.
-    const canvas = await svgToCanvas(svg, ICON_SIZE, ICON_SIZE);
-    if (canvas) {
-      const png = await canvasToBlob(canvas, 'image/png');
-      if (pngDir && png) pngDir.file(`${slug}.png`, png);
-      if (jpgDir) {
-        const jpg = await whiteBackedJpg(canvas);
-        if (jpg) jpgDir.file(`${slug}.jpg`, jpg);
-      }
+    if (!lean && plan.jpg) {
+      // JPG has no alpha, so this is the same drawing flattened onto white —
+      // a worse copy of the PNG beside it, and only ever an explicit ask.
+      const canvas = await rasterizeIcon(svg, ICON_SIZE);
+      const jpg = canvas ? await whiteBackedJpg(canvas) : null;
+      if (jpg) zipAdd(zip, plan.jpg, jpg);
     }
-    grid.push({ glyph, font, name: entry.name || slug });
+
+    manifestIcons.push(plan);
+    sprite.push({ slug: plan.slug, name, path: pathData });
+    grid.push({ glyph, font, name });
   }
 
-  if (grid.length > 0) {
-    // Single combined SVG with every icon as its own `<path>` —
-    // open in Illustrator/Figma and each glyph is a discrete,
-    // selectable, editable shape.
+  if (manifestIcons.length === 0) return 0;
+
+  zipAdd(zip, 'sprite.svg', buildIconSprite(sprite));
+  const weight = detectIconWeight(entries.find((e) => e.source)?.source ?? '');
+  zipAdd(
+    zip,
+    'icons.json',
+    JSON.stringify(
+      buildIconsManifest(manifestIcons, {
+        brand: zipName,
+        weight,
+        tint,
+        lean,
+      }),
+      null,
+      2,
+    ),
+  );
+
+  if (!lean) {
+    // The contact sheet: every icon as its own `<path>` in one document, and
+    // a PDF of the same page for a print workflow. Both are large and neither
+    // is what most people came for.
     const combined = buildCombinedIconsSvg(grid);
-    zip.file(`${zipName}.svg`, combined.svg);
-    if (!lean) {
-      // PDF of the same grid for users who reach for that format —
-      // wraps the vector SVG into a single page. The SVG above
-      // remains the editable source.
-      const pdf = await buildCombinedPdfBlob(combined.svg, combined.width, combined.height);
-      if (pdf) zip.file(`${zipName}.pdf`, pdf);
-    }
+    zipAdd(zip, `${zipName}.svg`, combined.svg);
+    const pdf = await buildCombinedPdfBlob(combined.svg, combined.width, combined.height);
+    if (pdf) zipAdd(zip, `${zipName}.pdf`, pdf);
   }
 
-  return grid.length;
+  return manifestIcons.length;
 }

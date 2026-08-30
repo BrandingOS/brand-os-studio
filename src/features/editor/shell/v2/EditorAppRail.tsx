@@ -25,9 +25,22 @@ const ITEMS: ReadonlyArray<{
 interface Props {
   active: RailItem;
   onChange: (item: RailItem) => void;
+  /**
+   * Insert adds a LAYER to the page — meaningless for a renderer that
+   * doesn't decompose its document into layers. Defaults to true so
+   * every existing (Fabric) caller is unaffected.
+   *
+   * It governs the ACTIVE state too. For a layerless renderer the panel
+   * beside this rail is the renderer's own properties, not the item the
+   * rail names, so highlighting Generate / Templates / Brand there would
+   * claim a panel is open that is not.
+   */
+  supportsLayerEditing?: boolean;
 }
 
-export function EditorAppRail({ active, onChange }: Props) {
+export function EditorAppRail({ active, onChange, supportsLayerEditing = true }: Props) {
+  const items = supportsLayerEditing ? ITEMS : ITEMS.filter((item) => item.id !== 'insert');
+  const activeItem = supportsLayerEditing ? active : null;
   return (
     <aside
       data-app-rail
@@ -45,12 +58,12 @@ export function EditorAppRail({ active, onChange }: Props) {
       }}
       aria-label="App rail"
     >
-      {ITEMS.map(({ id, label, Icon }) => (
+      {items.map(({ id, label, Icon }) => (
         <RailCard
           key={id}
           Icon={Icon}
           label={label}
-          isActive={id === active}
+          isActive={id === activeItem}
           onClick={() => onChange(id)}
         />
       ))}

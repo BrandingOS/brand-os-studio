@@ -135,6 +135,38 @@
  * Primary tabs: Setup · Brand Kit · Guideline · Design · Tools
  * ============================================================ */
 
+/* Skip to content — off screen until it is focused, then a real control at
+   the top-left with the DS's 3px charcoal ring. Never a hidden link with
+   `display: none`: that removes it from the tab order, which is the one
+   thing it exists to be in. */
+[data-workspace] .skip-to-content {
+  position: fixed;
+  top: 12px;
+  left: 14px;
+  z-index: 300;
+  transform: translateY(-260%);
+  opacity: 0;
+  pointer-events: none;
+  padding: 8px 14px;
+  border-radius: var(--ds-radius-pill, 999px);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-accent);
+  color: var(--ds-accent-fg);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: transform 180ms var(--ds-ease), opacity 180ms var(--ds-ease);
+}
+[data-workspace] .skip-to-content:focus {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
 [data-workspace] .top-nav-wrap {
   position: sticky;
   top: 0;
@@ -3212,16 +3244,19 @@
   animation: cosmos-ws-fade-up 420ms var(--ds-ease) both;
 }
 
+/*
+ * A laptop is not a phone. The board used to drop to ONE column at 1080,
+ * which put the sidebar above the content: on the Brand Kit, whose sidebar
+ * is 39 rows, a 1024×768 laptop opened on 2145px of navigation and not one
+ * card (QA Q7). Everything that is only about tightening the chrome stays
+ * here; the column collapse itself moved to 900, where two columns genuinely
+ * stop fitting, and the panel is capped there so the board is never pushed
+ * off screen by a list.
+ */
 @media (max-width: 1080px) {
   [data-workspace] .shell {
-    grid-template-columns: 1fr;
     padding: 0 16px 16px;
     gap: 16px;
-  }
-  [data-workspace] .panel {
-    position: relative;
-    top: 0;
-    max-height: none;
   }
   [data-workspace] .board-wrap { padding: 16px 28px 100px; }
   [data-workspace] .section { padding: 36px 0; }
@@ -3234,12 +3269,96 @@
     gap: 10px;
   }
   [data-workspace] .top-nav-left .top-nav-brand span { display: none; }
+  /*
+   * The tab strip may not be clipped. `.segmented-nav` is `overflow: hidden`
+   * so the pill can round its own corners; below 1080 the five tabs stop
+   * fitting the middle column and the last four simply vanished — at 390px
+   * only "Setup" was on screen, `.segmented-nav-item` measured to x=452, and
+   * the document does not scroll horizontally, so Brand Kit / Guideline /
+   * Design / Tools could not be reached at all (QA Q8). Letting the strip
+   * itself scroll keeps the clipping (the pill still needs it) and gives the
+   * overflow somewhere to go. The active tab is scrolled into view by
+   * WorkspaceShell, so the tab you are ON is always the one you can see.
+   */
+  [data-workspace] .segmented-nav {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  [data-workspace] .segmented-nav::-webkit-scrollbar { display: none; }
+  [data-workspace] .segmented-nav-item { flex: 0 0 auto; }
+}
+
+/*
+ * One column, and a sidebar that behaves like one. `.panel` keeps its own
+ * scroller (`.panel-list` is already `overflow-y: auto`), so capping the
+ * panel turns a 39-row list into a compact rail with the board directly
+ * under it instead of a screenful of navigation.
+ */
+@media (max-width: 900px) {
+  [data-workspace] .shell {
+    grid-template-columns: 1fr;
+  }
+  [data-workspace] .panel {
+    position: relative;
+    top: 0;
+    max-height: min(42vh, 320px);
+  }
 }
 
 @media (max-width: 720px) {
   [data-workspace] .board-wrap { padding: 12px 18px 80px; }
   [data-workspace] .type-name { font-size: 34px; }
   [data-workspace] .segmented-nav-item { padding: 6px 10px; font-size: 12px; }
+  /*
+   * The tabs get a row of their own. Sharing one row with the brand
+   * switcher and the page's primary action left the middle column about
+   * 130px wide on a phone — the strip scrolls, but a 130px window onto a
+   * five-tab strip is still a navigation you have to go looking for. Its
+   * own row is the full width, which fits all five.
+   */
+  [data-workspace] .top-nav-wrap {
+    /* The switcher keeps its width and the actions take what is left —
+       the other way round squeezed a page with two right-hand actions
+       (Setup) down to an 11px sliver of brand switcher. */
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'left right'
+      'nav nav';
+    row-gap: 8px;
+    padding: 12px 16px 10px;
+  }
+  [data-workspace] .top-nav-left {
+    grid-area: left;
+    min-width: 0;
+    overflow: hidden;
+  }
+  /* The mark alone says which brand you are in and still opens the switcher
+     — the same trade the shell already makes at 1080px for
+     `.top-nav-brand span`. Scoped through `.top-nav-left` deliberately:
+     `.brand-switcher-name`'s own rule is declared further down this file, so
+     an equally specific override up here would lose on source order. */
+  [data-workspace] .top-nav-left .brand-switcher-name { display: none; }
+  /* A page with two right-hand actions (Setup: Rebrand with AI · Brand
+     Identity) cannot share a phone's row with the brand switcher — before
+     this the two clusters simply overlapped. Wrapping is the honest answer:
+     the cluster takes a second line rather than printing on top of the
+     switcher. */
+  [data-workspace] .top-nav-right {
+    grid-area: right;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  [data-workspace] .segmented-nav {
+    grid-area: nav;
+    justify-self: stretch;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3929,6 +4048,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* An item that explains itself. The reason belongs beside the action it
+   describes — a greyed row with no explanation is a dead end. */
+.ctx-menu-item.has-hint {
+  align-items: flex-start;
+}
+.ctx-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ctx-menu-hint {
+  max-width: 210px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0;
+  white-space: normal;
+  opacity: 0.75;
 }
 .ctx-menu-icon {
   display: inline-flex;

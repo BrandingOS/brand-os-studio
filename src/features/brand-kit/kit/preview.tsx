@@ -14,9 +14,9 @@ import type { SavedCardCustomization } from '../data/cardCustomizations';
 import type { DeliverableDef } from './registry';
 import {
   contentKindForTemplateType,
-  hydrateContent,
   type DeliverableContent,
 } from '@/features/brandkit/content/kinds';
+import { contentFromCustomization } from '../data/savedContent';
 
 /** Project the brand through an item's saved color picks. */
 export function previewBrandFor(
@@ -33,31 +33,21 @@ export function previewBrandFor(
 /**
  * The structured content an item renders with.
  *
- * Prefers the saved `content` — real nested data, including an invoice's
- * line items — and falls back to reading a `person` out of the legacy
- * flat overrides, so a business card customized before the content model
- * existed still paints the name it was saved with.
+ * Delegates to `contentFromCustomization` — the ONE rule for "what does
+ * this card say", shared with the download paths and the card editor's
+ * preview. It had been reimplemented here, minus the explicit guard that
+ * keeps a stored `person` record from being read as an invoice.
  */
 function renderContentFor(
   def: DeliverableDef,
   brand: MockBrand,
   customization: SavedCardCustomization | null | undefined,
 ): DeliverableContent | undefined {
-  const kind = contentKindForTemplateType(def.templateType);
-  if (!kind) return undefined;
-  if (customization?.content) return hydrateContent(kind, brand, customization.content);
-  if (kind === 'person' && customization) {
-    const o = customization.overrides;
-    return hydrateContent(kind, brand, {
-      kind: 'person',
-      fullName: o.title,
-      jobTitle: o.subtitle,
-      email: o.email,
-      phone: o.phone,
-      website: o.website,
-    });
-  }
-  return undefined;
+  return contentFromCustomization(
+    customization,
+    contentKindForTemplateType(def.templateType),
+    brand,
+  );
 }
 
 export function templateForVariant(

@@ -24,16 +24,28 @@
  */
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import {
+  buildAiBlob,
   buildBaseColorSvg,
   buildShadeRows,
   buildShadesSvg,
+  paletteFromMockBrand,
   rasterizeSvg,
   triggerBlobDownload,
+  type BundleDepth,
   type PaletteColor,
 } from './colorPaletteExport';
+import { buildAseBlob, buildColorsReadme, buildTokenFiles } from './tokensExport';
 import { addFontFamiliesToZip } from './fontExport';
 import { lazyFolder, zipAdd, type ExportSkip, type ZipFolder } from './zipFile';
+// `logoExport` imports `slugifyName` / `logoExtension` back out of this
+// module. Both are hoisted function declarations and neither module runs
+// anything at import time, so the cycle resolves — it is here rather than
+// broken apart because a logo's filename rules belong beside the other
+// export naming rules, not in a third file that exists only to avoid this.
+import { buildLogoFiles } from './logoExport';
 import { yieldToBrowser, throwIfAborted } from './exportScheduler';
+import { buildKitReadmeFile } from '../exporters/readme';
+import { buildAboutMarkdown } from './strategyDocument';
 
 export function slugifyName(name: string): string {
   const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -43,18 +55,25 @@ export function slugifyName(name: string): string {
   return /[a-z0-9]/.test(slug) ? slug : 'brand';
 }
 
-/** Flatten the mock brand's palette into the exporter's shape. */
-export function paletteOf(brand: MockBrand): PaletteColor[] {
-  const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
-  return [
-    ...brand.colors.core.map((c, i) => ({
-      hex: c.hex,
-      name: c.name,
-      role: CORE_ROLES[i] ?? `Core ${i + 1}`,
-    })),
-    ...brand.colors.accent.map((c) => ({ hex: c.hex, name: c.name, role: 'Accent' })),
-    ...brand.colors.grey.map((c) => ({ hex: c.hex, name: c.name, role: 'Neutral' })),
-  ];
+/**
+ * Flatten the mock brand's palette into the exporter's shape.
+ *
+ * Two things changed here and both were defects the audit measured:
+ *
+ *  • Roles came from the POSITION in `colors.core`, so a brand with
+ *    seven colours exported "Core 4 … Core 7" into every tile and into
+ *    `brand.json` (D40). `paletteFromMockBrand` names what a colour
+ *    does instead.
+ *  • The 32-step generated grey ladder was flattened in as first-class
+ *    brand colours, which is most of why the Colors download was 320
+ *    files and 13 MB (D37). It is opt-in now — a bundle that claims to
+ *    be the brand's palette should contain the brand's palette.
+ */
+export function paletteOf(
+  brand: MockBrand,
+  opts?: { includeNeutrals?: boolean },
+): PaletteColor[] {
+  return paletteFromMockBrand(brand, { includeNeutrals: opts?.includeNeutrals ?? false });
 }
 
 export {
@@ -107,89 +126,69 @@ export function logoExtension(url: string, mime?: string): string {
 }
 
 /**
- * Add every logo variant into a zip folder as its REAL file.
+ * Add the whole logo payload into a zip folder.
  *
- * One file per variant, under the variant's own name, with the extension
- * the source actually has. A variant whose bytes cannot be fetched is
- * reported rather than shipped as a blank tile.
+ * The bytes are decided in `data/logoExport.ts` and nowhere else, because the
+ * audit measured this exact noun meaning three different things at once: the
+ * header ⬇ gave PNGs with no SVG (D28), the card ⬇ gave SVGs with no PNG, and
+ * the Export Kit's `logos/` held three originals and nothing else (D29). This
+ * function is the only door, so every surface now hands out the same folder:
+ * the source file, PNG at three sizes, a print PDF, every approved ground, and
+ * a README carrying the clear-space, minimum-size and misuse rules.
+ *
+ * `added` counts VARIANTS, not files — it is what a caller reports as "8
+ * logos exported", and a README on its own is not a logo.
  */
 export async function addLogosToZip(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
 ): Promise<{ added: number; skipped: ExportSkip[] }> {
-  let added = 0;
-  const skipped: ExportSkip[] = [];
-  const used = new Set<string>();
-  for (const logo of brand.logos) {
-    throwIfAborted(signal);
-    if (!logo.svg) continue;
-    const label = logo.label || logo.id || `logo-${added + 1}`;
-    let base = slugifyName(label);
-    let n = 2;
-    while (used.has(base)) {
-      base = `${slugifyName(label)}-${n}`;
-      n += 1;
-    }
-    used.add(base);
-
-    const href = extractLogoHref(logo.svg);
-    if (!href) {
-      // A genuine SVG (the generated lettermark) — ship it, and a raster
-      // beside it, because this one really does rasterize.
-      zipAdd(folder, `${base}.svg`, logo.svg);
-      try {
-        const { png } = await rasterizeSvg(logo.svg, 600, 600);
-        if (png) zipAdd(folder, `${base}.png`, png);
-      } catch {
-        // Exotic markup — the .svg still ships.
-      }
-      added += 1;
-      continue;
-    }
-
-    try {
-      const res = await fetch(href);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const blob = await res.blob();
-      if (blob.size === 0) throw new Error('empty');
-      zipAdd(folder, `${base}.${logoExtension(href, blob.type)}`, blob);
-      added += 1;
-    } catch {
-      skipped.push({
-        label: `Logo — ${label}`,
-        reason: "the file couldn't be read from storage",
-      });
-    }
-    await yieldToBrowser(signal);
-  }
+  const { files, skipped, plan } = await buildLogoFiles(brand, { signal });
+  for (const file of files) zipAdd(folder, file.path, file.blob);
+  // A variant whose source could not be read still ships its renders; one
+  // that produced no file at all is not something the caller may count.
+  const shipped = new Set(
+    files
+      .map((f) => f.path.split('/')[0])
+      .filter((first) => first !== 'README.md'),
+  );
+  const added = plan.filter((v) => shipped.has(v.base)).length;
   return { added, skipped };
 }
 
 /* ─── Colors ──────────────────────────────────────────────────────── */
 
 /**
- * The kit's colour folder: core + accent, each as swatch SVG, swatch PNG
- * and a shade ladder.
+ * The kit's `colors/` folder — the LEAN set plus the developer handoff.
  *
- * Deliberately slim. The dedicated Colors download is the full-fidelity
- * bundle — every neutral, jpg and .ai — and the per-colour `.ai` files run
- * to megabytes each, which once made this zip 590 MB.
+ * Per colour: the swatch as SVG + PNG and its shade ladder as SVG.
+ * Alongside them: `tokens.css` / `tokens.scss` / `tokens.json`
+ * (and the Tailwind, Figma and ASE forms, because a palette a designer
+ * cannot load into Illustrator is a palette they re-type), plus a
+ * README that names every colour's role, its RGB/CMYK/HSL and how it
+ * behaves on white and on black.
+ *
+ * No JPG, no `.ai`, no generated greys — that combination is what made
+ * this folder 12–13 MB across 300+ files (D37/D38).
+ *
+ * `depth: 'full'` restores the heavy formats (JPG + the PDF-shaped `.ai`,
+ * for both the swatch and its ladder) for the DEDICATED Colors download,
+ * where someone has asked for print originals by name. It is never what
+ * the whole-kit zip gets: a kit is browsed, and a browsable kit that
+ * takes a minute to build is a kit nobody waits for.
  */
 export async function addColorsToZip(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
+  opts?: { depth?: BundleDepth; includeNeutrals?: boolean },
 ): Promise<number> {
-  const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
-  const kitColors: PaletteColor[] = [
-    ...brand.colors.core.map((c, i) => ({
-      hex: c.hex,
-      name: c.name,
-      role: CORE_ROLES[i] ?? `Core ${i + 1}`,
-    })),
-    ...brand.colors.accent.map((c) => ({ hex: c.hex, name: c.name, role: 'Accent' })),
-  ];
+  const depth: BundleDepth = opts?.depth ?? 'lean';
+  const kitColors: PaletteColor[] = paletteFromMockBrand(brand, {
+    includeNeutrals: opts?.includeNeutrals ?? false,
+  });
+  if (kitColors.length === 0) return 0;
   const used = new Set<string>();
   let added = 0;
   for (const color of kitColors) {
@@ -205,25 +204,43 @@ export async function addColorsToZip(
     if (!dir) continue;
     const safe = slugifyName(folderName);
     const baseSvg = buildBaseColorSvg(color);
+    const shadeRows = buildShadeRows(color.hex, color.name);
+    const shadesSvg = buildShadesSvg(shadeRows);
+    const shadesH = 80 * shadeRows.length;
     zipAdd(dir, `${safe}.svg`, baseSvg);
-    const { png } = await rasterizeSvg(baseSvg, 600, 400);
+    const { png, jpg } = await rasterizeSvg(baseSvg, 600, 400);
     if (png) zipAdd(dir, `${safe}.png`, png);
-    zipAdd(dir, `${safe}-shades.svg`, buildShadesSvg(buildShadeRows(color.hex)));
+    zipAdd(dir, `${safe}-shades.svg`, shadesSvg);
+    if (depth === 'full') {
+      if (jpg) zipAdd(dir, `${safe}.jpg`, jpg);
+      const ai = await buildAiBlob(baseSvg, 1200, 750);
+      if (ai) zipAdd(dir, `${safe}.ai`, ai);
+      const shadesAi = await buildAiBlob(shadesSvg, 720, shadesH);
+      if (shadesAi) zipAdd(dir, `${safe}-shades.ai`, shadesAi);
+    }
     added += 1;
     await yieldToBrowser(signal);
   }
+  for (const { path, text } of buildTokenFiles(kitColors, brand.name)) {
+    zipAdd(folder, path, text);
+  }
+  const ase = buildAseBlob(kitColors);
+  if (ase) zipAdd(folder, 'palette.ase', ase);
+  zipAdd(folder, 'README.md', buildColorsReadme(kitColors, brand.name, depth));
   return added;
 }
 
 /* ─── Fonts ───────────────────────────────────────────────────────── */
 
 /**
- * The kit's font folder: the files the user actually uploaded, plus a
- * manifest naming every family.
+ * The kit's font folder: one folder per family holding the real files —
+ * uploaded bytes where the user gave us any, every declared weight fetched
+ * from Google otherwise — each with a `fonts.css` and a licence note, and a
+ * `README.md` naming what shipped and what did not.
  *
- * Google-hosted families are documented rather than fetched — the
- * dedicated Fonts download owns the remote-bundle path, and a kit export
- * that reaches the network per family is an export that can hang.
+ * `lean: true` drops only the per-family `embed.html` specimen page; the
+ * files, the CSS and the licence note are the point of the folder and a kit
+ * export that thins them out has not exported the typography.
  */
 export async function addFontsToZip(
   folder: ZipFolder,
@@ -239,7 +256,10 @@ export async function addFontsToZip(
   // typography folder than the Typography card does.
   const result = await addFontFamiliesToZip(
     folder,
-    brand.fonts.map((f) => ({ name: f.family, files: f.files })),
+    // The DECLARED weights travel with the family. Without them the
+    // exporter could only guess, and the guess is what made the kit's old
+    // manifest claim four weights over a folder holding Regular.
+    brand.fonts.map((f) => ({ name: f.family, files: f.files, weights: f.weights })),
     { signal, lean: true },
   );
   for (const name of result.missing) {
@@ -250,33 +270,26 @@ export async function addFontsToZip(
   }
   throwIfAborted(signal);
 
-  zipAdd(
-    folder,
-    'fonts.txt',
-    brand.fonts
-      .map(
-        (f) =>
-          `${f.family} — ${f.weights || 'Regular'}${f.files?.length ? ' (uploaded)' : ''}`,
-      )
-      .join('\n'),
-  );
+  // No `fonts.txt`. It restated the brand's weight string next to a folder
+  // that did not contain those weights — a manifest that disagrees with the
+  // files beside it is worse than no manifest. `addFontFamiliesToZip` writes
+  // a README.md naming what actually shipped, per family, and why anything
+  // is missing.
   return { added: result.ok.length, skipped };
 }
 
 /* ─── About + brand.json ──────────────────────────────────────────── */
 
-/** Markdown document of the brand's About sections + voice. */
-export function buildAboutMarkdown(brand: MockBrand): string {
-  const lines: string[] = [`# ${brand.name}`, ''];
-  for (const entry of brand.about) {
-    if (!entry.content.trim()) continue;
-    lines.push(`## ${entry.title}`, '', entry.content.trim(), '');
-  }
-  if (brand.voice?.essay?.trim()) {
-    lines.push('## Voice', '', brand.voice.essay.trim(), '');
-  }
-  return lines.join('\n');
-}
+/**
+ * `about.md`, re-exported from where the strategy documents are authored.
+ *
+ * It used to be written here, and it carried only the free-form sections
+ * and the voice — half of a document whose other half was `strategy.md`
+ * (`.audit/OURS.md` D66). The four strategy artefacts are decided
+ * together in `strategyDocument.ts`, because a set of files that names
+ * its own siblings cannot be written from two places.
+ */
+export { buildAboutMarkdown };
 
 /** The machine-readable summary that sits at the root of every bundle. */
 export function buildBrandJson(brand: MockBrand): string {
@@ -296,7 +309,13 @@ export function buildBrandJson(brand: MockBrand): string {
 
 /* ─── Whole-bundle helpers ────────────────────────────────────────── */
 
-/** Zip of logo variants only (the Logos card download). */
+/**
+ * The Logos card ⬇ — the same folder the Export Kit writes, zipped on its own.
+ *
+ * It calls `addLogosToZip` rather than reproducing it, which is the entire
+ * point: before this, the card download and the header download were two
+ * different builders behind one word and shipped two different payloads.
+ */
 export async function downloadLogosZip(brand: MockBrand): Promise<number> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
@@ -356,6 +375,26 @@ export async function downloadKitZip(
   for (const extra of opts?.extraFiles ?? []) {
     zipAdd(root, extra.path, extra.blob);
   }
+
+  // Every bundle explains itself. The list is read back out of the ARCHIVE
+  // rather than assembled from what this function meant to write, so a
+  // caller's `extraFiles` are described too and nothing can be named that
+  // is not actually in the zip.
+  opts?.onProgress?.('readme');
+  zipAdd(
+    root,
+    'README.md',
+    buildKitReadmeFile(brand, {
+      files: [
+        { path: 'README.md', label: 'This file' },
+        ...Object.keys(zip.files)
+          .filter((path) => !zip.files[path].dir)
+          .sort()
+          .map((path) => ({ path })),
+      ],
+      generatedAt: new Date(),
+    }).blob,
+  );
 
   const blob = await zip.generateAsync({ type: 'blob' });
   triggerBlobDownload(blob, `${slugifyName(brand.name)}-brand-kit.zip`);

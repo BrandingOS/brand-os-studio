@@ -1,4 +1,4 @@
-import type { Brand, BrandLogoAssets, BrandStrategy } from '@/shared/types/brand';
+import type { Brand, BrandLogoAssets, BrandStrategy, LogoUsagePolicy } from '@/shared/types/brand';
 import { fromLegacyBrand } from '@/domain/brand';
 import type { TypographySystem, LogoRole } from '@/shared/types/brandAssets';
 import { stageLogoAssignment } from '@/shared/assets/assetOperations';
@@ -6,6 +6,8 @@ import { logoRoleLabel } from '@/shared/brand/logoRoles';
 import { TILE_LABEL } from './logoBoard';
 import type { BrandLogo, MockBrand } from './mockBrand';
 import { isRampStep } from './neutralRamp';
+import { suggestedIconsFor } from './brandToMockBrand';
+import { hexToName } from './colorNames';
 
 /**
  * Inverse of `brandToMockBrand`: takes the current Setup mock shape
@@ -195,6 +197,106 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
           }
         : {}),
       ...(aboutChanged ? { aboutSections: nextAbout } : {}),
+    };
+  }
+
+  /* ─────────────────────────  icons  ───────────────────────── */
+  //
+  // The icon set is the brand's, so it is STORED — before this it was
+  // recomputed from the brand's prose on every read, and a weight, a tint or an
+  // added symbol survived exactly until the next paint (audit D11).
+  //
+  // It travels under `guidelines.iconography` and, like `guidelines` generally,
+  // that value is persisted WHOLE — so the write spreads what is already there
+  // (the prose a guidelines page prints: style, stroke weight, corner radius,
+  // usage) and only replaces the three fields that are the set itself.
+  //
+  // The WEIGHT is not a field: it is the prefix on each class name
+  // (`fi-br-camera`), which is what a UICONS name already means. One place to
+  // read it from is one place it can be wrong.
+
+  const heldIcons = existing.guidelines?.iconography;
+  const nextIcons = mock.icons.filter((c) => typeof c === 'string' && c.trim());
+  // The baseline is what the brand ALREADY OWNS, and only a suggestion when it
+  // owns nothing — otherwise a save about the mission would quietly commit a
+  // set of icons the user never looked at.
+  const heldSet = heldIcons?.set?.length ? heldIcons.set : suggestedIconsFor(existing);
+  const iconsChanged =
+    !arraysEqual(nextIcons, heldSet) ||
+    (mock.iconPack ?? '') !== (heldIcons?.pack ?? '') ||
+    (mock.iconTint ?? '') !== (heldIcons?.tint ?? '');
+
+  if (iconsChanged && nextIcons.length > 0) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      iconography: {
+        style: heldIcons?.style ?? '',
+        weight: heldIcons?.weight ?? '',
+        cornerRadius: heldIcons?.cornerRadius ?? '',
+        usage: heldIcons?.usage ?? '',
+        examples: heldIcons?.examples ?? [],
+        set: nextIcons,
+        ...(mock.iconPack ? { pack: mock.iconPack } : {}),
+        ...(mock.iconTint ? { tint: mock.iconTint } : {}),
+      },
+    };
+  }
+
+  /* ─────────────────────  logo usage policy  ───────────────────── */
+  //
+  // The two answers about the logo system that measurement cannot reach: the
+  // grounds the brand has ruled out, and a mono cut it does not publish.
+  // Everything else the kit shows is DERIVED from contrast and must stay
+  // derived — storing the pairings would let a saved list disagree with the
+  // palette that produced it the moment a colour changed.
+  //
+  // Absent stays absent. A brand that has never expressed a policy must not
+  // gain one because an unrelated save flushed the whole projection through
+  // here — that is how a brand ends up with a frozen copy of the grounds it
+  // happened to have on one afternoon.
+
+  const heldUsage = existing.guidelines?.logoUsage;
+  const nextUsage: LogoUsagePolicy = {
+    ...(mock.logoGrounds ? { grounds: [...mock.logoGrounds] } : {}),
+    ...(mock.logoTreatments ? { treatments: [...mock.logoTreatments] } : {}),
+  };
+  const usageChanged =
+    !arraysEqual(nextUsage.grounds ?? [], heldUsage?.grounds ?? []) ||
+    !arraysEqual(nextUsage.treatments ?? [], heldUsage?.treatments ?? []);
+  if (usageChanged) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      logoUsage: nextUsage,
+    };
+  }
+
+  /* ─────────────────────────  colour names  ───────────────────────── */
+  //
+  // The palette persists as bare hexes — `primaryColor`, `secondaryColor`,
+  // `accentColor`, `neutrals[]` — and every reader derives the label from the
+  // hex (`hexToName`). So a name the user TYPED had nowhere to go: the Brand
+  // Kit's Colors panel accepted a rename, confirmed it, wrote the patch, and
+  // the next read said "Iris" again (QA Q1).
+  //
+  // Only names that differ from the derived one are stored, so a brand nobody
+  // has renamed keeps an absent map and reads exactly as it did before. Written
+  // LAST of the `guidelines` writers above, spreading whatever they produced —
+  // the strategy block assigns the key outright, so an earlier write here would
+  // be dropped by a save that also touched the mission.
+
+  const chosen: Record<string, string> = {};
+  for (const c of [...mock.colors.core, ...mock.colors.accent]) {
+    const hex = c.hex.toUpperCase().replace(/^#?/, '#');
+    if (c.name && c.name !== hexToName(hex)) chosen[hex] = c.name;
+  }
+  const heldNames = existing.guidelines?.colorNames ?? {};
+  const namesChanged =
+    Object.keys(chosen).length !== Object.keys(heldNames).length ||
+    Object.entries(chosen).some(([hex, name]) => heldNames[hex] !== name);
+  if (namesChanged) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      colorNames: chosen,
     };
   }
 

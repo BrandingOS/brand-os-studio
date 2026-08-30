@@ -1,60 +1,442 @@
-import type { Brand } from '@/shared/types/brand';
-import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+/**
+ * Sticker — the brand as a die-cut object.
+ *
+ * Six vector scenes. A sticker is the one mockup where the artwork and the
+ * object are the same shape, so the scene is mostly about the CUT: a
+ * circle, a rounded square, a keyline badge, a sheet of them, one applied
+ * to a laptop lid, and a long banner. Every face is flat and opaque, and
+ * the paper edge is drawn as a ring around the face rather than a border
+ * inside it — a border would eat into the printable area the type is
+ * centred in.
+ *
+ * Ids `mockup-sticker-ext-1 … -6` are the six kept designs; `-7 … -30`
+ * stay reserved and archived (`curation/mockups.ts`).
+ */
+import type { CSSProperties, ReactNode } from 'react';
+import {
+  Badge,
+  CastShadow,
+  DeclareRest,
+  Mark,
+  Primary,
+  Print,
+  Scene,
+  SceneLight,
+  SceneSvg,
+  Secondary,
+  Url,
+  accentOn,
+  ink,
+  mutedOn,
+  renderScene,
+  templateList,
+  withIds,
+  type MockupPalette,
+  type MockupRendererProps,
+  type MockupScene,
+} from './MockupScene';
+import { typePx } from './typeFloor';
 
-/** Sticker-sheet mockups — 30 individual sticker designs displayed
- *  as a peeling sticker on craft-paper backing. */
-interface Props { brand: Brand; templateIndex: number }
+/* ── The object ───────────────────────────────────────────────────── */
 
-function StickerFrame({ children, shape = 'rounded-md' }: { children: React.ReactNode; shape?: string }) {
+/**
+ * A die-cut sticker: a flat face with a paper border and a lifted shadow.
+ *
+ * `cut` is the white-ish paper margin every die-cut sticker has. It is a
+ * ring OUTSIDE the printed face (an outline plus padding on the wrapper),
+ * so the face itself stays the full printable area.
+ */
+function Sticker({
+  face,
+  cut,
+  style,
+  radius = 999,
+  children,
+  tilt = 0,
+  centre = false,
+}: {
+  face: string;
+  /** The paper edge. Omit for a sticker printed edge to edge. */
+  cut?: string;
+  style: CSSProperties;
+  radius?: number | string;
+  children: ReactNode;
+  tilt?: number;
+  /**
+   * Centre it horizontally on `left`.
+   *
+   * A round sticker is sized by its HEIGHT — `aspectRatio` on a percentage
+   * WIDTH resolves against the scene's width, so on a landscape tile a
+   * 56%-wide circle came out 91% tall and hung off the bottom of the card.
+   * Height is the dimension a scene actually has to spare, so the width
+   * follows from it and the object is centred rather than positioned.
+   */
+  centre?: boolean;
+}) {
+  // The ring is drawn by INSETTING the face inside a `cut`-coloured box,
+  // not by a border on the face: a border would be laid inside the face's
+  // own box and the type centred in it would sit off-centre by half the
+  // ring.
+  const ring = cut ? '4%' : '0%';
   return (
-    <div className="w-full h-full bg-[#D9CFB8] flex items-center justify-center p-[6%]">
-      <div className={`relative bg-white shadow-lg ${shape}`} style={{ width: '46%', aspectRatio: '1/1', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' }}>
-        <div className={`absolute inset-[8%] ${shape} overflow-hidden`}>{children}</div>
-      </div>
+    <div
+      style={{
+        position: 'absolute',
+        backgroundColor: cut,
+        borderRadius: radius,
+        transform: [centre ? 'translateX(-50%)' : '', tilt ? `rotate(${tilt}deg)` : '']
+          .filter(Boolean)
+          .join(' ') || undefined,
+        boxShadow: '0 3px 9px rgba(0,0,0,0.24)',
+        ...style,
+      }}
+    >
+      <Print
+        bg={face}
+        style={{ left: ring, top: ring, right: ring, bottom: ring, borderRadius: radius }}
+      >
+        {children}
+      </Print>
     </div>
   );
 }
 
-export function MockupStickerExtendedRenderer({ brand, templateIndex }: Props) {
-  const p = brand.primaryColor;
-  const init = brand.name.charAt(0).toUpperCase();
-  const N = brand.name.toUpperCase();
-
-  const designs = [
-    [(<div className="w-full h-full flex items-center justify-center" style={{backgroundColor:p}}><span className="text-white font-serif font-black text-[24px]">{init}</span></div>), 'rounded-full'],
-    [(<div className="w-full h-full flex items-center justify-center bg-white"><BrandLogo brand={brand} size="md" color={p} /></div>), 'rounded-md'],
-    [(<div className="w-full h-full flex items-center justify-center" style={{backgroundColor:p}}><div className="text-center text-white"><div className="text-[5px] uppercase tracking-[0.32em] opacity-90">— hello —</div><div className="text-[14px] font-serif font-black mt-0.5">{brand.name}</div></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${p} 0%, ${p}66 100%)` }}><div className="absolute inset-0 flex items-center justify-center text-white text-[10px] font-bold">RAD.</div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-[#0F1216] flex items-center justify-center"><span className="font-mono text-[7px]" style={{color:p}}>{`{${brand.name.toLowerCase()}}`}</span></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-[#FAF6EE] flex items-center justify-center"><div className="-rotate-6 border-2 px-2 py-0.5" style={{borderColor:p,color:p}}><span className="text-[6px] uppercase tracking-[0.22em] font-bold">good vibes</span></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-[1px]">{Array.from({length:9}).map((_,i)=><div key={i} style={{backgroundColor:i===4?p:i%2===0?'#FBF8EE':'#0F1216'}} />)}</div>), 'rounded-sm'],
-    [(<div className="w-full h-full flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[10px]">★</div></div>), 'rounded-full'],
-    [(<div className="w-full h-full flex items-center justify-center bg-white"><div className="text-[14px] italic font-bold" style={{ fontFamily:'Caveat, cursive', color:p }}>hi.</div></div>), 'rounded-full'],
-    [(<div className="w-full h-full flex items-center justify-center bg-[#FBF8EE]"><div className="text-[12px] font-bold" style={{color:p}}>#{brand.name.toLowerCase()}</div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-0 flex items-center justify-center text-white text-center"><div><div className="text-[5px] uppercase tracking-[0.32em] opacity-80">est. 2026</div><div className="text-[10px] font-serif italic font-bold mt-0.5">{brand.name}</div></div></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full bg-white flex items-center justify-center"><div className="rounded-full w-[60%] aspect-square border-4 flex items-center justify-center" style={{borderColor:p}}><span className="text-[12px] font-serif font-black" style={{color:p}}>{init}</span></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full bg-[#FAF6EE] flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— member —</div><div className="text-[10px] font-bold" style={{color:p}}>{brand.name}</div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— club —</div></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-0 flex items-center justify-center"><BrandLogo brand={brand} size="lg" color="#fff" /></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-[#FBF8EE] flex items-center justify-center"><div className="text-[44px] font-serif font-black leading-none" style={{color:p}}>{init}.</div></div>), 'rounded-full'],
-    [(<div className="w-full h-full" style={{ background: `repeating-linear-gradient(45deg, ${p} 0 6px, #fff 6px 12px)` }}><div className="absolute inset-0 flex items-center justify-center"><div className="bg-white rounded-full w-[60%] aspect-square flex items-center justify-center"><span className="text-[10px] font-bold" style={{color:p}}>{brand.name}</span></div></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-white flex items-center justify-center"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em]" style={{color:p}}>good news —</div><div className="text-[10px] font-serif italic font-bold mt-1">you're cool.</div></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-[#0F1216]"><div className="absolute inset-0" style={{ background: `radial-gradient(circle at 30% 30%, ${p}AA, transparent 70%)` }} /><div className="absolute inset-0 flex items-center justify-center"><span className="text-[10px] font-mono font-bold text-white">{brand.name}.live</span></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-white"><div className="absolute inset-0" style={{ background: p, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} /><div className="absolute right-2 bottom-2 text-[8px] font-bold">{brand.name}</div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[40%] bg-white flex items-center justify-center"><div className="text-[10px] font-bold" style={{color:p}}>{brand.name}</div></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-[#FAF6EE] flex items-center justify-center"><div className="text-center"><div className="text-[24px] leading-none font-serif" style={{color:p}}>"</div><div className="text-[7px] font-serif italic mt-1">cool kids</div></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-0 flex items-center justify-center"><div className="text-[10px] font-bold text-white">RAD CO.</div></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full bg-white"><div className="absolute inset-0 grid grid-cols-3 grid-rows-3">{Array.from({length:9}).map((_,i)=><div key={i} style={{borderRight:'1px solid #00000010',borderBottom:'1px solid #00000010'}} />)}</div><div className="absolute inset-0 flex items-center justify-center"><span className="text-[16px] font-bold" style={{color:p}}>{init}</span></div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{ background: `conic-gradient(from 180deg, ${p}, ${p}99, ${p}, ${p}99, ${p})` }}><div className="absolute inset-[20%] rounded-full bg-white flex items-center justify-center"><span className="text-[10px] font-bold" style={{color:p}}>{init}</span></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full bg-[#FBF8EE]"><div className="absolute inset-x-0 bottom-0 h-[55%]" style={{backgroundColor:p}} /><div className="absolute inset-x-0 top-[10%] flex justify-center"><BrandLogo brand={brand} size="sm" color={p} /></div><div className="absolute inset-x-0 bottom-[8%] text-center text-white text-[6px] uppercase tracking-[0.32em]">{brand.name}</div></div>), 'rounded-md'],
-    [(<div className="w-full h-full bg-white flex items-center justify-center"><div className="text-center"><BrandLogo brand={brand} size="sm" color={p} /><div className="w-[20px] h-[1px] mx-auto my-1" style={{backgroundColor:p}} /><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— since 2026 —</div></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full bg-[#FAF6EE] flex items-center justify-center"><div className="text-[10px] font-mono font-bold" style={{color:p}}>{`> ./run`}</div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-0 flex items-center justify-center text-white"><div className="text-center"><div className="text-[5px] uppercase tracking-[0.32em] opacity-80">— with —</div><div className="text-[14px] font-serif italic font-bold">love.</div></div></div></div>), 'rounded-full'],
-    [(<div className="w-full h-full bg-white p-2 flex flex-col items-center justify-center"><div className="text-[44px] tabular-nums leading-none font-bold" style={{color:p}}>14</div><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500 mt-1">— issue 014 —</div></div>), 'rounded-md'],
-    [(<div className="w-full h-full" style={{backgroundColor:p}}><div className="absolute inset-0 flex items-center justify-center"><div className="text-white text-[9px] font-bold uppercase tracking-tight rotate-[-6deg]">{N} CO.</div></div></div>), 'rounded-md'],
-  ] as const;
-
-  const [art, shape] = designs[templateIndex] ?? designs[0];
-  return <StickerFrame shape={shape}>{art}</StickerFrame>;
+/** The centred column every sticker face uses. */
+function Art({ children, gap = 2, pad = '0 12%' }: { children: ReactNode; gap?: number; pad?: string }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap,
+        padding: pad,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
-export const MOCKUP_STICKER_EXTENDED = Array.from({length:30},(_,i)=>({idSuffix:`ext-${i+1}`,name:['Initial Round','Logo Square','Hello','Gradient Rad','Code Token','Good Vibes','Pixel','Star','Hi','Hashtag','Est','Outline Initial','Member Club','Logo Big','Initial Period','Stripes','Cool','Spotlight','Diagonal','Half','Quote Italic','Rad Co','Grid','Conic','Mountain','Crest','Term','Love','Number','Tilted'][i],category:'Print'}));
+function nameStyle(p: MockupPalette, face: string, size: number) {
+  return {
+    fontFamily: p.heading,
+    fontSize: typePx(size),
+    lineHeight: 1.05,
+    fontWeight: 800,
+    letterSpacing: '-0.01em',
+    color: ink(face),
+    maxWidth: '100%',
+  };
+}
+
+function noteStyle(p: MockupPalette, face: string, size = 4.5) {
+  return {
+    fontFamily: p.body,
+    fontSize: typePx(size),
+    lineHeight: 1.3,
+    color: mutedOn(face),
+    maxWidth: '100%',
+  };
+}
+
+/* ── The six scenes ───────────────────────────────────────────────── */
+
+export const STICKER_SCENES: ReadonlyArray<MockupScene> = withIds([
+  {
+    name: 'Circle Die-Cut',
+    category: 'Print',
+    tags: ['Minimal', 'Classic', 'Giveaway'],
+    render: ({ brand, c, p }) => {
+      const face = p.brand;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={30} y={18} strength={0.4} />
+          <CastShadow cx={50} cy={80} rx={22} ry={2.6} opacity={0.18} />
+          <Sticker
+            face={face}
+            cut={p.paper}
+            centre
+            style={{ left: '50%', top: '10%', height: '76%', aspectRatio: '1 / 1' }}
+          >
+            <Art gap={3}>
+              <Mark brand={brand} c={c} p={p} on={face} size={22} />
+              <Primary c={c} style={nameStyle(p, face, 10)} />
+              <Secondary c={c} style={{ ...noteStyle(p, face, 5), color: ink(face) }} />
+            </Art>
+          </Sticker>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Rounded Square',
+    category: 'Print',
+    tags: ['Modern', 'Bold', 'Merch'],
+    render: ({ brand, c, p }) => {
+      const face = p.dark;
+      return (
+        <Scene ground={p.paper}>
+          <SceneLight x={26} y={14} strength={0.36} />
+          <CastShadow cx={50} cy={82} rx={24} ry={2.8} opacity={0.2} />
+          <Sticker
+            face={face}
+            cut={p.paper}
+            radius={14}
+            tilt={-4}
+            centre
+            style={{ left: '50%', top: '11%', height: '74%', aspectRatio: '1 / 1' }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                padding: '10%',
+              }}
+            >
+              <Mark brand={brand} c={c} p={p} on={face} size={18} />
+              <div>
+                <Primary c={c} style={nameStyle(p, face, 12)} />
+                <Url c={c} style={{ ...noteStyle(p, face, 5), marginTop: 1 }} />
+              </div>
+            </div>
+          </Sticker>
+          <DeclareRest c={c} omit={['primaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Keyline Badge',
+    category: 'Print',
+    tags: ['Craft', 'Heritage', 'Quiet'],
+    render: ({ brand, c, p }) => {
+      const face = p.paper;
+      const rule = accentOn(face, p);
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={70} y={16} strength={0.44} />
+          <CastShadow cx={50} cy={80} rx={22} ry={2.6} opacity={0.16} />
+          <Sticker
+            face={face}
+            centre
+            style={{ left: '50%', top: '10%', height: '76%', aspectRatio: '1 / 1' }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: '9%',
+                border: `1.5px solid ${rule}`,
+                borderRadius: 999,
+              }}
+            />
+            <Art gap={2} pad="0 18%">
+              <Mark brand={brand} c={c} p={p} on={face} size={16} />
+              <Primary c={c} style={nameStyle(p, face, 8)} />
+              <div style={{ height: 1, width: '34%', backgroundColor: rule }} />
+              <Secondary c={c} style={noteStyle(p, face, 4.5)} />
+            </Art>
+          </Sticker>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Sticker Sheet',
+    category: 'Print',
+    tags: ['Set', 'Packaging', 'Playful'],
+    render: ({ brand, c, p }) => {
+      const sheet = p.paper;
+      const a = p.brand;
+      const b = p.dark;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={34} y={12} strength={0.4} />
+          <CastShadow cx={50} cy={84} rx={30} ry={3} opacity={0.2} />
+          <Print
+            bg={sheet}
+            style={{ left: '10%', top: '12%', width: '80%', height: '72%', borderRadius: 4 }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gridTemplateRows: '1fr 1fr',
+                gap: '5%',
+                padding: '7%',
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: a,
+                  borderRadius: 999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Mark brand={brand} c={c} p={p} on={a} size={16} />
+              </div>
+              <div
+                style={{
+                  backgroundColor: b,
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 8%',
+                }}
+              >
+                <Primary c={c} style={nameStyle(p, b, 7)} />
+              </div>
+              <div
+                style={{
+                  backgroundColor: b,
+                  borderRadius: 999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 8%',
+                }}
+              >
+                <Url c={c} style={{ ...noteStyle(p, b, 4.5), color: ink(b) }} />
+              </div>
+              <div
+                style={{
+                  backgroundColor: a,
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 8%',
+                  textAlign: 'center',
+                }}
+              >
+                <Secondary c={c} style={{ ...noteStyle(p, a, 4.5), color: ink(a) }} wrap />
+              </div>
+            </div>
+          </Print>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Laptop Lid',
+    category: 'Print',
+    tags: ['Lifestyle', 'Tech', 'Applied'],
+    render: ({ brand, c, p }) => {
+      const lid = p.dark;
+      const face = p.brand;
+      return (
+        <Scene ground={p.wall}>
+          <SceneLight x={32} y={12} strength={0.34} />
+          <CastShadow cx={50} cy={82} rx={34} ry={3.4} opacity={0.24} />
+          {/* The lid, seen slightly from above. */}
+          <Print
+            bg={lid}
+            curve={0.1}
+            style={{ left: '10%', top: '18%', width: '80%', height: '58%', borderRadius: 6 }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: '6%',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <Badge c={c} on={lid} p={p} />
+            </div>
+          </Print>
+          <Sticker
+            face={face}
+            cut={p.paper}
+            radius={10}
+            tilt={-6}
+            centre
+            style={{ left: '50%', top: '30%', height: '34%', aspectRatio: '5 / 4' }}
+          >
+            <Art gap={2} pad="0 10%">
+              <Mark brand={brand} c={c} p={p} on={face} size={14} />
+              <Primary c={c} style={nameStyle(p, face, 8)} />
+              <Url c={c} style={{ ...noteStyle(p, face, 4.5), color: ink(face) }} />
+            </Art>
+          </Sticker>
+          <DeclareRest c={c} omit={['primaryText', 'url', 'badge']} />
+        </Scene>
+      );
+    },
+  },
+  {
+    name: 'Long Banner',
+    category: 'Print',
+    tags: ['Typographic', 'Statement', 'Bumper'],
+    render: ({ c, p }) => {
+      const face = p.brand;
+      const second = p.dark;
+      return (
+        <Scene ground={p.paper}>
+          <SceneLight x={50} y={18} strength={0.34} />
+          <CastShadow cx={50} cy={62} rx={34} ry={2.4} opacity={0.16} />
+          <Sticker
+            face={face}
+            cut={p.paper}
+            radius={999}
+            tilt={-3}
+            style={{ left: '8%', top: '26%', width: '84%', height: '20%' }}
+          >
+            <Art gap={0} pad="0 8%">
+              <Primary
+                c={c}
+                style={{ ...nameStyle(p, face, 13), letterSpacing: '0.02em' }}
+              />
+            </Art>
+          </Sticker>
+          <Sticker
+            face={second}
+            cut={p.paper}
+            radius={999}
+            tilt={2}
+            style={{ left: '18%', top: '54%', width: '64%', height: '15%' }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                padding: '0 8%',
+              }}
+            >
+              <Secondary c={c} style={{ ...noteStyle(p, second, 5), color: ink(second) }} />
+              <Url c={c} style={noteStyle(p, second, 4.5)} />
+            </div>
+          </Sticker>
+          <DeclareRest c={c} omit={['primaryText', 'secondaryText', 'url']} />
+        </Scene>
+      );
+    },
+  },
+]);
+
+export function MockupStickerExtendedRenderer(props: MockupRendererProps) {
+  return <>{renderScene(STICKER_SCENES, props)}</>;
+}
+
+export const MOCKUP_STICKER_EXTENDED = templateList(STICKER_SCENES);

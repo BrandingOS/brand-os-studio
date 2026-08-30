@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { flushSync } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { ArrowRight } from '@/features/setup/components/SetupIcons';
@@ -16,7 +17,19 @@ import { hexToName } from '@/features/setup/data/colorNames';
 import type { BrandColor, MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
+import { container as serviceContainer } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS } from '@/core';
+import type { IDesignStorage } from '@/core/types/services';
+import { createTemplateInstanceDocument } from '@/features/editor/renderers/template-instance/createDocument';
+import { defaultContentFor, contentKindForTemplateType } from '@/features/brandkit/content';
+import { ensureMasterDesign, instanceFromMaster } from './kit/masterTemplates';
+import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
+import { BrandAssetPhotoRenderer } from './renderers/BrandAssetsRenderers';
+import {
+  rendererBindsContent,
+  NO_CONTENT_BINDING_REASON,
+} from './renderers/contentBinding';
 import { type KitSectionKey } from './components/BrandKitSidebar';
 import { KitSidebar } from './components/KitSidebar';
 import { KitSection } from './components/KitSection';
@@ -36,8 +49,31 @@ import {
   type EditorTarget,
 } from './components/BrandKitCardEditor';
 import { ExportKitDialog } from './components/ExportKitDialog';
+import { DownloadMenu, type DownloadChoice } from './components/DownloadMenu';
+import {
+  downloadOptionsFor,
+  pngToJpg,
+  pngToPdf,
+  resizePng,
+  PRINT_PAGE_MM,
+  type DownloadOption,
+} from './data/exportFormats';
+import { photosUnavailableReason } from './data/photoExport';
 import { IconPickerModal } from './components/IconPickerModal';
+import { ColorsEditor } from './components/assets/ColorsEditor';
+import { TypographyEditor } from './components/assets/TypographyEditor';
+import { IconsEditor } from './components/assets/IconsEditor';
+import { LogosEditor } from './components/assets/LogosEditor';
+import { PhotosEditor } from './components/assets/PhotosEditor';
+import { StrategyEditor } from './components/assets/StrategyEditor';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
+import { TileActions, type TileMenuAction } from './components/TileActions';
+import {
+  KitFilterRow,
+  KitFilterEmpty,
+  useKitFilter,
+} from './components/KitFilterRow';
+import { getDeliverable, type DeliverableDef } from './kit/registry';
 import { variantsForCard } from './data/legacy-mapping';
 import { suggestIconsForBrand } from './data/suggestIcons';
 import {
@@ -79,7 +115,11 @@ import {
   paletteOf,
   slugifyName,
 } from './data/kitExport';
-import { downloadEntry, downloadEverything } from './data/exportEverything';
+import {
+  downloadEntry,
+  downloadEverything,
+  type KitExportFormats,
+} from './data/exportEverything';
 import { isCancelled } from './data/exportScheduler';
 
 // Rounded weight family from Flaticon UICONS — Regular drives the
@@ -121,6 +161,60 @@ const MAX_DELAY_MS = 500;
 /** ms-per-pixel speed for the radial wipe. */
 const WIPE_SPEED = 0.4;
 
+/**
+ * The brand-asset cards that own a dedicated editor, by STORAGE label.
+ *
+ * These five are not templates and never were — editing them means
+ * editing the brand, so they open their own panel instead of the generic
+ * Quick Edit. `Fonts` (not `Typography`) because the catalog renames the
+ * card and a rename must never cost anyone their editor.
+ */
+const ASSET_EDITOR_LABELS = new Set(['Logos', 'Colors', 'Fonts', 'Icons', 'Photos', 'About']);
+
+/**
+ * How often a running export may repaint its progress line.
+ *
+ * Six or seven updates a second is already faster than anyone reads, and it
+ * is three orders of magnitude below what JSZip's per-chunk callback offers.
+ */
+const PROGRESS_PAINT_MS = 150;
+
+/** A file size the way a person says one. */
+function readableBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/**
+ * How much of the stage the sticky top bar would cover. Measured, not
+ * assumed: below 720px the bar wraps its tab strip onto a second row, so a
+ * constant would leave the drilldown's header under it.
+ */
+function topBarHeight(): number {
+  const bar = document.querySelector<HTMLElement>('.top-nav-wrap');
+  return bar ? Math.round(bar.getBoundingClientRect().height) : 80;
+}
+
+/**
+ * The document scroll position that puts the stage under the top bar.
+ *
+ * On a two-column viewport this is 0 (the board starts right below the
+ * chrome), which is exactly what the enter transition used to hard-code. In
+ * one column the sidebar sits above the board, so 0 means "look at the
+ * navigation" — and a card that opens something you cannot see has not
+ * visibly opened anything.
+ */
+function stageScrollTop(stage: HTMLElement | null): number {
+  if (!stage) return 0;
+  const top = stage.getBoundingClientRect().top + window.scrollY - topBarHeight();
+  // Anything within a hair of the top IS the top. Two columns leave the
+  // stage a few pixels below the bar, and scrolling by five pixels where
+  // the approved transition scrolled to zero is a visible jitter for no
+  // gain.
+  return top < 24 ? 0 : Math.round(top);
+}
+
 export function BrandKitCosmosPage({
   brand,
   sourceBrand,
@@ -134,6 +228,13 @@ export function BrandKitCosmosPage({
    *  cover for every tile. */
   sourceBrand?: Brand;
 }) {
+  const navigate = useNavigate();
+  // Defensive lookup — some test harnesses render this page without
+  // booting the DI container. `handleUseTemplate` treats a null service
+  // as "can't do this yet" rather than crashing the page.
+  const designStorage = serviceContainer.has(SERVICE_KEYS.DESIGN_STORAGE)
+    ? serviceContainer.get<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE)
+    : null;
   // Which capabilities this viewer may see. Nothing here can be granted
   // from the address bar — see `catalog/useKitViewer`.
   const viewer = useKitViewer();
@@ -159,6 +260,16 @@ export function BrandKitCosmosPage({
         ? loadCardCustomization(customizationBrandId, cardCustomizationKey(editorTarget))
         : null,
     [editorTarget, customizationBrandId],
+  );
+  // Every Quick Edit this brand has saved, read once. The covers paint from
+  // it, so a card's face says what the user wrote — `savedRevision` is
+  // bumped on save because the store is localStorage, which nothing
+  // subscribes to.
+  const [savedRevision, setSavedRevision] = useState(0);
+  const savedContent = useMemo(
+    () => loadBrandCustomizations(customizationBrandId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customizationBrandId, savedRevision],
   );
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   // Which template-picker is open (by card label), or null when none.
@@ -221,7 +332,7 @@ export function BrandKitCosmosPage({
     return suggestIconsForBrand(text, 50);
   }, [brand, sourceBrand]);
 
-  const effectiveBrand = useMemo<MockBrand>(() => {
+  const baseBrand = useMemo<MockBrand>(() => {
     let next = brand;
     if (iconsOverride) {
       next = { ...next, icons: iconsOverride };
@@ -240,6 +351,54 @@ export function BrandKitCosmosPage({
     }
     return next;
   }, [brand, iconsOverride, suggestedIcons, colorAddsOverride]);
+
+  /**
+   * Which brand-asset editor is open, addressed by the card's STORAGE
+   * label (`Fonts`, not `Typography`) so a renamed card still opens the
+   * right one. `null` when none is.
+   *
+   * The five editors existed, were tested, and had no caller: the Edit
+   * pencil on Logos / Colors / Typography / Icons / Photos opened the
+   * generic Quick Edit over a stock cover instead, so the only way to
+   * change a brand's palette from the kit was to leave the kit.
+   */
+  const [assetEditor, setAssetEditor] = useState<string | null>(null);
+  /**
+   * The editor's live draft, shown by the kit BEHIND the open panel.
+   *
+   * It shadows `baseBrand` rather than replacing it: an editor writes for
+   * real through the Setup chain (`mockBrandToPatch` → `brandStore`), so
+   * once the panel closes the saved brand must be what paints. Keeping
+   * the draft would silently show an abandoned edit as the brand.
+   *
+   * The editors are fed `baseBrand`, never this — a preview that fed back
+   * into the editor's own seed would recompute the draft from the draft.
+   */
+  const [brandPreview, setBrandPreview] = useState<MockBrand | null>(null);
+  /**
+   * The drilldown tile the asset editor was opened FROM, when it was opened
+   * from one.
+   *
+   * A tile's ✎ used to hand the legacy card editor a brand-asset target it
+   * has no fields for, so the panel opened empty — a logo on a grey field
+   * with Cancel / Download / Save and nothing between (QA Q6). A brand asset
+   * has exactly one editor, and it is the one the CARD opens: the answer to
+   * "edit this logo" is the logo system, not a retouch of one tile's stock
+   * artwork. The tile is not thrown away, though — it says which variant the
+   * user was looking at, and the Logos panel opens on that row.
+   */
+  const [assetEditorVariant, setAssetEditorVariant] = useState<string | null>(null);
+  const closeAssetEditor = useCallback(() => {
+    setAssetEditor(null);
+    setAssetEditorVariant(null);
+    setBrandPreview(null);
+  }, []);
+  /** Open a brand asset's own editor, optionally on the variant that was clicked. */
+  const openAssetEditor = useCallback((label: string, templateId?: string) => {
+    setAssetEditor(label);
+    setAssetEditorVariant(templateId ?? null);
+  }, []);
+  const effectiveBrand = brandPreview ?? baseBrand;
 
   const handleAddColor = useCallback(
     (group: 'core' | 'accent', hex: string) => {
@@ -341,11 +500,88 @@ export function BrandKitCosmosPage({
     }
   }, []);
 
+  /**
+   * Download one card — or, when `templateId` is given, ONE VARIANT of it.
+   *
+   * A tile's ⬇ has to download the design under the cursor, not the card's
+   * first featured one (`.audit/OURS.md` D53). Rather than a second export
+   * path, the variant is expressed as a one-entry featured list: the shared
+   * writer already ships "the variants the card SHOWS", so narrowing that
+   * list to a single id makes the bundle exactly this design, through the
+   * same code the card, the group and Export Kit all use.
+   *
+   * Brand-asset cards are the exception, and deliberately: Logos, Colors,
+   * Fonts, Icons and Photos export as BUNDLES of the brand's own files, not
+   * as rasterised template variants. A tile there rasterises itself.
+   */
   const handleDownloadCard = useCallback(
-    async (t: EditorTarget) => {
+    async (
+      t: EditorTarget,
+      choice: DownloadChoice = { format: 'png' },
+      templateId?: string,
+    ) => {
       const b = effectiveBrand;
       const slug = slugifyName(b.name);
+      const one = templateId
+        ? (t.templates ?? []).find((tpl) => tpl.id === templateId)
+        : undefined;
       try {
+        if (templateId && t.sectionKey === 'brand-assets') {
+          // A brand-asset tile is its own artifact — rasterise THIS tile.
+          if (!one || !sourceBrand) {
+            toast(`Nothing to export for ${t.displayLabel ?? t.label} yet`);
+            return;
+          }
+          // …unless the tile is an EMPTY STATE. The Photos card renders
+          // "No photos yet" when the brand has none, and rasterising that
+          // shipped a picture of an error message under the missing
+          // photograph's own name — `skam-grain-texture-overlay.png` was a
+          // white card reading "No photos yet" (QA Q14).
+          if (t.label === 'Photos') {
+            const reason = photosUnavailableReason(b);
+            if (reason) {
+              toast(`Nothing to export for ${one.name}`, { description: reason });
+              return;
+            }
+          }
+          const blob = await snapshotTemplatePng(
+            renderTemplateDesign(one, sourceBrand, b),
+            260,
+            aspectForLabel(t.label),
+          );
+          if (!blob) throw new Error('Rasterization produced no image');
+          triggerBlobDownload(blob, `${slug}-${slugifyName(one.name)}.png`);
+          return;
+        }
+        if (templateId) {
+          const entry = getEntryFor(t.sectionKey, t.label);
+          if (entry) {
+            const id = toast.loading(`Preparing ${one?.name ?? t.label}…`);
+            const result = await downloadEntry(
+              entry,
+              {
+                brand: b,
+                sourceBrand,
+                entries: [entry],
+                saved: loadBrandCustomizations(customizationBrandId),
+                // The whole point: this card shows exactly one design here.
+                featuredIdsByLabel: { ...featuredIdsByLabel, [t.label]: [templateId] },
+              },
+              // …and the file says WHICH design it is. Three Business Card
+              // tiles used to arrive as three files called
+              // `raqm-business-card.png` (QA Q22).
+              { ...choice, variant: one?.name },
+            );
+            if (result.added) toast.success(`${one?.name ?? t.label} downloaded`, { id });
+            else {
+              toast.error(`Couldn't download ${one?.name ?? t.label}`, {
+                id,
+                description: result.skipped[0]?.reason,
+              });
+            }
+            return;
+          }
+        }
         switch (t.label) {
           case 'Logos': {
             const count = await downloadLogosZip(b);
@@ -393,22 +629,14 @@ export function BrandKitCosmosPage({
             );
             return;
           }
-          case 'Photos': {
-            const photos = b.photos.filter((p) => p.src);
-            if (photos.length === 0) {
-              toast('No photos yet', { description: 'Add photos in Setup first.' });
-              return;
-            }
-            const { default: JSZip } = await import('jszip');
-            const zip = new JSZip();
-            for (let i = 0; i < photos.length; i += 1) {
-              const res = await fetch(photos[i].src).catch(() => null);
-              const blob = res ? await res.blob() : null;
-              if (blob) zip.file(`photo-${i + 1}.${blob.type.split('/')[1] || 'png'}`, blob);
-            }
-            triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${slug}-photos.zip`);
-            return;
-          }
+          // 'Photos' is deliberately NOT special-cased any more. This case
+          // used to fetch every source and zip whatever came back, named
+          // from the mime type — the exact code D1 was filed against, and
+          // the reason a brand whose only picture is a 404 shipped the
+          // app's own `index.html` as `photo-1.html`. It falls through to
+          // the shared writer, which verifies the BYTES, names each file
+          // from the Library, and hands back a reason for anything it had
+          // to leave out (QA Q13/Q14).
           // 'About' (the Strategy card) is deliberately NOT special-cased
           // any more: it used to ship about.md alone, which is the free-form
           // sections and none of the eleven strategy answers. It falls
@@ -422,15 +650,22 @@ export function BrandKitCosmosPage({
             // System, Presentation System and Brand Board did: the card
             // path looked for a TEMPLATE, and a composed view has none.
             const entry = getEntryFor(t.sectionKey, t.label);
-            if (entry && entry.view !== 'variants') {
+            // EVERY deliverable goes through the shared writer now — not
+            // only the composed views — so the format menu (web · print ·
+            // flattened · custom) has one implementation.
+            if (entry) {
               const id = toast.loading(`Preparing ${t.displayLabel ?? t.label}…`);
-              const result = await downloadEntry(entry, {
-                brand: b,
-                sourceBrand,
-                entries: [entry],
-                saved: loadBrandCustomizations(customizationBrandId),
-                featuredIdsByLabel,
-              });
+              const result = await downloadEntry(
+                entry,
+                {
+                  brand: b,
+                  sourceBrand,
+                  entries: [entry],
+                  saved: loadBrandCustomizations(customizationBrandId),
+                  featuredIdsByLabel,
+                },
+                choice,
+              );
               if (result.added) toast.success(`${t.displayLabel ?? t.label} downloaded`, { id });
               else {
                 toast.error(`Couldn't download ${t.displayLabel ?? t.label}`, {
@@ -475,6 +710,191 @@ export function BrandKitCosmosPage({
   );
 
   /**
+   * Copy a tile's vector, from the tile.
+   *
+   * Read off the RENDERED tile rather than reconstructed from the model:
+   * what the user is looking at is the answer, and the brand-asset
+   * renderers are being reworked family by family — a copy that rebuilt the
+   * artwork itself would drift from the artwork on screen.
+   *
+   * A design that is not drawn as an SVG (a Flaticon glyph is a font, a
+   * recoloured logo is a CSS mask) says so rather than copying nothing.
+   */
+  const handleCopySvg = useCallback(async (templateId: string, name: string) => {
+    const tile = document.querySelector<HTMLElement>(
+      `.bk-stage-layer--page2 [data-template-id="${templateId}"]`,
+    );
+    const svg = tile?.querySelector('svg');
+    if (!svg) {
+      toast(`${name} has no vector artwork`, {
+        description: 'This design is drawn as a font glyph or a mask — download a PNG instead.',
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(svg.outerHTML);
+      toast.success('SVG copied to your clipboard');
+    } catch (err) {
+      toast.error("Couldn't copy the SVG", {
+        description: err instanceof Error ? err.message : 'Clipboard access was refused.',
+      });
+    }
+  }, []);
+
+  /**
+   * Promote a variant to the front of its card's featured list.
+   *
+   * "Featured" is one list with three readers — the card's cover, the
+   * drilldown's showcase, and what a download ships when nobody named a
+   * variant. Moving an id to the FRONT is therefore the visible act: the
+   * card's face changes, and so does what Export Kit puts in the zip. An id
+   * that is not in the list yet is added by the same move, which is what
+   * makes this work from the picker as well as from the showcase.
+   */
+  const handleSetFeatured = useCallback(
+    (label: string, templateId: string, templates?: ReadonlyArray<BrandKitTemplate>) => {
+      setFeaturedIdsByLabel((prev) => {
+        const current =
+          prev[label] ??
+          DEFAULT_FEATURED_IDS_BY_LABEL[label] ??
+          (templates ?? []).slice(0, 3).map((t) => t.id);
+        const next = [templateId, ...current.filter((id) => id !== templateId)];
+        saveFeaturedVariants(customizationBrandId, label, next);
+        return { ...prev, [label]: next };
+      });
+      toast.success('Set as featured', {
+        description: 'It is now this card’s cover and its default download.',
+      });
+    },
+    [customizationBrandId],
+  );
+
+  /**
+   * `Use Template` — hands a fresh, INDEPENDENT snapshot of this
+   * variant to the global Design editor. Spec §7.2: this COPIES, it
+   * does not subscribe — editing the Brand Kit master later must never
+   * reach a Design created here. Only deliverables with a registered
+   * `contentTypeId` (Invoice, for this slice) are usable this way; the
+   * caller gates the affordance so this only fires for those.
+   *
+   * The copy is taken from the brand's MASTER for this variant when one
+   * exists — that is the whole point of `Edit Template`: tune the invoice
+   * once, and every invoice started afterwards begins from the tuned one.
+   * With no master (nobody has ever tuned this variant) it starts from
+   * the brand's defaults, exactly as before.
+   *
+   * It deliberately does NOT seed a master. Masters stay lazily created
+   * by `Edit Template` alone, so merely using a template never mints
+   * brand-level state the user did not ask for.
+   */
+  const handleUseTemplate = useCallback(
+    async (template: BrandKitTemplate, deliverable: DeliverableDef) => {
+      const contentTypeId = deliverable.contentTypeId;
+      if (!contentTypeId) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      const kind = contentKindForTemplateType(template.type);
+      if (!kind) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      if (!sourceBrand) {
+        toast.error('Use Template needs a saved brand');
+        return;
+      }
+      if (!designStorage) {
+        toast.error('Design storage is unavailable');
+        return;
+      }
+      const designId = crypto.randomUUID();
+      const doc =
+        (await instanceFromMaster({
+          storage: designStorage,
+          brandId: sourceBrand.id,
+          contentType: contentTypeId,
+          templateId: template.id,
+          designId,
+        })) ??
+        createTemplateInstanceDocument({
+          designId,
+          brandId: sourceBrand.id,
+          contentType: contentTypeId,
+          templateId: template.id,
+          content: defaultContentFor(kind, effectiveBrand),
+          design: {},
+          sourceTemplateId: template.id,
+        });
+      try {
+        await designStorage.saveDesign(sourceBrand.id, designId, doc, {
+          name: `${deliverable.label} — ${template.name}`,
+          contentType: contentTypeId,
+          isTemplate: false,
+          sourceTemplateId: template.id,
+        });
+      } catch (err) {
+        toast.error('Could not create design', {
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+        return;
+      }
+      navigate(`/b/${sourceBrand.slug}/design/${designId}`);
+    },
+    [sourceBrand, designStorage, effectiveBrand, navigate],
+  );
+
+  /**
+   * `Edit Template` — opens the CANONICAL MASTER for this variant, not a
+   * new instance. Brand-level template tuning, never client data. The
+   * master is seeded lazily on first use (`ensureMasterDesign`) and reused
+   * on every later call — same (contentType, templateId) always resolves
+   * to the same design id.
+   */
+  const handleEditTemplate = useCallback(
+    async (template: BrandKitTemplate, deliverable: DeliverableDef) => {
+      const contentTypeId = deliverable.contentTypeId;
+      if (!contentTypeId) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      const kind = contentKindForTemplateType(template.type);
+      if (!kind) {
+        toast.error('This deliverable cannot be used yet');
+        return;
+      }
+      if (!sourceBrand) {
+        toast.error('Edit Template needs a saved brand');
+        return;
+      }
+      if (!designStorage) {
+        toast.error('Design storage is unavailable');
+        return;
+      }
+      let masterId: string;
+      try {
+        masterId = await ensureMasterDesign({
+          storage: designStorage,
+          brandId: sourceBrand.id,
+          contentType: contentTypeId,
+          templateId: template.id,
+          label: `${deliverable.label} — ${template.name}`,
+          seedContent: defaultContentFor(kind, effectiveBrand),
+        });
+      } catch (err) {
+        toast.error('Could not open master template', {
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+        return;
+      }
+      navigate(`/b/${sourceBrand.slug}/design/${masterId}`);
+    },
+    [sourceBrand, designStorage, effectiveBrand, navigate],
+  );
+
+  // Section-level download (the small icon in each section header).
+  // Brand Assets → the full kit bundle; template sections → a zip with
+  // one rasterized PNG per card (its first variant).
+  /**
    * Run an export and keep the page usable while it runs.
    *
    * One job at a time, driven by CATALOG ENTRIES — the whole kit is every
@@ -485,6 +905,42 @@ export function BrandKitCosmosPage({
    */
   const [exportingKit, setExportingKit] = useState(false);
   const exportAbortRef = useRef<AbortController | null>(null);
+  /**
+   * The live progress line, and the finished archive.
+   *
+   * Both exist so the surface the user was LOOKING at can answer. Before
+   * this the picker closed on the click and thirty-three seconds later a
+   * file appeared with nothing said anywhere the user was looking (QA D47).
+   */
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const [exportDone, setExportDone] = useState<
+    { fileName: string; items: number; bytes: number } | null
+  >(null);
+  /**
+   * PROGRESS IS PAINTED AT HUMAN SPEED, NOT AT MACHINE SPEED.
+   *
+   * `zip.generateAsync`'s callback fires per chunk — thousands of times for
+   * a 250-file archive — and every one of them called `toast.loading` with a
+   * new string. Sonner re-measures its stack inside a `flushSync` on each
+   * update, so React's nested-update counter tripped and every export logged
+   * "Maximum update depth exceeded" (QA D48, 4 on raqm and 6 on skam;
+   * measured here at sonner.js:282 inside flushSync).
+   *
+   * The walker is right to report accurately — the throttle belongs at the
+   * UI boundary, which is here. A label that changes more often than it can
+   * be read is not more informative.
+   */
+  const lastProgressPaintRef = useRef(0);
+  const lastProgressLabelRef = useRef('');
+  const paintProgress = useCallback((label: string, force = false) => {
+    if (label === lastProgressLabelRef.current) return false;
+    const now = Date.now();
+    if (!force && now - lastProgressPaintRef.current < PROGRESS_PAINT_MS) return false;
+    lastProgressPaintRef.current = now;
+    lastProgressLabelRef.current = label;
+    setExportProgress(label);
+    return true;
+  }, []);
 
   const runKitExport = useCallback(
     async (
@@ -492,6 +948,7 @@ export function BrandKitCosmosPage({
       title: string,
       fileSuffix: string,
       allVariants = false,
+      formats?: KitExportFormats,
     ) => {
       if (exportAbortRef.current) {
         toast('An export is already running');
@@ -501,6 +958,10 @@ export function BrandKitCosmosPage({
       exportAbortRef.current = controller;
       setExportingKit(true);
       const cancel = { label: 'Cancel', onClick: () => controller.abort() };
+      lastProgressPaintRef.current = 0;
+      lastProgressLabelRef.current = '';
+      setExportDone(null);
+      paintProgress(`Exporting ${title}…`, true);
       const id = toast.loading(`Exporting ${title}…`, { duration: Infinity, action: cancel });
       try {
         const result = await downloadEverything({
@@ -510,37 +971,67 @@ export function BrandKitCosmosPage({
           saved: loadBrandCustomizations(customizationBrandId),
           featuredIdsByLabel,
           allVariants,
+          formats,
           signal: controller.signal,
           fileName: `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`,
           onProgress: (p) => {
-            toast.loading(
-              p.phase === 'zipping' ? p.label : `${p.label} — ${p.done + 1} of ${p.total}`,
-              { id, duration: Infinity, action: cancel },
-            );
+            const label =
+              p.phase === 'zipping' ? p.label : `${p.label} — ${p.done + 1} of ${p.total}`;
+            // Only the ZIPPING phase is throttled, and only it needs to be:
+            // collecting fires once per unit — 37 ticks across half a minute,
+            // which is information — while `generateAsync` fires per chunk.
+            // Throttling both would swallow the first unit's name, which is
+            // the one line that says the export has actually started.
+            if (paintProgress(label, p.phase !== 'zipping')) {
+              toast.loading(label, { id, duration: Infinity, action: cancel });
+            }
           },
         });
         if (result.added === 0) {
-          toast.error(`Nothing to export for ${title} yet`, { id, duration: 5000 });
+          setExportProgress(null);
+          toast.error(`Nothing to export for ${title} yet`, {
+            id,
+            duration: 5000,
+            action: undefined,
+          });
           return;
         }
         const missed = result.skipped;
+        const fileName = `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`;
+        // The archive that was actually written, so the picker can show what
+        // arrived rather than closing on the click and leaving the user to
+        // guess whether thirty-three seconds of waiting produced anything.
+        setExportDone({ fileName, items: result.added, bytes: result.blob.size });
+        setExportProgress(null);
         toast.success(`${title} exported`, {
           id,
-          duration: 6000,
-          description:
+          // Long enough to be read by someone who looked away for half a
+          // minute — which, for a half-minute export, is everyone.
+          duration: 12000,
+          // Sonner MERGES an update onto the toast it replaces, so the
+          // progress toast's Cancel survived into the success one and a
+          // finished export offered to cancel itself. Cleared explicitly.
+          action: undefined,
+          description: [
+            `${fileName} · ${result.added} item${result.added === 1 ? '' : 's'} · ${readableBytes(result.blob.size)}`,
             missed.length > 0
               ? `Left out: ${missed.slice(0, 3).map((m) => m.label).join(', ')}${
                   missed.length > 3 ? ` and ${missed.length - 3} more` : ''
                 }.`
-              : undefined,
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' — '),
         });
       } catch (err) {
+        setExportProgress(null);
         if (isCancelled(err)) {
-          toast('Export cancelled', { id, duration: 3000 });
+          toast('Export cancelled', { id, duration: 3000, action: undefined });
         } else {
           toast.error('Export failed', {
             id,
             duration: 6000,
+            action: undefined,
             description: err instanceof Error ? err.message : 'Unknown error',
           });
         }
@@ -566,10 +1057,14 @@ export function BrandKitCosmosPage({
   const allEntries = useMemo(() => groups.flatMap((g) => g.entries), [groups]);
   const handleExportKit = useCallback(() => setExportPickerOpen(true), []);
   const handleExportChosen = useCallback(
-    (chosen: KitEntry[], allVariants: boolean) => {
-      setExportPickerOpen(false);
+    (chosen: KitEntry[], allVariants: boolean, formats: KitExportFormats) => {
+      // THE PICKER STAYS OPEN. It used to close on the click, so the surface
+      // the user was looking at vanished and the only thing that ever said
+      // the export had finished was a six-second toast in a corner — which is
+      // why a 33-second export read as silence (QA D47). It now carries the
+      // progress and then the archive that arrived.
       const whole = chosen.length === allEntries.length;
-      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit', allVariants);
+      runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit', allVariants, formats);
     },
     [runKitExport, allEntries.length],
   );
@@ -599,6 +1094,16 @@ export function BrandKitCosmosPage({
   // from, not at the top of the sections list.
   const enterScrollYRef = useRef<number>(0);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  // The two stage layers. Both stay mounted for the crossfade, so
+  // whichever one is not the current view has to be made INERT —
+  // `pointer-events: none` stops the mouse and nothing else, and Tab
+  // walked straight through the Overview sitting behind an open
+  // drilldown (QA Q18).
+  const page1Ref = useRef<HTMLDivElement | null>(null);
+  const page2Ref = useRef<HTMLDivElement | null>(null);
+  // The card that opened the drilldown, so Back returns focus to it
+  // instead of dropping the keyboard at the top of the document.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   // Carries the in-app Back button's click origin across the
   // history.back() → popstate hop so the radial wipe still
   // radiates from the button. Stays null for browser/mouse-driven
@@ -639,10 +1144,25 @@ export function BrandKitCosmosPage({
       // the history stack grows by one. The popstate listener
       // (effective while view === 'drilldown') runs the actual exit.
       window.history.pushState({ bkDrilldown: true }, '');
-      // Smooth scroll up — runs in parallel with the wipe so the
-      // user sees tiles fading in WHILE they scroll up, not before
+      // Smooth scroll to the STAGE — runs in parallel with the wipe so
+      // the user sees tiles fading in WHILE they scroll, not before
       // arrival (would look "ready") and not after (would lag).
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      //
+      // Not `top: 0`: in the one-column layout the sidebar is ABOVE the
+      // board, so scrolling to the document top parked the user on the
+      // navigation and opening a card looked like it did nothing at all
+      // (QA Q8). The stage's own top is 0 on a two-column viewport, so
+      // the desktop behaviour is unchanged.
+      window.scrollTo({ top: stageScrollTop(stageRef.current), behavior: 'smooth' });
+      // Where Back should put the keyboard again — the card if the click
+      // landed on one (normalised from whichever inner control took the
+      // focus), otherwise whatever had it, which is the sidebar row when
+      // the item was opened from there.
+      const active = document.activeElement;
+      returnFocusRef.current =
+        active instanceof HTMLElement && active !== document.body
+          ? ((active.closest('.bk-card') as HTMLElement | null) ?? active)
+          : null;
       requestAnimationFrame(() => setView('drilldown'));
     },
     [],
@@ -749,6 +1269,28 @@ export function BrandKitCosmosPage({
     [drilldownTarget],
   );
 
+  /** The registry definition for the open drilldown, if it is one of
+   *  the generatable deliverables (Brand Assets cards have none). Only
+   *  a deliverable with `contentTypeId` set can offer `Use Template`. */
+  const drilldownDeliverable: DeliverableDef | undefined = useMemo(
+    () =>
+      drilldownTarget
+        ? getDeliverable(drilldownTarget.sectionKey, drilldownTarget.label)
+        : undefined,
+    [drilldownTarget],
+  );
+
+  /** Same lookup as `drilldownDeliverable`, but for whichever card is
+   *  open in the editor modal — the two can differ, since the editor
+   *  also opens directly from a section-page card (right-click Edit)
+   *  without going through the drilldown at all. Drives the modal's
+   *  `Use Template` / `Edit Template` footer. */
+  const editorDeliverable: DeliverableDef | undefined = useMemo(
+    () =>
+      editorTarget ? getDeliverable(editorTarget.sectionKey, editorTarget.label) : undefined,
+    [editorTarget],
+  );
+
   /**
    * The item the user is actually looking at — what the sidebar
    * highlights. This one IS gated on `view`, because exiting deliberately
@@ -840,6 +1382,52 @@ export function BrandKitCosmosPage({
     });
   }, [view, drilldownTarget]);
 
+  /**
+   * One layer at a time — for the mouse AND for the keyboard.
+   *
+   * Both stage layers stay mounted so the crossfade has something to fade
+   * between, and the CSS only ever took the mouse away from the inactive
+   * one. So with a drilldown open, Tab walked the Overview BEHIND it —
+   * "Edit Logos", "Download Logos", "Edit Colors" — and the drilldown's own
+   * tiles and their ⬇ / ✎ / ⋯ could not be reached at all (QA Q18).
+   *
+   * `inert` is the whole answer: it removes a subtree from the tab order,
+   * from the accessibility tree and from hit-testing, and it survives
+   * anything the layer contains. It is set imperatively rather than as a
+   * JSX prop because React 18 does not know the attribute.
+   *
+   * Focus then MOVES with the view: into the drilldown when it opens (the
+   * Back button, which is its first control), back to the card that opened
+   * it when it closes.
+   */
+  useEffect(() => {
+    const page1 = page1Ref.current;
+    const page2 = page2Ref.current;
+    const inactive = view === 'drilldown' ? page1 : page2;
+    const activeLayer = view === 'drilldown' ? page2 : page1;
+    inactive?.setAttribute('inert', '');
+    activeLayer?.removeAttribute('inert');
+
+    // Only move focus when the keyboard is what is driving — an
+    // editor/modal open above the stage owns focus and must keep it.
+    if (editorTarget || assetEditor) return;
+    if (view === 'drilldown') {
+      const back = page2?.querySelector<HTMLElement>('.bk-drilldown-back');
+      if (back && !page2?.contains(document.activeElement)) {
+        back.focus({ preventScroll: true });
+      }
+    } else if (returnFocusRef.current?.isConnected) {
+      const back = returnFocusRef.current;
+      returnFocusRef.current = null;
+      // Never restore into the layer that has just gone inert, and never
+      // fight a focus the user has already moved somewhere real.
+      const stranded = !document.activeElement || document.activeElement === document.body;
+      if (!back.closest('[inert]') && (stranded || page2?.contains(document.activeElement))) {
+        back.focus({ preventScroll: true });
+      }
+    }
+  }, [view, drilldownTarget, editorTarget, assetEditor]);
+
   return (
     <WorkspaceShell
       rightActions={
@@ -862,12 +1450,12 @@ export function BrandKitCosmosPage({
           onSelectOverview={handleSelectOverview}
           onSelectEntry={handleSelectEntry}
         />
-        <div className="board-wrap bk-cosmos-board">
+        <div className="board-wrap bk-cosmos-board" data-workspace-main>
           <div ref={stageRef} className="bk-stage" data-active={view}>
             {/* Page 1 — the Overview. One band per catalog group, each
                 holding only the items this viewer may see. Always
                 mounted, always visible (modulo the per-tile wipe). */}
-            <div className="bk-stage-layer bk-stage-layer--page1">
+            <div ref={page1Ref} className="bk-stage-layer bk-stage-layer--page1">
               {groups.map((group) => (
                 <KitSection
                   key={group.id}
@@ -882,8 +1470,20 @@ export function BrandKitCosmosPage({
                   <EntryGrid
                     entries={group.entries}
                     brand={effectiveBrand}
+                    sourceBrand={sourceBrand}
+                    featuredIdsByLabel={featuredIdsByLabel}
+                    savedContent={savedContent}
                     onPickCard={handlePickCard}
-                    onEditCard={(t) => setEditorTarget(t)}
+                    onEditCard={(t) => {
+                      // A brand asset has its own editor. Editing Colors
+                      // means editing the PALETTE, not retouching one
+                      // swatch tile's stock artwork.
+                      if (t.sectionKey === 'brand-assets' && ASSET_EDITOR_LABELS.has(t.label)) {
+                        openAssetEditor(t.label);
+                        return;
+                      }
+                      setEditorTarget(t);
+                    }}
                     onDownloadCard={handleDownloadCard}
                   />
                 </KitSection>
@@ -894,15 +1494,62 @@ export function BrandKitCosmosPage({
                 in place). Lives behind page 1 with opacity 0 until
                 the wipe reveals it. */}
             {drilldownTarget !== null && (
-              <div className="bk-stage-layer bk-stage-layer--page2">
+              <div ref={page2Ref} className="bk-stage-layer bk-stage-layer--page2">
                 <BrandKitDrilldown
                   target={drilldownTarget}
                   entry={targetEntry}
                   sourceBrand={sourceBrand}
                   mockBrand={effectiveBrand}
                   onBack={requestExitDrilldown}
-                  onPickVariant={(template) =>
-                    setEditorTarget({ ...drilldownTarget, template })
+                  onUseTemplate={
+                    drilldownDeliverable?.contentTypeId
+                      ? (template) => handleUseTemplate(template, drilldownDeliverable)
+                      : undefined
+                  }
+                  onEditTemplate={
+                    drilldownDeliverable?.contentTypeId
+                      ? (template) => handleEditTemplate(template, drilldownDeliverable)
+                      : undefined
+                  }
+                  onPickVariant={(template) => {
+                    // A TILE'S PENCIL OPENS THE SAME EDITOR ITS CARD DOES.
+                    // Only the card's ✎ was re-pointed at the brand-asset
+                    // editors, so a tile still reached `BrandKitCardEditor` —
+                    // which has no fields for a brand asset and rendered an
+                    // empty right panel (QA Q6). One editor per asset, reached
+                    // from either place, opened on the variant that was
+                    // pressed.
+                    if (
+                      drilldownTarget.sectionKey === 'brand-assets' &&
+                      ASSET_EDITOR_LABELS.has(drilldownTarget.label)
+                    ) {
+                      openAssetEditor(drilldownTarget.label, template?.id);
+                      return;
+                    }
+                    setEditorTarget({ ...drilldownTarget, template });
+                  }}
+                  downloadOptions={
+                    targetEntry
+                      ? downloadOptionsFor(
+                          targetEntry,
+                          drilldownTarget.label === 'Photos'
+                            ? photosUnavailableReason(effectiveBrand)
+                            : undefined,
+                        )
+                      : undefined
+                  }
+                  onDownloadVariant={(template, choice) =>
+                    handleDownloadCard(drilldownTarget, choice, template.id)
+                  }
+                  onSetFeatured={
+                    PICKER_LABELS.has(drilldownTarget.label)
+                      ? (template) =>
+                          handleSetFeatured(
+                            drilldownTarget.label,
+                            template.id,
+                            drilldownTarget.templates,
+                          )
+                      : undefined
                   }
                   onAddIcon={() => setIconPickerOpen(true)}
                   onSetGlobalIconWeight={handleSetGlobalIconWeight}
@@ -922,7 +1569,7 @@ export function BrandKitCosmosPage({
                       : undefined
                   }
                   onAddColor={handleAddColor}
-                  onDownload={async () => {
+                  onDownload={async (choice) => {
                     // Colors drilldown bundles every core/accent/grey
                     // swatch into one zip, each color in its own
                     // folder with svg/png/jpg/ai for both the base
@@ -1000,25 +1647,12 @@ export function BrandKitCosmosPage({
                       return;
                     }
                     if (drilldownTarget.label === 'Colors') {
-                      const palette: PaletteColor[] = [
-                        ...effectiveBrand.colors.core.map((c, i) => ({
-                          hex: c.hex,
-                          name: c.name,
-                          role:
-                            (['Primary', 'Secondary', 'Background'] as const)[i] ?? `Core ${i + 1}`,
-                        })),
-                        ...effectiveBrand.colors.accent.map((c) => ({
-                          hex: c.hex,
-                          name: c.name,
-                          role: 'Accent',
-                        })),
-                        ...effectiveBrand.colors.grey.map((c) => ({
-                          hex: c.hex,
-                          name: c.name,
-                          role: 'Neutral',
-                        })),
-                      ];
-                      await runColorsExport(palette, effectiveBrand.name);
+                      // One palette vocabulary. Position is not a role
+                      // ("Core 4" told a customer nothing, D40) and the
+                      // generated grey ladder is not the brand's palette
+                      // (it is most of why this download was 320 files,
+                      // D37) — `paletteOf` settles both.
+                      await runColorsExport(paletteOf(effectiveBrand), effectiveBrand.name);
                       return;
                     }
                     // Template drilldowns (stationery / social / web /
@@ -1065,13 +1699,30 @@ export function BrandKitCosmosPage({
                           PICKER_ASPECT_BY_LABEL[drilldownTarget.label] ?? 1.6;
                         const { default: JSZip } = await import('jszip');
                         const zip = new JSZip();
+                        // THE HEADER HONOURS THE FORMAT THE MENU ASKED FOR.
+                        // The whole family, converted the same way the card's
+                        // own menu converts one design — `downloadEntry` does
+                        // exactly this for a single deliverable, and there is
+                        // no reason a wall of them should be PNG-or-nothing.
+                        const page =
+                          PRINT_PAGE_MM[drilldownTarget.label] ?? ('fit' as const);
                         for (const tpl of templates) {
                           const blob = await snapshotTemplatePng(
                             renderTemplateDesign(tpl, sourceBrand, effectiveBrand),
                             260,
                             aspect,
                           );
-                          if (blob) zip.file(`${slugifyName(tpl.name)}.png`, blob);
+                          if (!blob) continue;
+                          const name = slugifyName(tpl.name);
+                          if (choice.format === 'pdf') {
+                            zip.file(`${name}.pdf`, await pngToPdf(blob, page));
+                          } else if (choice.format === 'jpg') {
+                            zip.file(`${name}.jpg`, await pngToJpg(blob));
+                          } else if (choice.format === 'custom' && choice.size) {
+                            zip.file(`${name}.png`, await resizePng(blob, choice.size));
+                          } else {
+                            zip.file(`${name}.png`, blob);
+                          }
                         }
                         triggerBlobDownload(
                           await zip.generateAsync({ type: 'blob' }),
@@ -1121,7 +1772,12 @@ export function BrandKitCosmosPage({
           // — snapshot that DOM so the download matches what they see.
           const host = document.querySelector<HTMLElement>('.bk-preview-host');
           if (host) {
-            const id = toast.loading(`Exporting ${t.label}…`);
+            // Top-centre, deliberately: the editor's Cancel · Download ·
+            // Save bar sits bottom-right, exactly where a toast lands by
+            // default. "Business Card exported" used to cover Save, and the
+            // click after a download went to the toast instead.
+            const where = { position: 'top-center' as const };
+            const id = toast.loading(`Exporting ${t.label}…`, where);
             try {
               const blob = await snapshotElementPng(host, 4);
               if (!blob) throw new Error('Rasterization produced no image');
@@ -1129,10 +1785,11 @@ export function BrandKitCosmosPage({
                 blob,
                 `${slugifyName(effectiveBrand.name)}-${slugifyName(t.label)}.png`,
               );
-              toast.success(`${t.label} exported`, { id });
+              toast.success(`${t.label} exported`, { id, ...where });
             } catch (err) {
               toast.error('Download failed', {
                 id,
+                ...where,
                 description: err instanceof Error ? err.message : 'Unknown error',
               });
             }
@@ -1143,13 +1800,91 @@ export function BrandKitCosmosPage({
           await handleDownloadCard(t);
         }}
         onUpdateIconAt={handleUpdateIconAt}
+        onUseTemplate={
+          editorDeliverable?.contentTypeId
+            ? (template) => handleUseTemplate(template, editorDeliverable)
+            : undefined
+        }
+        onEditTemplate={
+          editorDeliverable?.contentTypeId
+            ? (template) => handleEditTemplate(template, editorDeliverable)
+            : undefined
+        }
       />
       <ExportKitDialog
         open={exportPickerOpen}
-        onClose={() => setExportPickerOpen(false)}
+        onClose={() => {
+          setExportPickerOpen(false);
+          setExportDone(null);
+          setExportProgress(null);
+        }}
         entries={allEntries}
         onExport={handleExportChosen}
+        busy={exportingKit}
+        progress={exportProgress}
+        done={exportDone}
+        onCancelExport={() => exportAbortRef.current?.abort()}
       />
+      {/* The brand-asset editors. Each writes to the BRAND through the
+          Setup chain and confirms first; `onBrandChange` is the live
+          preview, so the kit behind the panel repaints as you edit.
+
+          Mounted only while OPEN, never all five behind an `open` flag:
+          `PhotosEditor` builds an uploader from the DI container the
+          moment it renders, so five always-mounted panels would stand up
+          machinery nobody asked for — and take the whole page down on any
+          surface that has not booted the container. */}
+      {assetEditor !== null && (
+        <>
+          <LogosEditor
+            open={assetEditor === 'Logos'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+            focusVariantId={assetEditorVariant}
+          />
+          <ColorsEditor
+            open={assetEditor === 'Colors'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          <TypographyEditor
+            open={assetEditor === 'Fonts'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          <IconsEditor
+            open={assetEditor === 'Icons'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          {assetEditor === 'Photos' && (
+            <PhotosEditor
+              open
+              onClose={closeAssetEditor}
+              brand={baseBrand}
+              sourceBrand={sourceBrand}
+              onBrandChange={setBrandPreview}
+            />
+          )}
+          {assetEditor === 'About' && (
+            <StrategyEditor
+              open
+              onClose={closeAssetEditor}
+              brand={baseBrand}
+              sourceBrand={sourceBrand}
+              onBrandChange={setBrandPreview}
+            />
+          )}
+        </>
+      )}
       <IconPickerModal
         open={iconPickerOpen}
         selected={effectiveBrand.icons}
@@ -1159,6 +1894,7 @@ export function BrandKitCosmosPage({
       <TemplatePickerModal
         open={pickerLabel !== null}
         title={pickerLabel ? `Add ${pickerLabel.toLowerCase()} variant` : ''}
+        noun={pickerLabel ?? 'variant'}
         tileAspect={pickerLabel ? PICKER_ASPECT_BY_LABEL[pickerLabel] ?? 1.6 : 1.6}
         templates={
           pickerLabel && drilldownTarget?.label === pickerLabel
@@ -1229,7 +1965,26 @@ type DrilldownProps = {
   /** Optional — when provided, the Colors drilldown shows a "+"
    *  button that pops the inline HSV color picker (Setup parity). */
   onAddColor?: (group: 'core' | 'accent', hex: string) => void;
-  onDownload: () => void;
+  /** The family, in the format the shared menu was asked for. */
+  onDownload: (choice: DownloadChoice) => void;
+  /** Optional — when provided, right-clicking a variant tile offers
+   *  "Use Template" alongside "Edit". Only deliverables promoted to a
+   *  real Design content type pass this down; every other card's tile
+   *  stays a plain click-only button, unchanged. */
+  onUseTemplate?: (template: BrandKitTemplate) => void;
+  /** Optional — when provided, right-clicking a variant tile also offers
+   *  "Edit Template", which opens the CANONICAL MASTER (brand-level
+   *  tuning) instead of a fresh independent instance. Gated identically
+   *  to `onUseTemplate` — same deliverables, same content-type check. */
+  onEditTemplate?: (template: BrandKitTemplate) => void;
+  /** Download ONE variant — the design under the cursor, never the card's
+   *  first. The page narrows its shared writer to this id. */
+  onDownloadVariant?: (template: BrandKitTemplate, choice: DownloadChoice) => void;
+  /** The five download words this card can honour. */
+  downloadOptions?: DownloadOption[];
+  /** Promote a variant to the card's face. Only offered where the card
+   *  really has a featured list to promote into. */
+  onSetFeatured?: (template: BrandKitTemplate) => void;
 };
 
 /**
@@ -1263,7 +2018,56 @@ function BrandKitDrilldown({
   onAddVariants,
   onAddColor,
   onDownload,
+  onUseTemplate,
+  onEditTemplate,
+  onDownloadVariant,
+  downloadOptions,
+  onSetFeatured,
 }: DrilldownProps) {
+  // Right-click menu for a variant tile — only ever populated when
+  // `onUseTemplate` is provided, so cards without it never gain a
+  // context menu they didn't have before.
+  const [tileMenu, setTileMenu] = useState<ContextMenuState | null>(null);
+  /** The header's Download menu — the same one the card and the tile use. */
+  const [dlOpen, setDlOpen] = useState(false);
+  const openTileMenu = useCallback(
+    (e: React.MouseEvent, tpl: BrandKitTemplate) => {
+      if (!onUseTemplate) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // Not every design in a wired family was retrofitted onto the
+      // content model. Handing an unbound one to Design would give the
+      // user a properties panel that accepts edits over artwork that
+      // never changes — so the actions are offered with a reason instead
+      // of a silent no-op. See `renderers/contentBinding.ts`.
+      const editable = rendererBindsContent(tpl);
+      const hint = editable ? undefined : NO_CONTENT_BINDING_REASON;
+      setTileMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: [
+          { label: 'Edit', onSelect: () => onPickVariant(tpl) },
+          {
+            label: 'Use Template',
+            onSelect: () => onUseTemplate(tpl),
+            disabled: !editable,
+            hint,
+          },
+          ...(onEditTemplate
+            ? [
+                {
+                  label: 'Edit Template',
+                  onSelect: () => onEditTemplate(tpl),
+                  disabled: !editable,
+                  hint,
+                },
+              ]
+            : []),
+        ],
+      });
+    },
+    [onUseTemplate, onEditTemplate, onPickVariant],
+  );
   // For the Icons card we re-derive templates from the live brand on
   // every render so user-added icons surface immediately. The
   // snapshot stored on `target.templates` is captured at click time
@@ -1273,6 +2077,7 @@ function BrandKitDrilldown({
   // enter/exit.
   const isIcons = target.label === 'Icons' && target.sectionKey === 'brand-assets';
   const isColors = target.label === 'Colors' && target.sectionKey === 'brand-assets';
+  const isPhotos = target.label === 'Photos' && target.sectionKey === 'brand-assets';
   const templates = useMemo(() => {
     if (isIcons && mockBrand) {
       return variantsForCard(target.sectionKey, target.label, mockBrand);
@@ -1303,6 +2108,85 @@ function BrandKitDrilldown({
     target.label,
     target.templates,
   ]);
+  /**
+   * Chips + search — the same row the picker uses, so a design is found
+   * the same way wherever the wall of them is (`KitFilterRow`).
+   */
+  const filter = useKitFilter(templates, `${target.sectionKey}::${target.label}`);
+  const visible = filter.visible;
+
+  /**
+   * The ⋯ menu for one variant.
+   *
+   * Everything here acts on the design under the cursor. Before this the
+   * only per-variant route was a right-click offering two items on the few
+   * families wired to Design; the CARD's own actions silently acted on its
+   * FIRST variant instead (`.audit/OURS.md` D53).
+   *
+   * An action a family cannot honour is SHOWN AND DISABLED with the reason
+   * (spec §1), never hidden — a menu with one shape everywhere is a menu
+   * people learn once.
+   */
+  const canCopySvg = target.label === 'Logos' || target.label === 'Icons';
+  const tileActionsFor = useCallback(
+    (tpl: BrandKitTemplate): TileMenuAction[] => {
+      const out: TileMenuAction[] = [];
+      if (onUseTemplate) {
+        // Not every design in a wired family was retrofitted onto the
+        // content model; handing an unbound one to Design would give the
+        // user a properties panel over artwork that never changes.
+        const editable = rendererBindsContent(tpl);
+        const hint = editable ? undefined : NO_CONTENT_BINDING_REASON;
+        out.push({
+          label: 'Use Template',
+          onSelect: () => onUseTemplate(tpl),
+          disabledReason: hint,
+        });
+        if (onEditTemplate) {
+          out.push({
+            label: 'Edit Template',
+            onSelect: () => onEditTemplate(tpl),
+            disabledReason: hint,
+          });
+        }
+      }
+      if (onSetFeatured) {
+        out.push({
+          label: 'Set as featured',
+          onSelect: () => onSetFeatured(tpl),
+          separated: out.length > 0,
+        });
+      }
+      if (canCopySvg) {
+        out.push({
+          label: 'Copy SVG',
+          separated: out.length > 0,
+          // The tile paints the real renderer, so the vector on screen IS
+          // the vector to copy — no second export path to keep in step.
+          // A tile with no <svg> in it (an icon drawn from a webfont) has
+          // nothing to hand over, and says so rather than copying nothing.
+          onSelect: () => {
+            const svg = document
+              .querySelector(`.bk-variant-card[data-template-id="${CSS.escape(tpl.id)}"]`)
+              ?.querySelector('svg');
+            if (!svg) {
+              toast('Nothing to copy', {
+                description: `${tpl.name} is not drawn as a vector.`,
+              });
+              return;
+            }
+            navigator.clipboard
+              ?.writeText(svg.outerHTML)
+              .then(() => toast.success(`${tpl.name} SVG copied`))
+              .catch(() => toast.error('Could not copy the SVG'));
+          },
+        });
+      }
+      return out;
+    },
+    [onUseTemplate, onEditTemplate, onSetFeatured, canCopySvg],
+  );
+
   const hasTemplates = templates.length > 0;
 
   /**
@@ -1318,7 +2202,7 @@ function BrandKitDrilldown({
     if (!entry || !mockBrand) return null;
     switch (entry.view) {
       case 'strategy':
-        return <StrategyView brand={mockBrand} />;
+        return <StrategyView brand={mockBrand} sourceBrand={sourceBrand} />;
       case 'social-system':
         return <SocialSystemView brand={mockBrand} sourceBrand={sourceBrand} />;
       case 'presentation-system':
@@ -1630,32 +2514,74 @@ function BrandKitDrilldown({
             </div>
           )}
           {!composed && (
-          <button
-            type="button"
-            className="section-add section-download"
-            onClick={onDownload}
-            aria-label={`Download ${entry?.label ?? target.label}`}
-            title={`Download ${entry?.label ?? target.label}`}
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
+          /*
+            THE HEADER'S ⬇ USES THE SAME MENU AS EVERYTHING ELSE.
+            It was the one surface in the kit that fired a single fixed zip
+            with no menu at all (QA Q9) — on the page where the user is
+            looking at the WHOLE family, which is precisely where "as a PDF"
+            or "at this size" is worth asking. Same five rows, same words,
+            same disabled reasons as the card, the tile and the editor.
+          */
+          <div className="bk-drilldown-dl">
+            <button
+              type="button"
+              className="section-add section-download"
+              onClick={() => setDlOpen((v) => !v)}
+              aria-label={`Download ${entry?.label ?? target.label}`}
+              title={`Download ${entry?.label ?? target.label}`}
+              aria-haspopup="menu"
+              aria-expanded={dlOpen}
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+            {dlOpen && (
+              <DownloadMenu
+                options={
+                  downloadOptions ?? [
+                    { format: 'png', label: 'For web', chip: 'PNG' },
+                    { format: 'pdf', label: 'For print', chip: 'PDF' },
+                    {
+                      format: 'svg',
+                      label: 'Vector',
+                      chip: 'SVG',
+                      secondary: true,
+                      disabledReason:
+                        'This design is drawn in the browser — it has no vector to export',
+                    },
+                    { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true },
+                    { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true },
+                  ]
+                }
+                anchor={{ top: 34, left: -168 }}
+                onClose={() => setDlOpen(false)}
+                onChoose={onDownload}
+              />
+            )}
+          </div>
           )}
         </div>
       </div>
+      {!composed && hasTemplates && (
+        <KitFilterRow
+          filter={filter}
+          total={templates.length}
+          noun={entry?.label ?? target.label}
+        />
+      )}
       {composed ?? (
       <div
         className="bk-drilldown-grid"
@@ -1669,12 +2595,17 @@ function BrandKitDrilldown({
         }
       >
         {hasTemplates ? (
-          templates.map((tpl) => (
-            <figure key={tpl.id} className="bk-variant-card">
+          visible.length === 0 ? (
+            <KitFilterEmpty onClear={filter.clear} />
+          ) : (
+          visible.map((tpl) => (
+            <figure key={tpl.id} className="bk-variant-card" data-template-id={tpl.id}>
               <button
                 type="button"
                 className="bk-variant-tile"
+                style={{ aspectRatio: String(aspectForLabel(target.label)) }}
                 onClick={() => onPickVariant(tpl)}
+                onContextMenu={onUseTemplate ? (e) => openTileMenu(e, tpl) : undefined}
                 aria-label={`Open ${tpl.name}`}
               >
                 {sourceBrand ? (
@@ -1689,9 +2620,42 @@ function BrandKitDrilldown({
                   />
                 )}
               </button>
+              {/* A SIBLING of the tile, not a child: the tile is a <button>
+                  and a button inside a button is not a button, and the tile
+                  clips its own overflow so a menu inside it could not
+                  escape. The card holds both, and hovering either raises
+                  the pair (`.bk-variant-card:hover`). */}
+              <TileActions
+                name={tpl.name}
+                downloadOptions={downloadOptions}
+                onDownload={
+                  onDownloadVariant ? (choice) => onDownloadVariant(tpl, choice) : undefined
+                }
+                onEdit={() => onPickVariant(tpl)}
+                actions={tileActionsFor(tpl)}
+              />
               <figcaption className="bk-variant-label">{tpl.name}</figcaption>
             </figure>
           ))
+          )
+        ) : isPhotos && mockBrand ? (
+          /* A brand with no photography. The generic fallback below paints
+             TWELVE tiles of the card's own stock cover — which is exactly
+             the "twelve identical photographs" defect, and it lies twice:
+             the pictures are not the brand's, and there are not twelve of
+             them. The photo renderer's first tile says so in words instead
+             (`PhotoEmptyTile`), and it is the same tile the drilldown shows
+             once real photography arrives. */
+          <figure className="bk-variant-card">
+            <div
+              className="bk-variant-tile bk-variant-tile--static"
+              style={{ aspectRatio: String(aspectForLabel(target.label)) }}
+            >
+              <span className="bk-variant-tile-render" aria-hidden>
+                <BrandAssetPhotoRenderer brand={mockBrand} templateIndex={0} />
+              </span>
+            </div>
+          </figure>
         ) : isIcons && onAddIcon ? (
           // Icons drilldown empty state — the brand has no icons yet,
           // so the placeholder grid would just be 12 misleading boxes.
@@ -1718,6 +2682,7 @@ function BrandKitDrilldown({
                 <button
                   type="button"
                   className="bk-variant-tile"
+                style={{ aspectRatio: String(aspectForLabel(target.label)) }}
                   onClick={() => onPickVariant()}
                   aria-label={`Open ${label}`}
                 >
@@ -1733,6 +2698,14 @@ function BrandKitDrilldown({
           })
         )}
       </div>
+      )}
+      {tileMenu && (
+        <ContextMenu
+          x={tileMenu.x}
+          y={tileMenu.y}
+          items={tileMenu.items}
+          onClose={() => setTileMenu(null)}
+        />
       )}
     </div>
   );

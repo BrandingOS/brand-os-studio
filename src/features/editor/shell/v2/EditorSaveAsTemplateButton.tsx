@@ -121,7 +121,11 @@ export function EditorSaveAsTemplateButton({
     setBusy(true);
     try {
       const doc = getDoc();
-      const converted = brandKit ? convertToTemplate(doc, brandKit) : doc;
+      // Always through the converter, brand kit or not: it is what
+      // resets a template-instance body's content, and skipping it left
+      // a customer's invoice inside a template bound for the community
+      // review queue.
+      const converted = convertToTemplate(doc, brandKit);
       const slug = `user-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32)}-${Date.now().toString(36)}`;
       const widthPx = doc.pages[0]?.width ?? 1080;
       const heightPx = doc.pages[0]?.height ?? 1080;
