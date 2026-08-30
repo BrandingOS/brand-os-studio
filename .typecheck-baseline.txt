@@ -1,4 +1,6 @@
 src/core/adapters/database/SupabaseActivityService.ts | TS2769 | No overload matches this call.
+src/core/adapters/database/SupabaseApprovalsService.ts | TS2769 | No overload matches this call.
+src/core/adapters/database/SupabaseCommentsService.ts | TS2769 | No overload matches this call.
 src/data/brands/uniex.ts | TS2353 | Object literal may only specify known properties, and 'width' does not exist in type 'AssetFile'.
 src/data/brands/uniex.ts | TS2353 | Object literal may only specify known properties, and 'width' does not exist in type 'AssetFile'.
 src/data/brands/uniex.ts | TS2353 | Object literal may only specify known properties, and 'width' does not exist in type 'AssetFile'.
@@ -21,11 +23,22 @@ src/data/brands/uniex.ts | TS2741 | Property 'cmyk' is missing in type '{ hex: s
 src/data/brands/uniex.ts | TS2741 | Property 'cmyk' is missing in type '{ hex: string; rgb: string; name: string; usage: string; }' but required in type 'ColorDefinition'.
 src/data/brands/uniex.ts | TS2741 | Property 'cmyk' is missing in type '{ hex: string; rgb: string; name: string; usage: string; }' but required in type 'ColorDefinition'.
 src/data/brands/uniex.ts | TS2741 | Property 'hierarchy' is missing in type '{ primary: { family: string; weights: number[]; fallbacks: string[]; usage: string; }; secondary: { family: string; weights: number[]; fallbacks: string[]; usage: string; }; accent: { family: string; weights: number[]; fallbacks: string[]; usage: string; }; scale: { ...; }; }' but required in type 'ExtendedTypography'.
-src/features/admin/services/adminService.ts | TS2353 | Object literal may only specify known properties, and 'admin_notes' does not exist in type '{ created_at?: string; email?: string; id?: string; interesting_feature?: string; name?: string; role?: string; source?: string; tester_interest?: string; use_case?: string; user_agent?: string; }'.
-src/features/admin/services/adminService.ts | TS2353 | Object literal may only specify known properties, and 'status' does not exist in type '{ created_at?: string; email?: string; id?: string; interesting_feature?: string; name?: string; role?: string; source?: string; tester_interest?: string; use_case?: string; user_agent?: string; }'.
-src/features/admin/services/adminService.ts | TS2353 | Object literal may only specify known properties, and 'status' does not exist in type '{ created_at?: string; email?: string; id?: string; interesting_feature?: string; name?: string; role?: string; source?: string; tester_interest?: string; use_case?: string; user_agent?: string; }'.
-src/features/admin/services/adminService.ts | TS2353 | Object literal may only specify known properties, and 'status' does not exist in type '{ created_at?: string; email?: string; id?: string; interesting_feature?: string; name?: string; role?: string; source?: string; tester_interest?: string; use_case?: string; user_agent?: string; }'.
+src/domains/landing/lib/earlyAccess.ts | TS2769 | No overload matches this call.
+src/domains/landing/lib/earlyAccess.ts | TS2769 | No overload matches this call.
 src/features/admin/services/adminService.ts | TS2589 | Type instantiation is excessively deep and possibly infinite.
+src/features/admin/services/adminService.ts | TS2589 | Type instantiation is excessively deep and possibly infinite.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
+src/features/admin/services/adminService.ts | TS2769 | No overload matches this call.
 src/features/ai/v5/providers/mockProvider.ts | TS2550 | Property 'replaceAll' does not exist on type 'string'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2021' or later.
 src/features/analytics/computeMetrics.ts | TS2339 | Property 'voice' does not exist on type 'VoiceAndTone'.
 src/features/approvals/ApprovalsPage.tsx | TS2339 | Property 'user_metadata' does not exist on type 'User'.
@@ -192,7 +205,7 @@ src/features/editor/adapter/layerMapping.ts | TS2345 | Argument of type '{ [x: s
 src/features/editor/adapter/layerMapping.ts | TS2345 | Argument of type '{ [x: string]: any; kind?: unknown; }' is not assignable to parameter of type '{ id?: string; name?: string; opacity?: number; transform?: { height?: number; width?: number; x?: number; y?: number; rotation?: number; scaleX?: number; scaleY?: number; }; src?: string | { assetId?: string; }; kind?: "svg"; ... 5 more ...; fillOverrides?: Record<...>; }'.
 src/features/editor/adapter/layerMapping.ts | TS2345 | Argument of type '{ [x: string]: any; kind?: unknown; }' is not assignable to parameter of type '{ text?: string; id?: string; color?: string | number | { type?: "brand.color.primary" | "brand.color.secondary" | "brand.color.accent" | "brand.color.neutral" | "brand.font.heading" | ... 7 more ... | "brand.spacing.unit"; neutralIndex?: number; }; ... 15 more ...; textAlign?: "center" | ... 2 more ... | "justify"; }'.
 src/features/editor/ai/modeFive.ts | TS2322 | Type '({ pageId?: string; op?: "add-layer"; layer?: Record<string, unknown>; } | { patch?: Record<string, unknown>; pageId?: string; op?: "update-layer"; layerId?: string; } | { pageId?: string; op?: "remove-layer"; layerId?: string; } | { ...; } | { ...; })[]' is not assignable to type 'AICommandDelta[]'.
-src/features/editor/ai/modeFive.ts | TS2322 | Type '{ kind?: "rejected"; message?: string; reason?: "no_selection" | "out_of_selection_scope" | "replace_unjustified" | "schema_invalid" | "empty_prompt" | "unsupported" | "agent_error"; suggestions?: string[]; }' is not assignable to type 'AICommandResult'.
+src/features/editor/ai/modeFive.ts | TS2322 | Type '{ kind?: "rejected"; reason?: "no_selection" | "out_of_selection_scope" | "replace_unjustified" | "schema_invalid" | "empty_prompt" | "unsupported" | "agent_error"; message?: string; suggestions?: string[]; }' is not assignable to type 'AICommandResult'.
 src/features/editor/ai/modeFive.ts | TS2322 | Type '{ label?: string; kind?: "replace"; message?: string; suggestions?: string[]; disambiguation?: { mode4_alternative?: string; mode3_alternative?: string; }; justification?: string; nextDoc?: { body?: { content?: { ...; } | ... 1 more ... | { ...; }; kind?: "template-instance"; design?: { ...; }; templateId?: string; ...' is not assignable to type 'AICommandResult'.
 src/features/editor/brand/applyBrandToDocument.ts | TS2345 | Argument of type '{ [x: string]: any; kind?: unknown; }' is not assignable to parameter of type 'GroupLayer'.
 src/features/editor/brand/applyBrandToDocument.ts | TS2345 | Argument of type '{ [x: string]: any; kind?: unknown; }' is not assignable to parameter of type '{ id?: string; name?: string; fill?: string | number | { type?: "brand.color.primary" | "brand.color.secondary" | "brand.color.accent" | "brand.color.neutral" | "brand.font.heading" | ... 7 more ... | "brand.spacing.unit"; neutralIndex?: number; }; ... 11 more ...; cornerRadius?: number; }'.
@@ -274,9 +287,12 @@ src/shared/presentation/templates.tsx | TS2339 | Property 'tagline' does not exi
 src/shared/presentation/v2/components/DeckV2Page.tsx | TS2367 | This comparison appears to be unintentional because the types '"error" | "idle" | "saved"' and '"dirty"' have no overlap.
 src/shared/services/activityService.ts | TS2769 | No overload matches this call.
 src/shared/services/brands.supabase.ts | TS2769 | No overload matches this call.
+src/shared/services/presentations.supabase.ts | TS2769 | No overload matches this call.
 src/shared/templates/engine/__tests__/templates-integration.test.ts | TS2353 | Object literal may only specify known properties, and 'voice' does not exist in type 'VoiceAndTone'.
 src/shared/templates/engine/__tests__/templates-integration.test.ts | TS2739 | Type '{ mission: string; values: string[]; }' is missing the following properties from type 'BrandStrategy': vision, positioning, personality, targetAudience
 src/shared/templates/engine/__tests__/variableMap.test.ts | TS2353 | Object literal may only specify known properties, and 'voice' does not exist in type 'VoiceAndTone'.
 src/shared/templates/engine/__tests__/variableMap.test.ts | TS2739 | Type '{ mission: string; values: string[]; }' is missing the following properties from type 'BrandStrategy': vision, positioning, personality, targetAudience
 src/shared/templates/engine/variableMap.ts | TS2339 | Property 'voice' does not exist on type 'VoiceAndTone'.
+src/shared/utils/localStorage-migration.ts | TS2769 | No overload matches this call.
+src/shared/utils/localStorage-migration.ts | TS2769 | No overload matches this call.
 src/shared/utils/plan-gates.ts | TS2322 | Type '{ readonly maxBrands: 1; readonly maxMembers: 1; readonly maxStorage: 100; readonly canExportZip: false; readonly canExportPdf: false; readonly canShowcase: false; readonly canCustomDomain: false; ... 7 more ...; readonly canPriority: false; } | { ...; } | { ...; }' is not assignable to type '{ readonly maxBrands: 1; readonly maxMembers: 1; readonly maxStorage: 100; readonly canExportZip: false; readonly canExportPdf: false; readonly canShowcase: false; readonly canCustomDomain: false; ... 7 more ...; readonly canPriority: false; }'.

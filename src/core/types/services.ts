@@ -21,7 +21,15 @@ import type {
 
 // ─── Workspace Types ───────────────────────────────────────────
 
-export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'exporter' | 'viewer';
+/**
+ * The workspace role vocabulary. Migration 039 replaced the five-role enum
+ * (owner/admin/editor/exporter/viewer) with four (owner/admin/member/guest); this alias
+ * points at the single definition in the access catalog so a service cannot write a role
+ * the database no longer has. The stale generated types hid that mismatch until they were
+ * regenerated.
+ */
+export type { WorkspaceRole } from '@/shared/access/catalog';
+import type { WorkspaceRole } from '@/shared/access/catalog';
 
 export interface Workspace {
   id: string;
