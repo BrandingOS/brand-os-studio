@@ -314,18 +314,53 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.brands_with_capability(_capability text)
 RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT b.id
-    FROM public.brands b
-    JOIN public.workspace_member_state s
-      ON s.workspace_id = b.workspace_id AND s.user_id = (SELECT auth.uid()) AND s.status = 'active'
-    JOIN public.workspaces w ON w.id = b.workspace_id AND w.deleted_at IS NULL
-   WHERE public.effective_capabilities(s.user_id, b.workspace_id, b.id) @> ARRAY[_capability];
+  -- Evaluated ONCE per statement when used uncorrelated in a policy, but it still had to
+  -- call the resolver once per brand — 500 plpgsql calls for an agency's dashboard, ~150ms.
+  --
+  -- For a brand with NO brand_access row that is NOT archived, every input the resolver
+  -- reads is identical across the workspace (workspace role, mode, default brand role,
+  -- workspace overrides), so the answer is too. Those are evaluated once on a
+  -- representative brand and the answer reused; brands with an explicit grant, and
+  -- archived brands, are still evaluated individually. The resolver remains the single
+  -- authority — this changes how OFTEN it is asked, never what it answers.
+  WITH mem AS (
+    SELECT s.workspace_id, s.user_id
+      FROM public.workspace_member_state s
+      JOIN public.workspaces w ON w.id = s.workspace_id AND w.deleted_at IS NULL
+     WHERE s.user_id = (SELECT auth.uid()) AND s.status = 'active'
+  ),
+  tagged AS (
+    SELECT b.id, b.workspace_id, m.user_id,
+           (b.archived_at IS NOT NULL
+            OR EXISTS (SELECT 1 FROM public.brand_access ba
+                        WHERE ba.brand_id = b.id AND ba.user_id = m.user_id)) AS individual
+      FROM public.brands b
+      JOIN mem m ON m.workspace_id = b.workspace_id
+  ),
+  bulk AS (
+    SELECT workspace_id, user_id, (array_agg(id ORDER BY id))[1] AS rep   -- no min(uuid) in pg
+      FROM tagged WHERE NOT individual
+     GROUP BY workspace_id, user_id
+  ),
+  bulk_answer AS (
+    SELECT workspace_id,
+           public.effective_capabilities(user_id, workspace_id, rep) @> ARRAY[_capability] AS held
+      FROM bulk
+  )
+  SELECT t.id FROM tagged t
+    JOIN bulk_answer a ON a.workspace_id = t.workspace_id
+   WHERE NOT t.individual AND a.held
+  UNION
+  SELECT t.id FROM tagged t
+   WHERE t.individual
+     AND public.effective_capabilities(t.user_id, t.workspace_id, t.id) @> ARRAY[_capability];
 $$;
 
--- A GRANT does not undo the `public` schema's default EXECUTE, so every one of these
--- would still carry an `anon=X` ACL entry and be callable with no session at all. They
--- fail closed today only because auth.uid() is NULL for anon — which is one mistake away
--- from being the whole boundary. Revoke first, then grant. (Pass A, F1.)
+-- A GRANT does not undo the `public` schema's default EXECUTE, so each of these would
+-- still carry an `anon=X` ACL entry and be callable with no session at all. They fail
+-- closed today only because auth.uid() is NULL for anon — one mistake away from being the
+-- whole boundary. Revoke first, then grant. NOTE: CREATE OR REPLACE resets a function's
+-- ACL, so these must stay AFTER every definition above. (Pass A, F1.)
 REVOKE ALL ON FUNCTION public.has_capability(text, uuid, uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.workspaces_with_capability(text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.brands_with_capability(text) FROM PUBLIC, anon;
@@ -356,16 +391,23 @@ $$;
 -- carry every brand of an agency with an unlimited brand entitlement).
 CREATE OR REPLACE FUNCTION public.my_brand_access(_workspace_id uuid)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  -- One resolver call per brand, not two. This filtered on
+  -- effective_capabilities(...) @> ARRAY['brand.view'] and then called it AGAIN to build
+  -- the payload — 1000 plpgsql calls for a 500-brand agency. The LATERAL computes it once.
   SELECT jsonb_build_object('brands', COALESCE(jsonb_agg(x ORDER BY x->>'id'), '[]'::jsonb))
   FROM (
     SELECT jsonb_build_object(
              'id', b.id, 'slug', b.slug, 'archived', b.archived_at IS NOT NULL,
-             'capabilities', public.effective_capabilities((SELECT auth.uid()), b.workspace_id, b.id)) AS x
+             'capabilities', c.caps) AS x
       FROM public.brands b
+      CROSS JOIN LATERAL (
+        SELECT public.effective_capabilities((SELECT auth.uid()), b.workspace_id, b.id) AS caps
+      ) c
      WHERE b.workspace_id = _workspace_id
-       AND public.effective_capabilities((SELECT auth.uid()), b.workspace_id, b.id) @> ARRAY['brand.view']
+       AND c.caps @> ARRAY['brand.view']
   ) q;
 $$;
+-- After every CREATE OR REPLACE above, for the reason noted at has_capability.
 REVOKE ALL ON FUNCTION public.my_access() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.my_brand_access(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.my_access() TO authenticated;
