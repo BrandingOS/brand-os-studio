@@ -16,10 +16,12 @@ import JSZip from 'jszip';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import {
+  STRATEGY_DOWNLOAD_OPTIONS,
   buildAboutMarkdown,
   buildStrategyBundle,
   buildStrategyJson,
   buildStrategyMarkdown,
+  downloadStrategyFormat,
   isVariableFont,
   rgb,
 } from './strategyDocument';
@@ -192,12 +194,21 @@ describe('the Strategy download', () => {
   it('bundles the book, the record and the data, and a README that names each', async () => {
     const { files, skipped } = await buildStrategyBundle(answered());
     const paths = files.map((f) => f.path).sort();
-    expect(paths).toEqual(['README.md', 'brand-book.pdf', 'strategy.json', 'strategy.md']);
+    // `about.md` is in here too. Every one of these files opens by naming
+    // its siblings, so a bundle that omits the file its own first line
+    // points at has recreated D66 in miniature.
+    expect(paths).toEqual([
+      'README.md',
+      'about.md',
+      'brand-book.pdf',
+      'strategy.json',
+      'strategy.md',
+    ]);
     // Nothing empty — a 0-byte file in a bundle is worse than a missing one.
     for (const file of files) expect(file.blob.size).toBeGreaterThan(0);
 
     const readme = await readText(files.find((f) => f.path === 'README.md')!.blob);
-    for (const path of ['brand-book.pdf', 'strategy.md', 'strategy.json']) {
+    for (const path of ['about.md', 'brand-book.pdf', 'strategy.md', 'strategy.json']) {
       expect(readme).toContain(`\`${path}\``);
     }
     expect(readme).toContain('The designed document');
@@ -255,5 +266,57 @@ describe('the two things a font can break', () => {
   it('reads hex the way jsPDF wants it', () => {
     expect(rgb('#7231FF')).toEqual([0x72, 0x31, 0xff]);
     expect(rgb('fff')).toEqual([255, 255, 255]);
+  });
+});
+
+describe('strategy.md — one sentence, one heading', () => {
+  it('does not print the voice again when the voice IS the Tone answer', () => {
+    // Measured on Raqm, whose `voice.essay` is the string
+    // "Direct, Strategic & Precision-Driven" and nothing else — so the
+    // file carried it under **Tone** and again under **Voice**.
+    const md = buildStrategyMarkdown(
+      answered({
+        voice: { essay: 'Direct, Strategic & Precision-Driven', pillars: [] },
+        strategy: { ...answered().strategy, tone: 'Direct, Strategic & Precision-Driven' },
+      }),
+    );
+    expect(md).not.toContain('## Voice');
+    expect(md.split('Direct, Strategic & Precision-Driven')).toHaveLength(2);
+  });
+
+  it('still prints a voice that says something the answers do not', () => {
+    const md = buildStrategyMarkdown(
+      answered({ voice: { essay: 'We write the way we would say it.', pillars: [] } }),
+    );
+    expect(md).toContain('## Voice');
+    expect(md).toContain('We write the way we would say it.');
+  });
+});
+
+describe('the Strategy card’s Download menu', () => {
+  it('is the same five rows as every other menu, two of them primary', () => {
+    // One menu everywhere is the whole point. What changes is what the
+    // rows can honestly offer — there is no vector of a page of words.
+    expect(STRATEGY_DOWNLOAD_OPTIONS).toHaveLength(5);
+    expect(STRATEGY_DOWNLOAD_OPTIONS.filter((o) => !o.secondary)).toHaveLength(2);
+    expect(STRATEGY_DOWNLOAD_OPTIONS.slice(0, 2).map((o) => o.label)).toEqual([
+      'For web',
+      'For print',
+    ]);
+    // Every row is live: nothing here is offered and then refused.
+    expect(STRATEGY_DOWNLOAD_OPTIONS.every((o) => !o.disabledReason)).toBe(true);
+    expect(STRATEGY_DOWNLOAD_OPTIONS.map((o) => o.format)).toEqual([
+      'md',
+      'pdf',
+      'json',
+      'png',
+      'zip',
+    ]);
+  });
+
+  it('says why "Flattened" cannot be produced off-screen rather than failing', async () => {
+    const skipped = await downloadStrategyFormat('png', answered(), undefined, { element: null });
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].reason).toMatch(/nothing on screen/i);
   });
 });

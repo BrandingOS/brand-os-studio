@@ -24,7 +24,27 @@ import type { KitEntry } from '../catalog/catalog';
  */
 export type KitNativeFormat = 'pptx' | 'ico' | 'html' | 'sizes';
 
-export type DownloadFormat = 'png' | 'pdf' | 'svg' | 'jpg' | 'custom' | KitNativeFormat;
+/**
+ * The formats a DOCUMENT owes, as opposed to a design.
+ *
+ * Strategy is the one card in the kit whose deliverable is words rather
+ * than artwork, and none of the raster vocabulary fits it: there is no
+ * vector to hand over and nothing to resize. It still uses the same menu
+ * — one menu everywhere is the whole point — but the third and fifth rows
+ * say what a document can actually be. Kept out of `KitNativeFormat` on
+ * purpose: that union is what `nativeFormatFor` may answer for a RENDERED
+ * deliverable, and `NATIVE_FORMATS` must stay exhaustive over it.
+ */
+export type KitDocumentFormat = 'md' | 'json' | 'zip';
+
+export type DownloadFormat =
+  | 'png'
+  | 'pdf'
+  | 'svg'
+  | 'jpg'
+  | 'custom'
+  | KitNativeFormat
+  | KitDocumentFormat;
 
 export type DownloadOption = {
   format: DownloadFormat;

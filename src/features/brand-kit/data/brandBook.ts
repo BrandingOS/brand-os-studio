@@ -38,10 +38,10 @@ import {
   A4,
   MARGIN,
   embedBrandFonts,
-  logoForGround,
+  fitBox,
+  logoArtForGround,
   paintCover,
   rgb,
-  type BrandFontNames,
   type Ink,
 } from './strategyDocument';
 
@@ -304,12 +304,42 @@ export async function buildBrandBook(
     else if (!summary && !mission && lead) spokenHere.add('positioning');
     if (lead) {
       // Set large and short — this is the one page someone reads aloud.
+      //
+      // And set DOWN the page, not against the rule. A statement of two
+      // sentences printed at the top of A4 leaves two thirds of the sheet
+      // blank underneath it, which reads as a page that ran out rather
+      // than as one composed around a single idea. Starting it a third of
+      // the way down makes the air deliberate — and the block still grows
+      // upward-anchored, so a long statement is never pushed off the foot.
       pdf.setFont(fonts.heading, 'bold');
       pdf.setFontSize(22);
       pdf.setTextColor(...rgb(ink.heading));
       const lines = pdf.splitTextToSize(lead, width) as string[];
-      pdf.text(lines, MARGIN, y + 10, { lineHeightFactor: 1.32 });
-      y += lines.length * 29 + 34;
+      const blockH = lines.length * 29;
+      const room = A4.h - MARGIN - 120 - y;
+      y += Math.max(10, Math.min(room - blockH, A4.h * 0.18));
+      pdf.text(lines, MARGIN, y, { lineHeightFactor: 1.32 });
+      y += blockH + 24;
+      // A foot for the page: the brand's own colours as a hairline band,
+      // the same device the cover ends on, so the statement sits ON
+      // something instead of floating in the middle of a blank sheet.
+      const band = [...(brand.colors.core ?? []), ...(brand.colors.accent ?? [])]
+        .map((c) => c.hex)
+        .filter(Boolean)
+        .slice(0, 8);
+      if (band.length > 0) {
+        const bw = width / band.length;
+        band.forEach((hex, i) => {
+          pdf.setFillColor(...rgb(hex));
+          // Hairline on EVERY segment. SKAM's white painted white on a
+          // white page left a hole in the middle of the band — the same
+          // failure the proportion bar had, for the same reason.
+          pdf.setDrawColor(...rgb(ink.rule));
+          pdf.setLineWidth(0.4);
+          pdf.rect(MARGIN + i * bw, y, bw, 6, 'FD');
+        });
+        y += 26;
+      }
     } else {
       para('This brand has not written its summary yet. Setup → Brand Strategy.', 11, ink.muted);
     }
@@ -333,6 +363,16 @@ export async function buildBrandBook(
   }
 
   /* ── 4 · The logo ─────────────────────────────────────────────── */
+  //
+  // Everything on this page is drawn around the mark's REAL bounds.
+  // `logoArtForGround` crops the raster to its own ink and reports the
+  // shape it is, because the first book built off Raqm drew all three
+  // rules around a square canvas whose wordmark was a band across the
+  // middle: the clear-space field enclosed a lot of nothing, the
+  // "minimum size" specimen was a third of the size it claimed, and the
+  // "crowd it" tile showed two grey blocks touching neither side of the
+  // mark. A rule illustrated by a diagram that does not obey it teaches
+  // the opposite of the rule.
   {
     openSection('The logo');
     const groundOptions = [
@@ -351,11 +391,11 @@ export async function buildBrandBook(
       pdf.setDrawColor(...rgb(ink.rule));
       pdf.setLineWidth(0.5);
       pdf.rect(x, top, tileW, tileH, 'FD');
-      const art = await logoForGround(sourceBrand, hex);
+      const art = await logoArtForGround(sourceBrand, hex);
       if (art) {
-        const box = Math.min(tileW - 44, tileH - 34);
+        const at = fitBox({ x: x + 22, y: top + 20, w: tileW - 44, h: tileH - 40 }, art.aspect);
         try {
-          pdf.addImage(art, 'PNG', x + (tileW - box) / 2, top + (tileH - box) / 2, box, box, undefined, 'FAST');
+          pdf.addImage(art.dataUrl, 'PNG', at.x, at.y, at.w, at.h, undefined, 'FAST');
           placedAny = true;
         } catch {
           // Undecodable art: the tile still shows the ground and its name.
@@ -371,8 +411,13 @@ export async function buildBrandBook(
       skipped.push({ label: 'Logo', reason: 'this brand has no logo artwork yet' });
     }
 
+    const mark = await logoArtForGround(sourceBrand, surface.bg);
+
     // Clear space. R is the formula every guideline states and almost none
-    // draw; drawn, nobody has to guess what the R refers to.
+    // draw; drawn AROUND THE MARK ITSELF, nobody has to guess what the R
+    // refers to. The inner field is the mark's own box — so the dashed
+    // outer field is exactly one third of the mark's height beyond it, on
+    // every side, which is what the sentence says.
     eyebrow('Clear space');
     para(
       'Keep clear space equal to R on every side, where R is one third of the mark’s height. Nothing — type, image, edge of the page — enters that field.',
@@ -381,56 +426,93 @@ export async function buildBrandBook(
       width * 0.62,
     );
     const dY = y + 4;
-    const outerH = 118;
-    const outerW = 210;
-    const R = outerH / 3 / 2 + 12;
+    // The mark is laid out first; the diagram is built around it — and it
+    // is NEVER distorted to make the diagram fit. The first pass capped
+    // the width at 190pt while keeping the height at 46, so a wordmark of
+    // aspect 5.3 was drawn at 4.1 and the page that says "never stretch
+    // it" stretched it. The height is solved from the space instead.
+    const aspect = Math.max(0.05, mark?.aspect ?? 1);
+    const DIAG_W = 250;
+    // outer = markW + 2R and R = markH/3, so outer = markH·(aspect + 2/3).
+    const markH = Math.min(64, DIAG_W / (aspect + 2 / 3));
+    const markW = markH * aspect;
+    const R = markH / 3;
+    const innerX = MARGIN + R;
+    const innerY = dY + R;
+    const outerW = markW + R * 2;
+    const outerH = markH + R * 2;
     pdf.setDrawColor(...rgb(ink.rule));
     pdf.setLineWidth(0.7);
     pdf.setLineDashPattern([3, 3], 0);
     pdf.rect(MARGIN, dY, outerW, outerH, 'S');
     pdf.setLineDashPattern([], 0);
-    const innerW = outerW - R * 2;
-    const innerH = outerH - R * 2;
-    // The inner field is the rule made VISIBLE. Without it the diagram was
-    // a dashed box with a logo loose inside it and an R measured against
-    // nothing — the reader had to take the caption's word for what R was.
-    pdf.setDrawColor(...rgb(ink.rule));
-    pdf.setLineWidth(0.5);
-    pdf.rect(MARGIN + R, dY + R, innerW, innerH, 'S');
-    const mark = await logoForGround(sourceBrand, surface.bg);
     if (mark) {
-      const box = Math.min(innerW, innerH);
       try {
-        pdf.addImage(mark, 'PNG', MARGIN + (outerW - box) / 2, dY + (outerH - box) / 2, box, box, undefined, 'FAST');
+        pdf.addImage(mark.dataUrl, 'PNG', innerX, innerY, markW, markH, undefined, 'FAST');
       } catch {
-        // The dashed field alone still states the rule.
+        // The two fields alone still state the rule.
       }
     }
+    // The mark's own box, stroked OVER the artwork — under it, the ink
+    // hides the very line the diagram is about.
+    pdf.setDrawColor(...rgb(ink.rule));
+    pdf.setLineWidth(0.5);
+    pdf.rect(innerX, innerY, markW, markH, 'S');
+    // The measure, drawn on the gap it measures: a stroke from the outer
+    // field to the inner one, with serifs at both ends so it reads as a
+    // dimension rather than as part of the artwork.
+    const midX = MARGIN + outerW / 2;
     pdf.setDrawColor(...rgb(primary));
     pdf.setLineWidth(0.8);
-    pdf.line(MARGIN + outerW / 2, dY, MARGIN + outerW / 2, dY + R);
+    pdf.line(midX, dY, midX, innerY);
+    pdf.setLineWidth(0.6);
+    pdf.line(midX - 4, dY, midX + 4, dY);
+    pdf.line(midX - 4, innerY, midX + 4, innerY);
     pdf.setFont(fonts.body, 'bold');
     pdf.setFontSize(8.5);
     pdf.setTextColor(...rgb(primary));
-    pdf.text('R', MARGIN + outerW / 2 + 5, dY + R - 4);
+    pdf.text('R', midX + 6, innerY - R / 2 + 3);
 
-    // Minimum size, stated in both the units it gets used in.
+    // Minimum size, shown AT the minimum size — and stated as a HEIGHT.
+    //
+    // The rule that ships in most guidelines is a width, and a width is
+    // the wrong invariant: legibility is a function of how tall the
+    // letterforms are, so "10 mm" is generous for a compact mark and
+    // unreadably small for a wordmark five times as wide as it is tall.
+    // Raqm's, drawn at 10 mm wide, was two millimetres tall. One rule,
+    // stated as a height, is right for every shape a brand can have.
+    const MIN_MM = 6;
+    const minH = MIN_MM * 2.8346; // mm → pt
     const minX = MARGIN + outerW + 46;
     if (mark) {
+      const w = minH * aspect;
       try {
-        pdf.addImage(mark, 'PNG', minX, dY + 18, 52, 52, undefined, 'FAST');
+        pdf.addImage(mark.dataUrl, 'PNG', minX, dY + 10, w, minH, undefined, 'FAST');
       } catch {
         /* noop */
       }
+      // A hairline the exact width of the specimen, so the measurement is
+      // of something on the page rather than a claim about it.
+      pdf.setDrawColor(...rgb(ink.rule));
+      pdf.setLineWidth(0.5);
+      const under = dY + 10 + minH + 7;
+      pdf.line(minX, under, minX + w, under);
+      pdf.line(minX, under - 3, minX, under + 3);
+      pdf.line(minX + w, under - 3, minX + w, under + 3);
     }
     pdf.setFont(fonts.body, 'bold');
     pdf.setFontSize(8);
     pdf.setTextColor(...rgb(ink.muted));
-    pdf.text('MINIMUM SIZE', minX, dY + 88, { charSpace: 1.2 });
+    pdf.text('MINIMUM SIZE', minX, dY + outerH - 22, { charSpace: 1.2 });
     pdf.setFont(fonts.body, 'normal');
-    pdf.setFontSize(10);
+    pdf.setFontSize(9.5);
     pdf.setTextColor(...rgb(ink.body));
-    pdf.text('24 px on screen · 10 mm in print', minX, dY + 104);
+    pdf.text(`${MIN_MM} mm tall in print · 24 px tall on screen`, minX, dY + outerH - 8, {
+      maxWidth: A4.w - MARGIN - minX,
+    });
+    pdf.setFontSize(8);
+    pdf.setTextColor(...rgb(ink.muted));
+    pdf.text('Shown above at that size.', minX, dY + outerH + 5);
     y = dY + outerH + 34;
 
     // Misuse. This is the half of a logo page that decides whether the
@@ -445,29 +527,49 @@ export async function buildBrandBook(
       const mGap = 14;
       const mW = (width - mGap * (COLS - 1)) / COLS;
       const mH = 86;
+      /** Where the mark sits, undistorted, inside one misuse tile. */
+      const seat = (x: number, top2: number) =>
+        fitBox({ x: x + 12, y: top2 + 16, w: mW - 24, h: mH - 32 }, mark.aspect);
       const misuse: Array<[string, (x: number, top: number) => void]> = [
         [
           'Stretch or squash it',
-          (x, top) => {
-            pdf.addImage(mark, 'PNG', x + 8, top + 22, mW - 16, mH - 52, undefined, 'FAST');
+          (x, top2) => {
+            // Deliberately NOT `fitBox` — the whole point is the distortion,
+            // and it has to be unmistakable. A tile that is 15% off reads as
+            // a rendering wobble; this one is squeezed to 60% of its width
+            // and pulled to 1.7× its height, which nobody mistakes for the
+            // mark drawn correctly.
+            const at = seat(x, top2);
+            const w = at.w * 0.6;
+            const h = Math.min(mH - 20, at.h * 1.7);
+            pdf.addImage(
+              mark.dataUrl,
+              'PNG',
+              x + (mW - w) / 2,
+              top2 + (mH - h) / 2,
+              w,
+              h,
+              undefined,
+              'FAST',
+            );
           },
         ],
         [
           'Rotate or tilt it',
-          (x, top) => {
-            const box = mH - 34;
-            pdf.addImage(mark, 'PNG', x + (mW - box) / 2, top + 17, box, box, undefined, 'FAST', 12);
+          (x, top2) => {
+            const at = seat(x, top2);
+            pdf.addImage(mark.dataUrl, 'PNG', at.x, at.y, at.w, at.h, undefined, 'FAST', 12);
           },
         ],
         [
           'Retype the name instead of using it',
-          (x, top) => {
+          (x, top2) => {
             // Vector, and deliberately NOT one of the brand's own faces:
             // the misuse is setting the name as type at all.
             pdf.setFont('times', 'italic');
             pdf.setFontSize(15);
             pdf.setTextColor(...rgb(ink.body));
-            pdf.text(brand.name, x + mW / 2, top + mH / 2 + 5, {
+            pdf.text(brand.name, x + mW / 2, top2 + mH / 2 + 5, {
               align: 'center',
               maxWidth: mW - 12,
             });
@@ -475,16 +577,16 @@ export async function buildBrandBook(
         ],
         [
           'Crowd it',
-          (x, top) => {
-            // Blocks BUTTED against the mark, not drawn through it. A rule
+          (x, top2) => {
+            // Blocks BUTTED against the mark's own edges — which is only
+            // possible because the artwork is cropped to its ink. A rule
             // across the middle read as a logo struck out, which is a
             // different rule and one nobody was making.
-            const box = mH - 34;
-            const left = x + (mW - box) / 2;
+            const at = seat(x, top2);
             pdf.setFillColor(...rgb(ink.rule));
-            pdf.rect(x + 4, top + 4, left - x - 4, mH - 8, 'F');
-            pdf.rect(left + box, top + 4, x + mW - 4 - (left + box), mH - 8, 'F');
-            pdf.addImage(mark, 'PNG', left, top + 17, box, box, undefined, 'FAST');
+            pdf.rect(x + 3, top2 + 3, at.x - x - 3, mH - 6, 'F');
+            pdf.rect(at.x + at.w, top2 + 3, x + mW - 3 - (at.x + at.w), mH - 6, 'F');
+            pdf.addImage(mark.dataUrl, 'PNG', at.x, at.y, at.w, at.h, undefined, 'FAST');
           },
         ],
       ];
@@ -849,10 +951,11 @@ export async function buildBrandBook(
     const fg = pickFgOnBackground(ground, ['#FFFFFF', '#111113']);
     pdf.setFillColor(...rgb(ground));
     pdf.rect(0, 0, A4.w, A4.h, 'F');
-    const art = await logoForGround(sourceBrand, ground);
+    const art = await logoArtForGround(sourceBrand, ground);
     if (art) {
+      const at = fitBox({ x: MARGIN, y: MARGIN, w: 200, h: 76 }, art.aspect);
       try {
-        pdf.addImage(art, 'PNG', MARGIN, MARGIN, 96, 96, undefined, 'FAST');
+        pdf.addImage(art.dataUrl, 'PNG', MARGIN, at.y, at.w, at.h, undefined, 'FAST');
       } catch {
         /* the name below still lands */
       }

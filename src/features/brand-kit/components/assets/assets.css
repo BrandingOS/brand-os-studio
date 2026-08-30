@@ -961,3 +961,115 @@
   font-size: 12.5px;
   line-height: 1.6;
 }
+
+/* Strategy */
+
+.bka-strategy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* One row per question, answered or not. A row IS the button that opens
+   it — the same rule the palette keeps, where the swatch is the control
+   rather than something with a control beside it. */
+.bka-strategy-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  overflow: hidden;
+}
+
+.bka-strategy-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+
+.bka-strategy-row:first-child {
+  border-top: 0;
+}
+
+.bka-strategy-row:hover,
+.bka-strategy-row:focus-visible {
+  background: var(--ds-surface-raised);
+}
+
+.bka-strategy-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+
+.bka-strategy-value {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+  /* Three lines, then an ellipsis: the panel is a list of what is
+     answered, and a 400-word audience paragraph turns it into a document
+     nobody can scan. The editor shows the whole answer. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bka-strategy-value.is-empty {
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* A row the draft has changed carries the mark down its edge — the
+   confirmation names every change, and this is where they happened. */
+.bka-strategy-row.is-changed {
+  box-shadow: inset 3px 0 0 var(--ds-text);
+}
+
+.bka-strategy-change {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bka-strategy-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ds-danger, #b42318);
+}
+
+/* The Strategy drilldown's own action row.
+   The shared drilldown head hides its Download button for a composed
+   view, so a composed view carries its own actions — this is Strategy's,
+   and it is the whole of D45. It is hidden inside `.bk-snapshot-host`
+   because that host is the OFFSCREEN mount every kit export rasterizes
+   through: a picture of this page with an Edit button in it is a picture
+   of the app, not of the brand. */
+.bka-strategy-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bk-snapshot-host .bka-strategy-actions {
+  display: none !important;
+}
+
+/* The menu renders in place, not in a portal, so the trigger is its
+   positioning context. */
+.bka-strategy-dl {
+  position: relative;
+}

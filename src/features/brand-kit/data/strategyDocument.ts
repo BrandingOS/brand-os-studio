@@ -44,6 +44,7 @@ import { slugify, triggerBlobDownload } from './colorPaletteExport';
 import { zipAdd, type ZipFolder } from './zipFile';
 import { buildKitReadmeFile, type KitManifestSkip } from '../exporters/readme';
 import type { ExportFile } from '../exporters/types';
+import type { DownloadFormat, DownloadOption } from './exportFormats';
 
 /* ─── Markdown ────────────────────────────────────────────────────── */
 
@@ -171,8 +172,20 @@ export function buildStrategyMarkdown(brand: MockBrand): string {
     lines.push('## Notes', '');
     for (const s of sections) lines.push(`### ${s.title}`, '', s.content.trim(), '');
   }
-  if (brand.voice?.essay?.trim()) {
-    lines.push('## Voice', '', brand.voice.essay.trim(), '');
+  // A brand whose `voice.essay` IS its Tone answer printed the same
+  // sentence twice in one file — once under **Tone** and again under
+  // **Voice**. Measured on Raqm, whose voice essay is the string
+  // "Direct, Strategic & Precision-Driven" and nothing else. Two headings
+  // over one sentence reads as a template filled in by machine, which is
+  // exactly what it was. Same guard the brand book keeps.
+  const essay = brand.voice?.essay?.trim() ?? '';
+  const said = (text: string) => text.toLowerCase().replace(/[\s.,;:—–-]+/g, ' ').trim();
+  const alreadySaid = STRATEGY_CARDS.some((card) => {
+    const value = brand.strategy ? contentOf(card, brand.strategy) : '';
+    return Boolean(value) && said(value) === said(essay);
+  });
+  if (essay && !alreadySaid) {
+    lines.push('## Voice', '', essay, '');
   }
   const pillars = (brand.voice?.pillars ?? []).filter((p) => p.trim());
   if (pillars.length > 0) {
@@ -444,14 +457,134 @@ export async function logoForGround(
   sourceBrand: Brand | undefined,
   ground: string,
 ): Promise<string | null> {
+  return (await logoArtForGround(sourceBrand, ground))?.dataUrl ?? null;
+}
+
+/** The mark, and the shape it actually is. */
+export type LogoArt = {
+  /** PNG data URL, cropped to the ink. */
+  dataUrl: string;
+  /** width / height of the artwork itself. */
+  aspect: number;
+};
+
+/**
+ * The mark, cropped to its own ink, with the shape it really is.
+ *
+ * `rasterizeLogo` answers with a SQUARE canvas and the artwork contained
+ * inside it, which is right for handing a logo to an image model and
+ * wrong for a page that draws rules around the mark. A wordmark is a wide
+ * band across the middle of that square, so a clear-space field drawn at
+ * the square's edge is a field around a lot of nothing, a "minimum size"
+ * specimen is a third the size it claims, and a "crowd it" tile shows two
+ * grey blocks not touching anything. All three were measured in the first
+ * book built off Raqm.
+ *
+ * So the square is measured — the alpha bounding box of its ink — and cut
+ * down to it. A failure (no canvas, a tainted image, artwork that is
+ * entirely transparent) falls back to the square at aspect 1, which is
+ * exactly the behaviour this replaces.
+ *
+ * Cached per url+ground: the book asks for the same mark five times.
+ */
+const logoArtCache = new Map<string, LogoArt | null>();
+
+export async function logoArtForGround(
+  sourceBrand: Brand | undefined,
+  ground: string,
+): Promise<LogoArt | null> {
   if (!sourceBrand) return null;
   const picked = pickLogoOnBackground(sourceBrand, ground);
   if (!picked?.url) return null;
+  const key = `${picked.url}|${ground}`;
+  const hit = logoArtCache.get(key);
+  if (hit !== undefined) return hit;
+  let art: LogoArt | null = null;
   try {
-    return await rasterizeLogo(picked.url, { size: 1024, padding: 0 });
+    const square = await rasterizeLogo(picked.url, { size: 1024, padding: 0 });
+    if (square) art = (await cropToInk(square)) ?? { dataUrl: square, aspect: 1 };
+  } catch {
+    art = null;
+  }
+  logoArtCache.set(key, art);
+  return art;
+}
+
+/** Test seam + a way out of a stale cache when a brand's logo changes. */
+export function clearLogoArtCache(): void {
+  logoArtCache.clear();
+}
+
+/** The alpha bounding box of a PNG data URL, re-cut as its own image. */
+async function cropToInk(dataUrl: string): Promise<LogoArt | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('logo raster failed to load'));
+      el.src = dataUrl;
+    });
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return null;
+    const probe = document.createElement('canvas');
+    probe.width = w;
+    probe.height = h;
+    const pctx = probe.getContext('2d');
+    if (!pctx) return null;
+    pctx.drawImage(img, 0, 0);
+    const { data } = pctx.getImageData(0, 0, w, h);
+    let minX = w;
+    let minY = h;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < h; y += 1) {
+      for (let x = 0; x < w; x += 1) {
+        if (data[(y * w + x) * 4 + 3] > 8) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    // Entirely transparent, or a single stray pixel: nothing to crop to.
+    if (maxX < minX || maxY < minY) return null;
+    const cw = maxX - minX + 1;
+    const ch = maxY - minY + 1;
+    if (cw < 4 || ch < 4) return null;
+    const out = document.createElement('canvas');
+    out.width = cw;
+    out.height = ch;
+    const octx = out.getContext('2d');
+    if (!octx) return null;
+    octx.drawImage(probe, minX, minY, cw, ch, 0, 0, cw, ch);
+    return { dataUrl: out.toDataURL('image/png'), aspect: cw / ch };
   } catch {
     return null;
   }
+}
+
+/**
+ * Place a picture inside a box, whole and centred, never distorted.
+ *
+ * Every logo in these documents goes through this. `addImage` obeys the
+ * width AND the height it is handed, so a mark drawn at "the box" is a
+ * mark stretched to the box — which is the first thing the logo page
+ * tells the reader never to do.
+ */
+export function fitBox(
+  box: { x: number; y: number; w: number; h: number },
+  aspect: number,
+): { x: number; y: number; w: number; h: number } {
+  const safe = Math.max(0.05, aspect || 1);
+  let w = box.w;
+  let h = w / safe;
+  if (h > box.h) {
+    h = box.h;
+    w = h * safe;
+  }
+  return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
 }
 
 /**
@@ -486,13 +619,17 @@ export async function paintCover(
   pdf.setFillColor(...rgb(coverGround));
   pdf.rect(0, 0, A4.w, A4.h, 'F');
 
-  const logo = await logoForGround(sourceBrand, coverGround);
+  const logo = await logoArtForGround(sourceBrand, coverGround);
   let cursor = A4.h * 0.42;
   let placedLogo = false;
   if (logo) {
-    const box = 170;
+    // A frame, not a square. The mark is cropped to its own ink now, so a
+    // wide wordmark drawn in a square box would be a third of the size it
+    // could be — and a tall one would overrun the field it sits in.
+    const frame = { x: MARGIN, y: cursor - 170, w: A4.w - MARGIN * 2, h: 170 };
+    const at = fitBox(frame, logo.aspect);
     try {
-      pdf.addImage(logo, 'PNG', (A4.w - box) / 2, cursor - box, box, box, undefined, 'FAST');
+      pdf.addImage(logo.dataUrl, 'PNG', at.x, at.y, at.w, at.h, undefined, 'FAST');
       placedLogo = true;
       cursor += 26;
     } catch {
@@ -738,6 +875,12 @@ export async function buildStrategyPdf(
  */
 /** What each file in the bundle is FOR — the README's own words. */
 const FILE_NOTES: Record<string, { label?: string; note?: string }> = {
+  'about.md': {
+    label: 'The brand, in a page',
+    note:
+      'The slogan, the summary and the identity facts — what you paste into a press ' +
+      'kit, a README or a brief. Short on purpose; the whole record is beside it.',
+  },
   'brand-book.pdf': {
     label: 'The brand book',
     note:
@@ -779,6 +922,16 @@ export async function buildStrategyBundle(
   const files: ExportFile[] = [];
   const skipped: KitManifestSkip[] = [];
 
+  // `about.md` travels WITH the strategy, and the reason is D66 again in
+  // miniature: every one of these files opens by naming its siblings, and
+  // `strategy.md` says "about.md is the short version". A bundle that
+  // does not contain the file its own first line points at has recreated
+  // the confusion the four-document split was written to end. It is a
+  // kilobyte.
+  files.push({
+    path: 'about.md',
+    blob: new Blob([buildAboutMarkdown(brand)], { type: TEXT }),
+  });
   files.push({
     path: 'strategy.md',
     blob: new Blob([buildStrategyMarkdown(brand)], { type: TEXT }),
@@ -858,4 +1011,122 @@ export async function downloadStrategyBundle(
   const blob = await zip.generateAsync({ type: 'blob' });
   triggerBlobDownload(blob, `${slugify(brand.name) || 'brand'}-strategy.zip`);
   return skipped;
+}
+
+/* ─── The Strategy card's download menu ───────────────────────────── */
+
+/**
+ * The five rows, in the house vocabulary, saying what a DOCUMENT can be.
+ *
+ * Same shape as every other Download menu — two rows, a divider, three
+ * more — because a menu that changes shape per card is a menu nobody
+ * learns. What changes is what the rows can honestly offer: there is no
+ * vector of a page of words and nothing to resize, so the third and fifth
+ * rows are the two things a document really has instead — the record as
+ * data, and everything at once.
+ *
+ * "Flattened" keeps its usual meaning: a picture of what is on screen.
+ * It is the only row that needs the DOM, and the only one a caller
+ * outside the view cannot produce.
+ */
+export const STRATEGY_DOWNLOAD_OPTIONS: DownloadOption[] = [
+  { format: 'md', label: 'For web', chip: 'MD' },
+  { format: 'pdf', label: 'For print', chip: 'PDF' },
+  { format: 'json', label: 'As data', chip: 'JSON', secondary: true },
+  { format: 'png', label: 'Flattened', chip: 'PNG', secondary: true },
+  { format: 'zip', label: 'Everything', chip: 'ZIP', secondary: true },
+];
+
+/**
+ * One row of that menu, carried out.
+ *
+ * Returns what it could NOT include rather than throwing it away: the
+ * book renders four applications through the whole template library, and
+ * a family mid-conversion is a normal state of this repo. The caller says
+ * so out loud.
+ */
+export async function downloadStrategyFormat(
+  format: DownloadFormat,
+  brand: MockBrand,
+  sourceBrand?: Brand,
+  opts: { element?: HTMLElement | null; signal?: AbortSignal } = {},
+): Promise<KitManifestSkip[]> {
+  const base = slugify(brand.name) || 'brand';
+  switch (format) {
+    case 'md':
+      triggerBlobDownload(
+        new Blob([buildStrategyMarkdown(brand)], { type: TEXT }),
+        `${base}-strategy.md`,
+      );
+      return [];
+    case 'json':
+      triggerBlobDownload(
+        new Blob([buildStrategyJson(brand)], { type: 'application/json;charset=utf-8' }),
+        `${base}-strategy.json`,
+      );
+      return [];
+    case 'pdf': {
+      const { buildBrandBook } = await import('./brandBook');
+      const built = await buildBrandBook(brand, sourceBrand, { signal: opts.signal });
+      triggerBlobDownload(built.blob, `${base}-brand-book.pdf`);
+      return built.skipped.map((s) => ({ label: s.label, reason: s.reason }));
+    }
+    case 'png': {
+      if (!opts.element) {
+        return [{ label: 'Flattened', reason: 'there is nothing on screen to photograph' }];
+      }
+      const { snapshotElementPng } = await import('./templateSnapshot');
+      const shot = await snapshotElementPng(opts.element, 2);
+      if (!shot) return [{ label: 'Flattened', reason: 'the page could not be rasterized' }];
+      // `snapshotElementPng` shoots on a TRANSPARENT ground, which is
+      // right for a deliverable cut out of the page and wrong for a
+      // picture OF the page: the first one measured came back with the
+      // section headings invisible, because dark text on nothing is
+      // nothing. "Flattened" means flattened.
+      const blob = await onGround(shot, groundOf(opts.element));
+      triggerBlobDownload(blob, `${base}-strategy.png`);
+      return [];
+    }
+    default:
+      return downloadStrategyBundle(brand, sourceBrand, { signal: opts.signal });
+  }
+}
+
+/**
+ * The colour the page is actually painted on.
+ *
+ * Climbs to the first ancestor that paints anything — the view itself is
+ * transparent, and so is most of what is between it and the workspace
+ * shell that holds the ground.
+ */
+function groundOf(el: HTMLElement): string {
+  let node: HTMLElement | null = el;
+  while (node) {
+    const bg = getComputedStyle(node).backgroundColor;
+    if (bg && bg !== 'transparent' && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(bg)) return bg;
+    node = node.parentElement;
+  }
+  return '#ffffff';
+}
+
+/** Paint a transparent raster onto a solid ground. */
+async function onGround(png: Blob, ground: string): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(png);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return png;
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    return await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b ?? png), 'image/png'),
+    );
+  } catch {
+    // A ground we could not paint is worth less than the picture itself.
+    return png;
+  }
 }
