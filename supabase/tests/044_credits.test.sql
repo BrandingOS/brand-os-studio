@@ -178,6 +178,46 @@ BEGIN
   RAISE NOTICE '✓ 044 reconciliation';
 END $$;
 
+-- Pass B F3: a ref_id identifies at most ONE held reservation
+DO $$
+DECLARE ok boolean := false;
+BEGIN
+  PERFORM public.grant_credits(pg_temp.ws('A'), 500, 'test', 'topup-f3');
+  PERFORM public.reserve_credits(pg_temp.ws('A'), NULL, 5, 'f3-a', interval '10 minutes',
+                                 'image', pg_temp.brand('A1'), pg_temp.uid('emma'), 'test', 'shared-ref');
+  BEGIN
+    PERFORM public.reserve_credits(pg_temp.ws('A'), NULL, 5, 'f3-b', interval '10 minutes',
+                                   'image', pg_temp.brand('A1'), pg_temp.uid('emma'), 'test', 'shared-ref');
+  EXCEPTION WHEN unique_violation THEN ok := true; END;
+  IF NOT ok THEN
+    RAISE EXCEPTION 'F3: two held reservations share a ref_id — settle would orphan one';
+  END IF;
+  PERFORM public.release_credits(pg_temp.ws('A'), NULL, 5, 'cleanup', 'f3-rel', 'shared-ref');
+  RAISE NOTICE '✓ F3 one held reservation per ref_id';
+END $$;
+
+-- Pass B F4: the ROW's amount is what unwinds, not the caller's number
+DO $$
+DECLARE before bigint; held_before bigint; acct public.credit_accounts%ROWTYPE;
+BEGIN
+  -- earlier blocks leave holds open on purpose, so compare DELTAS, not absolutes
+  SELECT balance_credits, reserved_credits INTO before, held_before
+    FROM public.credit_accounts WHERE workspace_id = pg_temp.ws('A');
+  PERFORM public.reserve_credits(pg_temp.ws('A'), NULL, 30, 'f4-res', interval '10 minutes',
+                                 'image', pg_temp.brand('A1'), pg_temp.uid('emma'), 'test', 'job-f4');
+  -- a caller that lies about what it held must not be able to desync the wallet
+  PERFORM public.settle_credits(pg_temp.ws('A'), NULL, 999, 0, 'f4-settle', 'job-f4');
+  SELECT * INTO acct FROM public.credit_accounts WHERE workspace_id = pg_temp.ws('A');
+  IF acct.balance_credits <> before OR acct.reserved_credits <> held_before THEN
+    RAISE EXCEPTION 'F4: a wrong _reserved desynced the wallet (%/%, expected %/%)',
+      acct.balance_credits, acct.reserved_credits, before, held_before;
+  END IF;
+  IF NOT (public.reconcile_credit_account(pg_temp.ws('A'))->>'ok')::boolean THEN
+    RAISE EXCEPTION 'F4: the wallet no longer reconciles';
+  END IF;
+  RAISE NOTICE '✓ F4 the reservation row is the authority';
+END $$;
+
 -- the money functions stay server-side
 DO $$
 BEGIN

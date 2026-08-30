@@ -148,14 +148,24 @@ Deno.serve(withCors(cors, async (req: Request) => {
 
     const inputTokens = response.usage?.input_tokens ?? 0;
     const outputTokens = response.usage?.output_tokens ?? 0;
-    const charged = await settleTextCredits({
+    const settlement = await settleTextCredits({
       workspaceId, brandId, userId: caller.userId, model,
       refId: hold.refId!, reserved: hold.reserved!,
       inputTokens, outputTokens, latencyMs: Date.now() - startedAt,
       status: 'succeeded', operation: body.operation ?? 'text',
     });
     await logCall({ userId: caller.userId, ipAddress, functionName: FUNCTION_NAME, model, inputTokens, outputTokens });
-    return Response.json({ ...response, credits_charged: charged }, { headers: cors });
+
+    // The reaper returned the hold before we could settle it, so this answer was never
+    // paid for. Refuse it rather than hand over free work; the client retries and pays.
+    // The provider cost is already recorded as `expired_unbilled` telemetry. (Pass B, F1.)
+    if (settlement.expired) {
+      return Response.json(
+        { error: 'reservation_expired', retryable: true },
+        { status: 409, headers: cors },
+      );
+    }
+    return Response.json({ ...response, credits_charged: settlement.charged }, { headers: cors });
   } catch (err) {
     // A failed call costs nothing: the whole hold goes back.
     await releaseTextCredits({

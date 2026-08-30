@@ -39,8 +39,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS credit_reservations_idem_idx
   ON public.credit_reservations (workspace_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS credit_reservations_expiring_idx
   ON public.credit_reservations (expires_at) WHERE status = 'held';
-CREATE INDEX IF NOT EXISTS credit_reservations_ref_idx
-  ON public.credit_reservations (workspace_id, ref_kind, ref_id) WHERE status = 'held';
+-- A ref_id is how settle/release find the hold, so at most ONE hold may answer to it.
+-- Without this, two held reservations sharing a ref_id would both flip to settled in one
+-- UPDATE while the account moved by a single amount, orphaning the other's reserved
+-- credits for ever. (Pass B, F3.)
+CREATE UNIQUE INDEX IF NOT EXISTS credit_reservations_ref_held_idx
+  ON public.credit_reservations (workspace_id, ref_id) WHERE status = 'held' AND ref_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS credit_reservations_member_month_idx
   ON public.credit_reservations (workspace_id, user_id, created_at);
 ALTER TABLE public.credit_reservations ENABLE ROW LEVEL SECURITY;
@@ -134,6 +138,14 @@ BEGIN
   SELECT m.credits_monthly_cap INTO cap
     FROM public.workspace_members m
    WHERE m.workspace_id = _workspace_id AND m.user_id = eff_user;
+  -- An unresolved user means the cap CANNOT be evaluated. Today both callers always
+  -- resolve one; this is the floor for the next one that does not. (Pass B, F6.)
+  IF eff_user IS NULL AND EXISTS (
+       SELECT 1 FROM public.workspace_members m
+        WHERE m.workspace_id = _workspace_id AND m.credits_monthly_cap IS NOT NULL) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_amount',
+                              'detail', 'a capped workspace requires a user id');
+  END IF;
   IF cap IS NOT NULL AND eff_user IS NOT NULL THEN
     SELECT COALESCE(sum(r.amount), 0) INTO spent
       FROM public.credit_reservations r
@@ -185,7 +197,8 @@ CREATE OR REPLACE FUNCTION public.settle_credits(
   _ref_id text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = ''
 AS $$
-DECLARE acct public.credit_accounts%ROWTYPE; charged bigint; refund bigint; res_id uuid;
+DECLARE acct public.credit_accounts%ROWTYPE; charged bigint; refund bigint;
+        res_id uuid; res_amount bigint;
 BEGIN
   IF _idem_key IS NOT NULL AND EXISTS (
        SELECT 1 FROM public.credit_ledger
@@ -200,7 +213,7 @@ BEGIN
      SET status = 'settled', resolved_at = now()
    WHERE workspace_id = _workspace_id AND status = 'held'
      AND ref_id = COALESCE(_ref_id, _job_id::text)
-  RETURNING id INTO res_id;
+  RETURNING id, amount INTO res_id, res_amount;
 
   IF res_id IS NULL THEN
     -- the reaper already returned these credits: charge nothing and say so, rather than
@@ -208,11 +221,15 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'reservation_expired');
   END IF;
 
-  charged := GREATEST(0, LEAST(COALESCE(_actual, 0), COALESCE(_reserved, 0)));
-  refund  := COALESCE(_reserved, 0) - charged;
+  -- The ROW is the authority for what was held, not the caller's `_reserved`: a caller bug
+  -- would otherwise desync credit_accounts from the ledger with nothing to catch it.
+  -- (Pass B, F4.)
+  res_amount := COALESCE(res_amount, _reserved, 0);
+  charged := GREATEST(0, LEAST(COALESCE(_actual, 0), res_amount));
+  refund  := res_amount - charged;
 
   UPDATE public.credit_accounts
-     SET reserved_credits = GREATEST(0, reserved_credits - COALESCE(_reserved, 0)),
+     SET reserved_credits = GREATEST(0, reserved_credits - res_amount),
          balance_credits  = balance_credits + refund,
          lifetime_spent   = lifetime_spent + charged,
          updated_at = now()
@@ -222,7 +239,7 @@ BEGIN
   INSERT INTO public.credit_ledger
     (workspace_id, job_id, kind, amount, balance_after, reason, meta, idempotency_key)
   VALUES (_workspace_id, _job_id, 'settle', -charged, acct.balance_credits, 'settled',
-          jsonb_build_object('reserved', _reserved, 'charged', charged, 'refunded', refund), _idem_key);
+          jsonb_build_object('reserved', res_amount, 'charged', charged, 'refunded', refund), _idem_key);
 
   IF refund > 0 THEN
     INSERT INTO public.credit_ledger
@@ -242,7 +259,7 @@ CREATE OR REPLACE FUNCTION public.release_credits(
   _reason text DEFAULT 'job failed', _idem_key text DEFAULT NULL, _ref_id text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = ''
 AS $$
-DECLARE acct public.credit_accounts%ROWTYPE; res_id uuid;
+DECLARE acct public.credit_accounts%ROWTYPE; res_id uuid; res_amount bigint;
 BEGIN
   IF _idem_key IS NOT NULL AND EXISTS (
        SELECT 1 FROM public.credit_ledger
@@ -255,23 +272,24 @@ BEGIN
      SET status = 'released', resolved_at = now()
    WHERE workspace_id = _workspace_id AND status = 'held'
      AND ref_id = COALESCE(_ref_id, _job_id::text)
-  RETURNING id INTO res_id;
+  RETURNING id, amount INTO res_id, res_amount;
 
   IF res_id IS NULL THEN
     SELECT * INTO acct FROM public.credit_accounts WHERE workspace_id = _workspace_id;
     RETURN jsonb_build_object('ok', true, 'noop', true, 'balance', COALESCE(acct.balance_credits, 0));
   END IF;
 
+  res_amount := COALESCE(res_amount, _reserved, 0);   -- the row, not the caller (F4)
   UPDATE public.credit_accounts
-     SET reserved_credits = GREATEST(0, reserved_credits - COALESCE(_reserved, 0)),
-         balance_credits  = balance_credits + COALESCE(_reserved, 0),
+     SET reserved_credits = GREATEST(0, reserved_credits - res_amount),
+         balance_credits  = balance_credits + res_amount,
          updated_at = now()
    WHERE workspace_id = _workspace_id
   RETURNING * INTO acct;
 
   INSERT INTO public.credit_ledger
     (workspace_id, job_id, kind, amount, balance_after, reason, idempotency_key)
-  VALUES (_workspace_id, _job_id, 'release', COALESCE(_reserved, 0), acct.balance_credits,
+  VALUES (_workspace_id, _job_id, 'release', res_amount, acct.balance_credits,
           _reason, _idem_key);
 
   RETURN jsonb_build_object('ok', true, 'balance', acct.balance_credits, 'reserved', acct.reserved_credits);

@@ -447,6 +447,17 @@ async function generateAction(req: Request, body: GenerateBody): Promise<Respons
       _idem_key: `settle:${jobId}`,
     });
 
+    // If the reaper returned the hold first, nothing was charged for these images. Fail the
+    // job rather than deliver work nobody paid for; the client may retry with a new
+    // idempotency key. The provider cost is recorded in the diagnostics either way.
+    // (Pass B, F1.)
+    if ((settlement as { error?: string } | null)?.error === 'reservation_expired') {
+      throw imageError('storage_failure', {
+        message: 'the credit reservation expired before this job finished',
+        providerError: 'reservation_expired',
+      });
+    }
+
     const latencyMs = Date.now() - startedAt;
     const { data: finished } = await service
       .from('image_generation_jobs')

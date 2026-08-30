@@ -11,18 +11,23 @@
 // ============================================================================
 import { createServiceClient } from './supabase.ts';
 import { PRICING_VERSION, USD_PER_CREDIT } from './pricing.ts';
+import { MODEL_PRICING } from './rate_limit.ts';
 
-export const TEXT_PRICING: Record<string, { inputPerMTok: number; outputPerMTok: number }> = {
-  'claude-opus-4-1-20250805': { inputPerMTok: 15, outputPerMTok: 75 },
-  'claude-sonnet-4-6': { inputPerMTok: 3, outputPerMTok: 15 },
-  'claude-sonnet-4-20250514': { inputPerMTok: 3, outputPerMTok: 15 },
-  'claude-haiku-4-5-20251001': { inputPerMTok: 1, outputPerMTok: 5 },
-};
-const FALLBACK = { inputPerMTok: 3, outputPerMTok: 15 };
+// Prices come from the ONE table that already had them. A second copy here silently
+// mispriced opus for every call: its key was a model id that resolveModel() does not
+// return ('claude-opus-4-1-20250805' vs 'claude-opus-4-7'), so every opus request missed
+// the table and fell back to the sonnet rate — a fifth of the real cost, on both the
+// estimate and the settle. (Pass B, F2.)
+export { MODEL_PRICING as TEXT_PRICING };
+
+// Deliberately the most expensive tier, not the cheapest: an unknown model must not be
+// cheap by accident, and settle_credits clamps to the reservation, so under-pricing here
+// means under-charging there.
+const FALLBACK = { inputPerMTok: 15, outputPerMTok: 75 };
 
 /** Credits, rounded up, minimum 1 for any non-zero cost — the image path's rule. */
 export function creditsFor(model: string, inputTokens: number, outputTokens: number): number {
-  const rule = TEXT_PRICING[model] ?? FALLBACK;
+  const rule = MODEL_PRICING[model] ?? FALLBACK;
   const usd = (inputTokens / 1_000_000) * rule.inputPerMTok +
               (outputTokens / 1_000_000) * rule.outputPerMTok;
   if (usd <= 0) return 0;
@@ -94,7 +99,7 @@ export async function settleTextCredits(args: {
   latencyMs: number;
   status: 'succeeded' | 'failed';
   operation: string;
-}): Promise<number> {
+}): Promise<{ charged: number; expired: boolean }> {
   const service = createServiceClient();
   const charged = args.status === 'succeeded'
     ? creditsFor(args.model, args.inputTokens, args.outputTokens)
@@ -128,7 +133,9 @@ export async function settleTextCredits(args: {
     status: expired ? 'expired_unbilled' : args.status,
   });
 
-  return expired ? 0 : charged;
+  // The caller MUST know: an expired reservation means nothing was charged, and shipping
+  // the model's answer anyway is free work. (Pass B, F1.)
+  return { charged: expired ? 0 : charged, expired };
 }
 
 export async function releaseTextCredits(args: {

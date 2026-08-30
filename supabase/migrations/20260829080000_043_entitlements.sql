@@ -211,9 +211,14 @@ CREATE OR REPLACE FUNCTION public.brand_limit_guard()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 BEGIN
-  IF (SELECT auth.uid()) IS NOT NULL THEN     -- migrations and the purge are exempt
-    PERFORM public.assert_limit(NEW.workspace_id, 'brands', 1);
+  -- Exempting every NULL-auth.uid() write exempted EVERY service-role path, not just
+  -- migrations — any Edge Function creating a brand would silently skip the plan cap.
+  -- The exemption is now explicit and transaction-local: only code that deliberately says
+  -- "this is a migration or a purge" is excused. (Pass B, F5.)
+  IF current_setting('app.bypass_entitlements', true) = 'true' THEN
+    RETURN NEW;
   END IF;
+  PERFORM public.assert_limit(NEW.workspace_id, 'brands', 1);
   RETURN NEW;
 END;
 $$;
