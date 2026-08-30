@@ -170,6 +170,10 @@ RETURNS text[] LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
             'workspace.billing.manage','members.view','activity.view',
             'designs.export','brand.kit.export','ai.generate']::text[]
     WHEN _scope = 'workspace' THEN ARRAY[]::text[]          -- owner/admin take no overrides
+    -- Brand scope is deliberately role-BLIND: the only writer of
+    -- brand_access.capability_overrides is grant_brand_access, which requires
+    -- brand.access.manage — a manager, who already holds everything in this list. Narrowing
+    -- per role would add a ceiling nobody can currently exceed. (Pass A, F3.)
     WHEN _scope = 'brand' THEN
       ARRAY['brand.settings.view','brand.card.edit','brand.access.view','brand.setup.edit',
             'brand.strategy.edit','brand.kit.generate','brand.kit.approve','brand.kit.export',
@@ -307,6 +311,13 @@ RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS 
    WHERE public.effective_capabilities(s.user_id, b.workspace_id, b.id) @> ARRAY[_capability];
 $$;
 
+-- A GRANT does not undo the `public` schema's default EXECUTE, so every one of these
+-- would still carry an `anon=X` ACL entry and be callable with no session at all. They
+-- fail closed today only because auth.uid() is NULL for anon — which is one mistake away
+-- from being the whole boundary. Revoke first, then grant. (Pass A, F1.)
+REVOKE ALL ON FUNCTION public.has_capability(text, uuid, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.workspaces_with_capability(text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.brands_with_capability(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.has_capability(text, uuid, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.workspaces_with_capability(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.brands_with_capability(text) TO authenticated;
@@ -344,6 +355,8 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
        AND public.effective_capabilities((SELECT auth.uid()), b.workspace_id, b.id) @> ARRAY['brand.view']
   ) q;
 $$;
+REVOKE ALL ON FUNCTION public.my_access() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.my_brand_access(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.my_access() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.my_brand_access(uuid) TO authenticated;
 
@@ -673,6 +686,14 @@ BEGIN
 END; $$;
 
 REVOKE ALL ON FUNCTION public.assert_capability(text, uuid, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.set_member_role(uuid, uuid, public.workspace_role_v2, public.brand_access_mode, public.brand_role, jsonb) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.remove_member(uuid, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.leave_workspace(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.transfer_ownership(uuid, uuid, boolean) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.grant_brand_access(uuid, uuid, public.brand_role, jsonb, boolean) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.revoke_brand_access(uuid, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.archive_brand(uuid, boolean) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.create_workspace(text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_member_role(uuid, uuid, public.workspace_role_v2, public.brand_access_mode, public.brand_role, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.remove_member(uuid, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.leave_workspace(uuid) TO authenticated;

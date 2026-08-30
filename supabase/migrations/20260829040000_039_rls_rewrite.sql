@@ -34,10 +34,19 @@ AS $$
     WHERE s.workspace_id = _workspace_id
       AND s.user_id = (SELECT auth.uid())
       AND s.status = 'active'
+      -- The old enum was ORDINAL (owner > admin > editor > exporter > viewer) and callers
+      -- passed a floor. Collapsing everything below `admin` to "any active member" made a
+      -- GUEST satisfy a caller asking for 'editor' — no policy does that today, but this
+      -- shim is granted for external reuse, so it keeps the ordinal it promises.
+      -- (Pass A, F2.)
       AND CASE _min_role
-            WHEN 'owner'  THEN s.role = 'owner'
-            WHEN 'admin'  THEN s.role IN ('owner','admin')
-            ELSE true                       -- editor/exporter/viewer ⇒ any active member
+            WHEN 'owner'    THEN s.role = 'owner'
+            WHEN 'admin'    THEN s.role IN ('owner','admin')
+            WHEN 'editor'   THEN s.role IN ('owner','admin')
+                                 OR (s.role = 'member'
+                                     AND s.default_brand_role IN ('manager','editor'))
+            WHEN 'exporter' THEN s.role IN ('owner','admin','member')
+            ELSE s.role IN ('owner','admin','member','guest')   -- viewer: any active member
           END
   );
 $$;

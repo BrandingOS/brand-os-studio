@@ -208,6 +208,21 @@ BEGIN
   IF NOT has_function_privilege('authenticated', 'public.my_access()', 'EXECUTE') THEN
     RAISE EXCEPTION 'my_access must be callable by clients';
   END IF;
+
+  -- Pass A F1: a GRANT does not undo the public schema's default EXECUTE, so every access
+  -- RPC must have been REVOKEd from anon first. These fail closed on auth.uid() anyway —
+  -- this asserts they are not relying on that alone.
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND p.proname IN ('has_capability','my_access','my_brand_access','set_member_role',
+                         'remove_member','leave_workspace','transfer_ownership',
+                         'grant_brand_access','revoke_brand_access','archive_brand',
+                         'create_workspace','brands_with_capability','workspaces_with_capability')
+       AND array_to_string(p.proacl, ',') LIKE '%anon=X%'
+  ) THEN
+    RAISE EXCEPTION 'an access RPC is still executable by anon';
+  END IF;
   RAISE NOTICE '✓ ALL 038 OWNERSHIP + RPC ASSERTIONS PASSED';
 END $$;
 ROLLBACK;
