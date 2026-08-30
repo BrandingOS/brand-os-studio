@@ -15,14 +15,13 @@ Production head at the time of writing: **034** (`20260820210000`), verified wit
 git checkout feat/workspace-access-architecture
 npm ci
 supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,pgbouncer
-npm run test:db          # 20 SQL suites; 19 pass, 025 crashes the local image (see §7)
+npm run test:db          # 21 suites; 20 pass, 025 crashes the Supabase image (see §7)
+npm run test:db:stock    # runs the suites on stock postgres:17, where 025 PASSES
 npm run typecheck:ci && npm run lint && npx vitest run
 ```
 
-The release ships the app and the migrations **together**. The application expects the new
-model (it reads `my_access()`, writes through the membership RPCs, and no longer inserts
-into `workspaces`/`workspace_members` directly), so a database rolled back without the app
-— or an app deployed without the database — will not work.
+The database goes first and the app + Edge Functions go together, immediately after. §8 has
+the sequence and why each intermediate state is safe.
 
 ---
 
@@ -47,9 +46,11 @@ select
   (select json_agg(x) from (select role, count(*) from workspace_members group by role) x) as roles;
 ```
 
-Expected on 2026-08-29: 81 brands (44 without a workspace), 29 workspaces, 29 memberships
-all `owner`, 13 users, **16 orphan workspaces**, 0 brands with no home, 14,322 credits,
-0 legacy brand_members.
+Expected — and CONFIRMED read-only against production on 2026-08-30: 81 brands (44 without
+a workspace), 29 workspaces, 29 memberships all `owner`, 13 users, **16 orphan
+workspaces**, **0 brands with no home**, 14,322 credits, 0 legacy `brand_members`, 0
+publications. Remote migration head is `20260820210000` (034) and all eleven of
+`20260829*` report `remote: ""` — none applied.
 
 **`brands_with_no_home` must be 0.** If it is not, migration 036 will log those brands as
 `brand_unassigned` and 036's guard rail will abort the migration. Fix the data first (give
@@ -156,8 +157,8 @@ Secrets to set or confirm (`supabase secrets set …`):
 
 | secret | why it matters now |
 |---|---|
-| `PURGE_CRON_SECRET` | `cleanup-onboarding-scratch` now **fails closed** without it. Set it, and add the header to the cron that calls the function, or scratch cleanup stops running. |
-| `RESEND_API_KEY` | optional. Without it invitations still work — the link comes back to the inviter to copy — but no email is sent. |
+| `PURGE_CRON_SECRET` | **NOT SET in production** (checked 2026-08-30 — the project has 14 secrets and this is not one). `cleanup-onboarding-scratch` now fails closed without it, so scratch cleanup stops until it is set and the cron sends the `x-cron-secret` header. |
+| `RESEND_API_KEY` | **NOT SET.** Optional: invitations still work, the link comes back to the inviter to copy, but no email is sent. |
 | `ANTHROPIC_API_KEY` | unchanged. |
 
 **Turn `verify_jwt` back ON for `anthropic-proxy`** in the dashboard. The runbook at
@@ -191,19 +192,78 @@ should refuse anonymous callers too.
    memberships, all `owner`, so the five-role → four-role mapping and the exporter export
    grants are exercised only by `supabase/tests/036_backfill.test.sql`. "The guard rail
    passed" means the invariants hold — not that the remap ran against real variety.
-2. **`supabase/tests/025_image_generation_isolation.test.sql` crashes the local Postgres.**
-   The image `public.ecr.aws/supabase/postgres:17.6.1.104` segfaults on any
-   "permission denied for function" raised for `authenticated`, reproduced with a trivial
-   revoked function outside any test. It is an environment fault, not a policy failure;
-   `scripts/db-test.mjs` labels it distinctly. Re-run that suite against a newer image
-   before trusting it.
+2. **`025_image_generation_isolation` PASSES — on stock Postgres.** The Supabase image
+   `public.ecr.aws/supabase/postgres:17.6.1.104` segfaults on any "permission denied for
+   function" raised for a non-superuser. Reproduced on **both aarch64 and x86_64**, and NOT
+   on stock `postgres:17`, so it is a bug in the image, reproducible anywhere, and CI would
+   hit it too. `npm run test:db:stock` dumps the migrated schema into a throwaway stock
+   container and runs the suites there. Doing that found a deployment blocker (an ambiguous
+   `reserve_credits` overload) that no other suite could see.
 3. **The generated `src/integrations/supabase/types.ts` is ~14 tables stale** and was left
    that way deliberately — regenerating it touches the whole app and belongs in its own
    change. New RPCs are reached through the house untyped-accessor pattern.
-4. **No load testing.** The RLS helpers are uncorrelated and were reasoned about with
-   EXPLAIN on the existing policies, but nobody has measured a 500-brand agency.
+4. **Measured at 500 brands** (26 members, 4,000 assets, warm): dashboard brand list 58 ms,
+   library assets 4 ms, guest brand list 11 ms, guest hydration 44 ms, and
+   `my_brand_access` **221 ms**. That last one is the heaviest and runs once per workspace
+   switch (and once at sign-in) for an agency of that size. It is acceptable but it is the
+   number to watch; the remedy, if it becomes a complaint, is the same grouping trick
+   `brands_with_capability` already uses — the per-brand capability arrays are identical
+   for every brand with no explicit grant.
 
 ---
+
+## 8. The deployment sequence
+
+**No maintenance window is required, and no downtime.** The order below was chosen so that
+every intermediate state is one a live user can be in.
+
+### Why the database can go first
+Between step 2 and step 3 the database is new and the app is old. That window is safe, and
+it was checked rather than assumed:
+
+| the old app does | after the migration |
+|---|---|
+| reads/writes brands, designs, assets | works — an owner holds every capability those policies now ask for |
+| `ai-generate-image` calls `reserve_credits` with 4 named args | works — 044 DROPS the old 4-arg overload, so PostgREST resolves the one remaining function (leaving both is what would break it) |
+| calls `settle_credits` with 5 named args | works — the 6th argument is defaulted, and it finds the hold by job id exactly as before |
+| calls `anthropic-proxy` with a body `sessionId` | works — the OLD function is still deployed at that point |
+| reads `workspace_members.role` for display | shows `member` where it used to show `editor`; cosmetic, admin surfaces only |
+
+The reverse order is NOT safe: the new app calls `my_access()`, which does not exist until
+step 2.
+
+### The steps
+
+```
+1. backup                       point-in-time restore point, or supabase db dump
+2. supabase db push             035 → 045, each with its own guard rail
+3. verify                       §3 of this runbook — do NOT skip
+4. deploy the app + Edge Functions TOGETHER
+5. supabase secrets set PURGE_CRON_SECRET=…    (see §5 — cleanup now fails closed)
+6. schedules                    §4 — expire-stale-reservations is not optional
+7. turn verify_jwt back ON for anthropic-proxy
+```
+
+Step 4 is one release because the new app requires the new functions (it sends no
+`sessionId`) and the new functions require a JWT the old app does not send.
+
+### The rollback point
+
+- **Before step 4** — free. Apply the `down/` files in reverse; rehearsed twice, and a
+  seeded brand, asset and workspace survive with their values intact.
+- **After step 4, before anyone uses the new features** — revert the app deploy, then the
+  `down/` files.
+- **The point of no return is the first invitation ACCEPTED or share link CREATED.** Those
+  live in tables the rollback drops, so rolling back after that loses those memberships and
+  links (never the brands, designs or assets they refer to). Check before rolling back:
+
+```sql
+select (select count(*) from workspace_invitations where status='accepted') accepted,
+       (select count(*) from share_links where revoked_at is null) live_links,
+       (select count(*) from brand_access) grants;
+```
+
+If any of those is non-zero, export the three tables before rolling back.
 
 ## 8. If it goes wrong
 
