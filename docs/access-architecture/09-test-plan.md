@@ -69,7 +69,49 @@ the suite can be diffed (`scripts/threat-model-coverage.mjs` fails if an id has 
 `npm run build`. Pre-existing failures are recorded in the final report separately from this
 initiative's results.
 
-## 8. Environment notes (local Supabase, 2026-08-29)
+## 8. The one SQL suite that does not run here — environment, not policy
+
+`supabase/tests/025_image_generation_isolation.test.sql` crashes the local Postgres.
+**Category: environment.** Minimal repro, with no migration code involved at all:
+
+```sql
+BEGIN;
+CREATE FUNCTION public.zz_probe() RETURNS int LANGUAGE sql AS 'select 1';
+REVOKE ALL ON FUNCTION public.zz_probe() FROM PUBLIC, anon, authenticated;
+SET LOCAL ROLE authenticated;
+SELECT public.zz_probe();     -- server closes the connection
+```
+
+`docker logs` shows `server process … was terminated by signal 11: Segmentation fault`.
+The image is `public.ecr.aws/supabase/postgres:17.6.1.104` on aarch64 (CLI 2.84 and 2.116
+both pin it). Any "permission denied for function" raised for the `authenticated` role
+kills the backend; 025's case C4 (`grant_credits` called directly) provokes exactly that.
+
+**How to run it properly:** the CI `db` job uses `supabase/setup-cli@v1` with
+`version: latest` on x86_64 linux, which pulls a different image — run it there, or locally
+on an x86_64 machine, or after `docker pull` brings a newer 17.x tag. Until then
+`scripts/db-test.mjs` labels a crash distinctly from an assertion failure and waits for
+recovery, so one environment fault cannot be mistaken for a policy fault or hide the suites
+after it.
+
+**Rule for new tests while this stands:** assert EXECUTE privileges with
+`has_function_privilege(role, fn, 'EXECUTE')` rather than calling a revoked function as
+`authenticated`. Every suite written in this initiative follows it.
+
+## 9. The three deferred threat ids
+
+| id | why deferred | needed before production? | how to test it |
+|---|---|---|---|
+| **A4** — storage object reachable cross-brand via a signed URL | The control shipped (`OUTPUT_URL_TTL_SECONDS` is 7 days, and the `brand-assets` policies pin the uuid path segment to `brands_with_capability`). What is deferred is an END-TO-END proof, which needs a real storage client and two real sessions — not something the SQL suite can express. | **No.** The policy is covered by `039_rls_attacks` at the object-name level; the residual risk is a leaked URL, bounded to 7 days. | Integration test: sign in as two users in different workspaces, upload as one, take the signed URL, and fetch it as the other after expiry and before it. |
+| **A21** — a Realtime subscription leaks rows | Supabase Realtime honours RLS, and the only subscription this initiative adds is a caller's own membership row. Proving it needs a live Realtime socket, which neither the SQL nor the jsdom suite has. | **No**, on the condition below. | Integration test: subscribe as a guest to `postgres_changes` on `brands`, mutate a brand they cannot reach as another user, assert no event arrives. **Condition:** do this before any new realtime subscription is added to a tenant table. |
+| **A33** — `projectId`/`designId` filed against another brand's job | The control shipped in `ai-generate-image` (both ids are now verified against the resolved brand). Deferred is the FUNCTION-level test, because the suite for that function needs a mocked provider and a service-role client. | **No** — the check is in the request path and reviewable in ~20 lines. | Unit test beside `supabase/functions/__tests__/`: mock the Supabase client, call the handler with a `projectId` belonging to another brand, assert `validation` and no job row. |
+
+None of the three is a HIGH-risk production gap: in each case the control is implemented and
+what is missing is a second, harder-to-run proof of it. They stay in
+`supabase/tests/threat-coverage.allow` with these reasons so the list keeps failing CI until
+someone closes them.
+
+## 10. Environment notes (local Supabase, 2026-08-29)
 - The local image `public.ecr.aws/supabase/postgres:17.6.1.104` (CLI 2.84–2.116 on this
   machine, aarch64) **segfaults the backend on any "permission denied for function" raised
   for the `authenticated` role** — reproduced with a trivial revoked SQL function outside any
