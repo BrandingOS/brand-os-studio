@@ -324,10 +324,31 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
     return Math.max(r, g, b) - Math.min(r, g, b) < 14;
   };
+  /*
+   * THE SAME COLOUR REACHES US TWICE, AND IT MUST ONLY BE COUNTED ONCE.
+   *
+   * `colorSystem.neutrals` is hydrated by `migrateBrandToCurrent` from
+   * `guidelines.colorPalette.neutral`, and `brand.neutrals` is the scalar the
+   * Setup chain writes — they are two views of ONE list, so the moment anything
+   * saves the palette back the brand holds both copies. Concatenating them
+   * doubled the count, which tripped the generated-ramp tell below, whose
+   * greyscale filter then dropped every one of them: renaming a colour in the
+   * Brand Kit's Colors panel deleted the brand's five neutrals and left a
+   * three-colour palette (QA Q1). Dedupe on the hex, before anything measures
+   * the length.
+   */
+  const seenStored = new Set<string>();
   const stored = [
     ...(brand.colorSystem?.neutrals ?? []).map((n) => n.hex),
     ...(brand.neutrals ?? []),
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .filter((hex) => {
+      const key = hex.toUpperCase().replace(/^#?/, '#');
+      if (seenStored.has(key)) return false;
+      seenStored.add(key);
+      return true;
+    });
   /*
    * A SHORT list is a palette; a long one is a generated ramp.
    *
@@ -338,9 +359,13 @@ function mapColors(brand: Brand): MockBrand['colors'] {
    * onboarding review and then could not find it in Setup at all: too grey for
    * Core, not on the canonical ladder either.
    *
-   * The length is the tell. Nobody hand-picks more than a handful.
+   * The length is the tell, and it is NOT the same number as the cap. A ramp is
+   * thirty-odd steps; a hand-picked palette that runs one past the six Core can
+   * show is still hand-picked, and answering "generated" there threw the whole
+   * palette away rather than showing six of it.
    */
-  const looksGenerated = stored.length > EXTRA_CORE_LIMIT;
+  const GENERATED_RAMP_MIN = 12;
+  const looksGenerated = stored.length >= GENERATED_RAMP_MIN;
   const extraColors = (looksGenerated ? stored.filter((hex) => !isGreyscale(hex)) : stored).slice(
     0,
     EXTRA_CORE_LIMIT,
@@ -356,6 +381,26 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   const usedHexes = new Set<string>();
   const normHex = (hex: string) => hex.toUpperCase().replace(/^#?/, '#');
 
+  /*
+   * A NAME THE USER TYPED OUTRANKS THE ONE WE DERIVED.
+   *
+   * Everything else here names a swatch from the hex (`hexToName`) so Setup and
+   * the Brand Kit never disagree about what a colour is called. That is the
+   * right default and the wrong absolute: the Kit's Colors panel offers a name
+   * field, and with nowhere to keep the answer a rename was accepted,
+   * confirmed, and gone on the next read (QA Q1).
+   *
+   * `guidelines.colorNames` is that home — hex → the name its owner chose,
+   * written only for names that differ from the derived one, so a brand nobody
+   * has renamed carries no map and reads exactly as before.
+   */
+  const chosenNames = new Map<string, string>(
+    Object.entries(brand.guidelines?.colorNames ?? {}).map(([hex, name]) => [
+      normHex(hex),
+      name,
+    ]),
+  );
+
   const pushUnique = (
     bucket: BrandColor[],
     hex: string,
@@ -364,7 +409,7 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     const norm = normHex(hex);
     if (usedHexes.has(norm)) return false;
     usedHexes.add(norm);
-    const base = explicitName ?? hexToName(norm);
+    const base = explicitName ?? chosenNames.get(norm) ?? hexToName(norm);
     let name = base;
     let n = 2;
     while (usedNames.has(name)) {

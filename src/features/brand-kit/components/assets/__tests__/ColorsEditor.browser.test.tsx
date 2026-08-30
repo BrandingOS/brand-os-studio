@@ -16,11 +16,17 @@ import '@/index.css';
 import '@/shared/ds/tokens.css';
 import { SEED_BRANDS } from '@/data/brands';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
+import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
 import { ColorsEditor } from '../ColorsEditor';
 
-const BRAND: Brand = SEED_BRANDS[0]!;
+// MIGRATED, because that is the only shape the panel ever sees: every service
+// hands the store a `migrateBrandToCurrent` brand, which is where raqm's five
+// neutrals come from (`guidelines.colorPalette.neutral` → `colorSystem.neutrals`).
+// The raw seed carries two colours, and a test on two colours cannot see a bug
+// that drops five.
+const BRAND: Brand = migrateBrandToCurrent(SEED_BRANDS[0]!);
 
 let update: ReturnType<typeof vi.fn>;
 
@@ -236,5 +242,37 @@ describe('ColorsEditor', () => {
     expect(patch.logo ?? BRAND.logo).toBe(BRAND.logo);
     // And the generated grey ladder is NOT sent back as the brand's own.
     expect((patch.neutrals ?? []).length).toBeLessThan(10);
+  });
+
+  /**
+   * QA Q1, end to end from the control the user touches.
+   *
+   * Renaming a colour here and confirming deleted five of raqm's eight colours
+   * and lost the rename as well. The panel was never the culprit — it already
+   * sent a whole-brand diff — so the assertion has to follow the patch back
+   * THROUGH the read: merge it, re-migrate it the way the store does, and look
+   * at the palette the next paint would show.
+   */
+  it('renaming a colour keeps every other colour, and the new name survives the read', async () => {
+    const before = brandToMockBrand(BRAND);
+    const all = [...before.colors.core, ...before.colors.accent];
+    expect(all.length).toBeGreaterThan(3);
+
+    mount();
+    fireEvent.change(screen.getByDisplayValue(all[0]!.name), {
+      target: { value: 'Iris QA' },
+    });
+    confirm().go();
+    await waitFor(() => expect(update).toHaveBeenCalled());
+
+    const patch = update.mock.calls[0]![1];
+    const saved = migrateBrandToCurrent({ ...BRAND, ...patch } as Brand);
+    const after = brandToMockBrand(saved);
+    const names = [...after.colors.core, ...after.colors.accent];
+
+    // Nothing was dropped, and the hexes are the same palette in the same order.
+    expect(names.map((c) => c.hex)).toEqual(all.map((c) => c.hex));
+    // The rename is what the next read shows.
+    expect(names[0]!.name).toBe('Iris QA');
   });
 });

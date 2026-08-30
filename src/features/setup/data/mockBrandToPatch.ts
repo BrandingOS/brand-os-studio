@@ -7,6 +7,7 @@ import { TILE_LABEL } from './logoBoard';
 import type { BrandLogo, MockBrand } from './mockBrand';
 import { isRampStep } from './neutralRamp';
 import { suggestedIconsFor } from './brandToMockBrand';
+import { hexToName } from './colorNames';
 
 /**
  * Inverse of `brandToMockBrand`: takes the current Setup mock shape
@@ -266,6 +267,36 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
     patch.guidelines = {
       ...(patch.guidelines ?? existing.guidelines),
       logoUsage: nextUsage,
+    };
+  }
+
+  /* ─────────────────────────  colour names  ───────────────────────── */
+  //
+  // The palette persists as bare hexes — `primaryColor`, `secondaryColor`,
+  // `accentColor`, `neutrals[]` — and every reader derives the label from the
+  // hex (`hexToName`). So a name the user TYPED had nowhere to go: the Brand
+  // Kit's Colors panel accepted a rename, confirmed it, wrote the patch, and
+  // the next read said "Iris" again (QA Q1).
+  //
+  // Only names that differ from the derived one are stored, so a brand nobody
+  // has renamed keeps an absent map and reads exactly as it did before. Written
+  // LAST of the `guidelines` writers above, spreading whatever they produced —
+  // the strategy block assigns the key outright, so an earlier write here would
+  // be dropped by a save that also touched the mission.
+
+  const chosen: Record<string, string> = {};
+  for (const c of [...mock.colors.core, ...mock.colors.accent]) {
+    const hex = c.hex.toUpperCase().replace(/^#?/, '#');
+    if (c.name && c.name !== hexToName(hex)) chosen[hex] = c.name;
+  }
+  const heldNames = existing.guidelines?.colorNames ?? {};
+  const namesChanged =
+    Object.keys(chosen).length !== Object.keys(heldNames).length ||
+    Object.entries(chosen).some(([hex, name]) => heldNames[hex] !== name);
+  if (namesChanged) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      colorNames: chosen,
     };
   }
 

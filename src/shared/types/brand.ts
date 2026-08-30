@@ -202,6 +202,16 @@ export interface BrandGuidelines {
   /** The brand's own policy about where its logo may go. See `LogoUsagePolicy`. */
   logoUsage?: LogoUsagePolicy;
   colorPalette?: ExtendedColorPalette;
+  /**
+   * The names the brand's OWNER gave its colours, hex → name.
+   *
+   * Every other reader derives a swatch's label from the hex (`hexToName`), so
+   * Setup and the Brand Kit agree without storing anything. This map is the one
+   * exception and holds only what someone actually typed: a rename made in the
+   * Kit's Colors panel used to be confirmed and then lost, because the palette
+   * persists as bare hexes and had nowhere to put the word.
+   */
+  colorNames?: Record<string, string>;
   typography?: ExtendedTypography;
   voiceAndTone?: VoiceAndTone;
   iconography?: Iconography;
