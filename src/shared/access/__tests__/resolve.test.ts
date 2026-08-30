@@ -50,6 +50,12 @@ const MEMBERSHIPS: Record<string, Membership | null> = {
   sam: { workspaceId: 'A', role: 'member', status: 'suspended', brandAccessMode: 'all', defaultBrandRole: 'editor' },
   bob: { workspaceId: 'B', role: 'owner', status: 'active', brandAccessMode: 'all' },
   rita: null,
+  nina: {
+    workspaceId: 'A', role: 'member', status: 'active', brandAccessMode: 'all',
+    defaultBrandRole: 'editor',
+    overrides: { deny: ['ai.generate', 'designs.export'] },
+    grants: [{ brandId: 'A2', role: 'editor', overrides: { grant: ['ai.generate'] } }],
+  },
 };
 
 const BRANDS: Record<string, BrandRef> = {
@@ -150,6 +156,20 @@ describe('the catalog matches the migration that seeds the database', () => {
 });
 
 describe('the rules that are easy to get subtly wrong', () => {
+  it('a workspace-level deny survives the brand role preset', () => {
+    // The named switches ("Can use AI generation", "Can download and export") are stored
+    // at workspace scope for an `all`-mode member. The brand preset re-added both, so
+    // unchecking them was a silent no-op for every role above viewer. (Pass C, F1.)
+    const caps = effectiveCapabilities(MEMBERSHIPS.nina, BRANDS.A1);
+    expect(caps.has('designs.edit')).toBe(true);      // her role is untouched
+    expect(caps.has('ai.generate')).toBe(false);      // the switch actually holds
+    expect(caps.has('designs.export')).toBe(false);
+  });
+
+  it('a per-brand grant out-ranks a workspace-level deny', () => {
+    expect(effectiveCapabilities(MEMBERSHIPS.nina, BRANDS.A2).has('ai.generate')).toBe(true);
+  });
+
   it('a per-brand deny beats a workspace-wide grant', () => {
     const m: Membership = {
       workspaceId: 'A', role: 'member', status: 'active', brandAccessMode: 'all',

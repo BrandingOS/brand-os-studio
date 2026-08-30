@@ -115,26 +115,45 @@ export function MemberSheet({
         overrides: { grant, deny },
       });
 
-      // Brand grants: add or change what is selected, revoke what is not.
+      // Brand grants are separate calls with no transaction around them, so a failure
+      // halfway leaves some of them applied. Collect the failures instead of throwing on
+      // the first, then refresh either way and NAME what did not land — the old behaviour
+      // showed pre-edit state over a partially-changed database. (Pass C, F4.)
+      const failed: string[] = [];
       if (role !== 'admin') {
         const want = role === 'guest' || mode === 'selected' ? [...selected] : [];
         for (const id of want) {
           const wantRole = perBrandRole[id] ?? defaultRole;
           const existing = member.grants.find((g) => g.brandId === id);
           if (!existing || existing.role !== wantRole) {
-            await grantBrandAccess({ brandId: id, userId: member.userId, role: wantRole, allowAi: canAi });
+            try {
+              await grantBrandAccess({ brandId: id, userId: member.userId, role: wantRole, allowAi: canAi });
+            } catch {
+              failed.push(brands.find((b) => b.id === id)?.name ?? id);
+            }
           }
         }
         for (const g of member.grants) {
-          if (!want.includes(g.brandId)) await revokeBrandAccess(g.brandId, member.userId);
+          if (!want.includes(g.brandId)) {
+            try {
+              await revokeBrandAccess(g.brandId, member.userId);
+            } catch {
+              failed.push(brands.find((b) => b.id === g.brandId)?.name ?? g.brandId);
+            }
+          }
         }
       }
 
-      toast.success(`${member.name}’s access updated.`);
+      if (failed.length) {
+        toast.error(`Saved, except for ${failed.join(', ')}. Reopen to see what applied.`);
+      } else {
+        toast.success(`${member.name}’s access updated.`);
+      }
       onSaved();
       onClose();
     } catch (err) {
       toast.error(err instanceof MembersError ? err.message : 'Could not save that.');
+      onSaved();   // the role write may have landed; never leave stale state on screen
     } finally {
       setBusy(false);
       setConfirm(null);

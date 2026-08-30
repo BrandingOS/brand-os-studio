@@ -17,7 +17,8 @@ VALUES
   ('11111111-0000-0000-0000-000000000006','grace@external.test','00000000-0000-0000-0000-000000000000','authenticated','authenticated',now(),now(),'{}','{}',now()),
   ('11111111-0000-0000-0000-000000000007','sam@kaafex.test',   '00000000-0000-0000-0000-000000000000','authenticated','authenticated',now(),now(),'{}','{}',now()),
   ('11111111-0000-0000-0000-000000000008','bob@bobco.test',    '00000000-0000-0000-0000-000000000000','authenticated','authenticated',now(),now(),'{}','{}',now()),
-  ('11111111-0000-0000-0000-000000000009','rita@removed.test', '00000000-0000-0000-0000-000000000000','authenticated','authenticated',now(),now(),'{}','{}',now())
+  ('11111111-0000-0000-0000-000000000009','rita@removed.test', '00000000-0000-0000-0000-000000000000','authenticated','authenticated',now(),now(),'{}','{}',now()),
+  ('11111111-0000-0000-0000-000000000010','nina@kaafex.test',  '00000000-0000-0000-0000-000000000000','authenticated','authenticated',now(),now(),'{}','{}',now())
 ON CONFLICT (id) DO NOTHING;
 
 -- the signup trigger made a personal workspace per user; keep them (they are real)
@@ -37,7 +38,12 @@ INSERT INTO public.workspace_members (workspace_id, user_id, role, status, brand
   ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000005','member','active','all',      'viewer',  '{}'),
   ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000006','guest', 'active','selected', 'viewer',  '{}'),
   ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000007','member','suspended','all',   'editor',  '{}'),
-  ('aaaaaaaa-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000008','owner', 'active','all',      NULL,      '{}');
+  ('aaaaaaaa-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000008','owner', 'active','all',      NULL,      '{}'),
+  -- Nina's named switches are OFF, stored at workspace scope because an `all`-mode member
+  -- has no brand_access row to hang them on. Her brand role (editor) grants both, so she
+  -- is the case that proves the workspace deny survives the brand preset.
+  ('aaaaaaaa-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000010','member','active','all',      'editor',
+   '{"deny":["ai.generate","designs.export"]}');
 
 -- plans: A is an agency, B is free (docs/access-architecture/09 §2). Without these both
 -- would fall back to `free`, whose single seat the fixture's own cast already exceeds.
@@ -57,7 +63,9 @@ INSERT INTO public.brands (id, user_id, workspace_id, name, primary_color, slug,
 INSERT INTO public.brand_access (workspace_id, brand_id, user_id, role, capability_overrides, granted_by) VALUES
   ('aaaaaaaa-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000004','designer','{}','11111111-0000-0000-0000-000000000001'),
   ('aaaaaaaa-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000004','designer','{"deny":["ai.generate"]}','11111111-0000-0000-0000-000000000001'),
-  ('aaaaaaaa-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000006','viewer',  '{"grant":["designs.export"]}','11111111-0000-0000-0000-000000000001');
+  ('aaaaaaaa-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000006','viewer',  '{"grant":["designs.export"]}','11111111-0000-0000-0000-000000000001'),
+  -- …and A2 re-enables AI for her specifically: a per-brand grant out-ranks the deny.
+  ('aaaaaaaa-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000002','11111111-0000-0000-0000-000000000010','editor',  '{"grant":["ai.generate"]}','11111111-0000-0000-0000-000000000001');
 
 -- a design each on A1 (by emma) and B1 (by bob), and an asset on A1
 INSERT INTO public.designs (brand_id, id, user_id, data, name) VALUES
@@ -90,6 +98,7 @@ CREATE OR REPLACE FUNCTION pg_temp.uid(_who text) RETURNS uuid LANGUAGE sql IMMU
     WHEN 'sam'   THEN '11111111-0000-0000-0000-000000000007'
     WHEN 'bob'   THEN '11111111-0000-0000-0000-000000000008'
     WHEN 'rita'  THEN '11111111-0000-0000-0000-000000000009'
+    WHEN 'nina'  THEN '11111111-0000-0000-0000-000000000010'
   END $$;
 CREATE OR REPLACE FUNCTION pg_temp.ws(_which text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE _which WHEN 'A' THEN 'aaaaaaaa-0000-0000-0000-000000000001'::uuid WHEN 'B' THEN 'aaaaaaaa-0000-0000-0000-000000000002' END $$;

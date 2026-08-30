@@ -201,6 +201,8 @@ DECLARE
   brole       public.brand_role;
   grant_ov    text[];
   deny_ov     text[];
+  ws_deny     text[] := ARRAY[]::text[];
+  br_grant    text[] := ARRAY[]::text[];
   ba          public.brand_access%ROWTYPE;
 BEGIN
   IF _user_id IS NULL OR _workspace_id IS NULL THEN RETURN ARRAY[]::text[]; END IF;
@@ -221,6 +223,10 @@ BEGIN
   SELECT COALESCE(array_agg(x), ARRAY[]::text[]) INTO deny_ov
     FROM jsonb_array_elements_text(COALESCE(m.capability_overrides->'deny','[]'::jsonb)) x;
   ws_caps := ARRAY(SELECT DISTINCT unnest(ws_caps || grant_ov) EXCEPT SELECT unnest(deny_ov));
+  -- Held for the FINAL subtraction. A workspace-level deny must survive the brand preset:
+  -- "Can use AI generation" is stored here for an `all`-mode member, and step 8 re-adds
+  -- ai.generate from the brand role, silently undoing the switch. (Pass C, F1.)
+  ws_deny := deny_ov;
 
   -- 4. workspace scope only
   IF _brand_id IS NULL THEN
@@ -265,6 +271,7 @@ BEGIN
       FROM jsonb_array_elements_text(COALESCE(ba.capability_overrides->'grant','[]'::jsonb)) x;
     SELECT COALESCE(array_agg(x), ARRAY[]::text[]) INTO deny_ov
       FROM jsonb_array_elements_text(COALESCE(ba.capability_overrides->'deny','[]'::jsonb)) x;
+    br_grant := grant_ov;
     br_caps := ARRAY(SELECT DISTINCT unnest(br_caps || grant_ov));
   END IF;
 
@@ -273,11 +280,15 @@ BEGIN
     br_caps := ARRAY(SELECT unnest(br_caps) EXCEPT SELECT 'templates.submit_community');
   END IF;
 
-  -- A per-brand DENY is applied last, over the union: "…except on Client B" must beat a
-  -- workspace-wide grant, otherwise turning AI off for one brand would be silently undone.
-  RETURN ARRAY(SELECT DISTINCT unnest(ws_caps || br_caps)
-               EXCEPT SELECT unnest(deny_ov)
-               EXCEPT SELECT unnest(public.reserved_capabilities()));
+  -- Precedence, applied last so nothing downstream can undo it:
+  --   per-brand GRANT   beats a workspace-wide deny  ("no AI, except on Client A")
+  --   workspace DENY    beats every role preset      (the named switches live here)
+  --   per-brand DENY    beats everything             ("…except on Client B")
+  RETURN ARRAY(
+    SELECT DISTINCT unnest(ws_caps || br_caps)
+    EXCEPT SELECT unnest(ARRAY(SELECT unnest(ws_deny) EXCEPT SELECT unnest(br_grant)))
+    EXCEPT SELECT unnest(deny_ov)
+    EXCEPT SELECT unnest(public.reserved_capabilities()));
 END;
 $$;
 

@@ -64,6 +64,9 @@ export function effectiveCapabilities(
   const caps = new Set<string>(WORKSPACE_ROLE_CAPABILITIES[m.role] ?? []);
   for (const g of m.overrides?.grant ?? []) caps.add(g);
   for (const d of m.overrides?.deny ?? []) caps.delete(d);
+  // Held for the FINAL subtraction: the brand preset below re-adds capabilities the
+  // workspace-level deny just removed, which silently undid the named switches. (Pass C, F1.)
+  const wsDeny = m.overrides?.deny ?? [];
 
   // 4. workspace scope only
   if (!brand) return strip(caps);
@@ -85,13 +88,17 @@ export function effectiveCapabilities(
   // 8. brand preset ⊕ per-brand grants
   const grant = m.grants?.find((g) => g.brandId === brand.id);
   for (const c of BRAND_ROLE_CAPABILITIES[role] ?? []) caps.add(c);
-  for (const g of grant?.overrides?.grant ?? []) caps.add(g);
+  const brGrant = new Set(grant?.overrides?.grant ?? []);
+  for (const g of brGrant) caps.add(g);
 
   // a guest never publishes a client's work to a public catalogue, whatever their role
   if (m.role === 'guest') caps.delete('templates.submit_community');
 
-  // A per-brand DENY is applied last, over the union: "…except on Client B" must beat a
-  // workspace-wide grant, or turning AI off for one brand would be silently undone.
+  // Precedence, applied last so nothing downstream can undo it:
+  //   per-brand GRANT beats a workspace-wide deny  ("no AI, except on Client A")
+  //   workspace DENY  beats every role preset      (the named switches live here)
+  //   per-brand DENY  beats everything             ("…except on Client B")
+  for (const d of wsDeny) if (!brGrant.has(d)) caps.delete(d);
   for (const d of grant?.overrides?.deny ?? []) caps.delete(d);
 
   return strip(caps);

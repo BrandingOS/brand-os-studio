@@ -58,6 +58,8 @@ type AccessState = {
   /** Brand access for the CURRENT workspace only: an agency's brand list is unbounded. */
   brands: Record<string, BrandAccessEntry>;
   brandsLoadedFor: string | null;
+  /** Bumped on every switch; a response from an older generation is dropped. */
+  generation: number;
 
   hydrate: () => Promise<void>;
   loadBrands: (workspaceId: string) => Promise<void>;
@@ -75,6 +77,7 @@ export const useAccessStore = create<AccessState>((set, get) => ({
   currentWorkspaceId: null,
   brands: {},
   brandsLoadedFor: null,
+  generation: 0,
 
   hydrate: async () => {
     const { data, error } = (await rpc('my_access')) as {
@@ -95,14 +98,20 @@ export const useAccessStore = create<AccessState>((set, get) => ({
     const keep = previous && workspaces.some((w) => w.id === previous) ? previous : null;
     const fallback = workspaces.find((w) => w.isPersonal)?.id ?? workspaces[0].id;
     const currentWorkspaceId = keep ?? fallback;
-    set({ phase: 'ready', workspaces, currentWorkspaceId });
+    set({ phase: 'ready', workspaces, currentWorkspaceId, generation: get().generation + 1 });
     await get().loadBrands(currentWorkspaceId);
   },
 
   loadBrands: async (workspaceId: string) => {
+    // Two overlapping switches, or a switch racing hydrate()'s own load, would otherwise
+    // let a stale response win and leave `brands` describing a workspace we already left.
+    // Same guard brandStore uses for exactly this. (Pass C, F3.)
+    const generation = get().generation;
     const { data, error } = (await rpc('my_brand_access', { _workspace_id: workspaceId })) as {
       data: { brands?: BrandAccessEntry[] } | null; error: unknown;
     };
+    if (get().generation !== generation || get().currentWorkspaceId !== workspaceId) return;
+
     if (error || !data) {
       set({ brands: {}, brandsLoadedFor: workspaceId });
       return;
@@ -116,12 +125,16 @@ export const useAccessStore = create<AccessState>((set, get) => ({
     if (!get().workspaces.some((w) => w.id === id)) return;
     // Clear the brand map FIRST: showing the previous workspace's answers for a moment is
     // how a switcher leaks one tenant's shape into another's screen.
-    set({ currentWorkspaceId: id, brands: {}, brandsLoadedFor: null });
+    set({
+      currentWorkspaceId: id, brands: {}, brandsLoadedFor: null,
+      generation: get().generation + 1,
+    });
     await get().loadBrands(id);
   },
 
   reset: () => set({
-    phase: 'unknown', workspaces: [], currentWorkspaceId: null, brands: {}, brandsLoadedFor: null,
+    phase: 'unknown', workspaces: [], currentWorkspaceId: null, brands: {},
+    brandsLoadedFor: null, generation: get().generation + 1,
   }),
 
   current: () => {

@@ -34,6 +34,12 @@ export default function MembersSettingsPage() {
   const workspace = useCurrentWorkspace();
   const { user } = useAuth();
   const brands = useBrandStore((s) => s.list);
+  // The brand map in accessStore is already workspace-scoped and reloaded on switch;
+  // brandStore.loadAll() is not (it lists every brand the user can reach, once, at
+  // sign-in). Intersecting the two keeps the picker to brands of the CURRENT workspace,
+  // so a multi-workspace user cannot be offered — or try to grant — a brand from the
+  // workspace they just left. (Pass C, F2.)
+  const reachable = useAccessStore((s) => s.brands);
   const canManage = useCanShow('members.manage');
   const canInvite = useCanShow('members.invite');
   const canView = useCanShow('members.view');
@@ -51,12 +57,17 @@ export default function MembersSettingsPage() {
   const [confirmTransfer, setConfirmTransfer] = useState<Member | null>(null);
 
   const brandList = useMemo(
-    () => brands.filter((b) => !b.archivedAt).map((b) => ({ id: b.id, name: b.name })),
-    [brands],
+    () => brands
+      .filter((b) => !b.archivedAt && reachable[b.id])
+      .map((b) => ({ id: b.id, name: b.name })),
+    [brands, reachable],
   );
 
   const load = useCallback(async () => {
-    if (!workspace) return;
+    // Without this the page fires four privileged RPCs before the render-time canView
+    // branch runs, so a guest got a generic failure toast instead of the plain
+    // no-access message. (Pass C, F5.)
+    if (!workspace || !canView) return;
     setLoading(true);
     try {
       const [m, inv, s, g] = await Promise.all([
@@ -73,7 +84,7 @@ export default function MembersSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [workspace, canInvite]);
+  }, [workspace, canInvite, canView]);
 
   useEffect(() => { void load(); }, [load]);
 

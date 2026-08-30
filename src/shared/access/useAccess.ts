@@ -5,7 +5,7 @@
 // are the two readings of it, so a component never accidentally treats "not loaded yet"
 // as "no" (AX-09). Render a skeleton while unknown; show the denied branch only on false.
 // ============================================================================
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAccessStore, resolveCapability, type WorkspaceAccess } from './accessStore';
 import { effectiveCapabilities } from './resolve';
 
@@ -46,9 +46,14 @@ export function useBrandAccess(brandId?: string | null) {
   const membership = useAccessStore((s) => s.membership());
   const ref = useAccessStore((s) => (brandId ? s.brandRef(brandId) : null));
 
-  const caps = entry
-    ? new Set(entry.capabilities)
-    : ref ? effectiveCapabilities(membership, ref) : new Set<string>();
+  // A fresh Set every render put a new value in useCallback's deps, so `can` was a new
+  // reference every render and the memo did nothing. (Pass C, F7.)
+  const caps = useMemo(
+    () => (entry
+      ? new Set(entry.capabilities)
+      : ref ? effectiveCapabilities(membership, ref) : new Set<string>()),
+    [entry, ref, membership],
+  );
 
   return {
     loading: !loaded,
