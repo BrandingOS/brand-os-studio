@@ -16,7 +16,7 @@ git checkout feat/workspace-access-architecture
 npm ci
 supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,pgbouncer
 npm run test:db          # 21 suites; 20 pass, 025 crashes the Supabase image (see §7)
-npm run test:db:stock    # runs the suites on stock postgres:17, where 025 PASSES
+npm run test:db:stock    # 21/21 on stock postgres:17, including 025
 npm run typecheck:ci && npm run lint && npx vitest run
 ```
 

@@ -44,6 +44,10 @@ CREATE SCHEMA IF NOT EXISTS extensions; CREATE SCHEMA IF NOT EXISTS auth; CREATE
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+-- Supabase puts the extensions schema on the default search_path; a stock image does not,
+-- so unqualified gen_salt()/citext comparisons would resolve differently here and report
+-- failures that say nothing about the schema under test.
+ALTER DATABASE postgres SET search_path TO public, extensions;
 `;
 const psql = (input, stop = '0') =>
   spawnSync('docker', ['exec', '-i', DST, 'psql', '-U', 'postgres', '-q', '-X', '-v', `ON_ERROR_STOP=${stop}`],
@@ -55,9 +59,21 @@ psql(dump);
 
 const dir = join(root, 'supabase/tests');
 const files = readdirSync(dir).filter((f) => f.endsWith('.test.sql') && (!filter || f.includes(filter))).sort();
+// The same fixture/expectation injection db-test.mjs does, or every suite that opts in
+// with `-- fixture: access` runs without its cast. A function replacer, not a string:
+// `$$` is a replacement-pattern escape and would collapse the dollar-quoted blocks.
+const fixture = readFileSync(join(dir, 'fixtures/access_fixture.sql'), 'utf8');
+const cases = readFileSync(join(dir, 'fixtures/access-cases.json'), 'utf8');
 let failed = 0;
 for (const f of files) {
-  const r = psql(readFileSync(join(dir, f), 'utf8'), '1');
+  let sql = readFileSync(join(dir, f), 'utf8');
+  if (/^--\s*fixture:\s*access/m.test(sql.split('\n')[0] ?? '')) {
+    sql = sql.replace(/^BEGIN;\s*$/m, () => `BEGIN;\n${fixture}\n`);
+  }
+  if (sql.includes('__ACCESS_CASES__')) {
+    sql = sql.split('__ACCESS_CASES__').join(cases.replace(/'/g, "''"));
+  }
+  const r = psql(sql, '1');
   const ok = r.status === 0;
   if (!ok) failed += 1;
   console.log(`${ok ? '✓' : '✗'} ${f}`);
