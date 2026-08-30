@@ -11,9 +11,11 @@
  *
  * Three rules this component keeps:
  *
- *   1. **Real buttons.** The tile itself is a `div[role="button"]` precisely
- *      so this cluster can live inside it: a button inside a button is not a
- *      button, and the actions have to be reachable with Tab.
+ *   1. **Real buttons, and a SIBLING of the tile.** The tile is a `<button>`
+ *      and a button inside a button is not a button, so the cluster lives
+ *      beside it inside `.bk-variant-card` — which is also what lets its
+ *      menus escape the tile's own `overflow: hidden`. Hover and focus
+ *      belong to the CARD, so reaching for an action raises the tile too.
  *   2. **One download vocabulary.** The ⬇ opens the shared `DownloadMenu` —
  *      the same five words on the card, the tile, the drilldown header and
  *      the editor (spec §5b).

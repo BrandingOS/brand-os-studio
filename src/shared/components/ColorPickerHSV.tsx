@@ -149,9 +149,27 @@ export function ColorPickerHSV({
     setHexInput(currentHex.toUpperCase());
   }, [currentHex]);
 
+  /**
+   * The live preview fires when the COLOUR changes — never when the
+   * callback's identity does.
+   *
+   * `onChange` used to be a dependency of this effect, and every host
+   * passes it as an inline arrow. So the effect re-ran on every render of
+   * the host; if that callback set any state (which is the whole point of
+   * a live preview) the host re-rendered, minted a new arrow, and the
+   * effect fired again — an unbounded loop that shows up as "Maximum
+   * update depth exceeded" and takes the page down with it. It killed the
+   * Brand Kit's Colours panel (`ColorsEditor`, whose `onChange` calls
+   * `setRows` with a freshly mapped array, so React can never bail out).
+   *
+   * A ref keeps the newest callback reachable without subscribing to it —
+   * the same shape `ColorsEditor` uses for its own live preview.
+   */
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   useEffect(() => {
-    onChange?.(currentHex);
-  }, [currentHex, onChange]);
+    onChangeRef.current?.(currentHex);
+  }, [currentHex]);
 
   const drag = useCallback(
     (

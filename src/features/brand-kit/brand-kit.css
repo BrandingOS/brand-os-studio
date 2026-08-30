@@ -1143,6 +1143,18 @@
   box-shadow: var(--ds-shadow-md);
   border-color: var(--ds-border-strong);
 }
+/* A tile that is not a control. The Photos empty tile is a STATEMENT —
+   there is nothing behind it to open — so it must not offer a pointer or
+   lift under the cursor. Two rules, because the drilldown also raises a
+   tile from its CARD (`.bk-variant-card:hover`). */
+.bk-variant-tile--static,
+.bk-variant-tile--static:hover,
+[data-workspace] .bk-variant-card:hover .bk-variant-tile--static,
+[data-workspace] .bk-variant-card:focus-within .bk-variant-tile--static {
+  cursor: default;
+  box-shadow: var(--ds-shadow-xs);
+  border-color: var(--ds-border);
+}
 .bk-variant-tile:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ds-focus-ring), var(--ds-shadow-xs);
@@ -1856,6 +1868,16 @@
 .bk-card-picker-close:hover {
   background: var(--ds-surface-hover);
   color: var(--ds-text);
+}
+/* The picker's filter row. It sits between the head and the scrolling
+   grid, so it takes the modal's own gutters and never scrolls with the
+   designs it filters. Both selectors, because `.bk-drilldown-filter` is
+   `[data-workspace]`-scoped and would otherwise out-specify the margin. */
+.bk-drilldown-filter.bk-card-picker-filter,
+[data-workspace] .bk-drilldown-filter.bk-card-picker-filter {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 14px 22px 0;
 }
 .bk-card-picker-grid {
   flex: 1;
@@ -3248,9 +3270,17 @@
   /* A photograph can be a near-white texture; give it the kit's own
      surface underneath so it reads as a card rather than a hole. */
   background-color: var(--ds-surface-subtle);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+}
+/* An <img>, not a background: only an element can report that its source
+   failed, and a 404 painted as a blank white card is the defect this
+   replaced. */
+[data-workspace] .bk-cover-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* Strategy — one line of what the brand says it is. It CANNOT run past

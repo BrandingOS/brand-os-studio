@@ -48,10 +48,10 @@ const brand: MockBrand = {
   },
 };
 
-function renderKit() {
+function renderKit(which: MockBrand = brand) {
   return render(
     <MemoryRouter>
-      <BrandKitCosmosPage brand={brand} />
+      <BrandKitCosmosPage brand={which} />
     </MemoryRouter>,
   );
 }
@@ -182,6 +182,30 @@ describe('the composed covers are legible', () => {
       const content = getComputedStyle(i, '::before').content;
       expect(content === 'none' || content === '""' || content === '').toBe(false);
     }
+  });
+
+  it('shows the photograph as an IMAGE, so a dead source can be seen', async () => {
+    renderKit();
+    await settle();
+    const photos = card('Photos');
+    const art = photos.querySelector('.bk-cover-art--photo') as HTMLElement;
+    expect(art).toBeTruthy();
+    // A CSS background cannot report that its source failed, so SKAM's
+    // `/images/grain.png` painted a blank white card. An <img> can.
+    expect(getComputedStyle(art).backgroundImage).toBe('none');
+    const img = art.querySelector('img.bk-cover-photo') as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBeTruthy();
+  });
+
+  it('falls back to the honest empty when the brand has no real photograph', async () => {
+    renderKit({ ...brand, photos: [{ id: 'p1', src: '', slot: 'A' }] });
+    await settle();
+    const photos = card('Photos');
+    expect(photos.querySelector('.bk-cover-art--photo')).toBeNull();
+    const empty = photos.querySelector('.bk-cover-art--empty');
+    expect(empty).toBeTruthy();
+    expect(empty!.textContent).toContain('No photography yet');
   });
 
   it('keeps the strategy line inside its band', async () => {

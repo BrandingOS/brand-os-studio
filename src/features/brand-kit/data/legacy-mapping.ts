@@ -8,6 +8,7 @@ import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from '../components/BrandKitSidebar';
 import { logoCombosFor } from './recolorLogo';
 import { curatedName, isArchived } from '../renderers/curation';
+import { photoName } from './photoExport';
 import { BUSINESS_CARDS_EXTENDED } from '../renderers/BusinessCardsExtended';
 import { BUSINESS_CARDS_EXTENDED_2 } from '../renderers/BusinessCardsExtended2';
 import {
@@ -257,7 +258,9 @@ function brandAssetTemplates(
   if (moduleId === '__brand-asset-photo__') {
     return brand.photos.map((p, idx) => ({
       id: `brand-asset-photo-ext-${idx + 1}`,
-      name: `Slot ${p.slot}`,
+      // The name the Library holds for the picture — the same answer
+      // `photoExport` gives the zip, so a tile and its file agree.
+      name: photoName(brand, p, idx),
       category: 'photo',
       type: 'brand-asset-photo' as BrandKitTemplate['type'],
       orientation: 'landscape' as const,

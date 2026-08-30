@@ -25,6 +25,7 @@ import { defaultContentFor, contentKindForTemplateType } from '@/features/brandk
 import { ensureMasterDesign, instanceFromMaster } from './kit/masterTemplates';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
+import { BrandAssetPhotoRenderer } from './renderers/BrandAssetsRenderers';
 import {
   rendererBindsContent,
   NO_CONTENT_BINDING_REASON,
@@ -58,8 +59,11 @@ import { LogosEditor } from './components/assets/LogosEditor';
 import { PhotosEditor } from './components/assets/PhotosEditor';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { TileActions, type TileMenuAction } from './components/TileActions';
-import { DsChip, DsInput } from '@/shared/ds';
-import { tagsFor } from './renderers/curation';
+import {
+  KitFilterRow,
+  KitFilterEmpty,
+  useKitFilter,
+} from './components/KitFilterRow';
 import { getDeliverable, type DeliverableDef } from './kit/registry';
 import { variantsForCard } from './data/legacy-mapping';
 import { suggestIconsForBrand } from './data/suggestIcons';
@@ -1609,6 +1613,7 @@ export function BrandKitCosmosPage({
       <TemplatePickerModal
         open={pickerLabel !== null}
         title={pickerLabel ? `Add ${pickerLabel.toLowerCase()} variant` : ''}
+        noun={pickerLabel ?? 'variant'}
         tileAspect={pickerLabel ? PICKER_ASPECT_BY_LABEL[pickerLabel] ?? 1.6 : 1.6}
         templates={
           pickerLabel && drilldownTarget?.label === pickerLabel
@@ -1788,6 +1793,7 @@ function BrandKitDrilldown({
   // enter/exit.
   const isIcons = target.label === 'Icons' && target.sectionKey === 'brand-assets';
   const isColors = target.label === 'Colors' && target.sectionKey === 'brand-assets';
+  const isPhotos = target.label === 'Photos' && target.sectionKey === 'brand-assets';
   const templates = useMemo(() => {
     if (isIcons && mockBrand) {
       return variantsForCard(target.sectionKey, target.label, mockBrand);
@@ -1819,60 +1825,11 @@ function BrandKitDrilldown({
     target.templates,
   ]);
   /**
-   * Chips + search.
-   *
-   * A drilldown is a library, and a library you can only scroll is a pile.
-   * The tags are the curation's own (`renderers/curation`, one entry per
-   * kept design) — never invented here, so a chip can only ever offer a
-   * word some designer actually filed a design under. Search reads the
-   * NAME and the tags together: "invoice" and "minimal" are the same kind
-   * of question to someone looking for one.
+   * Chips + search — the same row the picker uses, so a design is found
+   * the same way wherever the wall of them is (`KitFilterRow`).
    */
-  const [query, setQuery] = useState('');
-  const [activeTags, setActiveTags] = useState<string[]>([]);
-  // Reset when the drilldown swaps to another card — a chip from the last
-  // card would silently hide everything in this one.
-  useEffect(() => {
-    setQuery('');
-    setActiveTags([]);
-  }, [target.sectionKey, target.label]);
-
-  const tagCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const tpl of templates) {
-      for (const tag of tagsFor(tpl.id)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-    // Most-used first, then alphabetical, so the row is stable and the
-    // useful chips are the ones you reach first.
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [templates]);
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q && activeTags.length === 0) return templates;
-    return templates.filter((tpl) => {
-      const tags = tagsFor(tpl.id);
-      // Every chosen chip must hold — chips NARROW. Two chips meaning
-      // "either" would make the row useless the moment you pick a second.
-      if (activeTags.some((t) => !tags.includes(t))) return false;
-      if (!q) return true;
-      return (
-        tpl.name.toLowerCase().includes(q) || tags.some((t) => t.toLowerCase().includes(q))
-      );
-    });
-  }, [templates, query, activeTags]);
-
-  /**
-   * A chip has to index MORE THAN ONE design.
-   *
-   * A card showing its three featured designs has nine tags between them,
-   * every one of them unique — nine chips that each hide two of the three
-   * things on screen. That is a worse index than reading the names. So a
-   * tag earns a chip only when it groups something, and the row appears
-   * only when there is really a pile to sift.
-   */
-  const chips = useMemo(() => tagCounts.filter(([, n]) => n >= 2), [tagCounts]);
-  const filterable = chips.length > 0 || templates.length >= 6;
+  const filter = useKitFilter(templates, `${target.sectionKey}::${target.label}`);
+  const visible = filter.visible;
 
   /**
    * The ⋯ menu for one variant.
@@ -2299,40 +2256,12 @@ function BrandKitDrilldown({
           )}
         </div>
       </div>
-      {!composed && hasTemplates && filterable && (
-        <div className="bk-drilldown-filter">
-          <DsInput
-            pill
-            type="search"
-            className="bk-drilldown-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${templates.length} ${(entry?.label ?? target.label).toLowerCase()} designs`}
-            aria-label={`Search ${entry?.label ?? target.label}`}
-          />
-          {chips.length > 0 && (
-            <div className="bk-drilldown-chips" role="group" aria-label="Filter by tag">
-              {chips.map(([tag, count]) => {
-                const on = activeTags.includes(tag);
-                return (
-                  <DsChip
-                    key={tag}
-                    active={on}
-                    aria-pressed={on}
-                    onClick={() =>
-                      setActiveTags((prev) =>
-                        prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-                      )
-                    }
-                  >
-                    {tag}
-                    <span className="bk-chip-count">{count}</span>
-                  </DsChip>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {!composed && hasTemplates && (
+        <KitFilterRow
+          filter={filter}
+          total={templates.length}
+          noun={entry?.label ?? target.label}
+        />
       )}
       {composed ?? (
       <div
@@ -2348,19 +2277,7 @@ function BrandKitDrilldown({
       >
         {hasTemplates ? (
           visible.length === 0 ? (
-            // Filtered to nothing. Say so, and offer the way back — a grid
-            // that simply empties looks broken rather than filtered.
-            <button
-              type="button"
-              className="bk-drilldown-empty"
-              onClick={() => {
-                setQuery('');
-                setActiveTags([]);
-              }}
-            >
-              <span className="bk-drilldown-empty-title">No design matches that</span>
-              <span className="bk-drilldown-empty-sub">Clear the search and chips</span>
-            </button>
+            <KitFilterEmpty onClear={filter.clear} />
           ) : (
           visible.map((tpl) => (
             <figure key={tpl.id} className="bk-variant-card" data-template-id={tpl.id}>
@@ -2402,6 +2319,24 @@ function BrandKitDrilldown({
             </figure>
           ))
           )
+        ) : isPhotos && mockBrand ? (
+          /* A brand with no photography. The generic fallback below paints
+             TWELVE tiles of the card's own stock cover — which is exactly
+             the "twelve identical photographs" defect, and it lies twice:
+             the pictures are not the brand's, and there are not twelve of
+             them. The photo renderer's first tile says so in words instead
+             (`PhotoEmptyTile`), and it is the same tile the drilldown shows
+             once real photography arrives. */
+          <figure className="bk-variant-card">
+            <div
+              className="bk-variant-tile bk-variant-tile--static"
+              style={{ aspectRatio: String(aspectForLabel(target.label)) }}
+            >
+              <span className="bk-variant-tile-render" aria-hidden>
+                <BrandAssetPhotoRenderer brand={mockBrand} templateIndex={0} />
+              </span>
+            </div>
+          </figure>
         ) : isIcons && onAddIcon ? (
           // Icons drilldown empty state — the brand has no icons yet,
           // so the placeholder grid would just be 12 misleading boxes.

@@ -43,6 +43,7 @@ import { aspectForLabel, featuredTemplates } from '../data/cardPresentation';
 import { contentForTemplate } from '../data/savedContent';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
+import { markPhotoSourceBroken, realPhotos } from '../data/photoExport';
 
 /** The width every kit renderer is authored against. */
 const CANONICAL_WIDTH = 260;
@@ -292,15 +293,42 @@ function IconsCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?: Br
   );
 }
 
-/** Photos — the brand's first photograph, filling the card. */
+/**
+ * Photos — the brand's first REAL photograph, filling the card.
+ *
+ * Two rules, and the second one is why this is an `<img>` rather than a
+ * `background-image`:
+ *
+ *   1. **`realPhotos` is the one answer to "does this brand have
+ *      photography?"** — the same predicate the drilldown, the sidebar and
+ *      the export read (`photoExport`, D46). Reading `brand.photos` directly
+ *      counted an empty slot and a hidden picture as photography.
+ *   2. **A source is only known broken once something has TRIED it.** The
+ *      cache is optimistic by construction, so the first paint of a 404
+ *      would be a blank white card — which is exactly what SKAM's
+ *      `/images/grain.png` produced. A CSS background cannot report its own
+ *      failure; an `<img>` can, so the cover measures the source, tells the
+ *      shared cache, and falls back to the honest empty.
+ */
 function PhotosCover({ brand }: { brand: MockBrand }) {
-  const photo = brand.photos.find((p) => p.src);
-  if (!photo) return <EmptyCover brand={brand} note="No photography yet" />;
+  const photo = realPhotos(brand)[0];
+  const src = photo?.src;
+  const [broken, setBroken] = useState(false);
+  // A different picture is a different measurement.
+  useEffect(() => setBroken(false), [src]);
+  if (!src || broken) return <EmptyCover brand={brand} note="No photography yet" />;
   return (
-    <div
-      className="bk-cover-art bk-cover-art--photo"
-      style={{ backgroundImage: `url(${photo.src})` }}
-    />
+    <div className="bk-cover-art bk-cover-art--photo">
+      <img
+        className="bk-cover-photo"
+        src={src}
+        alt=""
+        onError={() => {
+          markPhotoSourceBroken(src);
+          setBroken(true);
+        }}
+      />
+    </div>
   );
 }
 

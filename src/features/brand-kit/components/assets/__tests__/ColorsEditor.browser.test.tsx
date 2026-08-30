@@ -226,9 +226,14 @@ describe('ColorsEditor', () => {
     await waitFor(() => expect(update).toHaveBeenCalled());
     const patch = update.mock.calls[0]![1];
     // Only the palette moved. A hand-built partial would have emitted a
-    // name/logo/typography diff too.
+    // name/typography diff too.
     expect(patch.name).toBeUndefined();
-    expect(patch.logo).toBeUndefined();
+    expect(patch.typography).toBeUndefined();
+    // The logo is not exempt from the whole-brand diff — a seed brand
+    // carries `logoSystem` and no `logoAssets`, so the round-trip fills
+    // that dict in and the diff carries it. What must never happen is the
+    // logo CHANGING because someone edited the palette.
+    expect(patch.logo ?? BRAND.logo).toBe(BRAND.logo);
     // And the generated grey ladder is NOT sent back as the brand's own.
     expect((patch.neutrals ?? []).length).toBeLessThan(10);
   });

@@ -21,6 +21,7 @@ import {
   CubeOrganicIcon,
   PlayOrganicIcon,
 } from './brand-kit-organic-icons';
+import { hasRealPhotos } from '../data/photoExport';
 import type { KitEntry, KitGroup } from '../catalog/catalog';
 import type { DeliverableKey } from '../kit/types';
 
@@ -106,7 +107,10 @@ export function entryIsReady(entry: KitEntry, brand: MockBrand): boolean {
     case 'brand-assets::Icons':
       return brand.icons.length > 0;
     case 'brand-assets::Photos':
-      return brand.photos.length > 0;
+      // The ONE answer to "does this brand have photography?" — the same
+      // predicate the drilldown and the export read, so the counter cannot
+      // call a slot with a broken source done (D46).
+      return hasRealPhotos(brand);
     case 'brand-assets::About':
       // Strategy reads Setup's eleven answers first and the free-form
       // sections second, so either one makes it worth opening.
