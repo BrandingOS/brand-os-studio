@@ -88,6 +88,13 @@ function nativeChips(entries: ReadonlyArray<KitEntry>): string[] {
   return [...seen];
 }
 
+/** A file size the way a person says one. */
+function readableBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 function readableTime(sec: number): string {
   if (sec < 60) return `about ${Math.max(5, Math.round(sec / 5) * 5)}s`;
   return `about ${Math.round(sec / 60)} min`;
@@ -101,12 +108,34 @@ export function ExportKitDialog({
   onClose,
   entries,
   onExport,
+  busy = false,
+  progress = null,
+  done = null,
+  onCancelExport,
 }: {
   open: boolean;
   onClose: () => void;
   /** Every entry this viewer can see, in catalog order. */
   entries: ReadonlyArray<KitEntry>;
   onExport: (chosen: KitEntry[], allVariants: boolean, formats: KitExportFormats) => void;
+  /**
+   * An export is running. The picker stays OPEN while it does — it used to
+   * close on the click, so a 33-second wait ended with a file appearing and
+   * nothing anywhere the user was looking saying it had (QA D47).
+   */
+  busy?: boolean;
+  /** The line the runner is on, already throttled to reading speed. */
+  progress?: string | null;
+  /** The archive that arrived. Present only once it really has. */
+  done?: { fileName: string; items: number; bytes: number } | null;
+  /**
+   * Stop the running export.
+   *
+   * A plain "Cancel" beside "Exporting…" would be two different verbs under
+   * one word — close this panel, or abandon the work? While an export runs
+   * there is only one thing worth cancelling.
+   */
+  onCancelExport?: () => void;
 }) {
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   // One design per item is the honest default: a kit is a document you
@@ -170,20 +199,46 @@ export function ExportKitDialog({
         </div>
       }
       actions={
-        <>
-          <DsButton tone="secondary" onClick={onClose}>Cancel</DsButton>
-          <DsButton
-            tone="primary"
-            disabled={chosen.length === 0}
-            onClick={() => onExport([...chosen], depth === 'all', formats)}
-          >
-            {chosen.length === entries.length
-              ? 'Export everything'
-              : `Export ${chosen.length} item${chosen.length === 1 ? '' : 's'}`}
-          </DsButton>
-        </>
+        done ? (
+          <DsButton tone="primary" onClick={onClose}>Done</DsButton>
+        ) : (
+          <>
+            <DsButton
+              tone="secondary"
+              onClick={busy && onCancelExport ? onCancelExport : onClose}
+            >
+              {busy && onCancelExport ? 'Cancel export' : 'Cancel'}
+            </DsButton>
+            <DsButton
+              tone="primary"
+              disabled={chosen.length === 0 || busy}
+              onClick={() => onExport([...chosen], depth === 'all', formats)}
+            >
+              {busy
+                ? 'Exporting…'
+                : chosen.length === entries.length
+                  ? 'Export everything'
+                  : `Export ${chosen.length} item${chosen.length === 1 ? '' : 's'}`}
+            </DsButton>
+          </>
+        )
       }
     >
+      {/*
+        THE STATUS IS AT THE TOP, WHERE IT CANNOT SCROLL AWAY.
+        The estimate lives under the list, which is right for a sentence you
+        read before you commit — and wrong for the one thing that has to be
+        seen after a half-minute wait, because on a 900px viewport the bottom
+        of this modal is below the fold. While the export runs, and once it
+        has finished, the answer is pinned above everything.
+      */}
+      {(busy || done) && (
+        <p className="bk-export-status" role="status" data-done={done ? 'true' : undefined}>
+          {done
+            ? `Saved ${done.fileName} — ${done.items} item${done.items === 1 ? '' : 's'} · ${readableBytes(done.bytes)}.`
+            : (progress ?? 'Exporting…')}
+        </p>
+      )}
       <div className="bk-export-depth">
         <DsSegmented
           value={depth}
@@ -269,13 +324,24 @@ export function ExportKitDialog({
           );
         })}
       </div>
-      <p className="bk-export-estimate">
-        {chosen.length === 0
-          ? 'Nothing selected.'
-          : `${chosen.length} item${chosen.length === 1 ? '' : 's'} · roughly ${
-              cost.mb < 1 ? '<1' : Math.round(cost.mb)
-            } MB · ${readableTime(cost.sec)}. You can cancel while it runs.`}
-      </p>
+      {/*
+        One line, three states: what this WILL cost, what it is doing now, and
+        what arrived. The estimate is not replaced by silence the moment the
+        work starts, and it is not still promising a minute after the file has
+        landed.
+      */}
+      {/* The cost of what is TICKED — a sentence to read before committing,
+          which is why it stays under the list and is replaced by nothing
+          once the commitment is made. */}
+      {!busy && !done && (
+        <p className="bk-export-estimate">
+          {chosen.length === 0
+            ? 'Nothing selected.'
+            : `${chosen.length} item${chosen.length === 1 ? '' : 's'} · roughly ${
+                cost.mb < 1 ? '<1' : Math.round(cost.mb)
+              } MB · ${readableTime(cost.sec)}. You can cancel while it runs.`}
+        </p>
+      )}
     </DsModal>
   );
 }

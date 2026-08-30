@@ -40,7 +40,7 @@
  *    the dialog lists each change in the user's own words rather than asking
  *    "Save?".
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DsButton, DsCheckbox, DsConfirmDialog, DsInput, DsModal, DsSelect } from '@/shared/ds';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
@@ -48,6 +48,7 @@ import type { BrandLogo, MockBrand } from '@/features/setup/data/mockBrand';
 import { TILE_ID_BY_ROLE, TILE_LABEL, reground } from '@/features/setup/data/logoBoard';
 import { LOGO_ROLE_DEFS, type LogoRoleDef } from '@/shared/brand/logoRoles';
 import type { LogoRole } from '@/shared/types/brandAssets';
+import { logoSourceForTemplate } from './logoVariants';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
 import {
@@ -96,6 +97,16 @@ export type LogosEditorProps = {
   sourceBrand?: Brand | null;
   /** Live preview: the kit repaints from this while the panel is open. */
   onBrandChange?: (next: MockBrand) => void;
+  /**
+   * The drilldown tile the user pressed ✎ on, when they came from one.
+   *
+   * A tile's pencil used to open the legacy card editor with an empty right
+   * panel (QA Q6). It opens THIS panel now — the same one the card opens,
+   * because the answer to "edit this logo" is the logo system — and the
+   * variant the tile was drawn from is scrolled to and marked, so arriving
+   * from a wall of fifteen tiles does not mean hunting for the row again.
+   */
+  focusVariantId?: string | null;
 };
 
 const DEF_BY_ROLE = new Map(LOGO_ROLE_DEFS.map((d) => [d.role, d]));
@@ -183,6 +194,7 @@ export function LogosEditor({
   brand,
   sourceBrand,
   onBrandChange,
+  focusVariantId,
 }: LogosEditorProps) {
   const [rows, setRows] = useState<Row[]>(() => rowsFrom(brand));
   // A SNAPSHOT with the same keys as `rows`. Re-deriving it from the brand
@@ -217,6 +229,28 @@ export function LogosEditor({
     // `brand` deliberately absent — reopening re-seeds, a repaint does not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  /**
+   * The row the tile that opened this panel is drawn from.
+   *
+   * Held as the row's SOURCE index rather than its key, because the keys are
+   * re-minted on every re-seed and a stale key would mark nothing.
+   */
+  const focusSource = useMemo(
+    () => (open && focusVariantId ? logoSourceForTemplate(brand, focusVariantId) : null),
+    // `brand` is read once, at open — a live repaint must not move the mark.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, focusVariantId],
+  );
+  const focusRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    if (!open || focusSource === null) return;
+    // One frame, so the modal has laid out before anything is scrolled.
+    const id = requestAnimationFrame(() => {
+      focusRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, focusSource]);
 
   /** The brand as this panel would leave it. Everything below reads it, so
    *  the preview, the ground list and the save all describe one thing. */
@@ -409,7 +443,12 @@ export function LogosEditor({
             <h3 className="bka-logos-heading">Variants</h3>
             <ul className="bka-logos-list">
               {rows.map((row) => (
-                <li key={row.key} className="bka-logos-row">
+                <li
+                  key={row.key}
+                  className="bka-logos-row"
+                  data-focused={row.source === focusSource || undefined}
+                  ref={row.source === focusSource ? focusRef : undefined}
+                >
                   <LogoThumb logo={brand.logos?.[row.source]} />
                   <span className="bka-logos-meta">
                     <DsInput
@@ -474,6 +513,30 @@ export function LogosEditor({
                 const used = placed.filter(
                   (p) => p.kind === 'treatment' && contrastRatio(p.mark.hex, t.hex) < 1.05,
                 ).length;
+                /*
+                 * A GENERATED CUT IS NOT DRAWN WHERE THE BRAND OWNS ONE.
+                 *
+                 * `logoCombosFor` skips a treatment on any ground where the
+                 * brand already holds artwork in that ink — flat-filling the
+                 * silhouette there would ship a second, generated copy of a
+                 * file the brand uploaded. For a brand with a real black and a
+                 * real white cut (raqm, skam) that is EVERY ground, so the
+                 * count was 0 beside a ticked checkbox and read as a fault
+                 * (QA Q31). The count is not the interesting fact; WHY it is
+                 * zero is.
+                 */
+                const ownsCut = placed.some(
+                  (p) => p.kind === 'pairing' && contrastRatio(p.mark.hex, t.hex) < 1.05,
+                );
+                const usage = !on
+                  ? 'Not offered'
+                  : used > 0
+                    ? `${t.hint} · on ${used} ground${used === 1 ? '' : 's'}`
+                    : ownsCut
+                      // Short, because this row is one of two in a narrow
+                      // column and a truncated explanation explains nothing.
+                      ? `${t.hint} · the brand owns this cut`
+                      : `${t.hint} · not needed on any ground`;
                 return (
                   <li key={t.id} className="bka-logos-ground" data-off={!on}>
                     <DsCheckbox checked={on} onChange={() => toggleCut(t.id)} />
@@ -488,7 +551,7 @@ export function LogosEditor({
                         {/* The section's own line already says what a
                             treatment is FOR; a row that repeated it was
                             ellipsised into nonsense at panel width. */}
-                        {on ? `${t.hint} · used on ${used}` : 'Not offered'}
+                        {usage}
                       </span>
                     </span>
                   </li>

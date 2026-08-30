@@ -12,6 +12,7 @@ import {
   surface,
   type SurfaceTokens,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * Favicon — twelve designs, one content model.
@@ -138,7 +139,7 @@ function Mark({
             color: ink,
             fontFamily: fontStack(brand, 'heading'),
             fontWeight: 800,
-            fontSize: Math.max(6, Math.round(size * 0.46)),
+            fontSize: typePx(Math.max(6, Math.round(size * 0.46))),
             lineHeight: 1,
             letterSpacing: '-0.02em',
           }}
@@ -170,7 +171,7 @@ function TabTitle({
       style={{
         color,
         fontFamily: fontStack(brand, 'body'),
-        fontSize: size,
+        fontSize: typePx(size),
         fontWeight: weight,
         lineHeight: 1.2,
       }}
@@ -199,7 +200,7 @@ function Url({
       style={{
         color,
         fontFamily: fontStack(brand, 'body'),
-        fontSize: size,
+        fontSize: typePx(size),
         lineHeight: 1.2,
         ...(uppercase ? { textTransform: 'uppercase', letterSpacing: '0.18em' } : {}),
       }}
@@ -382,20 +383,20 @@ export function WebFaviconExtendedRenderer({ brand, templateIndex, content }: Pr
         <div className="flex-1 flex items-center justify-center gap-4">
           <div className="flex flex-col items-center gap-1.5">
             <Mark brand={brand} content={c} ground={brandT.bg} size={DELIVERY_SIZES[2]} shape="squircle" />
-            <span style={{ color: mutedOn(page), fontFamily: body, fontSize: 6 }}>
+            <span style={{ color: mutedOn(page), fontFamily: body, fontSize: typePx(6) }}>
               {DELIVERY_SIZES[2]}
             </span>
           </div>
           <div className="flex flex-col items-center gap-3">
             <div className="flex flex-col items-center gap-1.5">
               <Mark brand={brand} content={c} ground={brandT.bg} size={DELIVERY_SIZES[1]} shape="rounded" />
-              <span style={{ color: mutedOn(page), fontFamily: body, fontSize: 6 }}>
+              <span style={{ color: mutedOn(page), fontFamily: body, fontSize: typePx(6) }}>
                 {DELIVERY_SIZES[1]}
               </span>
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <Mark brand={brand} content={c} ground={brandT.bg} size={DELIVERY_SIZES[0]} shape="rounded" />
-              <span style={{ color: mutedOn(page), fontFamily: body, fontSize: 6 }}>
+              <span style={{ color: mutedOn(page), fontFamily: body, fontSize: typePx(6) }}>
                 {DELIVERY_SIZES[0]}
               </span>
             </div>

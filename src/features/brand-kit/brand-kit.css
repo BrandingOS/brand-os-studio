@@ -1198,6 +1198,40 @@
   width: 100%;
   height: 100%;
 }
+
+/*
+  THE TILE DECLARES A LEGIBLE MINIMUM FOR TYPE.
+
+  Renderers are authored against a 260px stage and the tile draws them at
+  ~347px with no scaling, so the smallest roles paint at their authored pixel
+  size: QA measured 3.0px on an Envelope's "Postage", 3.4px on a deck footer
+  and 3.9px on a Letterhead's date (Q19). Choosing between three variants is
+  the tile's only job, and it cannot be done on type nobody can see.
+
+  `--bk-type-floor` is read by `renderers/typeFloor.ts` `typePx()`, which
+  every renderer's font size now passes through as `max(floor, authored)`.
+  Only this surface sets it: the offscreen export host, the card covers and
+  the editor preview leave it unset, `max()` falls back to `0px`, and every
+  exported pixel is exactly what it was.
+*/
+.bk-variant-tile-render {
+  --bk-type-floor: 7px;
+}
+
+/*
+  The same floor for the type that is sized by a Tailwind class rather than a
+  style object. `BrandGuidesExtended` alone carries 71 `text-[3.5px]` — the
+  guide pages are dense by design and they are unreadable at tile size for
+  exactly the same reason. Written as an override on the class inside the tile
+  rather than rewritten in the markup, so the CLASS still means 3.5px
+  everywhere else, and the export (which has no `.bk-variant-tile-render`
+  above it) is untouched. Kept in step with `--bk-type-floor` by
+  `renderers/__tests__/tileTypeFloor.browser.test.tsx`, which measures the
+  rendered tiles rather than trusting this list.
+*/
+.bk-variant-tile-render :is(.text-\[3px\], .text-\[3\.5px\], .text-\[4px\], .text-\[5px\], .text-\[6px\]) {
+  font-size: 7px;
+}
 .bk-variant-tile-index {
   position: absolute;
   bottom: 10px;
@@ -3434,4 +3468,46 @@
   margin-left: 6px;
   opacity: 0.55;
   font-variant-numeric: tabular-nums;
+}
+
+/* The drilldown header's Download menu anchors to its own button, which is
+   the only positioned box in the header's action cluster. */
+[data-workspace] .bk-drilldown-dl {
+  position: relative;
+  display: inline-flex;
+}
+
+/* A neutral is a step of the generated ladder, not a colour the brand chose,
+   so it is a second ROW with its own word — a margin inside a wrapping flex
+   row lands wherever the wrap happens to fall, which reads as an accident. */
+.bk-editor-swatch-group-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-text-tertiary, var(--ds-text-secondary));
+}
+
+/* The running / finished export, pinned above the picker so a half-minute
+   wait never ends with the answer below the fold. */
+.bk-export-status {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.bk-export-status[data-done] {
+  border-color: var(--ds-text);
+  color: var(--ds-text);
+  font-weight: 600;
 }

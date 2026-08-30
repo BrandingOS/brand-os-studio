@@ -38,6 +38,7 @@ import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import type { KitSectionKey } from './BrandKitSidebar';
 import { renderCosmosTemplate } from '../renderers';
+import { AnimationFrame } from '../renderers/AnimationsExtended';
 import { brandColors, fgOn, fontStack, logoOn, surface } from '../renderers/brandStyle';
 import { aspectForLabel, featuredTemplates } from '../data/cardPresentation';
 import { contentForTemplate } from '../data/savedContent';
@@ -47,6 +48,17 @@ import { markPhotoSourceBroken, realPhotos } from '../data/photoExport';
 
 /** The width every kit renderer is authored against. */
 const CANONICAL_WIDTH = 260;
+
+/**
+ * Where a motion cover is frozen, as a fraction of the design's duration.
+ *
+ * Late in the move, not the middle of it. At 0.62 — the storyboard's first
+ * cell — Slide In's mark is still half outside the frame, which at thumbnail
+ * size reads as a broken picture rather than as motion. At 0.88 the wipe is
+ * still open, the slide is still short, the fade is still translucent and the
+ * rotation is still off-square: four different pictures, all of them whole.
+ */
+const MOTION_COVER_AT = 0.88;
 
 /* ── Lazy mount ───────────────────────────────────────────────────── */
 
@@ -355,6 +367,227 @@ function StrategyCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?:
   );
 }
 
+/* ── The composed views ───────────────────────────────────────────── */
+
+/**
+ * THREE CARDS THAT ARE NOT A LOGO ON A COLOUR.
+ *
+ * Social Media System, Presentation System and Brand Board are composed
+ * views: they have no template library, so `CardCover` fell through to
+ * `IdentityCover` for all three — and `LogosCover` draws the same mark on
+ * the same ground, so four different cards showed one picture (QA Q21).
+ *
+ * Each of these says what its own deliverable IS, in the brand's own colours
+ * and type, at thumbnail size: the shapes social serves, a stack of slides,
+ * a board of four panels. Nothing here is stock and nothing is a photograph
+ * — the same rule the rest of the file keeps.
+ */
+
+/** The mark, or the initial, as a small element inside another drawing. */
+function CoverMark({
+  brand,
+  sourceBrand,
+  ground,
+  size,
+}: {
+  brand: MockBrand;
+  sourceBrand?: Brand;
+  ground: string;
+  size: number;
+}) {
+  const resolved = logoOn(sourceBrand, ground);
+  if (resolved) {
+    return (
+      <img
+        src={resolved.url}
+        alt=""
+        style={{ width: `${size}%`, maxHeight: '60%', objectFit: 'contain' }}
+      />
+    );
+  }
+  return (
+    <span
+      style={{
+        fontFamily: fontStack(sourceBrand ?? brand, 'heading'),
+        fontWeight: 700,
+        fontSize: `${Math.round(size / 3)}%`,
+        color: fgOn(ground),
+        lineHeight: 1,
+      }}
+    >
+      {brand.name.trim().charAt(0).toUpperCase() || '·'}
+    </span>
+  );
+}
+
+/** Social — the three shapes a platform actually serves. */
+function SocialSystemCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?: Brand }) {
+  const source = sourceBrand ?? brand;
+  const tokens = surface(source, 'card');
+  const colors = brandColors(source);
+  const frames: Array<{ radius: string; ratio: string; bg: string }> = [
+    { radius: '999px', ratio: '1 / 1', bg: colors.primary },
+    { radius: '8%', ratio: '1 / 1', bg: colors.secondary ?? colors.primary },
+    { radius: '8%', ratio: '9 / 16', bg: tokens.bg },
+  ];
+  return (
+    <div
+      className="bk-cover-art"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '7%',
+        padding: '12% 9%',
+        background: tokens.bg,
+      }}
+    >
+      {frames.map((f, i) => (
+        <span
+          key={i}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: i === 2 ? '100%' : '68%',
+            aspectRatio: f.ratio,
+            borderRadius: f.radius,
+            background: f.bg,
+            border: i === 2 ? `1px solid ${tokens.border}` : undefined,
+            overflow: 'hidden',
+          }}
+        >
+          <CoverMark brand={brand} sourceBrand={sourceBrand} ground={f.bg} size={62} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Presentations — a stack of slides, the front one titled. */
+function PresentationSystemCover({
+  brand,
+  sourceBrand,
+}: {
+  brand: MockBrand;
+  sourceBrand?: Brand;
+}) {
+  const source = sourceBrand ?? brand;
+  const tokens = surface(source, 'card');
+  const colors = brandColors(source);
+  const ink = fgOn(colors.primary);
+  return (
+    <div
+      className="bk-cover-art"
+      style={{
+        // NOT `position: relative`: `.bk-cover-art` is an absolute fill of
+        // the card, and overriding that collapses the cover to its content
+        // height. It already establishes a containing block for the slides.
+        display: 'block',
+        background: tokens.bg,
+      }}
+    >
+      {/* Two slides behind, offset — a deck, not a page. */}
+      {[2, 1].map((depth) => (
+        <span
+          key={depth}
+          style={{
+            position: 'absolute',
+            left: `${14 + depth * 3}%`,
+            top: `${13 + depth * 4}%`,
+            right: `${14 - depth * 3}%`,
+            bottom: `${13 - depth * 4}%`,
+            borderRadius: '4px',
+            background: tokens.bg,
+            border: `1px solid ${tokens.border}`,
+          }}
+        />
+      ))}
+      <span
+        style={{
+          position: 'absolute',
+          inset: '13% 14%',
+          borderRadius: '4px',
+          background: colors.primary,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          gap: '5%',
+          padding: '8%',
+          overflow: 'hidden',
+        }}
+      >
+        <span style={{ display: 'block', height: '9%', width: '58%', background: ink, opacity: 0.92 }} />
+        <span style={{ display: 'block', height: '6%', width: '34%', background: ink, opacity: 0.5 }} />
+      </span>
+    </div>
+  );
+}
+
+/** Brand Board — four panels: the mark, the palette, the type, an accent. */
+function BrandBoardCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?: Brand }) {
+  const source = sourceBrand ?? brand;
+  const tokens = surface(source, 'card');
+  const colors = brandColors(source);
+  const swatches = [...brand.colors.core, ...brand.colors.accent].slice(0, 5);
+  return (
+    <div
+      className="bk-cover-art"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1.25fr 1fr',
+        gridTemplateRows: '1fr 1fr',
+        // `.bk-cover-art` centres its items; a grid cell has to STRETCH or
+        // every panel collapses to the height of what is in it.
+        alignItems: 'stretch',
+        justifyItems: 'stretch',
+        gap: '4%',
+        padding: '9%',
+        background: tokens.bg,
+      }}
+    >
+      <span
+        style={{
+          gridRow: '1 / span 2',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '4px',
+          background: colors.primary,
+          overflow: 'hidden',
+        }}
+      >
+        <CoverMark brand={brand} sourceBrand={sourceBrand} ground={colors.primary} size={70} />
+      </span>
+      <span style={{ display: 'flex', borderRadius: '4px', overflow: 'hidden' }}>
+        {swatches.length > 0 ? (
+          swatches.map((c, i) => (
+            <span key={`${c.hex}-${i}`} style={{ flex: i === 0 ? 2 : 1, background: c.hex }} />
+          ))
+        ) : (
+          <span style={{ flex: 1, background: colors.primary }} />
+        )}
+      </span>
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '4px',
+          border: `1px solid ${tokens.border}`,
+          color: tokens.text,
+          fontFamily: fontStack(source, 'heading'),
+          fontWeight: 700,
+          fontSize: '34%',
+          lineHeight: 1,
+        }}
+      >
+        Aa
+      </span>
+    </div>
+  );
+}
+
 /** An honest empty — the brand's own surface, and what is missing. */
 function EmptyCover({ brand, note }: { brand: MockBrand; note: string }) {
   const tokens = surface(brand, 'subtle');
@@ -390,6 +623,18 @@ export type CardCoverProps = {
  */
 function assetCover(props: CardCoverProps): React.ReactNode | null {
   const { sectionKey, storageLabel, brand, sourceBrand } = props;
+  // The composed views have no template to render and are not brand assets
+  // either, so they fell all the way through to the identity mark — which is
+  // also what the Logos card draws (QA Q21).
+  if (storageLabel === 'Social Media System') {
+    return <SocialSystemCover brand={brand} sourceBrand={sourceBrand} />;
+  }
+  if (storageLabel === 'Presentation System') {
+    return <PresentationSystemCover brand={brand} sourceBrand={sourceBrand} />;
+  }
+  if (storageLabel === 'Brand Board') {
+    return <BrandBoardCover brand={brand} sourceBrand={sourceBrand} />;
+  }
   if (sectionKey !== 'brand-assets') return null;
   switch (storageLabel) {
     case 'Logos':
@@ -410,7 +655,8 @@ function assetCover(props: CardCoverProps): React.ReactNode | null {
 }
 
 export function CardCover(props: CardCoverProps) {
-  const { storageLabel, brand, sourceBrand, templates, featuredIdsByLabel, saved } = props;
+  const { sectionKey, storageLabel, brand, sourceBrand, templates, featuredIdsByLabel, saved } =
+    props;
   const [ref, near] = useNearViewport<HTMLDivElement>();
 
   const featured = useMemo(() => {
@@ -423,13 +669,31 @@ export function CardCover(props: CardCoverProps) {
     const asset = assetCover(props);
     if (asset) return asset;
     if (featured && sourceBrand) {
+      const art = renderCosmosTemplate(
+        featured,
+        sourceBrand,
+        brand,
+        saved ? contentForTemplate(saved, featured, brand) : undefined,
+      );
       return (
         <ScaledArtwork aspect={aspectForLabel(storageLabel)}>
-          {renderCosmosTemplate(
-            featured,
-            sourceBrand,
-            brand,
-            saved ? contentForTemplate(saved, featured, brand) : undefined,
+          {/*
+            A MOTION CARD IS FROZEN MID-MOVE, NOT AT REST.
+            Every animation ENDS on the finished lockup — that is the design
+            rule (`AnimationsExtended`, "the last frame is the finished
+            lockup"), and a cover taken at rest is therefore the same picture
+            for all four: Logo Reveal, Slide In, Fade and Rotate were four
+            identical white cards reading "1600 ms · Loop" (QA Q21). Held at
+            0.62 of the timeline, each one shows the move it is named after —
+            the mask, the offset, the opacity, the angle — and the four covers
+            become four different pictures without inventing any artwork.
+          */}
+          {sectionKey === 'animations' ? (
+            <AnimationFrame at={MOTION_COVER_AT} quiet>
+              {art}
+            </AnimationFrame>
+          ) : (
+            art
           )}
         </ScaledArtwork>
       );

@@ -305,7 +305,6 @@ export function ColorsEditor({
     }
   }, [rows, sourceBrand, onClose]);
 
-  const editing = rows.find((r) => r.key === editingKey) ?? null;
 
   return (
     <>
@@ -380,7 +379,26 @@ export function ColorsEditor({
                     onChange={(e) => setRow(row.key, { name: e.target.value })}
                   />
                   <span className="bka-colors-hex">
-                    {row.hex} · shown as {shownRoles.get(row.key)}
+                    {/*
+                      THE VALUE IS THE AFFORDANCE.
+                      The swatch has always opened the picker, but a hex printed
+                      as plain text beside an editable name reads as the one
+                      thing on the row you cannot change — QA filed "there is no
+                      way to change a colour's value" (Q30) against a panel that
+                      could. So the number is a button as well, and it says so.
+                    */}
+                    <button
+                      type="button"
+                      className="bka-colors-hex-btn"
+                      aria-label={`Change the value of ${row.name}`}
+                      onClick={() => {
+                        setAdding(false);
+                        setEditingKey((k) => (k === row.key ? null : row.key));
+                      }}
+                    >
+                      {row.hex}
+                    </button>{' '}
+                    · shown as {shownRoles.get(row.key)}
                   </span>
                 </span>
                 <DsSelect
@@ -398,26 +416,33 @@ export function ColorsEditor({
                 >
                   ×
                 </button>
+                {/*
+                  THE PICKER OPENS ON THE ROW IT EDITS.
+                  It used to render after the whole list — and the list is a
+                  320px scroller, so on an eight-colour brand pressing a swatch
+                  moved something the user could not see and the panel looked
+                  inert. Attached to its own row, the response is where the
+                  press was.
+                */}
+                {row.key === editingKey ? (
+                  <div className="bka-colors-picker">
+                    <ColorPickerHSV
+                      key={row.key}
+                      hex={row.hex}
+                      compact
+                      commitLabel="Update"
+                      onChange={(hex) => setRow(row.key, { hex: normalizeHex(hex) })}
+                      onCommit={(hex) => {
+                        setRow(row.key, { hex: normalizeHex(hex) });
+                        setEditingKey(null);
+                      }}
+                      onCancel={() => setEditingKey(null)}
+                    />
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
-
-          {editing ? (
-            <div className="bka-colors-picker">
-              <ColorPickerHSV
-                key={editing.key}
-                hex={editing.hex}
-                compact
-                commitLabel="Update"
-                onChange={(hex) => setRow(editing.key, { hex: normalizeHex(hex) })}
-                onCommit={(hex) => {
-                  setRow(editing.key, { hex: normalizeHex(hex) });
-                  setEditingKey(null);
-                }}
-                onCancel={() => setEditingKey(null)}
-              />
-            </div>
-          ) : null}
 
           {adding ? (
             <div className="bka-colors-picker">

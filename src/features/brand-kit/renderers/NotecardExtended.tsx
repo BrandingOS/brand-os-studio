@@ -17,6 +17,7 @@ import {
   surface,
   type SurfaceKind,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * Notecards — the `note` kind, drawn twelve ways.
@@ -173,7 +174,7 @@ function Greeting({
       style={{
         display: 'block',
         maxWidth: '100%',
-        fontSize: `${size}px`,
+        fontSize: typePx(size),
         lineHeight: 1.2,
         fontFamily: fonts.heading,
         fontWeight: weight,
@@ -218,7 +219,7 @@ function Message({
       placeholder="Write your note…"
       style={{
         display: 'block',
-        fontSize: `${size}px`,
+        fontSize: typePx(size),
         lineHeight: 1.65,
         fontFamily: fonts.body,
         color: color ?? ink.muted,
@@ -255,7 +256,7 @@ function SignOff({
       style={{
         display: 'block',
         maxWidth: '100%',
-        fontSize: `${size}px`,
+        fontSize: typePx(size),
         lineHeight: 1.35,
         fontFamily: fonts.heading,
         fontWeight: weight,

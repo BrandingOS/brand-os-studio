@@ -49,8 +49,15 @@ import {
   type EditorTarget,
 } from './components/BrandKitCardEditor';
 import { ExportKitDialog } from './components/ExportKitDialog';
-import type { DownloadChoice } from './components/DownloadMenu';
-import { downloadOptionsFor, type DownloadOption } from './data/exportFormats';
+import { DownloadMenu, type DownloadChoice } from './components/DownloadMenu';
+import {
+  downloadOptionsFor,
+  pngToJpg,
+  pngToPdf,
+  resizePng,
+  PRINT_PAGE_MM,
+  type DownloadOption,
+} from './data/exportFormats';
 import { photosUnavailableReason } from './data/photoExport';
 import { IconPickerModal } from './components/IconPickerModal';
 import { ColorsEditor } from './components/assets/ColorsEditor';
@@ -163,6 +170,21 @@ const WIPE_SPEED = 0.4;
  * card and a rename must never cost anyone their editor.
  */
 const ASSET_EDITOR_LABELS = new Set(['Logos', 'Colors', 'Fonts', 'Icons', 'Photos', 'About']);
+
+/**
+ * How often a running export may repaint its progress line.
+ *
+ * Six or seven updates a second is already faster than anyone reads, and it
+ * is three orders of magnitude below what JSZip's per-chunk callback offers.
+ */
+const PROGRESS_PAINT_MS = 150;
+
+/** A file size the way a person says one. */
+function readableBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
 
 /**
  * How much of the stage the sticky top bar would cover. Measured, not
@@ -353,9 +375,28 @@ export function BrandKitCosmosPage({
    * into the editor's own seed would recompute the draft from the draft.
    */
   const [brandPreview, setBrandPreview] = useState<MockBrand | null>(null);
+  /**
+   * The drilldown tile the asset editor was opened FROM, when it was opened
+   * from one.
+   *
+   * A tile's ✎ used to hand the legacy card editor a brand-asset target it
+   * has no fields for, so the panel opened empty — a logo on a grey field
+   * with Cancel / Download / Save and nothing between (QA Q6). A brand asset
+   * has exactly one editor, and it is the one the CARD opens: the answer to
+   * "edit this logo" is the logo system, not a retouch of one tile's stock
+   * artwork. The tile is not thrown away, though — it says which variant the
+   * user was looking at, and the Logos panel opens on that row.
+   */
+  const [assetEditorVariant, setAssetEditorVariant] = useState<string | null>(null);
   const closeAssetEditor = useCallback(() => {
     setAssetEditor(null);
+    setAssetEditorVariant(null);
     setBrandPreview(null);
+  }, []);
+  /** Open a brand asset's own editor, optionally on the variant that was clicked. */
+  const openAssetEditor = useCallback((label: string, templateId?: string) => {
+    setAssetEditor(label);
+    setAssetEditorVariant(templateId ?? null);
   }, []);
   const effectiveBrand = brandPreview ?? baseBrand;
 
@@ -864,6 +905,42 @@ export function BrandKitCosmosPage({
    */
   const [exportingKit, setExportingKit] = useState(false);
   const exportAbortRef = useRef<AbortController | null>(null);
+  /**
+   * The live progress line, and the finished archive.
+   *
+   * Both exist so the surface the user was LOOKING at can answer. Before
+   * this the picker closed on the click and thirty-three seconds later a
+   * file appeared with nothing said anywhere the user was looking (QA D47).
+   */
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const [exportDone, setExportDone] = useState<
+    { fileName: string; items: number; bytes: number } | null
+  >(null);
+  /**
+   * PROGRESS IS PAINTED AT HUMAN SPEED, NOT AT MACHINE SPEED.
+   *
+   * `zip.generateAsync`'s callback fires per chunk — thousands of times for
+   * a 250-file archive — and every one of them called `toast.loading` with a
+   * new string. Sonner re-measures its stack inside a `flushSync` on each
+   * update, so React's nested-update counter tripped and every export logged
+   * "Maximum update depth exceeded" (QA D48, 4 on raqm and 6 on skam;
+   * measured here at sonner.js:282 inside flushSync).
+   *
+   * The walker is right to report accurately — the throttle belongs at the
+   * UI boundary, which is here. A label that changes more often than it can
+   * be read is not more informative.
+   */
+  const lastProgressPaintRef = useRef(0);
+  const lastProgressLabelRef = useRef('');
+  const paintProgress = useCallback((label: string, force = false) => {
+    if (label === lastProgressLabelRef.current) return false;
+    const now = Date.now();
+    if (!force && now - lastProgressPaintRef.current < PROGRESS_PAINT_MS) return false;
+    lastProgressPaintRef.current = now;
+    lastProgressLabelRef.current = label;
+    setExportProgress(label);
+    return true;
+  }, []);
 
   const runKitExport = useCallback(
     async (
@@ -881,6 +958,10 @@ export function BrandKitCosmosPage({
       exportAbortRef.current = controller;
       setExportingKit(true);
       const cancel = { label: 'Cancel', onClick: () => controller.abort() };
+      lastProgressPaintRef.current = 0;
+      lastProgressLabelRef.current = '';
+      setExportDone(null);
+      paintProgress(`Exporting ${title}…`, true);
       const id = toast.loading(`Exporting ${title}…`, { duration: Infinity, action: cancel });
       try {
         const result = await downloadEverything({
@@ -894,34 +975,63 @@ export function BrandKitCosmosPage({
           signal: controller.signal,
           fileName: `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`,
           onProgress: (p) => {
-            toast.loading(
-              p.phase === 'zipping' ? p.label : `${p.label} — ${p.done + 1} of ${p.total}`,
-              { id, duration: Infinity, action: cancel },
-            );
+            const label =
+              p.phase === 'zipping' ? p.label : `${p.label} — ${p.done + 1} of ${p.total}`;
+            // Only the ZIPPING phase is throttled, and only it needs to be:
+            // collecting fires once per unit — 37 ticks across half a minute,
+            // which is information — while `generateAsync` fires per chunk.
+            // Throttling both would swallow the first unit's name, which is
+            // the one line that says the export has actually started.
+            if (paintProgress(label, p.phase !== 'zipping')) {
+              toast.loading(label, { id, duration: Infinity, action: cancel });
+            }
           },
         });
         if (result.added === 0) {
-          toast.error(`Nothing to export for ${title} yet`, { id, duration: 5000 });
+          setExportProgress(null);
+          toast.error(`Nothing to export for ${title} yet`, {
+            id,
+            duration: 5000,
+            action: undefined,
+          });
           return;
         }
         const missed = result.skipped;
+        const fileName = `${slugifyName(effectiveBrand.name)}-${fileSuffix}.zip`;
+        // The archive that was actually written, so the picker can show what
+        // arrived rather than closing on the click and leaving the user to
+        // guess whether thirty-three seconds of waiting produced anything.
+        setExportDone({ fileName, items: result.added, bytes: result.blob.size });
+        setExportProgress(null);
         toast.success(`${title} exported`, {
           id,
-          duration: 6000,
-          description:
+          // Long enough to be read by someone who looked away for half a
+          // minute — which, for a half-minute export, is everyone.
+          duration: 12000,
+          // Sonner MERGES an update onto the toast it replaces, so the
+          // progress toast's Cancel survived into the success one and a
+          // finished export offered to cancel itself. Cleared explicitly.
+          action: undefined,
+          description: [
+            `${fileName} · ${result.added} item${result.added === 1 ? '' : 's'} · ${readableBytes(result.blob.size)}`,
             missed.length > 0
               ? `Left out: ${missed.slice(0, 3).map((m) => m.label).join(', ')}${
                   missed.length > 3 ? ` and ${missed.length - 3} more` : ''
                 }.`
-              : undefined,
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' — '),
         });
       } catch (err) {
+        setExportProgress(null);
         if (isCancelled(err)) {
-          toast('Export cancelled', { id, duration: 3000 });
+          toast('Export cancelled', { id, duration: 3000, action: undefined });
         } else {
           toast.error('Export failed', {
             id,
             duration: 6000,
+            action: undefined,
             description: err instanceof Error ? err.message : 'Unknown error',
           });
         }
@@ -948,7 +1058,11 @@ export function BrandKitCosmosPage({
   const handleExportKit = useCallback(() => setExportPickerOpen(true), []);
   const handleExportChosen = useCallback(
     (chosen: KitEntry[], allVariants: boolean, formats: KitExportFormats) => {
-      setExportPickerOpen(false);
+      // THE PICKER STAYS OPEN. It used to close on the click, so the surface
+      // the user was looking at vanished and the only thing that ever said
+      // the export had finished was a six-second toast in a corner — which is
+      // why a 33-second export read as silence (QA D47). It now carries the
+      // progress and then the archive that arrived.
       const whole = chosen.length === allEntries.length;
       runKitExport(chosen, whole ? 'Brand kit' : 'Your selection', 'brand-kit', allVariants, formats);
     },
@@ -1365,7 +1479,7 @@ export function BrandKitCosmosPage({
                       // means editing the PALETTE, not retouching one
                       // swatch tile's stock artwork.
                       if (t.sectionKey === 'brand-assets' && ASSET_EDITOR_LABELS.has(t.label)) {
-                        setAssetEditor(t.label);
+                        openAssetEditor(t.label);
                         return;
                       }
                       setEditorTarget(t);
@@ -1397,9 +1511,23 @@ export function BrandKitCosmosPage({
                       ? (template) => handleEditTemplate(template, drilldownDeliverable)
                       : undefined
                   }
-                  onPickVariant={(template) =>
-                    setEditorTarget({ ...drilldownTarget, template })
-                  }
+                  onPickVariant={(template) => {
+                    // A TILE'S PENCIL OPENS THE SAME EDITOR ITS CARD DOES.
+                    // Only the card's ✎ was re-pointed at the brand-asset
+                    // editors, so a tile still reached `BrandKitCardEditor` —
+                    // which has no fields for a brand asset and rendered an
+                    // empty right panel (QA Q6). One editor per asset, reached
+                    // from either place, opened on the variant that was
+                    // pressed.
+                    if (
+                      drilldownTarget.sectionKey === 'brand-assets' &&
+                      ASSET_EDITOR_LABELS.has(drilldownTarget.label)
+                    ) {
+                      openAssetEditor(drilldownTarget.label, template?.id);
+                      return;
+                    }
+                    setEditorTarget({ ...drilldownTarget, template });
+                  }}
                   downloadOptions={
                     targetEntry
                       ? downloadOptionsFor(
@@ -1441,7 +1569,7 @@ export function BrandKitCosmosPage({
                       : undefined
                   }
                   onAddColor={handleAddColor}
-                  onDownload={async () => {
+                  onDownload={async (choice) => {
                     // Colors drilldown bundles every core/accent/grey
                     // swatch into one zip, each color in its own
                     // folder with svg/png/jpg/ai for both the base
@@ -1571,13 +1699,30 @@ export function BrandKitCosmosPage({
                           PICKER_ASPECT_BY_LABEL[drilldownTarget.label] ?? 1.6;
                         const { default: JSZip } = await import('jszip');
                         const zip = new JSZip();
+                        // THE HEADER HONOURS THE FORMAT THE MENU ASKED FOR.
+                        // The whole family, converted the same way the card's
+                        // own menu converts one design — `downloadEntry` does
+                        // exactly this for a single deliverable, and there is
+                        // no reason a wall of them should be PNG-or-nothing.
+                        const page =
+                          PRINT_PAGE_MM[drilldownTarget.label] ?? ('fit' as const);
                         for (const tpl of templates) {
                           const blob = await snapshotTemplatePng(
                             renderTemplateDesign(tpl, sourceBrand, effectiveBrand),
                             260,
                             aspect,
                           );
-                          if (blob) zip.file(`${slugifyName(tpl.name)}.png`, blob);
+                          if (!blob) continue;
+                          const name = slugifyName(tpl.name);
+                          if (choice.format === 'pdf') {
+                            zip.file(`${name}.pdf`, await pngToPdf(blob, page));
+                          } else if (choice.format === 'jpg') {
+                            zip.file(`${name}.jpg`, await pngToJpg(blob));
+                          } else if (choice.format === 'custom' && choice.size) {
+                            zip.file(`${name}.png`, await resizePng(blob, choice.size));
+                          } else {
+                            zip.file(`${name}.png`, blob);
+                          }
                         }
                         triggerBlobDownload(
                           await zip.generateAsync({ type: 'blob' }),
@@ -1668,9 +1813,17 @@ export function BrandKitCosmosPage({
       />
       <ExportKitDialog
         open={exportPickerOpen}
-        onClose={() => setExportPickerOpen(false)}
+        onClose={() => {
+          setExportPickerOpen(false);
+          setExportDone(null);
+          setExportProgress(null);
+        }}
         entries={allEntries}
         onExport={handleExportChosen}
+        busy={exportingKit}
+        progress={exportProgress}
+        done={exportDone}
+        onCancelExport={() => exportAbortRef.current?.abort()}
       />
       {/* The brand-asset editors. Each writes to the BRAND through the
           Setup chain and confirms first; `onBrandChange` is the live
@@ -1689,6 +1842,7 @@ export function BrandKitCosmosPage({
             brand={baseBrand}
             sourceBrand={sourceBrand}
             onBrandChange={setBrandPreview}
+            focusVariantId={assetEditorVariant}
           />
           <ColorsEditor
             open={assetEditor === 'Colors'}
@@ -1811,7 +1965,8 @@ type DrilldownProps = {
   /** Optional — when provided, the Colors drilldown shows a "+"
    *  button that pops the inline HSV color picker (Setup parity). */
   onAddColor?: (group: 'core' | 'accent', hex: string) => void;
-  onDownload: () => void;
+  /** The family, in the format the shared menu was asked for. */
+  onDownload: (choice: DownloadChoice) => void;
   /** Optional — when provided, right-clicking a variant tile offers
    *  "Use Template" alongside "Edit". Only deliverables promoted to a
    *  real Design content type pass this down; every other card's tile
@@ -1873,6 +2028,8 @@ function BrandKitDrilldown({
   // `onUseTemplate` is provided, so cards without it never gain a
   // context menu they didn't have before.
   const [tileMenu, setTileMenu] = useState<ContextMenuState | null>(null);
+  /** The header's Download menu — the same one the card and the tile use. */
+  const [dlOpen, setDlOpen] = useState(false);
   const openTileMenu = useCallback(
     (e: React.MouseEvent, tpl: BrandKitTemplate) => {
       if (!onUseTemplate) return;
@@ -2357,29 +2514,64 @@ function BrandKitDrilldown({
             </div>
           )}
           {!composed && (
-          <button
-            type="button"
-            className="section-add section-download"
-            onClick={onDownload}
-            aria-label={`Download ${entry?.label ?? target.label}`}
-            title={`Download ${entry?.label ?? target.label}`}
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
+          /*
+            THE HEADER'S ⬇ USES THE SAME MENU AS EVERYTHING ELSE.
+            It was the one surface in the kit that fired a single fixed zip
+            with no menu at all (QA Q9) — on the page where the user is
+            looking at the WHOLE family, which is precisely where "as a PDF"
+            or "at this size" is worth asking. Same five rows, same words,
+            same disabled reasons as the card, the tile and the editor.
+          */
+          <div className="bk-drilldown-dl">
+            <button
+              type="button"
+              className="section-add section-download"
+              onClick={() => setDlOpen((v) => !v)}
+              aria-label={`Download ${entry?.label ?? target.label}`}
+              title={`Download ${entry?.label ?? target.label}`}
+              aria-haspopup="menu"
+              aria-expanded={dlOpen}
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+            {dlOpen && (
+              <DownloadMenu
+                options={
+                  downloadOptions ?? [
+                    { format: 'png', label: 'For web', chip: 'PNG' },
+                    { format: 'pdf', label: 'For print', chip: 'PDF' },
+                    {
+                      format: 'svg',
+                      label: 'Vector',
+                      chip: 'SVG',
+                      secondary: true,
+                      disabledReason:
+                        'This design is drawn in the browser — it has no vector to export',
+                    },
+                    { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true },
+                    { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true },
+                  ]
+                }
+                anchor={{ top: 34, left: -168 }}
+                onClose={() => setDlOpen(false)}
+                onChoose={onDownload}
+              />
+            )}
+          </div>
           )}
         </div>
       </div>

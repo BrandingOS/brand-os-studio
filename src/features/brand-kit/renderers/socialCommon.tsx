@@ -14,6 +14,7 @@ import {
   normalizeHex,
   surface,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * The vocabulary the four social families share.
@@ -243,7 +244,7 @@ export function Mark({
       style={{
         fontFamily: fontStack(brand, 'heading'),
         fontWeight: 800,
-        fontSize: Math.round(size * 0.82),
+        fontSize: typePx(Math.round(size * 0.82)),
         letterSpacing: '-0.02em',
         lineHeight: 1,
         color,
@@ -313,7 +314,7 @@ export function headingStyle(
 ): CSSProperties {
   return {
     fontFamily: fontStack(brand, 'heading'),
-    fontSize: size,
+    fontSize: typePx(size),
     fontWeight: options.weight ?? 800,
     lineHeight: 1.02,
     letterSpacing: '-0.025em',
@@ -330,7 +331,7 @@ export function bodyStyle(
 ): CSSProperties {
   return {
     fontFamily: fontStack(brand, 'body'),
-    fontSize: size,
+    fontSize: typePx(size),
     fontWeight: options.weight ?? 400,
     lineHeight: options.lineHeight ?? 1.4,
     color: options.color ?? ground.ink,
@@ -346,7 +347,7 @@ export function metaStyle(
 ): CSSProperties {
   return {
     fontFamily: fontStack(brand, 'body'),
-    fontSize: size,
+    fontSize: typePx(size),
     fontWeight: 600,
     letterSpacing: '0.16em',
     textTransform: 'uppercase',

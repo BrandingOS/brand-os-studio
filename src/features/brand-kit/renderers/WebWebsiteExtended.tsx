@@ -11,6 +11,7 @@ import {
   surface,
   type SurfaceTokens,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * Website — twelve hero layouts over the `webHero` content model.
@@ -104,7 +105,7 @@ export function Eyebrow({
       style={{
         color,
         fontFamily: fontStack(brand, 'body'),
-        fontSize: size,
+        fontSize: typePx(size),
         fontWeight: 600,
         letterSpacing: '0.22em',
         textTransform: 'uppercase',
@@ -137,7 +138,7 @@ export function Headline({
       style={{
         color,
         fontFamily: fontStack(brand, 'heading'),
-        fontSize: size,
+        fontSize: typePx(size),
         fontWeight: 700,
         lineHeight: 1.08,
         letterSpacing: '-0.02em',
@@ -174,7 +175,7 @@ export function Subhead({
       style={{
         color,
         fontFamily: fontStack(brand, 'body'),
-        fontSize: size,
+        fontSize: typePx(size),
         lineHeight: 1.45,
         textAlign: align,
         display: '-webkit-box',
@@ -216,7 +217,7 @@ export function Nav({
           style={{
             color,
             fontFamily: fontStack(brand, 'body'),
-            fontSize: size,
+            fontSize: typePx(size),
             fontWeight: 500,
             lineHeight: 1.2,
           }}
@@ -261,7 +262,7 @@ export function Ctas({
           style={{
             color: ink,
             fontFamily: fontStack(brand, 'body'),
-            fontSize: size,
+            fontSize: typePx(size),
             fontWeight: 600,
             lineHeight: 1.2,
           }}
@@ -274,7 +275,7 @@ export function Ctas({
         style={{
           color: ghost,
           fontFamily: fontStack(brand, 'body'),
-          fontSize: size,
+          fontSize: typePx(size),
           fontWeight: 500,
           lineHeight: 1.2,
           textDecoration: 'underline',
@@ -320,7 +321,7 @@ export function Stats({
             style={{
               color,
               fontFamily: fontStack(brand, 'heading'),
-              fontSize: size,
+              fontSize: typePx(size),
               fontWeight: 700,
               lineHeight: 1,
               letterSpacing: '-0.02em',
@@ -333,7 +334,7 @@ export function Stats({
             style={{
               color: mutedColor,
               fontFamily: fontStack(brand, 'body'),
-              fontSize: 5.5,
+              fontSize: typePx(5.5),
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
               lineHeight: 1.2,
@@ -364,7 +365,7 @@ export function Url({
       style={{
         color,
         fontFamily: fontStack(brand, 'body'),
-        fontSize: size,
+        fontSize: typePx(size),
         lineHeight: 1.2,
       }}
     />
@@ -388,7 +389,7 @@ export function Mark({
         style={{
           color: fgOn(ground),
           fontFamily: fontStack(brand, 'heading'),
-          fontSize: height * 0.8,
+          fontSize: typePx(height * 0.8),
           fontWeight: 800,
           letterSpacing: '-0.02em',
           lineHeight: 1,
@@ -655,7 +656,7 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
                   style={{
                     color: subtle.text,
                     fontFamily: fontStack(brand, 'body'),
-                    fontSize: 5.5,
+                    fontSize: typePx(5.5),
                     fontWeight: 500,
                     lineHeight: 1.3,
                   }}

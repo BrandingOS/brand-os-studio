@@ -62,6 +62,7 @@ import {
 import { contrastOf, normalizeHex as normalizeIconHex } from './brandStyle';
 import { ICON_WEIGHTS, detectIconWeight } from '../data/iconWeights';
 import { iconLabel } from '../data/iconPacks';
+import { typePx } from './typeFloor';
 
 /**
  * Renderers for the Brand Assets drilldown tiles.
@@ -419,7 +420,7 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
               <span
                 style={{
                   fontFamily: body,
-                  fontSize: 6,
+                  fontSize: typePx(6),
                   color: rgba(fg, 0.6),
                   whiteSpace: 'nowrap',
                 }}
@@ -1416,7 +1417,6 @@ export function BrandAssetIconRenderer({ brand, templateIndex }: Props) {
   const weightLabel = weight
     ? ICON_WEIGHTS.find((w) => w.id === weight)?.label ?? 'Regular'
     : 'Artwork';
-  const name = iconLabel(trimmed, templateIndex);
 
   const caption: CSSProperties = {
     fontFamily: fontStack(brand, 'body'),
@@ -1440,7 +1440,7 @@ export function BrandAssetIconRenderer({ brand, templateIndex }: Props) {
         <i
           key={key}
           className={`fi ${flaticonClass} bk-icon-specimen-glyph`}
-          style={{ fontSize: `${size}px`, lineHeight: 1, display: 'block' }}
+          style={{ fontSize: typePx(size), lineHeight: 1, display: 'block' }}
           aria-hidden
         />
       );
@@ -1513,22 +1513,15 @@ export function BrandAssetIconRenderer({ brand, templateIndex }: Props) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-        <span
-          style={{
-            fontFamily: fontStack(brand, 'heading'),
-            fontSize: '11px',
-            fontWeight: 600,
-            lineHeight: 1.2,
-            color: tokens.text,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            minWidth: 0,
-          }}
-        >
-          {name}
-        </span>
+      {/*
+        THE TILE DOES NOT PRINT ITS OWN NAME.
+        Every tile in the drilldown is captioned with the design's name
+        directly underneath it, so an icon whose name was also set inside the
+        artwork said "Chart Line Up" twice, on all twenty-eight of them (QA
+        Q27). The name belongs to the caption; the tile is the specimen, and
+        what only the tile can say is the sizes it is drawn at.
+      */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
         <span style={caption}>{ICON_SPECIMEN_SIZES.join(' · ')} px</span>
       </div>
     </div>

@@ -280,6 +280,30 @@ describe('LogosEditor', () => {
     expect(update.mock.calls[0]![1].guidelines?.logoUsage).toBeUndefined();
   });
 
+  /**
+   * QA Q31 — both mono rows printed "used on 0" beside a ticked checkbox,
+   * which reads as a fault. It is not: `logoCombosFor` deliberately skips a
+   * generated cut on any ground where the brand OWNS artwork in that ink, and
+   * for a brand with a real black and a real white cut that is every ground.
+   * The row says which of those two things is true instead of printing a
+   * zero.
+   */
+  it('never prints a bare zero beside a ticked cut', async () => {
+    mount({}, CUT_BRAND);
+    const rows = Array.from(document.querySelectorAll('.bka-logos-ground'));
+    const monoRows = rows.slice(-2);
+    for (const row of monoRows) {
+      const sub = row.querySelector('.bka-logos-sub')!.textContent!.trim();
+      expect(sub).not.toMatch(/used on 0\b/);
+      expect(sub).not.toMatch(/\b0\b/);
+      expect(sub.length).toBeGreaterThan(0);
+    }
+    // And when the brand owns the cut, the row says so rather than counting.
+    expect(document.body.textContent).toMatch(
+      /the brand owns this cut|not needed on any ground|on \d+ ground/,
+    );
+  });
+
   it('Save is dead until something actually changes', () => {
     mount();
     expect(

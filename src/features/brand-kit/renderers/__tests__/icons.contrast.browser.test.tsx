@@ -93,14 +93,22 @@ describe.each(BRANDS.map((b) => [b.name, b] as const))(
       expect(templates).toHaveLength(mock.icons.length);
     });
 
-    it('every tile is a specimen — the name, the weight and the sizes', () => {
+    /**
+     * The tile is the SPECIMEN, and the caption under it is the name.
+     *
+     * It used to print the name inside the artwork as well, so every one of
+     * the twenty-eight tiles said "Chart Line Up" twice — once in the drawing
+     * and once in the caption directly below it (QA Q27). What only the tile
+     * can say is the weight, the tint and the sizes it is drawn at.
+     */
+    it('every tile is a specimen — the weight and the sizes, and NOT the caption', () => {
       for (let i = 0; i < templates.length; i += 1) {
         const source = mock.icons[i]!;
         const { container } = mount(
           renderCosmosTemplate(templates[i]!, brand, mock, undefined),
         );
         const text = (container.textContent ?? '').replace(/\s+/g, ' ');
-        expect(text).toContain(iconLabel(source, i));
+        expect(text).not.toContain(iconLabel(source, i));
         const weight = detectIconWeight(source);
         expect(text).toContain(ICON_WEIGHTS.find((w) => w.id === weight)!.label);
         // The ladder the specimen actually draws.

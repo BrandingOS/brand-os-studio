@@ -10,6 +10,7 @@ import { Bind } from '@/features/brandkit/content/Bind';
 import { logoUrl } from '@/shared/brand/logoUrl';
 import { contrastOf, fontStack, logoOn, normalizeHex } from './brandStyle';
 import { Frame, groundsFor, mixHex, type Ground, type Grounds } from './socialCommon';
+import { typePx } from './typeFloor';
 
 /**
  * Profile icon — 24 designs, 1:1.
@@ -145,7 +146,7 @@ function Glyph({
           style={{
             fontFamily: fontStack(brand, 'heading'),
             fontWeight: 800,
-            fontSize: letterSize,
+            fontSize: typePx(letterSize),
             lineHeight: 1,
             letterSpacing: '-0.04em',
             color: letterInk,
@@ -236,7 +237,7 @@ function Caption({
         style={{
           fontFamily: fontStack(brand, 'heading'),
           fontWeight: 700,
-          fontSize: size,
+          fontSize: typePx(size),
           lineHeight: 1.15,
           letterSpacing: '-0.015em',
           color: ground.ink,
@@ -250,7 +251,7 @@ function Caption({
         style={{
           fontFamily: fontStack(brand, 'body'),
           fontWeight: 500,
-          fontSize: Math.round(size * 0.78),
+          fontSize: typePx(Math.round(size * 0.78)),
           lineHeight: 1.2,
           color: ground.soft,
         }}

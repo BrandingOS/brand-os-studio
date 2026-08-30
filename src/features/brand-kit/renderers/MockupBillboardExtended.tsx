@@ -35,6 +35,7 @@ import {
   type MockupRendererProps,
   type MockupScene,
 } from './MockupScene';
+import { typePx } from './typeFloor';
 
 /* ── The object ───────────────────────────────────────────────────── */
 
@@ -127,7 +128,7 @@ function Copy({
 function headlineStyle(p: MockupPalette, face: string, size: number) {
   return {
     fontFamily: p.heading,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1,
     fontWeight: 800,
     letterSpacing: '-0.025em',
@@ -139,7 +140,7 @@ function headlineStyle(p: MockupPalette, face: string, size: number) {
 function noteStyle(p: MockupPalette, face: string, size = 5) {
   return {
     fontFamily: p.body,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.3,
     color: mutedOn(face),
     maxWidth: '100%',

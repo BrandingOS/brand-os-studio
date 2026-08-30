@@ -18,6 +18,7 @@ import {
   normalizeHex,
   surface,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * Invoice designs — A4 portrait, one sheet per design.
@@ -199,7 +200,7 @@ type Ctx = {
 };
 
 const MICRO: CSSProperties = {
-  fontSize: 6,
+  fontSize: typePx(6),
   lineHeight: 1.35,
   letterSpacing: '0.22em',
   textTransform: 'uppercase',
@@ -271,7 +272,7 @@ function Field({
       <Micro color={s.quiet}>{label}</Micro>
       <div
         className="truncate"
-        style={{ fontSize: BODY_PX, lineHeight: 1.5, color: s.ink, marginTop: 1 }}
+        style={{ fontSize: typePx(BODY_PX), lineHeight: 1.5, color: s.ink, marginTop: 1 }}
       >
         {children}
       </div>
@@ -298,10 +299,10 @@ function Parties({
   ) => (
     <div className="min-w-0 flex-1">
       <Micro color={s.quiet}>{label}</Micro>
-      <div style={{ fontSize: BODY_PX, lineHeight: 1.5, color: s.ink, marginTop: 1, fontWeight: 600 }}>
+      <div style={{ fontSize: typePx(BODY_PX), lineHeight: 1.5, color: s.ink, marginTop: 1, fontWeight: 600 }}>
         <Bind path={namePath} value={name} />
       </div>
-      <div style={{ fontSize: BODY_PX, lineHeight: 1.45, color: s.quiet }}>
+      <div style={{ fontSize: typePx(BODY_PX), lineHeight: 1.45, color: s.quiet }}>
         <Bind path={addressPath} value={address} fit="wrap" />
       </div>
     </div>
@@ -367,7 +368,7 @@ function Items({
   const hidden = c.lineItems.length - shown.length;
   const border = rule ? `1px solid ${s.line}` : undefined;
   return (
-    <div style={{ fontSize: BODY_PX, lineHeight: 1.5, color: s.ink }}>
+    <div style={{ fontSize: typePx(BODY_PX), lineHeight: 1.5, color: s.ink }}>
       {header && (
         <div className="flex gap-2" style={{ ...MICRO, color: s.quiet, borderBottom: `1px solid ${s.line}`, paddingBottom: 3 }}>
           <span className="flex-1">Description</span>
@@ -433,7 +434,7 @@ function Totals({
 }) {
   const { c, t, k, money } = ctx;
   return (
-    <div className={align === 'right' ? 'text-right' : ''} style={{ fontSize: BODY_PX, lineHeight: 1.6, color: s.quiet }}>
+    <div className={align === 'right' ? 'text-right' : ''} style={{ fontSize: typePx(BODY_PX), lineHeight: 1.6, color: s.quiet }}>
       <div>Subtotal · {money(t.subtotal)}</div>
       {t.discount > 0 && (
         <div>
@@ -451,7 +452,7 @@ function Totals({
       <div
         style={{
           fontFamily: font ?? k.head,
-          fontSize: size,
+          fontSize: typePx(size),
           lineHeight: 1.1,
           fontWeight: 700,
           color: size >= 24 ? onGround(s.accent, s.bg, true) : s.accent,
@@ -492,7 +493,7 @@ function Adjustments({
 }) {
   if (t.discount <= 0 && t.tax <= 0) return null;
   return (
-    <div style={{ fontSize: 6, lineHeight: 1.45, color, textAlign: align }}>
+    <div style={{ fontSize: typePx(6), lineHeight: 1.45, color, textAlign: align }}>
       {t.discount > 0 && (
         <div>
           Discount <Bind path="discountRate" value={formatPercent(c.discountRate)} /> · −{money(t.discount)}
@@ -522,7 +523,7 @@ function Notes({
   return (
     <div
       className={`${align === 'center' ? 'text-center' : ''} ${className ?? ''}`}
-      style={{ fontSize: 6.5, lineHeight: 1.5, color: s.quiet }}
+      style={{ fontSize: typePx(6.5), lineHeight: 1.5, color: s.quiet }}
     >
       <Bind path="notes" value={c.notes} fit="wrap" />
     </div>
@@ -570,7 +571,7 @@ function Title({
   style?: CSSProperties;
 }) {
   return (
-    <div style={{ fontFamily: k.head, fontSize: size, lineHeight: 1.05, fontWeight: weight, color, ...style }}>
+    <div style={{ fontFamily: k.head, fontSize: typePx(size), lineHeight: 1.05, fontWeight: weight, color, ...style }}>
       {children}
     </div>
   );
@@ -748,7 +749,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
                 style={{
                   background: i % 2 === 0 ? tint.bg : 'transparent',
                   color: i % 2 === 0 ? tint.ink : paper.ink,
-                  fontSize: BODY_PX,
+                  fontSize: typePx(BODY_PX),
                   lineHeight: 1.5,
                   paddingTop: 3,
                   paddingBottom: 3,
@@ -800,7 +801,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
         <div className="flex items-end justify-between gap-3 px-[7%] py-[5%]" style={{ background: band.bg, color: band.ink }}>
           <div className="min-w-0">
             <Micro color={band.quiet}>From</Micro>
-            <div style={{ fontSize: BODY_PX, lineHeight: 1.4, fontWeight: 600 }}>
+            <div style={{ fontSize: typePx(BODY_PX), lineHeight: 1.4, fontWeight: 600 }}>
               <Bind path="issuerName" value={c.issuerName} />
             </div>
           </div>
@@ -826,7 +827,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
             <div style={{ ...MICRO, color: paper.accent, fontSize: 8, fontWeight: 700 }}>
               <Bind path="issuerName" value={c.issuerName} fit="shrink" />
             </div>
-            <div style={{ fontSize: 6.5, lineHeight: 1.5, color: paper.quiet, marginTop: 2 }}>
+            <div style={{ fontSize: typePx(6.5), lineHeight: 1.5, color: paper.quiet, marginTop: 2 }}>
               <Bind path="issuerAddress" value={c.issuerAddress} fit="wrap" />
             </div>
             <Micro color={paper.quiet} style={{ marginTop: 3 }}>
@@ -834,20 +835,20 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
             </Micro>
           </div>
           <div className="flex-1 flex flex-col gap-[7px] px-[6%] py-[5%]">
-            <div className="flex gap-2" style={{ fontSize: BODY_PX, lineHeight: 1.5 }}>
+            <div className="flex gap-2" style={{ fontSize: typePx(BODY_PX), lineHeight: 1.5 }}>
               <span style={{ ...MICRO, color: paper.quiet }}>To</span>
               <span className="flex-1 min-w-0 truncate">
                 <Bind path="clientName" value={c.clientName} />
               </span>
             </div>
-            <div style={{ fontSize: 6.5, lineHeight: 1.45, color: paper.quiet }}>
+            <div style={{ fontSize: typePx(6.5), lineHeight: 1.45, color: paper.quiet }}>
               <Bind path="clientAddress" value={c.clientAddress} fit="wrap" />
             </div>
             <Items c={c} s={paper} money={money} max={5} header={false} rule={false} />
             <div style={{ borderTop: `1px dashed ${paper.line}`, paddingTop: 5 }}>
               <Totals ctx={ctx} s={paper} align="left" size={13} font={k.mono} />
             </div>
-            <div className="mt-auto flex gap-2" style={{ fontSize: BODY_PX, color: paper.quiet }}>
+            <div className="mt-auto flex gap-2" style={{ fontSize: typePx(BODY_PX), color: paper.quiet }}>
               <span style={{ ...MICRO, color: paper.quiet }}>Due</span>
               <span><Bind path="dueDate" value={c.dueDate} /></span>
             </div>
@@ -949,7 +950,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
           <Parties c={c} s={paper} />
           <div className="flex flex-col gap-[5px]">
             {c.lineItems.slice(0, 4).map((item, i) => (
-              <div key={item.id} className="flex items-center gap-2" style={{ fontSize: BODY_PX, lineHeight: 1.4 }}>
+              <div key={item.id} className="flex items-center gap-2" style={{ fontSize: typePx(BODY_PX), lineHeight: 1.4 }}>
                 <span
                   className="shrink-0 flex items-center justify-center"
                   style={{ width: 13, height: 13, borderRadius: 999, background: band.bg, color: band.ink, fontSize: 7, fontWeight: 700 }}
@@ -1055,7 +1056,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
           <Title k={k} color={paper.accent} size={20} weight={400} style={{ fontStyle: 'italic' }}>
             Thank you
           </Title>
-          <div style={{ fontSize: BODY_PX, lineHeight: 1.6, color: paper.ink }}>
+          <div style={{ fontSize: typePx(BODY_PX), lineHeight: 1.6, color: paper.ink }}>
             <Bind path="notes" value={c.notes} fit="wrap" />
           </div>
           <div style={{ height: 1, background: paper.line }} />
@@ -1128,11 +1129,11 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
               className="shrink-0 flex flex-col items-center justify-center text-center"
               style={{ width: 54, height: 54, borderRadius: 999, border: `2px solid ${paper.accent}`, color: paper.accent }}
             >
-              <div style={{ ...MICRO, color: paper.accent, fontSize: 5 }}>Invoice</div>
+              <div style={{ ...MICRO, color: paper.accent, fontSize: typePx(5) }}>Invoice</div>
               <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>
                 <Bind path="number" value={c.number} fit="shrink" />
               </div>
-              <div style={{ fontSize: 5.5, lineHeight: 1.2 }}>
+              <div style={{ fontSize: typePx(5.5), lineHeight: 1.2 }}>
                 <Bind path="issueDate" value={c.issueDate} fit="shrink" />
               </div>
             </div>
@@ -1200,7 +1201,7 @@ export function InvoicesExtendedRenderer({ brand, templateIndex, content }: Prop
                 style={{ background: tint.bg, color: tint.ink, borderRadius: 4 }}
               >
                 <div className="min-w-0">
-                  <div className="truncate" style={{ fontSize: BODY_PX, lineHeight: 1.4, fontWeight: 600 }}>
+                  <div className="truncate" style={{ fontSize: typePx(BODY_PX), lineHeight: 1.4, fontWeight: 600 }}>
                     <Bind path={`lineItems.${i}.label`} value={item.label} />
                   </div>
                   <Micro color={tint.quiet}>

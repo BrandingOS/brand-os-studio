@@ -17,6 +17,7 @@ import {
   surface,
   type SurfaceKind,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * Envelopes — the `address` kind, drawn sixteen ways.
@@ -181,7 +182,7 @@ function Line({
       style={{
         display: 'block',
         maxWidth: '100%',
-        fontSize: `${size}px`,
+        fontSize: typePx(size),
         lineHeight: 1.35,
         color,
         fontFamily: font,
@@ -317,7 +318,12 @@ function PostageBox({
   return (
     <div
       style={{
-        width: '15%',
+        // 18%, not 15%: the label inside is the smallest role on the design
+        // and the tile now paints it at the legible floor (`typeFloor.ts`),
+        // where "POSTAGE" at 0.2em tracking no longer fitted a 15% box and
+        // ellipsised to "POSTA…". A stamp frame is a drawn rectangle with no
+        // canonical width, so the box moves rather than the type.
+        width: '18%',
         aspectRatio: '4 / 5',
         border: `0.5px dashed ${ink.border}`,
         display: 'flex',

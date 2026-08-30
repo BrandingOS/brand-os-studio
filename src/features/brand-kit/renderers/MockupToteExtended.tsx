@@ -35,6 +35,7 @@ import {
   type MockupRendererProps,
   type MockupScene,
 } from './MockupScene';
+import { typePx } from './typeFloor';
 
 /* ── The object ───────────────────────────────────────────────────── */
 
@@ -148,7 +149,7 @@ function Face({ children, pad = '14% 12% 10%' }: { children: ReactNode; pad?: st
 function nameStyle(p: MockupPalette, face: string, size: number) {
   return {
     fontFamily: p.heading,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.05,
     fontWeight: 700,
     letterSpacing: '-0.01em',
@@ -160,7 +161,7 @@ function nameStyle(p: MockupPalette, face: string, size: number) {
 function noteStyle(p: MockupPalette, face: string, size = 5) {
   return {
     fontFamily: p.body,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.35,
     color: mutedOn(face),
     maxWidth: '100%',

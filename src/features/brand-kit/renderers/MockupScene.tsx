@@ -61,6 +61,7 @@ import {
   normalizeHex,
   surface,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /* ── What every mockup renderer is handed ─────────────────────────── */
 
@@ -528,7 +529,7 @@ export function Mark({
       aria-hidden="true"
       style={{
         fontFamily: p.heading,
-        fontSize: size,
+        fontSize: typePx(size),
         lineHeight: 1,
         fontWeight: 800,
         letterSpacing: '-0.03em',
@@ -624,7 +625,7 @@ export function Badge({
         backgroundColor: pill ? fill : undefined,
         color: fg,
         fontFamily: p.body,
-        fontSize: 5,
+        fontSize: typePx(5),
         fontWeight: 700,
         letterSpacing: '0.18em',
         textTransform: 'uppercase',

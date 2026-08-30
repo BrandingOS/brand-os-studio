@@ -30,6 +30,7 @@ import {
   type MockupPalette,
   type MockupScene,
 } from './MockupScene';
+import { typePx } from './typeFloor';
 
 /* ── The object ───────────────────────────────────────────────────── */
 
@@ -120,7 +121,7 @@ function BrowserBar({ on, p, children }: { on: string; p: MockupPalette; childre
           borderRadius: 999,
           backgroundColor: dot,
           fontFamily: p.body,
-          fontSize: 4,
+          fontSize: typePx(4),
           color: ink(on),
           overflow: 'hidden',
         }}
@@ -134,7 +135,7 @@ function BrowserBar({ on, p, children }: { on: string; p: MockupPalette; childre
 function headingStyle(p: MockupPalette, face: string, size: number) {
   return {
     fontFamily: p.heading,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.06,
     fontWeight: 800,
     letterSpacing: '-0.02em',
@@ -146,7 +147,7 @@ function headingStyle(p: MockupPalette, face: string, size: number) {
 function noteStyle(p: MockupPalette, face: string, size = 4.5) {
   return {
     fontFamily: p.body,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.35,
     color: mutedOn(face),
     maxWidth: '100%',
@@ -228,7 +229,7 @@ export const DEVICE_SCENES: ReadonlyArray<MockupScene> = withIds(
             >
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
                 <BrowserBar on={screen} p={p}>
-                  <Url c={c} style={{ fontFamily: p.body, fontSize: 4, color: ink(screen) }} />
+                  <Url c={c} style={{ fontFamily: p.body, fontSize: typePx(4), color: ink(screen) }} />
                 </BrowserBar>
                 <div
                   style={{

@@ -159,6 +159,99 @@ describe('a tile carries its own actions', () => {
     expect(labels).toMatch(/For print/);
   });
 
+  /**
+   * QA Q6 — the pencil on a brand-asset TILE opened the legacy card editor,
+   * which has no fields for a brand asset: a logo on a grey field, Cancel /
+   * Download / Save, and an entirely empty right panel. Only the CARD's ✎ had
+   * been re-pointed at the new asset editors.
+   *
+   * Asserted on all four brand-asset families, because the bug was one line
+   * that four labels reached.
+   */
+  it.each(['Logos', 'Colors', 'Typography', 'Icons'])(
+    "a %s tile's pencil opens that asset's own editor, never an empty panel",
+    async (label) => {
+      renderKit();
+      await openItem(label);
+
+      const first = tiles()[0]!;
+      fireEvent.click(first.querySelector('button[aria-label^="Edit "]')!);
+      await settle();
+
+      // The asset editor is a DsModal with the family's own title…
+      const modal = document.querySelector('.ds-modal') as HTMLElement | null;
+      expect(modal).toBeTruthy();
+      // …and it asks for something. An empty panel is the defect.
+      expect(
+        modal!.querySelectorAll('input, select, button[role="combobox"], .ds-select').length,
+      ).toBeGreaterThan(0);
+      // The legacy full-screen card editor must not be what opened.
+      expect(document.querySelector('.bk-editor')).toBeNull();
+    },
+  );
+
+  it('opens the Logos panel on the variant the tile was drawn from', async () => {
+    renderKit();
+    await openItem('Logos');
+
+    // A combo tile well down the wall, not the first original.
+    const wall = tiles();
+    const target = wall[wall.length - 1]!;
+    fireEvent.click(target.querySelector('button[aria-label^="Edit "]')!);
+    await settle();
+
+    const focused = document.querySelector('.bka-logos-row[data-focused]');
+    expect(focused).toBeTruthy();
+  });
+
+  /**
+   * QA Q27 — every Icons tile printed its name inside the artwork AND again as
+   * the caption below it, on all twenty-eight of them.
+   */
+  it('an Icons tile does not repeat the caption inside the artwork', async () => {
+    renderKit();
+    await openItem('Icons');
+
+    const shown = tiles().filter((card) => {
+      const caption = card.querySelector('.bk-variant-label')?.textContent?.trim() ?? '';
+      const inside = card.querySelector('.brand-asset-render--icon')?.textContent ?? '';
+      return caption.length > 2 && inside.toLowerCase().includes(caption.toLowerCase());
+    });
+    expect(shown.map((c) => c.querySelector('.bk-variant-label')?.textContent)).toEqual([]);
+    // …and where the renderer really mounted, the tile still says the one
+    // thing only it can say. (This harness has no canonical `sourceBrand`, so
+    // some tiles fall back to the shared cover and draw nothing of their own.)
+    const drawn = tiles()
+      .map((c) => c.querySelector('.brand-asset-render--icon'))
+      .filter(Boolean) as HTMLElement[];
+    for (const tile of drawn) expect(tile.textContent).toMatch(/\d+ · \d+ · \d+ px/);
+  });
+
+  /**
+   * QA Q9 — the drilldown header's ⬇ fired one fixed zip with no menu, on the
+   * one surface where the user is looking at the whole family. Every other ⬇
+   * in the kit shows the same five rows.
+   */
+  it('the header ⬇ opens the same five-row menu the card and the tile use', async () => {
+    renderKit();
+    await openItem('Business Card');
+
+    const header = document.querySelector('.bk-drilldown-dl') as HTMLElement;
+    expect(header).toBeTruthy();
+    fireEvent.click(header.querySelector('button[aria-label^="Download"]')!);
+    await settle();
+
+    const menu = header.querySelector('.bk-dl-menu');
+    expect(menu).toBeTruthy();
+    const labels = Array.from(menu!.querySelectorAll('.ds-menu-item')).map((i) =>
+      i.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    );
+    expect(labels).toHaveLength(5);
+    expect(labels.join(' | ')).toMatch(/For web/);
+    expect(labels.join(' | ')).toMatch(/For print/);
+    expect(labels.join(' | ')).toMatch(/Custom size/);
+  });
+
   it('lists Use Template · Edit Template · Set as featured in the ⋯ menu', async () => {
     renderKit();
     await openItem('Business Card');

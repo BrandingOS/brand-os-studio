@@ -16,6 +16,7 @@ import {
   ruleOn,
   type WebHeroProps,
 } from './WebWebsiteExtended';
+import { typePx } from './typeFloor';
 
 /**
  * Landing Page — twelve conversion layouts over the same `webHero` model.
@@ -103,7 +104,7 @@ function TopBar({
             style={{
               color: brandT.text,
               fontFamily: fontStack(brand, 'body'),
-              fontSize: 5.5,
+              fontSize: typePx(5.5),
               fontWeight: 600,
               lineHeight: 1.2,
             }}

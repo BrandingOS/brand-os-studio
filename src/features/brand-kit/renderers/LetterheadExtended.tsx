@@ -12,6 +12,7 @@ import {
   normalizeHex,
   surface,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * Letterhead — twenty letters, not a hundred and thirty pages.
@@ -204,7 +205,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
   /* ── Atoms. Each one owns exactly one content path. ─────────────── */
 
   const microStyle: CSSProperties = {
-    fontSize: 3.9,
+    fontSize: typePx(3.9),
     lineHeight: 1.5,
     letterSpacing: '0.16em',
     textTransform: 'uppercase',
@@ -239,7 +240,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
     <div
       style={{
         fontFamily: font,
-        fontSize: size,
+        fontSize: typePx(size),
         fontWeight: weight,
         color,
         letterSpacing: tracking,
@@ -264,19 +265,19 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
     align?: CSSProperties['textAlign'];
     style?: CSSProperties;
   }) => (
-    <div style={{ fontSize: size, lineHeight: 1.5, color, textAlign: align, minWidth: 0, ...style }}>
+    <div style={{ fontSize: typePx(size), lineHeight: 1.5, color, textAlign: align, minWidth: 0, ...style }}>
       <Bind path="senderAddress" value={c.senderAddress} fit="wrap" />
     </div>
   );
 
   const Web = ({ color = inkQuiet, size = 3.9, style }: { color?: string; size?: number; style?: CSSProperties }) => (
-    <div style={{ fontSize: size, lineHeight: 1.5, color, minWidth: 0, ...style }}>
+    <div style={{ fontSize: typePx(size), lineHeight: 1.5, color, minWidth: 0, ...style }}>
       <Bind path="website" value={c.website} />
     </div>
   );
 
   const Tel = ({ color = inkQuiet, size = 3.9, style }: { color?: string; size?: number; style?: CSSProperties }) => (
-    <div style={{ fontSize: size, lineHeight: 1.5, color, minWidth: 0, ...style }}>
+    <div style={{ fontSize: typePx(size), lineHeight: 1.5, color, minWidth: 0, ...style }}>
       <Bind path="phone" value={c.phone} />
     </div>
   );
@@ -299,7 +300,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
         gap: 8,
         justifyContent: align,
         alignItems: 'baseline',
-        fontSize: size,
+        fontSize: typePx(size),
         lineHeight: 1.5,
         letterSpacing: upper ? '0.14em' : undefined,
         textTransform: upper ? 'uppercase' : undefined,
@@ -353,7 +354,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
         style={{
           marginTop: 9,
           fontFamily: headingFont,
-          fontSize: 5.2,
+          fontSize: typePx(5.2),
           fontWeight: 500,
           color,
           minWidth: 0,
@@ -367,7 +368,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
           paddingBottom: subjectStyle === 'rule' ? 4 : 0,
           borderBottom: subjectStyle === 'rule' ? `0.5px solid ${rule}` : undefined,
           fontFamily: headingFont,
-          fontSize: subjectStyle === 'display' ? 8.5 : 6,
+          fontSize: typePx(subjectStyle === 'display' ? 8.5 : 6),
           fontWeight: 700,
           letterSpacing: subjectStyle === 'display' ? '-0.015em' : undefined,
           lineHeight: 1.25,
@@ -380,7 +381,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Pr
       <div
         style={{
           marginTop: 8,
-          fontSize: bodySize,
+          fontSize: typePx(bodySize),
           lineHeight: 1.75,
           color,
           minWidth: 0,

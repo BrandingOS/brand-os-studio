@@ -34,6 +34,7 @@ import '../brand-kit.css';
 import { toast } from 'sonner';
 import { recolorLogoSvg, contrastRatio, extractWrappedImageUrl, cachedRecoloredLogo } from '../data/recolorLogo';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
+import { editorSwatches } from '../data/editorSwatches';
 import { hexToName } from '@/features/setup/data/colorNames';
 import { CopyIcon, type OrganicIconHandle } from '@/features/setup/components/organic-icons';
 import {
@@ -318,6 +319,63 @@ type Props = {
  * context, with the workspace's data-theme mirrored onto the dialog
  * so light/dark tokens still apply.
  */
+
+/**
+ * The colour swatches a deliverable editor offers, in two groups.
+ *
+ * The brand's own palette first, then the short neutral ladder on its own
+ * row — a wrapping flex row cannot express "a gap here", so the separation
+ * is two rows rather than a margin that lands wherever the wrap happens to
+ * fall. What is offered is decided by `data/editorSwatches.ts`; this only
+ * draws it. (Before that, every picker was 39 swatches: the brand's 8 plus
+ * the generated 32-step grey ramp, with colliding names and one duplicated
+ * hex — QA Q16.)
+ */
+function SwatchGroups({
+  colors,
+  selected,
+  onPick,
+  keyPrefix,
+  labelPrefix,
+}: {
+  colors: ReadonlyArray<{ hex: string; name: string; neutral?: boolean }>;
+  selected: string | null;
+  onPick: (hex: string) => void;
+  keyPrefix: string;
+  labelPrefix: string;
+}) {
+  const brand = colors.filter((c) => !c.neutral);
+  const neutrals = colors.filter((c) => c.neutral);
+  const row = (list: typeof brand, neutral: boolean) => (
+    <div className="bk-editor-swatches">
+      {list.map((c) => (
+        <button
+          key={`${keyPrefix}-${c.hex}-${c.name}`}
+          type="button"
+          className={`bk-editor-swatch${selected === c.hex ? ' is-selected' : ''}`}
+          style={{ background: c.hex }}
+          data-neutral={neutral || undefined}
+          onClick={() => onPick(c.hex)}
+          title={`${c.name} — ${c.hex.toUpperCase()}`}
+          aria-pressed={selected === c.hex}
+          aria-label={`${labelPrefix} ${c.name} ${c.hex}`}
+        />
+      ))}
+    </div>
+  );
+  return (
+    <>
+      {row(brand, false)}
+      {neutrals.length > 0 && (
+        <>
+          <span className="bk-editor-swatch-group-label">Neutrals</span>
+          {row(neutrals, true)}
+        </>
+      )}
+    </>
+  );
+}
+
 export function BrandKitCardEditor({
   brand,
   sourceBrand,
@@ -589,7 +647,11 @@ export function BrandKitCardEditor({
 
   if (!target) return null;
 
-  const allColors = [...brand.colors.core, ...brand.colors.accent, ...brand.colors.grey];
+  // The brand's own palette, then a short non-colliding neutral ladder.
+  // NOT `core + accent + grey`: `grey` is the generated 32-step ramp, which
+  // made every picker 39 swatches with two names and one hex colliding with
+  // the brand's own (QA Q16). See `data/editorSwatches.ts`.
+  const allColors = editorSwatches(brand);
   // Brand-asset cards (Logos / Colors / Fonts / Icons / Photos /
   // About) render a single piece of real data — their renderers
   // ignore primary/secondary color and font picks, and the icon
@@ -1228,20 +1290,13 @@ export function BrandKitCardEditor({
                   </div>
                 </RailGroup>
                 <RailGroup title="Color" hint="Tap a brand color to recolor the icon.">
-                  <div className="bk-editor-swatches">
-                    {allColors.map((c) => (
-                      <button
-                        key={`icon-${c.hex}-${c.name}`}
-                        type="button"
-                        className={`bk-editor-swatch${selectedIconColor === c.hex ? ' is-selected' : ''}`}
-                        style={{ background: c.hex }}
-                        onClick={() => setSelectedIconColor(c.hex)}
-                        title={`${c.name} — ${c.hex.toUpperCase()}`}
-                        aria-pressed={selectedIconColor === c.hex}
-                        aria-label={`Icon color ${c.name} ${c.hex}`}
-                      />
-                    ))}
-                  </div>
+                  <SwatchGroups
+                    colors={allColors}
+                    selected={selectedIconColor}
+                    onPick={setSelectedIconColor}
+                    keyPrefix="icon"
+                    labelPrefix="Icon color"
+                  />
                 </RailGroup>
               </>
             ) : isFontAsset && fontPreview ? (
@@ -1355,37 +1410,23 @@ export function BrandKitCardEditor({
             <RailGroup title="Colors" hint="Tap a swatch to recolor primary or secondary.">
               <div className="bk-editor-color-row">
                 <span className="bk-editor-color-row-label">Primary</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`p-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedColor === c.hex}
-                      aria-label={`Primary ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
+                <SwatchGroups
+                  colors={allColors}
+                  selected={selectedColor}
+                  onPick={setSelectedColor}
+                  keyPrefix="p"
+                  labelPrefix="Primary"
+                />
               </div>
               <div className="bk-editor-color-row">
                 <span className="bk-editor-color-row-label">Secondary</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`s-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedSecondaryColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedSecondaryColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedSecondaryColor === c.hex}
-                      aria-label={`Secondary ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
+                <SwatchGroups
+                  colors={allColors}
+                  selected={selectedSecondaryColor}
+                  onPick={setSelectedSecondaryColor}
+                  keyPrefix="s"
+                  labelPrefix="Secondary"
+                />
               </div>
             </RailGroup>
             )}
@@ -1427,20 +1468,13 @@ export function BrandKitCardEditor({
               </div>
               <div className="bk-editor-color-row" style={{ marginTop: 12 }}>
                 <span className="bk-editor-color-row-label">Mark</span>
-                <div className="bk-editor-swatches">
-                  {allColors.map((c) => (
-                    <button
-                      key={`logo-${c.hex}-${c.name}`}
-                      type="button"
-                      className={`bk-editor-swatch${selectedLogoColor === c.hex ? ' is-selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setSelectedLogoColor(c.hex)}
-                      title={`${c.name} — ${c.hex.toUpperCase()}`}
-                      aria-pressed={selectedLogoColor === c.hex}
-                      aria-label={`Logo color ${c.name} ${c.hex}`}
-                    />
-                  ))}
-                </div>
+                <SwatchGroups
+                  colors={allColors}
+                  selected={selectedLogoColor}
+                  onPick={setSelectedLogoColor}
+                  keyPrefix="logo"
+                  labelPrefix="Logo color"
+                />
               </div>
             </RailGroup>
             )}

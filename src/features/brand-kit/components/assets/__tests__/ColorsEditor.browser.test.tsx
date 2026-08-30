@@ -84,6 +84,29 @@ describe('ColorsEditor', () => {
     expect(document.body.textContent).not.toMatch(/shown as Core \d/);
   });
 
+  /**
+   * QA Q30 — "there is no way to change a colour's value". The panel could,
+   * through the swatch, but the picker rendered AFTER the list (a 320px
+   * scroller) so on an eight-colour brand nothing visible happened, and the
+   * hex was printed as plain text beside an editable name. Two claims: the
+   * value is itself a control, and the picker opens on its own row.
+   */
+  it('the hex is a control, and the picker opens on the row it edits', async () => {
+    const { mock } = mount();
+    const first = [...mock.colors.core, ...mock.colors.accent][0]!;
+    const hexButton = screen.getByRole('button', {
+      name: `Change the value of ${first.name}`,
+    });
+    fireEvent.click(hexButton);
+
+    const picker = document.querySelector('.bka-colors-picker');
+    expect(picker).toBeTruthy();
+    // Inside the row it belongs to — not below the whole list.
+    const row = hexButton.closest('.bka-colors-row') as HTMLElement;
+    expect(row.contains(picker!)).toBe(true);
+    expect(row.getAttribute('data-editing')).toBe('true');
+  });
+
   it('paints the preview bar at the usage proportions, biggest share first', () => {
     mount();
     const bar = screen.getByTestId('colors-preview');

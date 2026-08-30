@@ -13,6 +13,7 @@ import {
   surface,
   type SurfaceTokens,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * QR codes — four styles, six presentations each, and a code that scans.
@@ -324,7 +325,7 @@ function Label({
       style={{
         color,
         fontFamily: fontStack(brand, 'body'),
-        fontSize: size,
+        fontSize: typePx(size),
         fontWeight: weight,
         lineHeight: 1.2,
         ...(caps ? { textTransform: 'uppercase', letterSpacing: '0.2em' } : {}),

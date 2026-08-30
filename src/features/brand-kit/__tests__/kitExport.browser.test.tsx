@@ -338,13 +338,24 @@ describe('Export kit, from the Brand Kit itself', () => {
     expect(screen.getByRole('button', { name: /essentials only/i })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^Export everything$/ }));
 
-    // The progress toast names the FIRST unit and the total — the count
-    // of things this viewer can see, not a spinner with no end in sight.
-    const progress = await screen.findByText(/Logos — 1 of \d+/, undefined, { timeout: 10_000 });
-    expect(progress).toBeTruthy();
-    expect(screen.getByRole('button', { name: /export kit|exporting/i })).toBeDisabled();
+    // The progress names the FIRST unit and the total — the count of things
+    // this viewer can see, not a spinner with no end in sight. It is said in
+    // TWO places now: the toast, and the picker the user is looking at, which
+    // stays open for the whole run (QA D47).
+    const progress = await screen.findAllByText(/Logos — 1 of \d+/, undefined, {
+      timeout: 10_000,
+    });
+    expect(progress.length).toBeGreaterThan(0);
+    // The page's own button is out of action while one export runs. Both it
+    // and the picker's primary button read "Exporting…", so every match is
+    // checked rather than one being singled out by a name they share.
+    const exporting = screen.getAllByRole('button', { name: /^Exporting…$/ });
+    expect(exporting.length).toBeGreaterThan(0);
+    for (const button of exporting) expect(button).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    // While it runs there is one thing worth cancelling, and both the toast's
+    // action and the picker's own button do it.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel export' }));
     await screen.findByText('Export cancelled', undefined, { timeout: 10_000 });
 
     // And the page is usable again.

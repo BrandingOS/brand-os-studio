@@ -35,6 +35,7 @@ import {
   type MockupRendererProps,
   type MockupScene,
 } from './MockupScene';
+import { typePx } from './typeFloor';
 
 /* ── The object ───────────────────────────────────────────────────── */
 
@@ -124,7 +125,7 @@ function Art({ children, gap = 2, pad = '0 12%' }: { children: ReactNode; gap?: 
 function nameStyle(p: MockupPalette, face: string, size: number) {
   return {
     fontFamily: p.heading,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.05,
     fontWeight: 800,
     letterSpacing: '-0.01em',
@@ -136,7 +137,7 @@ function nameStyle(p: MockupPalette, face: string, size: number) {
 function noteStyle(p: MockupPalette, face: string, size = 4.5) {
   return {
     fontFamily: p.body,
-    fontSize: size,
+    fontSize: typePx(size),
     lineHeight: 1.3,
     color: mutedOn(face),
     maxWidth: '100%',

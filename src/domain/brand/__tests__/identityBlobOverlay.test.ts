@@ -78,6 +78,53 @@ describe('fromLegacyBrand overlays blob-only fields from the stored identity', (
     expect(reloaded.identity.voice.examples[0]).toEqual({ context: 'email', text: 'Hi' });
   });
 
+  /**
+   * QA Q5, on the read side.
+   *
+   * The overlay built `typography` from two named keys instead of spreading
+   * what it was handed, so every read of every brand deleted `scale` — the
+   * Brand Kit's Typography editor wrote a new base size correctly and the very
+   * next read threw it away. The confirmation was honest; the round trip was
+   * not.
+   */
+  it('keeps the type scale through a read — it is not one of two named keys', () => {
+    const stored = fromLegacyBrand(
+      makeLegacy({
+        typography: {
+          primary: { family: 'Inter' },
+          scale: { body: '18px', h1: '68px' },
+        } as Brand['typography'],
+      }),
+    );
+    expect(stored.identity.typography.scale?.body).toBe('18px');
+
+    const reloaded = fromLegacyBrand(
+      makeLegacy({
+        typography: {
+          primary: { family: 'Inter' },
+          scale: { body: '18px', h1: '68px' },
+        } as Brand['typography'],
+        identity: stored.identity,
+        identitySchemaVersion: stored.identitySchemaVersion,
+      }),
+    );
+    expect(reloaded.identity.typography.scale?.body).toBe('18px');
+    expect(reloaded.identity.typography.scale?.h1).toBe('68px');
+  });
+
+  it('recovers a scale the transport dropped, from the blob', () => {
+    const stored = fromLegacyBrand(
+      makeLegacy({
+        typography: { primary: { family: 'Inter' }, scale: { body: '18px' } } as Brand['typography'],
+      }),
+    );
+    // The legacy `typography` column is gone; only the blob survived.
+    const reloaded = fromLegacyBrand(
+      makeLegacy({ identity: stored.identity, identitySchemaVersion: stored.identitySchemaVersion }),
+    );
+    expect(reloaded.identity.typography.scale?.body).toBe('18px');
+  });
+
   it('does NOT let the blob override live legacy-homed fields (no revert)', () => {
     // Blob carries an OLD primary/logo/tone; the fresh legacy scalars must win.
     const stale = fromLegacyBrand(

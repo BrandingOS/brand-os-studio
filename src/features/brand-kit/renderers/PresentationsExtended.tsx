@@ -20,6 +20,7 @@ import {
   type SurfaceKind,
   type SurfaceTokens,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /**
  * The five deck families — Pitch Deck, Business Plan, Proposal, Case
@@ -287,7 +288,7 @@ type ChromeProps = {
 };
 
 const EYEBROW: CSSProperties = {
-  fontSize: '3.4px',
+  fontSize: typePx(3.4),
   letterSpacing: '0.26em',
   textTransform: 'uppercase',
   lineHeight: 1.4,
@@ -431,7 +432,7 @@ function TitleSlide({ brand, deck, style, tokens, headingFont, bodyFont, showLog
         fit="shrink"
         style={{
           fontFamily: headingFont,
-          fontSize: `${style.coverPx}px`,
+          fontSize: typePx(style.coverPx),
           fontWeight: style.weight,
           letterSpacing: style.tracking,
           lineHeight: 1.05,
@@ -455,7 +456,7 @@ function TitleSlide({ brand, deck, style, tokens, headingFont, bodyFont, showLog
         fit="wrap"
         style={{
           fontFamily: bodyFont,
-          fontSize: '5px',
+          fontSize: typePx(5),
           lineHeight: 1.5,
           color: tokens.text,
           maxWidth: centred ? '78%' : '64%',
@@ -497,7 +498,7 @@ function SectionSlide({ slide, index, style, tokens, headingFont, bodyFont, numb
         fit="shrink"
         style={{
           fontFamily: headingFont,
-          fontSize: `${style.headingPx + 4}px`,
+          fontSize: typePx(style.headingPx + 4),
           fontWeight: style.weight,
           letterSpacing: style.tracking,
           lineHeight: 1.1,
@@ -512,7 +513,7 @@ function SectionSlide({ slide, index, style, tokens, headingFont, bodyFont, numb
         fit="wrap"
         style={{
           fontFamily: bodyFont,
-          fontSize: '4.4px',
+          fontSize: typePx(4.4),
           lineHeight: 1.55,
           color: muted,
           maxWidth: '68%',
@@ -538,7 +539,7 @@ function ContentSlide({ slide, index, style, tokens, headingFont, bodyFont }: Sl
         fit="shrink"
         style={{
           fontFamily: headingFont,
-          fontSize: `${style.headingPx}px`,
+          fontSize: typePx(style.headingPx),
           fontWeight: style.weight,
           letterSpacing: style.tracking,
           lineHeight: 1.1,
@@ -553,7 +554,7 @@ function ContentSlide({ slide, index, style, tokens, headingFont, bodyFont }: Sl
           fit="wrap"
           style={{
             fontFamily: bodyFont,
-            fontSize: '4.4px',
+            fontSize: typePx(4.4),
             lineHeight: 1.6,
             color: tokens.text,
             maxWidth: '76%',
@@ -582,7 +583,7 @@ function ContentSlide({ slide, index, style, tokens, headingFont, bodyFont }: Sl
                 fit="wrap"
                 style={{
                   fontFamily: bodyFont,
-                  fontSize: '4.4px',
+                  fontSize: typePx(4.4),
                   lineHeight: 1.45,
                   color: muted,
                   display: 'block',
@@ -646,7 +647,7 @@ function StatSlide({ slide, index, style, tokens, headingFont, bodyFont }: Slide
           fit="wrap"
           style={{
             fontFamily: bodyFont,
-            fontSize: '4.2px',
+            fontSize: typePx(4.2),
             lineHeight: 1.55,
             color: muted,
             maxWidth: '62%',
@@ -706,7 +707,7 @@ function QuoteSlide({ slide, index, style, tokens, headingFont, bodyFont }: Slid
           fit="wrap"
           style={{
             fontFamily: bodyFont,
-            fontSize: '4.2px',
+            fontSize: typePx(4.2),
             lineHeight: 1.55,
             color: muted,
             maxWidth: '66%',
@@ -738,7 +739,7 @@ function ClosingSlide({ brand, deck, slide, index, style, tokens, headingFont, b
         fit="shrink"
         style={{
           fontFamily: headingFont,
-          fontSize: `${style.coverPx - 3}px`,
+          fontSize: typePx(style.coverPx - 3),
           fontWeight: style.weight,
           letterSpacing: style.tracking,
           lineHeight: 1.1,
@@ -753,7 +754,7 @@ function ClosingSlide({ brand, deck, slide, index, style, tokens, headingFont, b
         fit="wrap"
         style={{
           fontFamily: bodyFont,
-          fontSize: '5px',
+          fontSize: typePx(5),
           lineHeight: 1.5,
           color: tokens.text,
           maxWidth: centred ? '74%' : '60%',

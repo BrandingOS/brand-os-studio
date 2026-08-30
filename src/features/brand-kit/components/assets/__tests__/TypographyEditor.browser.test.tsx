@@ -18,6 +18,7 @@ import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { parseWeights } from '../../../data/fontExport';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
+import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import {
   TypographyEditor,
   buildScaleTokens,
@@ -344,5 +345,30 @@ describe('TypographyEditor', () => {
     expect(patch.typography.scale.body).toBe('18px');
     expect(patch.typography.scale.h1).toBe(`${stepSize(18, 1.333, 6)}px`);
     expect(patch.typography.primary.family).toBe('Inter');
+  });
+
+  /**
+   * QA Q5, end to end from the control the user touches.
+   *
+   * The panel was never the culprit — it already sent the scale in its patch,
+   * which is exactly why the confirmation looked honest. The value was dropped
+   * TWICE downstream: `typographyChangesFrom` unpacked two families out of the
+   * patch and threw the rest away, and `overlayStoredIdentity` rebuilt
+   * `typography` from two named keys on every READ. So the assertion has to
+   * follow the patch back THROUGH the read — merge it, re-migrate it the way
+   * the store does, and look at the scale the next paint would show.
+   */
+  it('a saved base size survives the read, which is where it used to vanish', async () => {
+    mount();
+    fireEvent.change(screen.getByLabelText('Base size in pixels'), { target: { value: '18' } });
+    confirmSave().go();
+
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    const patch = update.mock.calls[0]![1];
+
+    const saved = migrateBrandToCurrent({ ...RAQM, ...patch } as Brand);
+    expect(saved.typography?.scale?.body).toBe('18px');
+    // And the panel, reopened on that brand, proposes 18 rather than 16.
+    expect(scaleFromTokens(saved.typography?.scale).base).toBe(18);
   });
 });

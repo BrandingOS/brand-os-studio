@@ -87,6 +87,37 @@
   border-color: var(--ds-text);
 }
 
+/* The picker is a full-width child of the row it edits, so the response to
+   pressing a swatch is under the swatch and not below a 320px scroller. */
+.bka-colors-row > .bka-colors-picker {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+/* The hex opens the picker too — the value is the affordance, not just the
+   swatch beside it. Styled as text that admits it is pressable. */
+.bka-colors-hex-btn {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.bka-colors-hex-btn:hover {
+  color: var(--ds-text);
+}
+
+.bka-colors-hex-btn:focus-visible {
+  outline: 3px solid var(--ds-text);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* The swatch IS the button that opens the picker — a colour is edited by
    pressing the colour, not by hunting for a pencil. */
 .bka-colors-chip {
@@ -869,6 +900,14 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+/* Arrived here from a tile's pencil: mark the variant that tile was drawn
+   from, so a wall of fifteen combinations lands on one row. */
+.bka-logos-row[data-focused] {
+  outline: 2px solid var(--ds-text);
+  outline-offset: 4px;
+  border-radius: var(--ds-radius-tile);
 }
 
 /* A row that is switched off is still a row: it reads as set aside, not

@@ -59,6 +59,7 @@ import {
   normalizeHex,
   surface,
 } from './brandStyle';
+import { typePx } from './typeFloor';
 
 /* ── What a renderer is handed ────────────────────────────────────── */
 
@@ -327,7 +328,7 @@ export function Mark({
       style={{
         display: 'inline-block',
         fontFamily: theme.heading,
-        fontSize: `${Math.max(6, height * 0.78)}px`,
+        fontSize: typePx(Math.max(6, height * 0.78)),
         lineHeight: 1,
         fontWeight: 700,
         letterSpacing: '-0.02em',
@@ -499,7 +500,7 @@ const UPPER: CSSProperties = { textTransform: 'uppercase', letterSpacing: '0.13e
 
 function text(size: number, color: string, font: string, extra: CSSProperties = {}): CSSProperties {
   return {
-    fontSize: `${Math.max(MIN_TEXT, size)}px`,
+    fontSize: typePx(Math.max(MIN_TEXT, size)),
     lineHeight: 1.3,
     color,
     fontFamily: font,
