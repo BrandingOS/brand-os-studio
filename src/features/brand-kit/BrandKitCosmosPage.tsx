@@ -57,6 +57,7 @@ import { TypographyEditor } from './components/assets/TypographyEditor';
 import { IconsEditor } from './components/assets/IconsEditor';
 import { LogosEditor } from './components/assets/LogosEditor';
 import { PhotosEditor } from './components/assets/PhotosEditor';
+import { StrategyEditor } from './components/assets/StrategyEditor';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { TileActions, type TileMenuAction } from './components/TileActions';
 import {
@@ -160,7 +161,7 @@ const WIPE_SPEED = 0.4;
  * Quick Edit. `Fonts` (not `Typography`) because the catalog renames the
  * card and a rename must never cost anyone their editor.
  */
-const ASSET_EDITOR_LABELS = new Set(['Logos', 'Colors', 'Fonts', 'Icons', 'Photos']);
+const ASSET_EDITOR_LABELS = new Set(['Logos', 'Colors', 'Fonts', 'Icons', 'Photos', 'About']);
 
 export function BrandKitCosmosPage({
   brand,
@@ -1602,6 +1603,15 @@ export function BrandKitCosmosPage({
               onBrandChange={setBrandPreview}
             />
           )}
+          {assetEditor === 'About' && (
+            <StrategyEditor
+              open
+              onClose={closeAssetEditor}
+              brand={baseBrand}
+              sourceBrand={sourceBrand}
+              onBrandChange={setBrandPreview}
+            />
+          )}
         </>
       )}
       <IconPickerModal
@@ -1918,7 +1928,7 @@ function BrandKitDrilldown({
     if (!entry || !mockBrand) return null;
     switch (entry.view) {
       case 'strategy':
-        return <StrategyView brand={mockBrand} />;
+        return <StrategyView brand={mockBrand} sourceBrand={sourceBrand} />;
       case 'social-system':
         return <SocialSystemView brand={mockBrand} sourceBrand={sourceBrand} />;
       case 'presentation-system':
