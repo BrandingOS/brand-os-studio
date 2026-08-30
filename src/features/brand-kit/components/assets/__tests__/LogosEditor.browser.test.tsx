@@ -12,6 +12,7 @@
  * made here and a change made there travel the same road.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { page } from '@vitest/browser/context';
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import '@/index.css';
 import '@/shared/ds/tokens.css';
@@ -86,6 +87,26 @@ function chooseRole(rowLabel: string | RegExp, option: string) {
 }
 
 describe('LogosEditor', () => {
+  // Vitest's browser default viewport is 414px wide, which is not a width
+  // anyone opens a brand kit at — and the panel is a modal, so a narrow
+  // viewport is the one case where its layout says nothing about the real
+  // one.
+  beforeEach(async () => { await page.viewport(1280, 900); });
+  afterEach(async () => { await page.viewport(414, 896); });
+
+  it('LOOKS right — the whole panel, on a brand with cuts', async () => {
+    mount({}, CUT_BRAND);
+    await page.screenshot({ path: '.audit/w2/logos-editor.png' });
+    // The three sections are all there and named.
+    for (const heading of ['Variants', 'Grounds', 'Mono treatments']) {
+      expect(screen.getByText(heading)).toBeTruthy();
+    }
+    // Every variant row drew its artwork rather than an empty chrome box.
+    const thumbs = Array.from(document.querySelectorAll('.bka-logos-thumb'));
+    expect(thumbs.length).toBeGreaterThan(0);
+    for (const t of thumbs) expect(t.querySelector('img, svg')).toBeTruthy();
+  });
+
   it('shows one row per logo variant, with its name and the role it holds', () => {
     const { mock } = mount();
     expect(mock.logos.length).toBeGreaterThan(1);

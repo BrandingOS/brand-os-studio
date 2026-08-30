@@ -45,6 +45,7 @@ import { lazyFolder, zipAdd, type ExportSkip, type ZipFolder } from './zipFile';
 import { buildLogoFiles } from './logoExport';
 import { yieldToBrowser, throwIfAborted } from './exportScheduler';
 import { buildKitReadmeFile } from '../exporters/readme';
+import { buildAboutMarkdown } from './strategyDocument';
 
 export function slugifyName(name: string): string {
   const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -279,18 +280,16 @@ export async function addFontsToZip(
 
 /* ─── About + brand.json ──────────────────────────────────────────── */
 
-/** Markdown document of the brand's About sections + voice. */
-export function buildAboutMarkdown(brand: MockBrand): string {
-  const lines: string[] = [`# ${brand.name}`, ''];
-  for (const entry of brand.about) {
-    if (!entry.content.trim()) continue;
-    lines.push(`## ${entry.title}`, '', entry.content.trim(), '');
-  }
-  if (brand.voice?.essay?.trim()) {
-    lines.push('## Voice', '', brand.voice.essay.trim(), '');
-  }
-  return lines.join('\n');
-}
+/**
+ * `about.md`, re-exported from where the strategy documents are authored.
+ *
+ * It used to be written here, and it carried only the free-form sections
+ * and the voice — half of a document whose other half was `strategy.md`
+ * (`.audit/OURS.md` D66). The four strategy artefacts are decided
+ * together in `strategyDocument.ts`, because a set of files that names
+ * its own siblings cannot be written from two places.
+ */
+export { buildAboutMarkdown };
 
 /** The machine-readable summary that sits at the root of every bundle. */
 export function buildBrandJson(brand: MockBrand): string {

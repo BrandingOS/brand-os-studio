@@ -395,6 +395,11 @@ export async function buildAllColorsZip(
  * When the canonical `Brand` is available (the editor has it) the
  * hexes are matched against `colorSystem` first, so a background the
  * user actually assigned is named Background even if it is dark.
+ *
+ * This judges ONE colour with no idea what the rest of the palette was
+ * called. Product code should call `rolesForPalette` below, which layers
+ * the single-seat rules on top of this and is what the tiles, the editor
+ * and every export actually read.
  */
 export function roleForColor(
   hex: string,
@@ -417,6 +422,48 @@ export function roleForColor(
 }
 
 /**
+ * The same evidence, applied to a WHOLE palette — which is the only
+ * level at which two of the five roles make sense.
+ *
+ * `roleForColor` judges one colour in isolation, so nothing stops it
+ * handing the same role out twice. Measured on the seed brands, it did:
+ * Raqm printed **two Backgrounds** (`#FAFAFA` and `#E5E5E5` are both
+ * near-white, and the second is plainly a neutral), and SKAM printed
+ * pure `#FFFFFF` as its **Secondary** — the index talking again, which
+ * is the same defect as "Core 4" wearing a nicer word.
+ *
+ * Two rules fix both, and they only exist once a palette is in view:
+ *
+ *  • **Primary, Secondary and Background are single seats.** A second
+ *    claimant falls back to what the colour itself IS — grey is a
+ *    Neutral, chroma is an Accent.
+ *  • **A near-white is never the Secondary.** Whatever slot it sits in,
+ *    the near-white in a palette is the ground the page is laid on.
+ *
+ * Accent and Neutral are deliberately NOT seats: a brand may own several
+ * of each.
+ */
+export function rolesForPalette(
+  entries: readonly { hex: string; bucket: 'core' | 'accent' | 'grey' }[],
+  source?: Brand | null,
+): PaletteRole[] {
+  const taken = new Set<PaletteRole>();
+  let coreIndex = 0;
+  return entries.map(({ hex, bucket }) => {
+    if (bucket !== 'core') return roleForColor(hex, 0, bucket, source);
+    const index = coreIndex;
+    coreIndex += 1;
+    let role = roleForColor(hex, index, 'core', source);
+    if ((role === 'Primary' || role === 'Secondary' || role === 'Background') && taken.has(role)) {
+      role = isGreyscale(hex) ? 'Neutral' : 'Accent';
+    }
+    if (role === 'Secondary' && isNearWhite(hex) && !taken.has('Background')) role = 'Background';
+    taken.add(role);
+    return role;
+  });
+}
+
+/**
  * The brand's palette as roles, names and hexes — the one list the
  * tiles, the editor, the token exports and `brand.json` all read.
  *
@@ -430,18 +477,16 @@ export function paletteFromMockBrand(
   opts?: { includeNeutrals?: boolean; source?: Brand | null },
 ): PaletteColor[] {
   const source = opts?.source ?? null;
-  const out: PaletteColor[] = [
-    ...brand.colors.core.map((c, i) => ({
-      hex: c.hex,
-      name: c.name,
-      role: roleForColor(c.hex, i, 'core', source) as string,
-    })),
-    ...brand.colors.accent.map((c, i) => ({
-      hex: c.hex,
-      name: c.name,
-      role: roleForColor(c.hex, i, 'accent', source) as string,
-    })),
+  const entries = [
+    ...(brand.colors.core ?? []).map((c) => ({ ...c, bucket: 'core' as const })),
+    ...(brand.colors.accent ?? []).map((c) => ({ ...c, bucket: 'accent' as const })),
   ];
+  const roles = rolesForPalette(entries, source);
+  const out: PaletteColor[] = entries.map((c, i) => ({
+    hex: c.hex,
+    name: c.name,
+    role: roles[i] as string,
+  }));
   if (opts?.includeNeutrals) {
     out.push(
       ...brand.colors.grey.map((c) => ({ hex: c.hex, name: c.name, role: 'Neutral' as string })),

@@ -14,10 +14,12 @@
  *    everything past them is supporting, and `accent[]` is Accent. There
  *    is exactly one Primary and at most one Secondary, so choosing one
  *    demotes whoever held it — the two colours TRADE, nothing is dropped.
- *    (Past Secondary the kit still NAMES a colour from the colour itself
- *    — Background for a near-white, Neutral for a grey — so the row shows
- *    the name the tiles will use, rather than pretending the user picked
- *    it.)
+ *    (What the kit PRINTS is decided from the palette itself by
+ *    `rolesForPalette` — Background for the near-white, Neutral for a
+ *    grey, and one seat each for Primary, Secondary and Background — so
+ *    every row also shows the name the tiles will use rather than
+ *    pretending the user picked it. A pure white parked in the Secondary
+ *    slot reads "shown as Background", because that is what it is.)
  *
  *  • **Every write goes down the Setup chain**: `brandToMockBrand` →
  *    mutate the whole MockBrand → `mockBrandToPatch(next, brand)` →
@@ -32,7 +34,7 @@
  *    dialog lists each change in the user's own words ("Iris #7231FF →
  *    #7A3DFF", "Add Coral as an Accent") rather than saying "Save?".
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DsButton, DsConfirmDialog, DsInput, DsModal, DsSelect } from '@/shared/ds';
 import { ColorPickerHSV } from '@/shared/components/ColorPickerHSV';
 import { hexToName } from '@/features/setup/data/colorNames';
@@ -45,7 +47,7 @@ import {
   bestTextOn,
   isNearWhite,
   normalizeHex,
-  roleForColor,
+  rolesForPalette,
   usageProportions,
   type PaletteColor,
 } from '../../data/colorPaletteExport';
@@ -112,18 +114,38 @@ function toPalette(rows: Row[]): { core: { hex: string; name: string }[]; accent
   };
 }
 
-/** The role the KIT will print for a row — derived exactly as the tiles
- *  derive it, so the panel never promises a label the tile will not use. */
-function displayedRole(rows: Row[], row: Row): string {
-  const ordered = [...rows.filter((r) => r.role === 'primary'), ...rows.filter((r) => r.role === 'secondary'), ...rows.filter((r) => r.role === 'supporting')];
-  if (row.role === 'accent') return 'Accent';
-  const index = ordered.findIndex((r) => r.key === row.key);
-  return roleForColor(row.hex, index < 0 ? 0 : index, 'core');
+/** The role the KIT will print for every row, decided over the WHOLE
+ *  draft — `rolesForPalette`, the same call `paletteFromMockBrand`
+ *  makes, so the panel never promises a label the tile will not use.
+ *  It has to be palette-wide: Primary, Secondary and Background are
+ *  single seats, and a per-row answer cannot know a seat is taken. */
+function rolesByKey(rows: Row[]): Map<string, string> {
+  const core = [
+    ...rows.filter((r) => r.role === 'primary'),
+    ...rows.filter((r) => r.role === 'secondary'),
+    ...rows.filter((r) => r.role === 'supporting'),
+  ];
+  const ordered = [...core, ...rows.filter((r) => r.role === 'accent')];
+  const roles = rolesForPalette(
+    ordered.map((r, i) => ({ hex: r.hex, bucket: i < core.length ? 'core' : 'accent' })),
+  );
+  return new Map(ordered.map((r, i) => [r.key, roles[i] as string]));
 }
 
-/** A draft palette as the exporters and tiles will read it. */
+/** A draft palette as the exporters and tiles will read it — in the
+ *  order the kit reads it, which is core before accent. */
 function paletteOfRows(rows: Row[]): PaletteColor[] {
-  return rows.map((r) => ({ hex: r.hex, name: r.name, role: displayedRole(rows, r) }));
+  const roles = rolesByKey(rows);
+  const core = [
+    ...rows.filter((r) => r.role === 'primary'),
+    ...rows.filter((r) => r.role === 'secondary'),
+    ...rows.filter((r) => r.role === 'supporting'),
+  ];
+  return [...core, ...rows.filter((r) => r.role === 'accent')].map((r) => ({
+    hex: r.hex,
+    name: r.name,
+    role: roles.get(r.key) ?? 'Accent',
+  }));
 }
 
 export function ColorsEditor({
@@ -166,12 +188,22 @@ export function ColorsEditor({
   }, [rows, brand]);
 
   // Live preview — the kit behind the panel repaints as the draft changes.
+  //
+  // Driven by the DRAFT alone. `preview` is derived from `brand`, and
+  // `onBrandChange` is what replaces `brand`, so depending on either makes
+  // the panel answer its own update: paint, receive, recompute, paint. The
+  // ref lets the effect read the latest without subscribing to it.
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
+  const notifyRef = useRef(onBrandChange);
+  notifyRef.current = onBrandChange;
   useEffect(() => {
     if (!open) return;
-    onBrandChange?.(preview);
-  }, [open, preview, onBrandChange]);
+    notifyRef.current?.(previewRef.current);
+  }, [open, rows]);
 
   const palette = useMemo(() => paletteOfRows(rows), [rows]);
+  const shownRoles = useMemo(() => rolesByKey(rows), [rows]);
 
   /** What Save will do, in the user's own words. */
   const changes = useMemo(() => {
@@ -348,7 +380,7 @@ export function ColorsEditor({
                     onChange={(e) => setRow(row.key, { name: e.target.value })}
                   />
                   <span className="bka-colors-hex">
-                    {row.hex} · shown as {displayedRole(rows, row)}
+                    {row.hex} · shown as {shownRoles.get(row.key)}
                   </span>
                 </span>
                 <DsSelect

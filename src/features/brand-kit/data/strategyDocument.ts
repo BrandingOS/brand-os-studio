@@ -6,28 +6,155 @@
  * Setup left no trace in the download. A brand kit that describes the
  * colours and omits what the brand IS has exported the packaging.
  *
- * Two artefacts, because they are read by different things:
+ * FOUR artefacts now, and the reason there are four is that they answer
+ * four different questions. `.audit/OURS.md` D66 measured the failure
+ * mode of NOT deciding this: `about.md` held the Vision and the Voice,
+ * `strategy.md` held the eleven answers, and neither was a document —
+ * they were two halves of one, filed under names that did not say which
+ * half you had.
  *
- *  • `strategy.md` — plain text, for a person's notes, a repo, an LLM.
- *  • `strategy.pdf` — a designed document, for sending to someone.
+ *  • `about.md` — **what this brand is, in a page.** The slogan, the
+ *    summary, the identity facts, the links. The thing you paste into a
+ *    press kit, a README or a brief. It is deliberately SHORT and it ends
+ *    by naming its siblings, so a reader who wants more knows where more
+ *    is. It does NOT repeat the notes or the voice.
+ *  • `strategy.md` — **the whole record.** Every answered card, the
+ *    free-form notes, the voice. For a person's notes, a repo, an LLM.
+ *  • `strategy.json` — **the same record as data.** Ids AND labels, so a
+ *    consumer can render it without owning our vocabulary and write it
+ *    back without guessing at ours.
+ *  • `strategy.pdf` — **the designed document**, for sending to someone.
+ *    (`brand-book.pdf`, in `brandBook.ts`, is its bigger sibling: what
+ *    the brand LOOKS like, applied. Same paper, same cover, same family.)
  *
- * Both read `STRATEGY_CARDS`, which is Setup's own list in Setup's own
- * order under Setup's own names, so the export cannot describe the brand
- * differently from the screen the user filled in.
+ * Every one of them reads `STRATEGY_CARDS`, which is Setup's own list in
+ * Setup's own order under Setup's own names, so no export can describe
+ * the brand differently from the screen the user filled in. And every one
+ * of them opens by saying WHAT IT IS and naming the others — a file in a
+ * zip is read by someone who was not in the room.
  */
 import type { Brand } from '@/shared/types/brand';
-import type { MockBrand } from '@/features/setup/data/mockBrand';
+import type { BrandFontFile, MockBrand } from '@/features/setup/data/mockBrand';
 import { STRATEGY_CARDS, contentOf } from '@/features/setup/data/strategyCards';
 import { buildBrandPalette, pickSurfaceTokens, type BrandPalette } from '@/shared/brand/brandPalette';
 import { pickLogoOnBackground, pickFgOnBackground, contrastRatio } from '@/shared/brand/logoOnBackground';
 import { rasterizeLogo } from '@/shared/brand/rasterizeLogo';
 import { gatherFamilyFiles } from './fontExport';
+import { slugify, triggerBlobDownload } from './colorPaletteExport';
+import { zipAdd, type ZipFolder } from './zipFile';
+import { buildKitReadmeFile, type KitManifestSkip } from '../exporters/readme';
+import type { ExportFile } from '../exporters/types';
 
 /* ─── Markdown ────────────────────────────────────────────────────── */
 
+/**
+ * The one line every strategy document opens with.
+ *
+ * Not decoration: these files travel in a zip to somebody who did not
+ * export them, and the first question they ask is "which of these do I
+ * read?". Naming the siblings from inside each file is the only place
+ * that answer survives being copied out of the folder.
+ */
+function lede(self: 'about' | 'strategy' | 'json'): string {
+  const others: Record<typeof self, string> = {
+    about:
+      'What this brand is, in a page. The whole strategy — every answer, the ' +
+      'notes and the voice — is in `strategy.md`; the same record as data is in ' +
+      '`strategy.json`; the designed version is `brand-book.pdf`.',
+    strategy:
+      'The whole brand strategy: every answer given in Setup, the notes written ' +
+      'beside them, and the voice. `about.md` is the short version; ' +
+      '`strategy.json` is this same record as data; `brand-book.pdf` is the ' +
+      'designed document.',
+    json: '',
+  };
+  return others[self];
+}
+
+/** `Website — https://…`, and only when there is one. */
+function factLines(brand: MockBrand): string[] {
+  const facts: string[] = [];
+  const say = (label: string, value: string | undefined) => {
+    const text = (value ?? '').trim();
+    if (text) facts.push(`- **${label}** — ${text}`);
+  };
+  const card = (key: string) => {
+    const found = STRATEGY_CARDS.find((c) => c.key === key);
+    return found && brand.strategy ? contentOf(found, brand.strategy) : '';
+  };
+  say('Industry', card('industry'));
+  say('Products / Services', card('products'));
+  say('Audience', card('audience'));
+  say('Positioning', card('positioning'));
+  const site = (brand.websites ?? []).find((w) => w.url?.trim())?.url;
+  say('Website', site);
+  const links = (brand.links ?? [])
+    .filter((l) => l.url?.trim())
+    .map((l) => (l.label?.trim() ? `${l.label.trim()} (${l.url.trim()})` : l.url.trim()));
+  if (links.length > 0) facts.push(`- **Links** — ${links.join(', ')}`);
+  return facts;
+}
+
+/**
+ * `about.md` — the brand described, short, for someone who has thirty seconds.
+ *
+ * Deliberately NOT a subset of `strategy.md`: it carries the slogan, the
+ * summary and the identity facts, and it defers the notes and the voice
+ * rather than repeating half of them. Two files that each hold a piece of
+ * one document is the thing D66 measured; two files that each are a whole
+ * document with a different job is not.
+ *
+ * Keeps `# <name>` as its first line — several callers and one test read
+ * the heading, and the brand's own name is the right title for a page
+ * about the brand.
+ */
+export function buildAboutMarkdown(brand: MockBrand): string {
+  const lines: string[] = [`# ${brand.name}`, '', `_${lede('about')}_`, ''];
+
+  const slogan = brand.strategy?.slogan?.trim();
+  if (slogan) lines.push(`> ${slogan}`, '');
+
+  const summary = brand.strategy?.summary?.trim();
+  const mission = brand.strategy?.mission?.trim();
+  if (summary) lines.push(summary, '');
+  else if (mission) lines.push(mission, '');
+
+  const facts = factLines(brand);
+  if (facts.length > 0) lines.push('## In short', '', ...facts, '');
+
+  if (summary && mission) lines.push('## Mission', '', mission, '');
+
+  // Nothing at all is a real state, and saying so beats an empty page.
+  if (!slogan && !summary && !mission && facts.length === 0) {
+    lines.push(
+      'This brand has not described itself yet. Fill it in at Setup → Brand Strategy',
+      'and export again.',
+      '',
+    );
+  }
+
+  lines.push(
+    '## Where the rest is',
+    '',
+    '- `strategy.md` — every strategy answer, the notes and the voice.',
+    '- `strategy.json` — the same record as data, ids and labels together.',
+    '- `brand-book.pdf` — the designed document: the logo, the palette, the type,',
+    '  the voice and the brand applied.',
+    '',
+  );
+  return lines.join('\n');
+}
+
 /** The eleven answers, the free-form sections and the voice, as one file. */
 export function buildStrategyMarkdown(brand: MockBrand): string {
-  const lines: string[] = [`# ${brand.name}`, '', '## Brand strategy', ''];
+  const lines: string[] = [
+    `# ${brand.name} — Brand strategy`,
+    '',
+    `_${lede('strategy')}_`,
+    '',
+    '## Brand strategy',
+    '',
+  ];
   let answered = 0;
   for (const card of STRATEGY_CARDS) {
     const value = brand.strategy ? contentOf(card, brand.strategy) : '';
@@ -47,6 +174,10 @@ export function buildStrategyMarkdown(brand: MockBrand): string {
   if (brand.voice?.essay?.trim()) {
     lines.push('## Voice', '', brand.voice.essay.trim(), '');
   }
+  const pillars = (brand.voice?.pillars ?? []).filter((p) => p.trim());
+  if (pillars.length > 0) {
+    lines.push('### Pillars', '', ...pillars.map((p) => `- ${p.trim()}`), '');
+  }
   return lines.join('\n');
 }
 
@@ -59,6 +190,10 @@ export function buildStrategyMarkdown(brand: MockBrand): string {
  * because a consumer that only got `"b2b-saas"` would have to own a copy
  * of our vocabulary to render it, and a consumer that only got the label
  * could never write it back.
+ *
+ * `$schema`-less on purpose, but it does carry `document`: a JSON file in
+ * a zip has no lede to open with, so the description that the other three
+ * files print at the top is a FIELD here.
  */
 export function buildStrategyJson(brand: MockBrand): string {
   const answers = STRATEGY_CARDS.map((card) => ({
@@ -71,6 +206,14 @@ export function buildStrategyJson(brand: MockBrand): string {
   }));
   return JSON.stringify(
     {
+      document: {
+        what: `${brand.name} — brand strategy, as data.`,
+        siblings: {
+          'about.md': 'What this brand is, in a page.',
+          'strategy.md': 'The same record as prose.',
+          'brand-book.pdf': 'The designed document: the brand applied.',
+        },
+      },
       name: brand.name,
       strategy: answers,
       notes: (brand.about ?? [])
@@ -167,13 +310,77 @@ function pickWeight<T extends { baseName: string }>(files: T[], want: 'regular' 
 }
 
 /**
+ * A STATIC cut of a Google family, which is the only kind jsPDF can set.
+ *
+ * `gatherFamilyFiles` asks the Google CSS API, and for Inter, DM Sans and
+ * most of the modern catalogue the API answers with ONE variable file per
+ * family. `isVariableFont` then refuses it — correctly, it renders as one
+ * stray glyph a line — and the document silently fell back to Helvetica.
+ * Measured on Raqm: a typography page captioned "Inter" and "DM Sans" that
+ * showed two identical Helvetica specimens. A brand book set in a typeface
+ * the brand does not own is the one lie a brand book must not tell.
+ *
+ * So when the API can only offer a variable file, the static per-weight cut
+ * is fetched from Fontsource — the same upstream files, published one
+ * weight at a time. The bytes come back as an `uploaded` family, which
+ * means `gatherFamilyFiles` does the WOFF2→TTF decompression rather than a
+ * second copy of it living here.
+ *
+ * Latin only, two weights, ~100 KB a family. A miss is silent: the family
+ * simply keeps Helvetica, as it did before.
+ */
+const FONTSOURCE = 'https://cdn.jsdelivr.net/npm/@fontsource';
+
+/** `DM Sans` → `dm-sans`, which is how Fontsource names its packages. */
+export function fontsourceId(family: string): string {
+  return family
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+async function fetchStaticCut(
+  family: string,
+  weight: number,
+  signal?: AbortSignal,
+): Promise<BrandFontFile | null> {
+  const id = fontsourceId(family);
+  if (!id) return null;
+  try {
+    const res = await fetch(`${FONTSOURCE}/${id}/files/${id}-latin-${weight}-normal.woff2`, {
+      signal,
+    });
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length === 0) return null;
+    return {
+      name: `${id}-${weight}.woff2`,
+      weight: String(weight),
+      format: 'woff2',
+      dataUrl: `data:font/woff2;base64,${bytesToBase64(bytes)}`,
+      size: bytes.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Embed the brand's real typeface so the document is SET in the brand,
  * not merely coloured like it.
  *
  * Falls back to Helvetica without complaint — a strategy PDF in the wrong
- * typeface is worth having; no PDF at all is not.
+ * typeface is worth having; no PDF at all is not. But it REPORTS the
+ * fallback in `embedded`, because a specimen page captioned with a family
+ * name it is not set in has to say so.
  */
-export type BrandFontNames = { heading: string; body: string };
+export type BrandFontNames = {
+  heading: string;
+  body: string;
+  /** Families whose own files are really in the document, by family name. */
+  embedded: string[];
+};
 
 export async function embedBrandFonts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -181,11 +388,10 @@ export async function embedBrandFonts(
   brand: MockBrand,
   signal?: AbortSignal,
 ): Promise<BrandFontNames> {
-  const fallback = { heading: 'helvetica', body: 'helvetica' };
+  const names: BrandFontNames = { heading: 'helvetica', body: 'helvetica', embedded: [] };
   const families = (brand.fonts ?? []).slice(0, 2);
-  if (families.length === 0) return fallback;
+  if (families.length === 0) return names;
 
-  const names = { ...fallback };
   const roles: Array<'heading' | 'body'> = ['heading', 'body'];
   for (let i = 0; i < families.length && i < 2; i += 1) {
     if (signal?.aborted) return names;
@@ -195,20 +401,37 @@ export async function embedBrandFonts(
       // whichever glyph it happens to contain (see `latinOnly`).
       const gathered = await gatherFamilyFiles(
         { name: fam.family, files: fam.files },
-        { latinOnly: true },
+        { latinOnly: true, signal },
       );
-      const files = gathered.files.filter((f) => !isVariableFont(f.ttfBytes));
+      let files = gathered.files.filter((f) => !isVariableFont(f.ttfBytes));
+      if (files.length === 0 && (fam.files ?? []).length === 0) {
+        // Everything Google had for this family is variable — see above.
+        const cuts = (
+          await Promise.all([400, 700].map((w) => fetchStaticCut(fam.family, w, signal)))
+        ).filter((f): f is BrandFontFile => Boolean(f));
+        if (cuts.length > 0) {
+          const retry = await gatherFamilyFiles(
+            { name: fam.family, files: cuts },
+            { latinOnly: true, signal },
+          );
+          files = retry.files.filter((f) => !isVariableFont(f.ttfBytes));
+        }
+      }
       if (files.length === 0) continue;
       const alias = `brand${i}`;
       const regular = pickWeight(files, 'regular');
       const bold = pickWeight(files, 'bold') ?? regular;
+      if (!regular || !bold) continue;
       pdf.addFileToVFS(`${alias}-regular.ttf`, bytesToBase64(regular.ttfBytes));
       pdf.addFont(`${alias}-regular.ttf`, alias, 'normal');
       pdf.addFileToVFS(`${alias}-bold.ttf`, bytesToBase64(bold.ttfBytes));
       pdf.addFont(`${alias}-bold.ttf`, alias, 'bold');
+      names.embedded.push(fam.family);
       // One family declared: it sets both roles. Two: first heads, second reads.
-      if (i === 0) { names.heading = alias; names.body = alias; }
-      else names[roles[1]] = alias;
+      if (i === 0) {
+        names.heading = alias;
+        names.body = alias;
+      } else names[roles[1]] = alias;
     } catch {
       // A family we could not gather — the next role keeps Helvetica.
     }
@@ -496,4 +719,143 @@ export async function buildStrategyPdf(
   }
 
   return pdf.output('blob') as Blob;
+}
+
+/* ─── The download ────────────────────────────────────────────────── */
+
+/**
+ * What the Strategy card's ⬇ hands over, as pure files.
+ *
+ * A builder rather than a download, for the reason every exporter here is
+ * one: a test can read the bytes back, and the caller decides whether they
+ * become a zip, a folder in a bigger zip, or nothing.
+ *
+ * The set is the print artefact plus the two machine-and-person copies —
+ * `brand-book.pdf`, `strategy.md`, `strategy.json` — and a README written
+ * from THIS manifest, so it cannot name a file that is not in the bundle.
+ * `strategy.pdf` rides along too when the book could not be built: the
+ * strategy alone still deserves a designed document.
+ */
+/** What each file in the bundle is FOR — the README's own words. */
+const FILE_NOTES: Record<string, { label?: string; note?: string }> = {
+  'brand-book.pdf': {
+    label: 'The brand book',
+    note:
+      'The designed document: the mark and its clear space, the palette with the ' +
+      'numbers a printer asks for, the type as a scale, the voice, the strategy, ' +
+      'and the brand applied. Send this one.',
+  },
+  'strategy.pdf': {
+    label: 'The strategy, designed',
+    note: 'The written strategy as a document to send. Set in the brand’s own typeface.',
+  },
+  'strategy.md': {
+    label: 'The strategy, in full',
+    note:
+      'Every answer given in Setup, the notes beside them and the voice. Read it, ' +
+      'paste it into a brief, or hand it to an assistant as context.',
+  },
+  'strategy.json': {
+    label: 'The strategy, as data',
+    note:
+      'The same record with the stored ids AND the labels a person reads, so it can ' +
+      'be rendered without our vocabulary and written back without guessing.',
+  },
+};
+
+export type StrategyBundle = {
+  files: ExportFile[];
+  /** Anything asked for and not included, with the reason. Never silent. */
+  skipped: KitManifestSkip[];
+};
+
+const TEXT = 'text/markdown;charset=utf-8';
+
+export async function buildStrategyBundle(
+  brand: MockBrand,
+  sourceBrand?: Brand,
+  opts: { signal?: AbortSignal } = {},
+): Promise<StrategyBundle> {
+  const files: ExportFile[] = [];
+  const skipped: KitManifestSkip[] = [];
+
+  files.push({
+    path: 'strategy.md',
+    blob: new Blob([buildStrategyMarkdown(brand)], { type: TEXT }),
+  });
+  files.push({
+    path: 'strategy.json',
+    blob: new Blob([buildStrategyJson(brand)], { type: 'application/json;charset=utf-8' }),
+  });
+
+  // The book is the reason this download exists, and it is also the one
+  // part that can fail — it renders four applications through the whole
+  // template library. A failure costs the book, never the bundle.
+  let book = false;
+  try {
+    const { buildBrandBook } = await import('./brandBook');
+    const built = await buildBrandBook(brand, sourceBrand, { signal: opts.signal });
+    files.push({ path: 'brand-book.pdf', blob: built.blob });
+    skipped.push(...built.skipped.map((s) => ({ label: s.label, reason: s.reason })));
+    book = true;
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+    skipped.push({
+      label: 'Brand book',
+      reason: err instanceof Error ? err.message : 'the document could not be built',
+    });
+  }
+
+  if (!book) {
+    try {
+      files.push({
+        path: 'strategy.pdf',
+        blob: await buildStrategyPdf(brand, sourceBrand, { signal: opts.signal }),
+      });
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'ExportCancelled') throw err;
+      skipped.push({
+        label: 'Strategy PDF',
+        reason: err instanceof Error ? err.message : 'the document could not be built',
+      });
+    }
+  }
+
+  files.push(
+    buildKitReadmeFile(
+      brand,
+      {
+        title: `${brand.name} — Brand strategy`,
+        files: [
+          { path: 'README.md', label: 'This file' },
+          ...files.map((f) => ({ path: f.path, ...FILE_NOTES[f.path] })),
+        ],
+        skipped,
+        generatedAt: new Date(),
+      },
+      'README.md',
+    ),
+  );
+
+  return { files, skipped };
+}
+
+/**
+ * The Strategy card's ⬇ — the bundle, zipped and handed over.
+ *
+ * Returns what it skipped so the caller can say so out loud; a download
+ * that quietly leaves out the book is a download that lied.
+ */
+export async function downloadStrategyBundle(
+  brand: MockBrand,
+  sourceBrand?: Brand,
+  opts: { signal?: AbortSignal } = {},
+): Promise<KitManifestSkip[]> {
+  const { files, skipped } = await buildStrategyBundle(brand, sourceBrand, opts);
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  for (const file of files) zipAdd(zip as unknown as ZipFolder, file.path, file.blob);
+  const blob = await zip.generateAsync({ type: 'blob' });
+  triggerBlobDownload(blob, `${slugify(brand.name) || 'brand'}-strategy.zip`);
+  return skipped;
 }

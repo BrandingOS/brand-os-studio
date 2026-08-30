@@ -114,7 +114,11 @@ export function TileActions({
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open !== 'more') return;
+    // BOTH menus, not just the ⋯ one. The drilldown's own Escape listener
+    // is on `window`, which is reached AFTER `document` in the bubble
+    // phase — so stopping propagation here is what makes Escape peel one
+    // layer instead of closing the menu and the whole drilldown at once.
+    if (!open) return;
     const onDoc = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
     };
@@ -139,10 +143,23 @@ export function TileActions({
     <div
       ref={rootRef}
       className="bk-tile-actions"
-      // The tile is a role="button"; a click on an action is not a click on
-      // the tile, and a keypress here must not open the tile either.
+      // A click on an action is not a click on the tile, and Enter/Space
+      // here must not open the tile either.
       onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // Escape is handled HERE rather than swallowed. React attaches its
+        // listener at the root container, so `stopPropagation` on a
+        // synthetic event stops the NATIVE event too — an unconditional
+        // stop meant the document-level Escape handler below never ran and
+        // the menu stayed open under a key press that closed nothing.
+        if (e.key === 'Escape') {
+          if (!open) return; // nothing of ours to peel — let the drilldown close
+          e.stopPropagation();
+          setOpen(null);
+          return;
+        }
+        e.stopPropagation();
+      }}
     >
       {onDownload && downloadOptions && downloadOptions.length > 0 && (
         <button

@@ -125,9 +125,24 @@ function ScaledArtwork({
 
   return (
     <div ref={hostRef} className="bk-cover-stage" aria-hidden>
+      {/*
+        Centred by TRANSLATION, never by layout alignment. The stage is an
+        `overflow: hidden` box and the artwork is routinely bigger than it
+        (a 9:16 story is 260×462 inside a 333×207 card), and CSS treats
+        alignment that overflows a scroll container as "safe" — it silently
+        falls back to `start` rather than let content escape the scroll
+        origin (CLAUDE.md, "Centering overflow content"). A `place-items:
+        center` stage therefore laid the story out at the TOP and then
+        scaled about its own middle, dropping the artwork 129px down its
+        own card and clipping the bottom off every square cover.
+      */}
       <div
         className="bk-cover-stage-inner"
-        style={{ width: CANONICAL_WIDTH, height, transform: `scale(${scale})` }}
+        style={{
+          width: CANONICAL_WIDTH,
+          height,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+        }}
       >
         {children}
       </div>
@@ -247,7 +262,7 @@ function TypeCover({ brand, sourceBrand }: { brand: MockBrand; sourceBrand?: Bra
  * in neither shape, so a cover shows the icons it really has.
  */
 const FLATICON_RR_LOOKUP = new Set(FLATICON_RR_NAMES);
-export function iconClassFor(value: string): string | null {
+function iconClassFor(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
   if (/^fi-(rr|br|sr|rs|bs|ss|tr|ts|brands)-[a-z0-9-]+$/i.test(trimmed)) return trimmed;

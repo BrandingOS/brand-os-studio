@@ -350,3 +350,114 @@ describe('buildSwatchSvg', () => {
     expect(Array.from(doc.querySelectorAll('text')).map((t) => t.textContent)).toContain('A & <B>');
   });
 });
+
+/* ─── Read back by a real reader ───────────────────────────────────── */
+
+/**
+ * The three text formats above are asserted by substring, which proves
+ * the bytes are present and nothing about whether a build can consume
+ * them. These read them back the way their consumer does:
+ *
+ *  • the CSS through **postcss**, the parser the app's own pipeline uses;
+ *  • the Tailwind snippet by **evaluating it as a CommonJS module**, which
+ *    is exactly what `tailwind.config.js` does with it;
+ *  • the SCSS by resolving `$brand-colors` against the variables the file
+ *    itself declares — a map pointing at an undeclared variable is a
+ *    compile error, and a substring match cannot see one.
+ */
+describe('the token files, parsed back', () => {
+  const names = tokenNames(RAQM);
+
+  it('postcss parses the CSS into one :root block whose every value is a colour', async () => {
+    const { default: postcss } = await import('postcss');
+    const root = postcss.parse(buildCssVariables(RAQM, 'Raqm'));
+    const rules = root.nodes.filter((n) => n.type === 'rule');
+    expect(rules).toHaveLength(1);
+    const rule = rules[0] as import('postcss').Rule;
+    expect(rule.selector).toBe(':root');
+
+    const decls = new Map<string, string>();
+    rule.walkDecls((d) => {
+      decls.set(d.prop, d.value);
+    });
+    // Every declaration is a custom property — nothing leaks into the
+    // consumer's own cascade.
+    for (const prop of decls.keys()) expect(prop.startsWith('--brand-')).toBe(true);
+
+    for (const [i, c] of RAQM.entries()) {
+      expect(decls.get(`--brand-${names[i]}`)).toBe(normalizeHex(c.hex));
+      expect(decls.get(`--brand-${names[i]}-rgb`)).toMatch(/^\d{1,3}, \d{1,3}, \d{1,3}$/);
+      for (const row of buildShadeRows(c.hex, c.name)) {
+        expect(decls.get(`--brand-${names[i]}-${row.step}`)).toBe(normalizeHex(row.hex));
+      }
+    }
+
+    // Every alias RESOLVES: it points at a property this same file declares,
+    // and that property holds the colour the alias claims.
+    const aliases = [...decls].filter(([, v]) => v.startsWith('var('));
+    expect(aliases.length).toBeGreaterThan(0);
+    for (const [prop, value] of aliases) {
+      const target = /^var\((--[a-z0-9-]+)\)$/.exec(value)?.[1];
+      expect(target).toBeTruthy();
+      expect(decls.has(target!)).toBe(true);
+      expect(decls.get(target!)).toMatch(/^#[0-9A-F]{6}$/);
+      const role = prop.replace('--brand-', '');
+      const owner = RAQM.find((c) => slugifyRole(c.role) === role);
+      expect(owner).toBeTruthy();
+      expect(decls.get(target!)).toBe(normalizeHex(owner!.hex));
+    }
+  });
+
+  it('the Tailwind snippet evaluates to a real theme.extend.colors object', () => {
+    const mod: { exports: Record<string, any> } = { exports: {} };
+    new Function('module', 'exports', buildTailwindConfig(RAQM, 'Raqm'))(mod, mod.exports);
+    const colors = mod.exports.theme.extend.colors as Record<string, Record<string, string>>;
+    expect(Object.keys(colors)).toEqual(names);
+    for (const [i, c] of RAQM.entries()) {
+      const entry = colors[names[i]];
+      expect(entry.DEFAULT).toBe(normalizeHex(c.hex));
+      const rows = buildShadeRows(c.hex, c.name);
+      expect(Object.keys(entry).filter((k) => k !== 'DEFAULT')).toEqual(
+        rows.map((r) => String(r.step)),
+      );
+      for (const row of rows) expect(entry[String(row.step)]).toBe(normalizeHex(row.hex));
+      // The rung that IS the brand colour agrees with DEFAULT — a
+      // Tailwind user reaching for `bg-iris-500` and `bg-iris` must not
+      // get two different violets.
+      const base = rows.find((r) => r.isBase)!;
+      expect(entry[String(base.step)]).toBe(entry.DEFAULT);
+    }
+  });
+
+  it('every $brand-colors entry resolves to a variable the SCSS declares', () => {
+    const scss = buildScssVariables(RAQM, 'Raqm');
+    const body = scss
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n');
+    const declared = new Map<string, string>();
+    for (const m of body.matchAll(/^\$([a-z0-9-]+):\s*([^;]+);$/gm)) {
+      declared.set(m[1], m[2].trim());
+    }
+    for (const [i, c] of RAQM.entries()) {
+      expect(declared.get(`brand-${names[i]}`)).toBe(normalizeHex(c.hex));
+    }
+
+    const map = /\$brand-colors:\s*\(([\s\S]*?)\);/.exec(body)?.[1];
+    expect(map).toBeTruthy();
+    const pairs = [...map!.matchAll(/"([^"]+)":\s*\$([a-z0-9-]+),/g)].map((m) => [m[1], m[2]]);
+    expect(pairs.map(([k]) => k)).toEqual(names);
+    for (const [key, ref] of pairs) {
+      // The reference must exist — an unresolved `$brand-x` is a sass
+      // compile error, not a cosmetic one.
+      expect(declared.has(ref)).toBe(true);
+      const owner = RAQM[names.indexOf(key)];
+      expect(declared.get(ref)).toBe(normalizeHex(owner.hex));
+    }
+  });
+});
+
+/** The same slug the builder gives a role, for the alias assertions. */
+function slugifyRole(role: string): string {
+  return role.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+}

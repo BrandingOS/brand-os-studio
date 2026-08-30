@@ -3128,14 +3128,17 @@
 [data-workspace] .bk-cover-stage {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
   overflow: hidden;
   background: var(--ds-surface-subtle);
 }
+/* Pinned to the stage's centre and pulled back by half of itself, so the
+   scale happens around a point that is really the middle. Layout
+   alignment cannot do this here — see the comment in `ScaledArtwork`. */
 [data-workspace] .bk-cover-stage-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   transform-origin: center center;
-  flex: none;
 }
 
 /* Every composed brand-asset cover fills the card. */
@@ -3242,6 +3245,9 @@
 }
 
 [data-workspace] .bk-cover-art--photo {
+  /* A photograph can be a near-white texture; give it the kit's own
+     surface underneath so it reads as a card rather than a hole. */
+  background-color: var(--ds-surface-subtle);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -3274,4 +3280,117 @@
 [data-workspace] .bk-cover-empty-note {
   font-size: 12px;
   letter-spacing: -0.005em;
+}
+
+/* ─── Variant tile actions ────────────────────────────────────────
+   What you can do to ONE design, from the design itself. Before this a
+   tile was a single click into the editor plus a two-item right-click
+   menu on the few families wired to Design; downloading the design you
+   were actually looking at went through the CARD, which acted on its
+   FIRST variant instead (`.audit/OURS.md` D53).
+
+   The cluster is a SIBLING of the tile, inside `.bk-variant-card`. The
+   tile is a `<button>` — a button inside a button is not a button — and
+   it clips its own overflow, so a menu mounted inside it could never
+   escape. Hover therefore belongs to the CARD, so reaching for an action
+   raises the tile too and the two read as one thing (the same rule the
+   dashboard's card menu keeps).
+   ────────────────────────────────────────────────────────────────── */
+
+[data-workspace] .bk-variant-card {
+  position: relative;
+}
+[data-workspace] .bk-variant-card:hover .bk-variant-tile,
+[data-workspace] .bk-variant-card:focus-within .bk-variant-tile {
+  box-shadow: var(--ds-shadow-md);
+  border-color: var(--ds-border-strong);
+}
+
+[data-workspace] .bk-tile-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition:
+    opacity 180ms var(--ds-ease),
+    transform 180ms var(--ds-ease);
+}
+/* Focus-within as well as hover: the actions have to be reachable with
+   Tab, and a control you can focus but cannot see is worse than none. */
+[data-workspace] .bk-variant-card:hover .bk-tile-actions,
+[data-workspace] .bk-variant-card:focus-within .bk-tile-actions,
+[data-workspace] .bk-tile-actions:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+[data-workspace] .bk-tile-action {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(17, 17, 20, 0.72);
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 180ms var(--ds-ease);
+}
+[data-workspace] .bk-tile-action:hover {
+  background: rgba(17, 17, 20, 0.92);
+}
+[data-workspace] .bk-tile-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+/* Both menus hang off the cluster, which is why it is the positioning
+   context. `DownloadMenu` is given its own anchor offsets in JS. */
+[data-workspace] .bk-tile-actions {
+  /* `position: absolute` above already establishes it — restated here so
+     the menu rules below cannot be read as depending on an ancestor. */
+  isolation: isolate;
+}
+[data-workspace] .bk-tile-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  z-index: 60;
+}
+
+/* ─── Drilldown filter row ────────────────────────────────────────
+   A library you can only scroll is a pile. The chips are the curation's
+   own tags, so a chip can only offer a word a designer really filed a
+   design under.
+   ────────────────────────────────────────────────────────────────── */
+
+[data-workspace] .bk-drilldown-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 8px;
+  margin: 0 0 20px;
+}
+[data-workspace] .bk-drilldown-search {
+  flex: 0 1 320px;
+  min-width: 200px;
+}
+[data-workspace] .bk-drilldown-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+[data-workspace] .bk-chip-count {
+  margin-left: 6px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
 }

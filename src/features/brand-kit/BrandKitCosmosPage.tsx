@@ -49,8 +49,17 @@ import {
 } from './components/BrandKitCardEditor';
 import { ExportKitDialog } from './components/ExportKitDialog';
 import type { DownloadChoice } from './components/DownloadMenu';
+import { downloadOptionsFor, type DownloadOption } from './data/exportFormats';
 import { IconPickerModal } from './components/IconPickerModal';
+import { ColorsEditor } from './components/assets/ColorsEditor';
+import { TypographyEditor } from './components/assets/TypographyEditor';
+import { IconsEditor } from './components/assets/IconsEditor';
+import { LogosEditor } from './components/assets/LogosEditor';
+import { PhotosEditor } from './components/assets/PhotosEditor';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
+import { TileActions, type TileMenuAction } from './components/TileActions';
+import { DsChip, DsInput } from '@/shared/ds';
+import { tagsFor } from './renderers/curation';
 import { getDeliverable, type DeliverableDef } from './kit/registry';
 import { variantsForCard } from './data/legacy-mapping';
 import { suggestIconsForBrand } from './data/suggestIcons';
@@ -138,6 +147,16 @@ const TILE_FADE_MS = 280;
 const MAX_DELAY_MS = 500;
 /** ms-per-pixel speed for the radial wipe. */
 const WIPE_SPEED = 0.4;
+
+/**
+ * The brand-asset cards that own a dedicated editor, by STORAGE label.
+ *
+ * These five are not templates and never were — editing them means
+ * editing the brand, so they open their own panel instead of the generic
+ * Quick Edit. `Fonts` (not `Typography`) because the catalog renames the
+ * card and a rename must never cost anyone their editor.
+ */
+const ASSET_EDITOR_LABELS = new Set(['Logos', 'Colors', 'Fonts', 'Icons', 'Photos']);
 
 export function BrandKitCosmosPage({
   brand,
@@ -256,7 +275,7 @@ export function BrandKitCosmosPage({
     return suggestIconsForBrand(text, 50);
   }, [brand, sourceBrand]);
 
-  const effectiveBrand = useMemo<MockBrand>(() => {
+  const baseBrand = useMemo<MockBrand>(() => {
     let next = brand;
     if (iconsOverride) {
       next = { ...next, icons: iconsOverride };
@@ -275,6 +294,35 @@ export function BrandKitCosmosPage({
     }
     return next;
   }, [brand, iconsOverride, suggestedIcons, colorAddsOverride]);
+
+  /**
+   * Which brand-asset editor is open, addressed by the card's STORAGE
+   * label (`Fonts`, not `Typography`) so a renamed card still opens the
+   * right one. `null` when none is.
+   *
+   * The five editors existed, were tested, and had no caller: the Edit
+   * pencil on Logos / Colors / Typography / Icons / Photos opened the
+   * generic Quick Edit over a stock cover instead, so the only way to
+   * change a brand's palette from the kit was to leave the kit.
+   */
+  const [assetEditor, setAssetEditor] = useState<string | null>(null);
+  /**
+   * The editor's live draft, shown by the kit BEHIND the open panel.
+   *
+   * It shadows `baseBrand` rather than replacing it: an editor writes for
+   * real through the Setup chain (`mockBrandToPatch` → `brandStore`), so
+   * once the panel closes the saved brand must be what paints. Keeping
+   * the draft would silently show an abandoned edit as the brand.
+   *
+   * The editors are fed `baseBrand`, never this — a preview that fed back
+   * into the editor's own seed would recompute the draft from the draft.
+   */
+  const [brandPreview, setBrandPreview] = useState<MockBrand | null>(null);
+  const closeAssetEditor = useCallback(() => {
+    setAssetEditor(null);
+    setBrandPreview(null);
+  }, []);
+  const effectiveBrand = brandPreview ?? baseBrand;
 
   const handleAddColor = useCallback(
     (group: 'core' | 'accent', hex: string) => {
@@ -1199,7 +1247,16 @@ export function BrandKitCosmosPage({
                     featuredIdsByLabel={featuredIdsByLabel}
                     savedContent={savedContent}
                     onPickCard={handlePickCard}
-                    onEditCard={(t) => setEditorTarget(t)}
+                    onEditCard={(t) => {
+                      // A brand asset has its own editor. Editing Colors
+                      // means editing the PALETTE, not retouching one
+                      // swatch tile's stock artwork.
+                      if (t.sectionKey === 'brand-assets' && ASSET_EDITOR_LABELS.has(t.label)) {
+                        setAssetEditor(t.label);
+                        return;
+                      }
+                      setEditorTarget(t);
+                    }}
                     onDownloadCard={handleDownloadCard}
                   />
                 </KitSection>
@@ -1229,6 +1286,20 @@ export function BrandKitCosmosPage({
                   }
                   onPickVariant={(template) =>
                     setEditorTarget({ ...drilldownTarget, template })
+                  }
+                  downloadOptions={targetEntry ? downloadOptionsFor(targetEntry) : undefined}
+                  onDownloadVariant={(template, choice) =>
+                    handleDownloadCard(drilldownTarget, choice, template.id)
+                  }
+                  onSetFeatured={
+                    PICKER_LABELS.has(drilldownTarget.label)
+                      ? (template) =>
+                          handleSetFeatured(
+                            drilldownTarget.label,
+                            template.id,
+                            drilldownTarget.templates,
+                          )
+                      : undefined
                   }
                   onAddIcon={() => setIconPickerOpen(true)}
                   onSetGlobalIconWeight={handleSetGlobalIconWeight}
@@ -1479,6 +1550,56 @@ export function BrandKitCosmosPage({
         entries={allEntries}
         onExport={handleExportChosen}
       />
+      {/* The brand-asset editors. Each writes to the BRAND through the
+          Setup chain and confirms first; `onBrandChange` is the live
+          preview, so the kit behind the panel repaints as you edit.
+
+          Mounted only while OPEN, never all five behind an `open` flag:
+          `PhotosEditor` builds an uploader from the DI container the
+          moment it renders, so five always-mounted panels would stand up
+          machinery nobody asked for — and take the whole page down on any
+          surface that has not booted the container. */}
+      {assetEditor !== null && (
+        <>
+          <LogosEditor
+            open={assetEditor === 'Logos'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          <ColorsEditor
+            open={assetEditor === 'Colors'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          <TypographyEditor
+            open={assetEditor === 'Fonts'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          <IconsEditor
+            open={assetEditor === 'Icons'}
+            onClose={closeAssetEditor}
+            brand={baseBrand}
+            sourceBrand={sourceBrand}
+            onBrandChange={setBrandPreview}
+          />
+          {assetEditor === 'Photos' && (
+            <PhotosEditor
+              open
+              onClose={closeAssetEditor}
+              brand={baseBrand}
+              sourceBrand={sourceBrand}
+              onBrandChange={setBrandPreview}
+            />
+          )}
+        </>
+      )}
       <IconPickerModal
         open={iconPickerOpen}
         selected={effectiveBrand.icons}
@@ -1569,6 +1690,14 @@ type DrilldownProps = {
    *  tuning) instead of a fresh independent instance. Gated identically
    *  to `onUseTemplate` — same deliverables, same content-type check. */
   onEditTemplate?: (template: BrandKitTemplate) => void;
+  /** Download ONE variant — the design under the cursor, never the card's
+   *  first. The page narrows its shared writer to this id. */
+  onDownloadVariant?: (template: BrandKitTemplate, choice: DownloadChoice) => void;
+  /** The five download words this card can honour. */
+  downloadOptions?: DownloadOption[];
+  /** Promote a variant to the card's face. Only offered where the card
+   *  really has a featured list to promote into. */
+  onSetFeatured?: (template: BrandKitTemplate) => void;
 };
 
 /**
@@ -1604,6 +1733,9 @@ function BrandKitDrilldown({
   onDownload,
   onUseTemplate,
   onEditTemplate,
+  onDownloadVariant,
+  downloadOptions,
+  onSetFeatured,
 }: DrilldownProps) {
   // Right-click menu for a variant tile — only ever populated when
   // `onUseTemplate` is provided, so cards without it never gain a
@@ -1686,6 +1818,134 @@ function BrandKitDrilldown({
     target.label,
     target.templates,
   ]);
+  /**
+   * Chips + search.
+   *
+   * A drilldown is a library, and a library you can only scroll is a pile.
+   * The tags are the curation's own (`renderers/curation`, one entry per
+   * kept design) — never invented here, so a chip can only ever offer a
+   * word some designer actually filed a design under. Search reads the
+   * NAME and the tags together: "invoice" and "minimal" are the same kind
+   * of question to someone looking for one.
+   */
+  const [query, setQuery] = useState('');
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+  // Reset when the drilldown swaps to another card — a chip from the last
+  // card would silently hide everything in this one.
+  useEffect(() => {
+    setQuery('');
+    setActiveTags([]);
+  }, [target.sectionKey, target.label]);
+
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tpl of templates) {
+      for (const tag of tagsFor(tpl.id)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    // Most-used first, then alphabetical, so the row is stable and the
+    // useful chips are the ones you reach first.
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [templates]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q && activeTags.length === 0) return templates;
+    return templates.filter((tpl) => {
+      const tags = tagsFor(tpl.id);
+      // Every chosen chip must hold — chips NARROW. Two chips meaning
+      // "either" would make the row useless the moment you pick a second.
+      if (activeTags.some((t) => !tags.includes(t))) return false;
+      if (!q) return true;
+      return (
+        tpl.name.toLowerCase().includes(q) || tags.some((t) => t.toLowerCase().includes(q))
+      );
+    });
+  }, [templates, query, activeTags]);
+
+  /**
+   * A chip has to index MORE THAN ONE design.
+   *
+   * A card showing its three featured designs has nine tags between them,
+   * every one of them unique — nine chips that each hide two of the three
+   * things on screen. That is a worse index than reading the names. So a
+   * tag earns a chip only when it groups something, and the row appears
+   * only when there is really a pile to sift.
+   */
+  const chips = useMemo(() => tagCounts.filter(([, n]) => n >= 2), [tagCounts]);
+  const filterable = chips.length > 0 || templates.length >= 6;
+
+  /**
+   * The ⋯ menu for one variant.
+   *
+   * Everything here acts on the design under the cursor. Before this the
+   * only per-variant route was a right-click offering two items on the few
+   * families wired to Design; the CARD's own actions silently acted on its
+   * FIRST variant instead (`.audit/OURS.md` D53).
+   *
+   * An action a family cannot honour is SHOWN AND DISABLED with the reason
+   * (spec §1), never hidden — a menu with one shape everywhere is a menu
+   * people learn once.
+   */
+  const canCopySvg = target.label === 'Logos' || target.label === 'Icons';
+  const tileActionsFor = useCallback(
+    (tpl: BrandKitTemplate): TileMenuAction[] => {
+      const out: TileMenuAction[] = [];
+      if (onUseTemplate) {
+        // Not every design in a wired family was retrofitted onto the
+        // content model; handing an unbound one to Design would give the
+        // user a properties panel over artwork that never changes.
+        const editable = rendererBindsContent(tpl);
+        const hint = editable ? undefined : NO_CONTENT_BINDING_REASON;
+        out.push({
+          label: 'Use Template',
+          onSelect: () => onUseTemplate(tpl),
+          disabledReason: hint,
+        });
+        if (onEditTemplate) {
+          out.push({
+            label: 'Edit Template',
+            onSelect: () => onEditTemplate(tpl),
+            disabledReason: hint,
+          });
+        }
+      }
+      if (onSetFeatured) {
+        out.push({
+          label: 'Set as featured',
+          onSelect: () => onSetFeatured(tpl),
+          separated: out.length > 0,
+        });
+      }
+      if (canCopySvg) {
+        out.push({
+          label: 'Copy SVG',
+          separated: out.length > 0,
+          // The tile paints the real renderer, so the vector on screen IS
+          // the vector to copy — no second export path to keep in step.
+          // A tile with no <svg> in it (an icon drawn from a webfont) has
+          // nothing to hand over, and says so rather than copying nothing.
+          onSelect: () => {
+            const svg = document
+              .querySelector(`.bk-variant-card[data-template-id="${CSS.escape(tpl.id)}"]`)
+              ?.querySelector('svg');
+            if (!svg) {
+              toast('Nothing to copy', {
+                description: `${tpl.name} is not drawn as a vector.`,
+              });
+              return;
+            }
+            navigator.clipboard
+              ?.writeText(svg.outerHTML)
+              .then(() => toast.success(`${tpl.name} SVG copied`))
+              .catch(() => toast.error('Could not copy the SVG'));
+          },
+        });
+      }
+      return out;
+    },
+    [onUseTemplate, onEditTemplate, onSetFeatured, canCopySvg],
+  );
+
   const hasTemplates = templates.length > 0;
 
   /**
@@ -2039,6 +2299,41 @@ function BrandKitDrilldown({
           )}
         </div>
       </div>
+      {!composed && hasTemplates && filterable && (
+        <div className="bk-drilldown-filter">
+          <DsInput
+            pill
+            type="search"
+            className="bk-drilldown-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${templates.length} ${(entry?.label ?? target.label).toLowerCase()} designs`}
+            aria-label={`Search ${entry?.label ?? target.label}`}
+          />
+          {chips.length > 0 && (
+            <div className="bk-drilldown-chips" role="group" aria-label="Filter by tag">
+              {chips.map(([tag, count]) => {
+                const on = activeTags.includes(tag);
+                return (
+                  <DsChip
+                    key={tag}
+                    active={on}
+                    aria-pressed={on}
+                    onClick={() =>
+                      setActiveTags((prev) =>
+                        prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+                      )
+                    }
+                  >
+                    {tag}
+                    <span className="bk-chip-count">{count}</span>
+                  </DsChip>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       {composed ?? (
       <div
         className="bk-drilldown-grid"
@@ -2052,8 +2347,23 @@ function BrandKitDrilldown({
         }
       >
         {hasTemplates ? (
-          templates.map((tpl) => (
-            <figure key={tpl.id} className="bk-variant-card">
+          visible.length === 0 ? (
+            // Filtered to nothing. Say so, and offer the way back — a grid
+            // that simply empties looks broken rather than filtered.
+            <button
+              type="button"
+              className="bk-drilldown-empty"
+              onClick={() => {
+                setQuery('');
+                setActiveTags([]);
+              }}
+            >
+              <span className="bk-drilldown-empty-title">No design matches that</span>
+              <span className="bk-drilldown-empty-sub">Clear the search and chips</span>
+            </button>
+          ) : (
+          visible.map((tpl) => (
+            <figure key={tpl.id} className="bk-variant-card" data-template-id={tpl.id}>
               <button
                 type="button"
                 className="bk-variant-tile"
@@ -2074,9 +2384,24 @@ function BrandKitDrilldown({
                   />
                 )}
               </button>
+              {/* A SIBLING of the tile, not a child: the tile is a <button>
+                  and a button inside a button is not a button, and the tile
+                  clips its own overflow so a menu inside it could not
+                  escape. The card holds both, and hovering either raises
+                  the pair (`.bk-variant-card:hover`). */}
+              <TileActions
+                name={tpl.name}
+                downloadOptions={downloadOptions}
+                onDownload={
+                  onDownloadVariant ? (choice) => onDownloadVariant(tpl, choice) : undefined
+                }
+                onEdit={() => onPickVariant(tpl)}
+                actions={tileActionsFor(tpl)}
+              />
               <figcaption className="bk-variant-label">{tpl.name}</figcaption>
             </figure>
           ))
+          )
         ) : isIcons && onAddIcon ? (
           // Icons drilldown empty state — the brand has no icons yet,
           // so the placeholder grid would just be 12 misleading boxes.

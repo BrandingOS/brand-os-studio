@@ -67,13 +67,13 @@ const TREATMENTS: Array<{ id: LogoTreatment; label: string; hex: string; hint: s
     id: 'black',
     label: 'Black cut',
     hex: '#000000',
-    hint: 'For light grounds no coloured variant reads on',
+    hint: 'Light grounds',
   },
   {
     id: 'white',
     label: 'White cut',
     hex: '#FFFFFF',
-    hint: 'For dark grounds no coloured variant reads on',
+    hint: 'Dark grounds',
   },
 ];
 
@@ -156,20 +156,24 @@ function boardFromRows(logos: BrandLogo[], rows: Row[]): BrandLogo[] {
  *  `<img>`; a true vector is inlined with Setup's preview ground stripped, so
  *  the row shows the drawing rather than a grey square. */
 function LogoThumb({ logo }: { logo: BrandLogo | undefined }) {
-  const url = logo ? extractWrappedImageUrl(logo.svg) : null;
   if (!logo) return <span className="bka-logos-thumb" />;
-  if (url) {
-    return (
-      <span className="bka-logos-thumb">
-        <img src={url} alt="" />
-      </span>
-    );
-  }
+  const url = extractWrappedImageUrl(logo.svg);
+  // The well follows the artwork's own GROUND, which is what `variant` records
+  // — the On-dark tile holds light artwork, and on the panel's ordinary
+  // surface it was a blank box. Same rule the Library grid keeps in
+  // `folders/artworkTone.ts`: the artwork is fixed, so the background moves.
+  const dark = logo.variant === 'dark';
   return (
-    <span
-      className="bka-logos-thumb"
-      dangerouslySetInnerHTML={{ __html: stripLogoBackground(logo.svg) }}
-    />
+    <span className="bka-logos-thumb" data-tone={dark ? 'dark' : 'light'}>
+      {url ? (
+        <img src={url} alt="" />
+      ) : (
+        <span
+          className="bka-logos-thumb-art"
+          dangerouslySetInnerHTML={{ __html: stripLogoBackground(logo.svg) }}
+        />
+      )}
+    </span>
   );
 }
 
@@ -239,9 +243,21 @@ export function LogosEditor({
     [system],
   );
 
-  /** What each OFFERED ground gets, whether or not it is currently on. */
+  /**
+   * What each OFFERED ground gets, whether or not it is currently on.
+   *
+   * The FIRST tile on a ground, not the last: a ground can carry a pairing and
+   * a mono treatment, and `logoCombosFor` emits every pairing before any
+   * treatment. Reading the last one told a brand whose blue lockup reads at
+   * 11:1 on white that white carries "Black · 21.0:1" — true of a tile on that
+   * ground, and not the answer to "what goes here".
+   */
   const groundState = useMemo(() => {
-    const byHex = new Map(placed.map((t) => [t.bg.hex.toLowerCase(), t]));
+    const byHex = new Map<string, (typeof placed)[number]>();
+    for (const t of placed) {
+      const key = t.bg.hex.toLowerCase();
+      if (!byHex.has(key)) byHex.set(key, t);
+    }
     return offered.map((g) => ({ ground: g, tile: byHex.get(g.hex.toLowerCase()) }));
   }, [offered, placed]);
 
@@ -469,7 +485,10 @@ export function LogosEditor({
                     <span className="bka-logos-meta">
                       <span className="bka-logos-ground-name">{t.label}</span>
                       <span className="bka-logos-sub">
-                        {on ? `${t.hint} — used on ${used}` : 'Not offered'}
+                        {/* The section's own line already says what a
+                            treatment is FOR; a row that repeated it was
+                            ellipsised into nonsense at panel width. */}
+                        {on ? `${t.hint} · used on ${used}` : 'Not offered'}
                       </span>
                     </span>
                   </li>

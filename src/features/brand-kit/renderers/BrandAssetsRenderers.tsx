@@ -465,13 +465,20 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
       </span>
       {/* The stretch tile has to SHOW a stretched logo. Clipping it at the
           frame edge reads as a broken export rather than as the mistake being
-          named, so the artwork is laid out narrow enough that 1.5× still
-          lands inside the tile, and nothing is hidden. */}
-      <span style={{ height: 46, width: stretched ? '44%' : '64%', display: 'block' }}>
+          named, so the artwork is laid out narrow enough that the stretch
+          still lands inside the tile, and nothing is hidden.
+          1.5× was not enough to READ as a mistake on a wordmark: on Raqm the
+          distorted lockup and the tile beside it came out the same width, so
+          the tile that says "never stretch" looked like a logo. A round mark
+          gave it away and a wide one hid it, which is the wrong way round —
+          the wordmark is the case a reader has to be shown. 1.85× over a
+          narrower box is unmistakable and still clears the 12% padding
+          (40% × 1.85 = 74% of the content box). */}
+      <span style={{ height: 46, width: stretched ? '40%' : '64%', display: 'block' }}>
         <LogoArt
           logo={logo}
           recolor={tile.recolor}
-          style={stretched ? { transform: 'scaleX(1.5)', transformOrigin: 'center' } : undefined}
+          style={stretched ? { transform: 'scaleX(1.85)', transformOrigin: 'center' } : undefined}
         />
       </span>
       {caption(tile.note ?? '')}
@@ -532,12 +539,24 @@ export function BrandAssetColorRenderer({ brand, templateIndex }: Props) {
 }
 
 /** Short code for a WCAG level — a matrix cell has ~40px, a pair chip
- *  half that, so the level travels as a code rather than a sentence. */
+ *  half that, so the level travels as a code rather than a sentence.
+ *
+ *  "AA Large" was abbreviated `18` (for 18pt) and read, on the tile, as a
+ *  bare number beside three letter-codes: nothing on the swatch said what
+ *  it counted. `AA18` keeps the size hint and is still legibly a WCAG
+ *  level; the full words ride along in every chip's `title`. */
 function levelCode(level: WcagLevel): string {
   if (level === 'AAA') return 'AAA';
   if (level === 'AA') return 'AA';
-  if (level === 'AA Large') return '18';
+  if (level === 'AA Large') return 'AA18';
   return '×';
+}
+
+/** The level as a sentence, for the tooltip. */
+function levelWords(level: WcagLevel): string {
+  if (level === 'AA Large') return 'AA for large text only (24px+)';
+  if (level === 'Fail') return 'fails WCAG';
+  return `${level} for body text`;
 }
 
 /**
@@ -613,8 +632,18 @@ function ColorSwatchTile({
             {color.role}
           </span>
           <span style={{ display: 'flex', gap: 4 }}>
-            <ContrastPill ground="#FFFFFF" ink="#111113" level={report.onWhite.level} />
-            <ContrastPill ground="#111113" ink="#FFFFFF" level={report.onBlack.level} />
+            <ContrastPill
+              ground="#FFFFFF"
+              ink="#111113"
+              level={report.onWhite.level}
+              title={`${color.name} on white — ${report.onWhite.ratio.toFixed(2)}:1, ${levelWords(report.onWhite.level)}`}
+            />
+            <ContrastPill
+              ground="#111113"
+              ink="#FFFFFF"
+              level={report.onBlack.level}
+              title={`${color.name} on black — ${report.onBlack.ratio.toFixed(2)}:1, ${levelWords(report.onBlack.level)}`}
+            />
           </span>
         </div>
         {others.length > 0 ? <PairsRow ground={hex} fg={fg} others={others} /> : null}
@@ -709,7 +738,7 @@ function PairsRow({
         return (
           <span
             key={`${other.name}-${otherHex}`}
-            title={`${other.name} on this colour — ${level}`}
+            title={`${other.name} on this colour — ${levelWords(level)}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -747,13 +776,16 @@ function ContrastPill({
   ground,
   ink,
   level,
+  title,
 }: {
   ground: string;
   ink: string;
   level: WcagLevel;
+  title?: string;
 }) {
   return (
     <span
+      title={title}
       style={{
         backgroundColor: ground,
         color: ink,
@@ -928,7 +960,7 @@ function ColorContrastMatrixTile({ colors }: { colors: PaletteColor[] }) {
                 <span
                   key={`c-${row.name}-${col.name}`}
                   style={{ ...cell, backgroundColor: rowHex, borderRadius: 2 }}
-                  title={`${col.name} on ${row.name}`}
+                  title={`${col.name} on ${row.name} — ${same ? 'the same colour' : levelWords(level)}`}
                 >
                   <span
                     style={{

@@ -841,14 +841,26 @@
   color: var(--ds-text-secondary);
 }
 
-.bka-logos-list,
-.bka-logos-grounds {
+.bka-logos-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Two columns. A brand carries up to seven grounds and two cuts, and one
+   column of them pushed the panel past the modal's own max-height — so the
+   Save button sat below a scroll on a panel whose whole point is that you can
+   see the change before you commit it. */
+.bka-logos-grounds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 14px;
 }
 
 .bka-logos-row,
@@ -880,6 +892,20 @@
   overflow: hidden;
   padding: 4px;
   box-sizing: border-box;
+}
+
+/* Light artwork was drawn for a dark ground, and on the panel's own surface
+   it is a blank box. */
+.bka-logos-thumb[data-tone='dark'] {
+  background: var(--ds-text);
+}
+
+.bka-logos-thumb-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .bka-logos-thumb img,

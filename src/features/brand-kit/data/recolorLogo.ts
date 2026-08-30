@@ -259,6 +259,60 @@ export type LogoTile = {
 };
 
 /**
+ * The order a guideline names its variants in when more than one reads on a
+ * ground.
+ *
+ * Contrast alone decided this, and on every brand measured the answer was a
+ * mono cut: black beats a brand colour on white, white beats it on ink, and
+ * the coloured logo — the brand's actual face — appeared nowhere on the wall
+ * except in the Originals row. Raqm's violet lockup reads at 5.9:1 on white
+ * and was shown as a black one; SKAM's red mark reads at 3.8:1 on white and
+ * was shown as a black one. A brand kit whose logo wall is monochrome has
+ * answered the question "what is most legible" instead of "what is the logo".
+ *
+ * So priority decides and contrast only VETOES — the same shape as
+ * `shared/brand/logoOnBackground.ts`'s `variantsInPriorityOrder`, which is
+ * where this rule already lives for the dashboard card. Nothing below the
+ * floor is promoted, so the veto is never overruled.
+ */
+const PAIRING_PRIORITY: ReadonlyArray<string> = [
+  'primary',
+  'secondary',
+  'wordmark',
+  'iconmark',
+  'horizontal',
+  'stacked',
+  'mono.black',
+  'mono.white',
+];
+
+/** Lower is preferred. A role the vocabulary does not know sorts last. */
+function pairingRank(role: string | undefined): number {
+  const at = PAIRING_PRIORITY.indexOf(role ?? '');
+  return at < 0 ? PAIRING_PRIORITY.length : at;
+}
+
+/**
+ * The ratio a variant has to clear before its NAME is allowed to outrank its
+ * legibility.
+ *
+ * `MIN_PAIRING_CONTRAST` is the line below which a pairing is not published at
+ * all; this is the line above which a pairing is comfortable enough that
+ * choosing between two of them becomes a question of which logo the brand
+ * meant. Straight priority, with only the 3:1 veto, promoted Raqm's violet
+ * lockup onto turquoise at 3.15:1 and onto near-black at 3.34:1 — legal, and
+ * both of them wince. 4.5:1 is the number the rest of this codebase already
+ * calls readable (`isPaletteReadable`, the contrast guards, WCAG for body
+ * text), so it is one line rather than a fourth.
+ *
+ * Below it, contrast decides again, which is why SKAM — whose red reads on
+ * white at only 3.8:1 and which owns a black cut for exactly that case —
+ * keeps its black lockup on white, while its red one takes the black ground
+ * it reads on at 5.6:1.
+ */
+export const COMFORTABLE_PAIRING_CONTRAST = 4.5;
+
+/**
  * Roles that are the SAME DRAWING as another logo, in one flat colour.
  *
  * A mono cut is not a second logo — it is the logo, redrawn in black or in
@@ -462,12 +516,23 @@ export function logoCombosFor(brand: ComboBrand): LogoTile[] {
      best on it. Anything below the floor is simply not offered. */
   const pairedInk = new Map<string, string>();
   for (const ground of grounds) {
-    let best: { index: number; ratio: number } | undefined;
-    logos.forEach((_, index) => {
+    let best: { index: number; ratio: number; rank: number } | undefined;
+    logos.forEach((logo, index) => {
       const ratio = contrastRatio(inks[index], ground.hex);
-      if (!best || ratio > best.ratio) best = { index, ratio };
+      // The veto comes first: a variant that cannot be seen is not a
+      // candidate, whatever it is called.
+      if (ratio < MIN_PAIRING_CONTRAST) return;
+      // A variant that is merely legal does not get to win on its name: below
+      // the comfort line every candidate ranks the same and contrast decides.
+      const rank =
+        ratio >= COMFORTABLE_PAIRING_CONTRAST
+          ? pairingRank(logo.role)
+          : PAIRING_PRIORITY.length + 1;
+      if (!best || rank < best.rank || (rank === best.rank && ratio > best.ratio)) {
+        best = { index, ratio, rank };
+      }
     });
-    if (!best || best.ratio < MIN_PAIRING_CONTRAST) continue;
+    if (!best) continue;
     const logo = logos[best.index];
     pairedInk.set(ground.hex, inks[best.index]);
     push({
@@ -495,6 +560,18 @@ export function logoCombosFor(brand: ComboBrand): LogoTile[] {
     const cut = candidates[0];
     if (!cut) continue;
     if (colorsMatch(pairedInk.get(ground.hex) ?? '', cut.hex)) continue;
+    // The brand OWNS artwork in this ink and it reads here. A tile drawn by
+    // flat-filling the primary silhouette would then be a second, generated
+    // copy of a variant the brand already holds — captioned as a treatment,
+    // which is exactly the wrong thing to say about a file someone uploaded.
+    // (Before the pairing walk preferred the coloured variant this could not
+    // happen, because the mono variant always won the ground outright.)
+    const ownsCut = logos.some(
+      (_, i) =>
+        colorsMatch(inks[i], cut.hex) &&
+        contrastRatio(inks[i], ground.hex) >= MIN_PAIRING_CONTRAST,
+    );
+    if (ownsCut) continue;
     push({
       logoLabel: primary.label,
       mark: { hex: cut.hex, name: cut.name },

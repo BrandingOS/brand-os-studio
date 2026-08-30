@@ -21,6 +21,7 @@ import {
   normalizeHex,
   paletteFromMockBrand,
   roleForColor,
+  rolesForPalette,
   slugify,
   usageProportions,
   wcagLevel,
@@ -125,6 +126,69 @@ describe('roleForColor / paletteFromMockBrand — a role is what a colour DOES',
     const full = paletteFromMockBrand(brand, { includeNeutrals: true });
     expect(full).toHaveLength(5);
     expect(full.slice(3).every((c) => c.role === 'Neutral')).toBe(true);
+  });
+});
+
+describe('rolesForPalette — the seats a palette has only one of', () => {
+  const core = (...hexes: string[]) => hexes.map((hex) => ({ hex, bucket: 'core' as const }));
+
+  it('never prints the same Background twice (Raqm, measured)', () => {
+    // core[2] #FAFAFA and core[3] #E5E5E5 are BOTH near-white, so the
+    // per-colour rule called both of them Background and the drilldown
+    // showed two grounds.
+    expect(
+      rolesForPalette(core('#7231FF', '#00D4AA', '#FAFAFA', '#E5E5E5', '#8A8A8A', '#0A0A0F')),
+    ).toEqual(['Primary', 'Secondary', 'Background', 'Neutral', 'Neutral', 'Neutral']);
+  });
+
+  it('never calls a pure white the Secondary (SKAM, measured)', () => {
+    // #FFFFFF sat at core[1], so position alone named it Secondary —
+    // the same defect as "Core 4", in a nicer word.
+    expect(rolesForPalette(core('#EF4444', '#FFFFFF', '#000000', '#222222', '#94938E'))).toEqual([
+      'Primary',
+      'Background',
+      'Neutral',
+      'Neutral',
+      'Neutral',
+    ]);
+  });
+
+  it('keeps a real Secondary when the brand has one', () => {
+    expect(rolesForPalette(core('#7231FF', '#00D4AA'))).toEqual(['Primary', 'Secondary']);
+  });
+
+  it('holds at most one Primary, Secondary and Background, and any number of the rest', () => {
+    const roles = rolesForPalette([
+      ...core('#7231FF', '#00D4AA', '#FAFAFA', '#F0F0F0', '#3A3A3A', '#111111'),
+      { hex: '#F59E0B', bucket: 'accent' },
+      { hex: '#EC4899', bucket: 'accent' },
+      { hex: '#CCCCCC', bucket: 'grey' },
+    ]);
+    for (const seat of ['Primary', 'Secondary', 'Background'] as const) {
+      expect(roles.filter((r) => r === seat).length).toBeLessThanOrEqual(1);
+    }
+    expect(roles.filter((r) => r === 'Accent').length).toBe(2);
+    expect(roles.at(-1)).toBe('Neutral');
+    for (const r of roles) expect(PALETTE_ROLES).toContain(r);
+  });
+
+  it('is what paletteFromMockBrand prints, so the tiles and the panel agree', () => {
+    const brand = {
+      colors: {
+        core: [
+          { hex: '#EF4444', name: 'Rose' },
+          { hex: '#FFFFFF', name: 'White' },
+          { hex: '#000000', name: 'Black' },
+        ],
+        accent: [],
+        grey: [],
+      },
+    } as never;
+    expect(paletteFromMockBrand(brand).map((c) => c.role)).toEqual([
+      'Primary',
+      'Background',
+      'Neutral',
+    ]);
   });
 });
 

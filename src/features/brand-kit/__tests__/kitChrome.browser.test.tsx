@@ -15,12 +15,25 @@
  *     nothing, the type specimen ran into the family names, and the
  *     strategy line painted past the card's own edge.
  */
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { page } from '@vitest/browser/context';
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { mockBrand, type MockBrand } from '@/features/setup/data/mockBrand';
 import { BrandKitCosmosPage } from '../BrandKitCosmosPage';
+
+/**
+ * `PhotosEditor` builds an uploader from the DI container the moment it
+ * renders, and no test boots the container. Stubbed at the same module
+ * boundary its own suite uses — what is under test here is that the kit
+ * OPENS the right panel, not how the canonical picker collects a file.
+ */
+vi.mock('@/shared/assets/useAssetUpload', () => ({
+  useAssetUpload: () => ({ uploading: false, upload: () => Promise.resolve(null) }),
+}));
+vi.mock('@/shared/upload/AssetSourcePopover', () => ({
+  AssetSourcePopover: ({ trigger }: { trigger: React.ReactNode }) => <>{trigger}</>,
+}));
 
 const brand: MockBrand = {
   ...mockBrand,
@@ -161,8 +174,9 @@ describe('the composed covers are legible', () => {
     for (const i of icons) {
       expect(Number.parseFloat(getComputedStyle(i).fontSize)).toBeGreaterThanOrEqual(20);
       // The reported defect was "the icon font isn't loaded in the cover's
-      // scope" — so the cover must really be painting with UICONS...
-      expect(getComputedStyle(i).fontFamily.toLowerCase()).toContain('uicons');
+      // scope". UICONS paints through `::before`, so that is where both the
+      // font and the glyph have to be real...
+      expect(getComputedStyle(i, '::before').fontFamily.toLowerCase()).toContain('uicons');
       // ...and the class must name a glyph that exists. `brand.icons` holds
       // bare names too, and `class="fi camera"` names nothing at all.
       const content = getComputedStyle(i, '::before').content;
@@ -184,5 +198,58 @@ describe('the composed covers are legible', () => {
     // It is clamped, not merely lucky about this brand's wording.
     expect(getComputedStyle(quote).webkitLineClamp).toBe('4');
     expect(getComputedStyle(quote).overflow).toBe('hidden');
+  });
+});
+
+describe('a brand asset opens its own editor, not Quick Edit', () => {
+  /**
+   * The five editors existed, were tested, and had no caller. The pencil
+   * on Colors opened the generic Quick Edit over a stock cover, so the
+   * only way to change a palette from the kit was to leave the kit.
+   */
+  const cases: Array<[card: string, title: string]> = [
+    ['Logos', 'Logos'],
+    ['Colors', 'Colors'],
+    // The catalog renames the card; the DATA is still filed under `Fonts`,
+    // and a rename must not cost anyone their editor.
+    ['Typography', 'Typography'],
+    ['Icons', 'Icons'],
+    ['Photos', 'Photos'],
+  ];
+
+  for (const [label, title] of cases) {
+    it(`opens the ${title} editor from the ${label} card`, async () => {
+      renderKit();
+      await settle();
+
+      const c = card(label);
+      fireEvent.click(c.querySelector(`button[aria-label="Edit ${label}"]`)!);
+      await settle();
+
+      const dialog = document.querySelector('[role="dialog"]');
+      expect(dialog).toBeTruthy();
+      expect(dialog!.textContent).toContain(title);
+      // ...and NOT the generic card editor over a stock cover.
+      expect(document.querySelector('.bk-editor-backdrop')).toBeNull();
+    });
+  }
+
+  it('paints the kit behind the panel from the editor’s live draft', async () => {
+    renderKit();
+    await settle();
+
+    const before = Array.from(
+      card('Colors').querySelectorAll('.bk-cover-swatch'),
+    ).map((s) => (s as HTMLElement).style.background);
+    expect(before.length).toBeGreaterThan(0);
+
+    fireEvent.click(card('Colors').querySelector('button[aria-label="Edit Colors"]')!);
+    await settle();
+    // The editor reports its draft on open; the cover must be painting
+    // from THAT, which is what makes an edit visible before it is saved.
+    const after = Array.from(
+      card('Colors').querySelectorAll('.bk-cover-swatch'),
+    ).map((s) => (s as HTMLElement).style.background);
+    expect(after.length).toBe(before.length);
   });
 });

@@ -289,11 +289,19 @@ export async function buildBrandBook(
   const contentsPage = pdf.getNumberOfPages();
 
   /* ── 3 · The brand in one line ────────────────────────────────── */
+  //
+  // Whatever this page SAYS is not said again on the Strategy page. The
+  // first book measured on Raqm printed the mission twice — once as the
+  // statement and once four pages later under MISSION — because the two
+  // sections each decided independently what they were about.
+  const spokenHere = new Set<string>(['summary', 'tone', 'personality', 'values']);
   {
     openSection('The brand');
     const summary = brand.strategy?.summary?.trim();
     const mission = brand.strategy?.mission?.trim();
     const lead = summary || mission || brand.strategy?.positioning?.trim() || '';
+    if (!summary && mission) spokenHere.add('mission');
+    else if (!summary && !mission && lead) spokenHere.add('positioning');
     if (lead) {
       // Set large and short — this is the one page someone reads aloud.
       pdf.setFont(fonts.heading, 'bold');
@@ -308,8 +316,10 @@ export async function buildBrandBook(
     if (summary && mission) {
       eyebrow('Mission');
       para(mission);
+      spokenHere.add('mission');
     }
     const slogan = brand.strategy?.slogan?.trim();
+    if (slogan) spokenHere.add('slogan');
     if (slogan) {
       y += 8;
       pdf.setFillColor(...rgb(primary));
@@ -381,6 +391,12 @@ export async function buildBrandBook(
     pdf.setLineDashPattern([], 0);
     const innerW = outerW - R * 2;
     const innerH = outerH - R * 2;
+    // The inner field is the rule made VISIBLE. Without it the diagram was
+    // a dashed box with a logo loose inside it and an R measured against
+    // nothing — the reader had to take the caption's word for what R was.
+    pdf.setDrawColor(...rgb(ink.rule));
+    pdf.setLineWidth(0.5);
+    pdf.rect(MARGIN + R, dY + R, innerW, innerH, 'S');
     const mark = await logoForGround(sourceBrand, surface.bg);
     if (mark) {
       const box = Math.min(innerW, innerH);
@@ -415,7 +431,80 @@ export async function buildBrandBook(
     pdf.setFontSize(10);
     pdf.setTextColor(...rgb(ink.body));
     pdf.text('24 px on screen · 10 mm in print', minX, dY + 104);
-    y = dY + outerH + 30;
+    y = dY + outerH + 34;
+
+    // Misuse. This is the half of a logo page that decides whether the
+    // rules above are followed, and it is the half that gets left out —
+    // a reader who has only seen the mark used correctly has no example
+    // of the thing they are about to do. Every tile is the brand's OWN
+    // mark, abused: a drawing of a generic logo being stretched teaches
+    // nobody what stretching THIS one looks like.
+    if (mark) {
+      eyebrow('Never');
+      const COLS = 4;
+      const mGap = 14;
+      const mW = (width - mGap * (COLS - 1)) / COLS;
+      const mH = 86;
+      const misuse: Array<[string, (x: number, top: number) => void]> = [
+        [
+          'Stretch or squash it',
+          (x, top) => {
+            pdf.addImage(mark, 'PNG', x + 8, top + 22, mW - 16, mH - 52, undefined, 'FAST');
+          },
+        ],
+        [
+          'Rotate or tilt it',
+          (x, top) => {
+            const box = mH - 34;
+            pdf.addImage(mark, 'PNG', x + (mW - box) / 2, top + 17, box, box, undefined, 'FAST', 12);
+          },
+        ],
+        [
+          'Retype the name instead of using it',
+          (x, top) => {
+            // Vector, and deliberately NOT one of the brand's own faces:
+            // the misuse is setting the name as type at all.
+            pdf.setFont('times', 'italic');
+            pdf.setFontSize(15);
+            pdf.setTextColor(...rgb(ink.body));
+            pdf.text(brand.name, x + mW / 2, top + mH / 2 + 5, {
+              align: 'center',
+              maxWidth: mW - 12,
+            });
+          },
+        ],
+        [
+          'Crowd it',
+          (x, top) => {
+            // Blocks BUTTED against the mark, not drawn through it. A rule
+            // across the middle read as a logo struck out, which is a
+            // different rule and one nobody was making.
+            const box = mH - 34;
+            const left = x + (mW - box) / 2;
+            pdf.setFillColor(...rgb(ink.rule));
+            pdf.rect(x + 4, top + 4, left - x - 4, mH - 8, 'F');
+            pdf.rect(left + box, top + 4, x + mW - 4 - (left + box), mH - 8, 'F');
+            pdf.addImage(mark, 'PNG', left, top + 17, box, box, undefined, 'FAST');
+          },
+        ],
+      ];
+      misuse.forEach(([caption, draw], i) => {
+        const x = MARGIN + i * (mW + mGap);
+        pdf.setDrawColor(...rgb(ink.rule));
+        pdf.setLineWidth(0.5);
+        pdf.rect(x, y, mW, mH, 'S');
+        try {
+          draw(x, y);
+        } catch {
+          // A tile that will not draw still states its rule in the caption.
+        }
+        pdf.setFont(fonts.body, 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(...rgb(ink.muted));
+        pdf.text(pdf.splitTextToSize(caption, mW) as string[], x, y + mH + 12);
+      });
+      y += mH + 40;
+    }
   }
 
   /* ── 5 · Colour ───────────────────────────────────────────────── */
@@ -465,7 +554,13 @@ export async function buildBrandBook(
       bar.forEach((sw, i) => {
         const w = width * weights[i];
         pdf.setFillColor(...rgb(sw.hex));
-        pdf.rect(x, y, w, 26, 'F');
+        // Hairline on EVERY segment, not only the pale ones: SKAM's white
+        // segment painted white on a white page read as a hole in the bar,
+        // and a rule that only appears sometimes is a rule that looks like
+        // a bug the one time it does.
+        pdf.setDrawColor(...rgb(ink.rule));
+        pdf.setLineWidth(0.4);
+        pdf.rect(x, y, w, 26, 'FD');
         const pct = Math.round(weights[i] * 100);
         if (w > 26) {
           pdf.setFont(fonts.body, 'bold');
@@ -501,11 +596,17 @@ export async function buildBrandBook(
           const ratio = contrastRatio(row.hex, colSw.hex);
           const pass = ratio >= 4.5;
           pdf.setFillColor(...rgb(colSw.hex));
-          pdf.rect(x2, top, colW - 3, rowH - 3, 'F');
+          // Same reason as the proportion bar: a white cell on a white page
+          // left its figure floating with no cell around it.
+          pdf.setDrawColor(...rgb(ink.rule));
+          pdf.setLineWidth(0.4);
+          pdf.rect(x2, top, colW - 3, rowH - 3, 'FD');
           pdf.setFont(fonts.body, pass ? 'bold' : 'normal');
           pdf.setFontSize(7.5);
           pdf.setTextColor(...rgb(pickFgOnBackground(colSw.hex, ['#FFFFFF', '#111113'])));
-          pdf.text(ratio >= 20 ? '21' : ratio.toFixed(1), x2 + 4, top + 13);
+          // A colour on itself is 1.0 in every cell of the diagonal. Six
+          // meaningless figures down the middle of a table read as data.
+          pdf.text(ri === ci ? '—' : ratio >= 20 ? '21' : ratio.toFixed(1), x2 + 4, top + 13);
         });
       });
       y += grid.length * rowH + 14;
@@ -535,7 +636,18 @@ export async function buildBrandBook(
         pdf.setFont(face, 'normal');
         pdf.setFontSize(11);
         pdf.setTextColor(...rgb(ink.muted));
-        pdf.text(`${fam.family} — ${fam.weights || 'Regular'}`, MARGIN, y);
+        // A caption naming a typeface the specimen is not set in is the one
+        // lie a brand book must not tell. `embedded` is what actually got
+        // into the file; anything else says so, in the caption, right here.
+        const real = fonts.embedded.includes(fam.family);
+        pdf.text(
+          real
+            ? `${fam.family} — ${fam.weights || 'Regular'}`
+            : `${fam.family} — ${fam.weights || 'Regular'} · shown in a substitute; this face could not be embedded`,
+          MARGIN,
+          y,
+          { maxWidth: width },
+        );
         y += 12;
         pdf.setFontSize(9);
         pdf.text('ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789', MARGIN, y, {
@@ -584,9 +696,16 @@ export async function buildBrandBook(
       para(value, 13);
       y += 4;
     }
-    if (brand.voice?.essay?.trim()) {
+    // A brand whose `voice.essay` IS its tone answer printed the same
+    // sentence twice on one page, under TONE and again under HOW IT
+    // SOUNDS — measured on Raqm. Two labels over one sentence reads as a
+    // template that was filled in by machine, which is exactly what it was.
+    const essay = brand.voice?.essay?.trim() ?? '';
+    const said = (text: string) => text.toLowerCase().replace(/[\s.,;:—–-]+/g, ' ').trim();
+    const alreadySaid = rows.some(([, value]) => said(value) === said(essay));
+    if (essay && !alreadySaid) {
       eyebrow('How it sounds');
-      para(brand.voice.essay.trim(), 11);
+      para(essay, 11);
     }
     const pillars = (brand.voice?.pillars ?? []).filter((p) => p.trim());
     if (pillars.length > 0) {
@@ -607,11 +726,11 @@ export async function buildBrandBook(
   /* ── 8 · Strategy ─────────────────────────────────────────────── */
   {
     openSection('Strategy');
-    // The three already spoken for elsewhere in the book are not repeated.
-    const spoken = new Set(['summary', 'tone', 'personality', 'values']);
+    // Everything already spoken for elsewhere in the book — by the voice
+    // page, or by whatever the statement page chose to be.
     let printed = 0;
     for (const card of STRATEGY_CARDS) {
-      if (spoken.has(card.key)) continue;
+      if (spokenHere.has(card.key)) continue;
       const value = brand.strategy ? contentOf(card, brand.strategy) : '';
       if (!value) continue;
       pdf.setFont(fonts.body, 'normal');
@@ -660,44 +779,65 @@ export async function buildBrandBook(
   }
 
   /* ── 9 · Applications ─────────────────────────────────────────── */
+  //
+  // Two rules, and the first one cost a squashed letterhead to learn:
+  //
+  //  • **Never distort.** The first version drew every shot at the cell's
+  //    full width and a height capped at 230pt, and `addImage` obeys the
+  //    width and height it is given — so a portrait letterhead came out
+  //    laid out as a landscape one. A picture is FITTED inside its cell and
+  //    centred in it; the cell is what is fixed, never the picture.
+  //  • **A row shares a baseline.** Captions set directly under pictures of
+  //    different heights sit at different heights, and a gallery whose
+  //    labels wander reads as a broken grid. The row is measured first, and
+  //    every caption in it sits on the row's own foot.
   if (applications.length > 0) {
     openSection('In use');
     para('The brand applied. Every one of these is generated from the values in this book.', 10, ink.muted);
     y += 6;
     const gap = 18;
     const cellW = (width - gap) / 2;
-    let rowTop = y;
-    let rowMax = 0;
-    for (let i = 0; i < applications.length && i < 6; i += 1) {
-      const shot = applications[i];
-      const col = i % 2;
-      const drawW = cellW;
-      const drawH = Math.min(230, drawW / Math.max(0.2, shot.aspect));
-      if (col === 0 && i > 0) {
-        rowTop += rowMax + 34;
-        rowMax = 0;
-      }
-      if (rowTop + drawH + 40 > A4.h - MARGIN) {
+    const CELL_H = 240;
+    const shots = applications.slice(0, 6);
+    for (let i = 0; i < shots.length; i += 2) {
+      const row = shots.slice(i, i + 2);
+      // The row is as tall as the tallest picture in it, never taller than
+      // the cell — so two landscape shots do not leave a band of nothing.
+      const rowH = Math.max(
+        ...row.map((shot) => Math.min(CELL_H, cellW / Math.max(0.2, shot.aspect))),
+      );
+      if (y + rowH + 30 > A4.h - MARGIN) {
         pdf.addPage();
-        rowTop = MARGIN + 10;
-        rowMax = 0;
+        y = MARGIN + 10;
       }
-      const x = MARGIN + col * (cellW + gap);
-      pdf.setDrawColor(...rgb(ink.rule));
-      pdf.setLineWidth(0.5);
-      pdf.rect(x, rowTop, drawW, drawH, 'S');
-      try {
-        pdf.addImage(shot.dataUrl, 'PNG', x, rowTop, drawW, drawH, undefined, 'FAST');
-      } catch {
-        skipped.push({ label: shot.label, reason: 'the render could not be placed in the PDF' });
-      }
-      pdf.setFont(fonts.body, 'normal');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(...rgb(ink.muted));
-      pdf.text(shot.label, x, rowTop + drawH + 14);
-      rowMax = Math.max(rowMax, drawH);
+      row.forEach((shot, col) => {
+        const aspect = Math.max(0.2, shot.aspect);
+        let drawH = Math.min(rowH, cellW / aspect);
+        let drawW = drawH * aspect;
+        if (drawW > cellW) {
+          drawW = cellW;
+          drawH = drawW / aspect;
+        }
+        const x = MARGIN + col * (cellW + gap) + (cellW - drawW) / 2;
+        // Bottom-aligned, so every caption sits directly under its own
+        // picture. Centring left a short shot floating with a gap above it
+        // AND a gap below it — twice as much stray white as either choice.
+        const top = y + (rowH - drawH);
+        try {
+          pdf.addImage(shot.dataUrl, 'PNG', x, top, drawW, drawH, undefined, 'FAST');
+        } catch {
+          skipped.push({ label: shot.label, reason: 'the render could not be placed in the PDF' });
+        }
+        pdf.setDrawColor(...rgb(ink.rule));
+        pdf.setLineWidth(0.5);
+        pdf.rect(x, top, drawW, drawH, 'S');
+        pdf.setFont(fonts.body, 'normal');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(...rgb(ink.muted));
+        pdf.text(shot.label, MARGIN + col * (cellW + gap), y + rowH + 14);
+      });
+      y += rowH + 34;
     }
-    y = rowTop + rowMax + 34;
   }
 
   /* ── 10 · Back page ───────────────────────────────────────────── */
@@ -736,6 +876,9 @@ export async function buildBrandBook(
       pdf.text(links.map((l) => l.label || l.url).join('  ·  '), MARGIN, by, { maxWidth: width });
       by += 18;
     }
+    // A brand book with no date cannot be told from the one it replaced.
+    pdf.setFontSize(8.5);
+    pdf.text(`Exported ${new Date().toISOString().slice(0, 10)}`, MARGIN, by);
     pdf.setFontSize(8);
     pdf.text(KICKER, MARGIN, A4.h - MARGIN, { charSpace: 2 });
   }
