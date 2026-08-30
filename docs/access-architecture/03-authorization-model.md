@@ -178,10 +178,21 @@ effective_capabilities(user, workspace, brand?) → set<capability>
      m.brand_access_mode = all               → brand_access(brand,user).role ?? m.default_brand_role
      m.brand_access_mode = selected          → brand_access(brand,user).role ?? NONE
    if r = NONE → return WS  (workspace caps only; the brand does not exist for them)
-8. BR := role_capabilities('brand', r) ⊕ brand_access.capability_overrides
+8. BR := role_capabilities('brand', r) ⊕ brand_access.grant
    if m.role = guest → BR := BR − {templates.submit_community}
-   BR := BR − RESERVED
-9. return WS ∪ BR
+9. return (WS ∪ BR) − (workspace deny − brand grant) − brand deny − RESERVED
+
+**The order in step 9 is load-bearing** and was wrong once. The named switches live at
+workspace scope for an `all`-mode member (they have no `brand_access` row to hang them on),
+so applying the workspace deny at step 3 alone let the brand preset at step 8 re-add
+`ai.generate` — unchecking the switch did nothing for anyone above viewer. The precedence
+is therefore explicit:
+
+| beats | | |
+|---|---|---|
+| per-brand **grant** | > workspace deny | "no AI, except on Client A" |
+| workspace **deny** | > any role preset | the named switches |
+| per-brand **deny** | > everything | "…except on Client B" |
 ```
 
 Overrides can only add capabilities from the overridable set for that scope and can never
