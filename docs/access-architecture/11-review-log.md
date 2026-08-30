@@ -72,3 +72,35 @@ recorded.
 All BLOCKER/HIGH resolved in the design before implementation. Round 2 (implementation
 review) follows the build.
 
+
+## Round 2 — implementation review, 2026-08-30
+
+### Status: INCOMPLETE
+
+Two independent reviewers (security-of-implementation, code-quality-and-drift) were
+dispatched against the built system and **both terminated on a provider rate limit before
+producing findings**. Neither returned a report, so no Round 2 findings exist — this is
+recorded rather than quietly omitted, because "reviewed" and "review was attempted" are
+different claims.
+
+What DID review the implementation, and passed:
+
+| gate | result |
+|---|---|
+| SQL policy/invariant suites | 20 of 21 (the 21st crashes the local Postgres image — 09 §8) |
+| Threat-model coverage | 34 of 37 attack ids have a named test; 3 deferred with reasons |
+| Access resolver parity | 869 truth-table cells, SQL and TypeScript, identical |
+| Unit | 2,803 passed, 1 skipped |
+| Browser | 449 passed; 1 pre-existing failure (`toolbar-editor`, fails on a clean tree too) |
+| typecheck:ci | no new errors (baseline re-frozen 321 → 282) |
+| lint | 0 errors |
+
+**What Round 2 must still cover** (the prompts are in the session; re-run them):
+1. Live `pg_policies` / `pg_proc` audit: any tenant table without RLS, any write without a
+   WITH CHECK, any SECURITY DEFINER function granted to `authenticated` that should not be.
+2. Escalation attempts against each new RPC, especially checks performed after a side effect.
+3. Credits: double-spend, cap escape, double settle, output-without-payment through the
+   `ref_id` matching.
+4. Frontend: anywhere the client resolver is treated as authority, or a capability checked
+   in the UI but not on the server for the same action.
+5. Divergences between `docs/access-architecture/` and what was actually built.
