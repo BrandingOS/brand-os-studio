@@ -422,6 +422,12 @@ REVOKE ALL ON FUNCTION public.release_credits(uuid, uuid, bigint, text, text, te
 REVOKE ALL ON FUNCTION public.expire_stale_reservations() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.reconcile_all_credit_accounts() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reserve_credits(uuid, uuid, bigint, text, interval, text, uuid, uuid, text, text) TO service_role;
+-- 025's 4-argument reserve_credits must GO, not merely be superseded. Every new argument
+-- has a default, so a 4-arg call matches BOTH overloads and Postgres refuses with
+-- "could not choose a best candidate function" — and PostgREST, which resolves by argument
+-- NAME, hits exactly the same wall. The Edge Function calls it with four named arguments,
+-- so leaving the old one in place breaks image generation the moment 044 lands.
+DROP FUNCTION IF EXISTS public.reserve_credits(uuid, uuid, bigint, text);
 GRANT EXECUTE ON FUNCTION public.settle_credits(uuid, uuid, bigint, bigint, text, text) TO service_role;
 -- 025's 5-argument forms are dropped so no caller can reach a body that ignores the
 -- reservation row.
@@ -458,6 +464,16 @@ BEGIN
               WHERE n.nspname = 'public' AND p.proname IN ('settle_credits','release_credits')
                 AND p.pronargs = 5) THEN
     RAISE EXCEPTION '044 guard: a pre-044 money function survived';
+  END IF;
+  -- Exactly ONE of each, or a named-argument call from PostgREST cannot be resolved.
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND p.proname = 'reserve_credits') <> 1 THEN
+    RAISE EXCEPTION '044 guard: reserve_credits is overloaded — a 4-arg call is ambiguous';
+  END IF;
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND p.proname IN ('settle_credits','release_credits')
+       GROUP BY p.proname HAVING count(*) <> 1 LIMIT 1) IS NOT NULL THEN
+    RAISE EXCEPTION '044 guard: settle/release is overloaded';
   END IF;
   IF has_function_privilege('authenticated', 'public.reserve_credits(uuid,uuid,bigint,text,interval,text,uuid,uuid,text,text)', 'EXECUTE') THEN
     RAISE EXCEPTION '044 guard: reserve_credits is callable by clients';

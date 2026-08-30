@@ -1,4 +1,5 @@
 # Attack ids whose control ships in a later plan. This list must shrink to empty.
 A21  # realtime subscription leak — Plan C (integration test with a live client)
-A4   # signed-URL TTL is now 7 days (imageRefs.ts); an end-to-end storage test needs a live client — Plan C
+# A4/A21/A33 remain deferred — see docs/access-architecture/09-test-plan.md §9
+A4   # signed-URL TTL is 7 days; an end-to-end storage test needs a live client
 A33  # projectId/designId are verified against the brand in ai-generate-image; covered by the function test in Plan C

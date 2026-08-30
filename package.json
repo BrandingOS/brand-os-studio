@@ -22,7 +22,8 @@
     "gen:tokens:check": "node scripts/gen-ds-tokens.mjs --check",
     "gen:icons": "bash scripts/gen-app-icons.sh",
     "eval:image": "vite-node evals/image/run.ts --",
-    "threat:coverage": "node scripts/threat-model-coverage.mjs"
+    "threat:coverage": "node scripts/threat-model-coverage.mjs",
+    "test:db:stock": "node scripts/db-test-stock.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.81.0",

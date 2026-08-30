@@ -243,9 +243,18 @@ DECLARE
   res JSONB; acct public.credit_accounts;
   start_balance BIGINT;
 BEGIN
+  -- Migration 043 changed this deliberately: the signup grant is once per PERSON (their
+  -- personal workspace), not once per workspace, because every workspace insert minting
+  -- 500 credits plus uncapped workspace creation made free credits unbounded (threat A25).
+  -- WS A here is a plain workspace, so it opens at 0 and is funded explicitly.
+  SELECT balance_credits INTO start_balance FROM public.credit_accounts WHERE workspace_id = ws;
+  IF start_balance <> 0 THEN
+    RAISE EXCEPTION 'D0: a non-personal workspace should open at 0 credits, has %', start_balance;
+  END IF;
+  PERFORM public.grant_credits(ws, public.default_credit_grant(), 'test funding', 'test025-funding');
   SELECT balance_credits INTO start_balance FROM public.credit_accounts WHERE workspace_id = ws;
   IF start_balance <> public.default_credit_grant() THEN
-    RAISE EXCEPTION 'D0: a new workspace should be granted % credits, has %',
+    RAISE EXCEPTION 'D0: funding did not land — expected % credits, has %',
       public.default_credit_grant(), start_balance;
   END IF;
 
