@@ -3,8 +3,12 @@
 //
 // Two rules the rest of the app depends on:
 //
-//  1. NEVER PERSISTED. A removed member must not keep a cached yes. This store starts
-//     empty on every load and is filled from `my_access()`.
+//  1. CAPABILITIES ARE NEVER PERSISTED. A removed member must not keep a cached yes, so
+//     the store starts empty on every load and is filled from `my_access()`.
+//     WHICH WORKSPACE you were in is a different thing: it is a pointer, not a permission,
+//     and remembering it grants nothing — every capability is still resolved server-side
+//     on hydrate, and a workspace the user has since left simply is not in the answer.
+//     Without this, switching workspace silently reverted on the next page load.
 //  2. ACCESS IS TRI-STATE — unknown | allowed | denied. Between the first paint and the
 //     RPC returning, the honest answer is "we don't know yet", not "no". Rendering the
 //     denied branch during hydration is how a Member sees Setup flash a read-only banner
@@ -20,6 +24,18 @@ import { supabase } from '@/integrations/supabase/client';
  * `features/image-generation/credits.ts` — with the shape asserted right after. Regenerating
  * the types is worth doing on its own, not as a side effect of this change.
  */
+/** The pointer, not the permissions. Cleared on sign-out with everything else. */
+const LAST_WORKSPACE_KEY = 'brandos:current-workspace';
+const readLastWorkspace = (): string | null => {
+  try { return localStorage.getItem(LAST_WORKSPACE_KEY); } catch { return null; }
+};
+const writeLastWorkspace = (id: string | null): void => {
+  try {
+    if (id) localStorage.setItem(LAST_WORKSPACE_KEY, id);
+    else localStorage.removeItem(LAST_WORKSPACE_KEY);
+  } catch { /* private mode, cleared site data — the default still works */ }
+};
+
 const rpc = (name: string, args?: Record<string, unknown>) =>
   (supabase as unknown as {
     rpc: (n: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
@@ -93,12 +109,14 @@ export const useAccessStore = create<AccessState>((set, get) => ({
       set({ phase: 'guest', workspaces: [], currentWorkspaceId: null });
       return;
     }
-    // Keep the workspace we were in if it is still ours; otherwise the personal one.
-    const previous = get().currentWorkspaceId;
+    // Keep the workspace we were in — this session, or the last one this browser used —
+    // if it is still ours. Otherwise the personal one.
+    const previous = get().currentWorkspaceId ?? readLastWorkspace();
     const keep = previous && workspaces.some((w) => w.id === previous) ? previous : null;
     const fallback = workspaces.find((w) => w.isPersonal)?.id ?? workspaces[0].id;
     const currentWorkspaceId = keep ?? fallback;
     set({ phase: 'ready', workspaces, currentWorkspaceId, generation: get().generation + 1 });
+    writeLastWorkspace(currentWorkspaceId);
     await get().loadBrands(currentWorkspaceId);
   },
 
@@ -129,13 +147,17 @@ export const useAccessStore = create<AccessState>((set, get) => ({
       currentWorkspaceId: id, brands: {}, brandsLoadedFor: null,
       generation: get().generation + 1,
     });
+    writeLastWorkspace(id);
     await get().loadBrands(id);
   },
 
-  reset: () => set({
-    phase: 'unknown', workspaces: [], currentWorkspaceId: null, brands: {},
-    brandsLoadedFor: null, generation: get().generation + 1,
-  }),
+  reset: () => {
+    writeLastWorkspace(null);
+    set({
+      phase: 'unknown', workspaces: [], currentWorkspaceId: null, brands: {},
+      brandsLoadedFor: null, generation: get().generation + 1,
+    });
+  },
 
   current: () => {
     const { workspaces, currentWorkspaceId } = get();

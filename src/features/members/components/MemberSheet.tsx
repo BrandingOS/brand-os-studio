@@ -6,6 +6,12 @@
 //  • Every write that TAKES SOMETHING AWAY confirms with the delta first. Switching a
 //    member from All brands to Selected silently drops twenty-nine of them otherwise, and
 //    the audit log records what the user was never shown.
+//  • The per-brand EXCEPTION is on screen. "No AI, except on Client A" is the whole point
+//    of the precedence rule (a per-brand grant beats a workspace-wide deny), and it was
+//    the one thing this sheet could not show: the switch read OFF while the server said
+//    ON for one brand, and any later save silently stripped the exception because the
+//    brand grant was written with the WORKSPACE switch. An exception you cannot see is an
+//    exception you take away by accident.
 //  • Role and mode are written TOGETHER, in one RPC. The CHECK constraint is evaluated per
 //    statement, so a partial write is either refused or leaves an incoherent row.
 //
@@ -50,6 +56,8 @@ export function MemberSheet({
   const [defaultRole, setDefaultRole] = useState<BrandRole>('editor');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [perBrandRole, setPerBrandRole] = useState<Record<string, BrandRole>>({});
+  /** Brands where AI is granted back despite the workspace-wide deny. */
+  const [perBrandAi, setPerBrandAi] = useState<Record<string, boolean>>({});
   const [canExport, setCanExport] = useState(true);
   const [canAi, setCanAi] = useState(true);
   const [canBilling, setCanBilling] = useState(false);
@@ -64,6 +72,8 @@ export function MemberSheet({
     setDefaultRole(member.defaultBrandRole ?? 'editor');
     setSelected(new Set(member.grants.map((g) => g.brandId)));
     setPerBrandRole(Object.fromEntries(member.grants.map((g) => [g.brandId, g.role])));
+    setPerBrandAi(Object.fromEntries(member.grants.map(
+      (g) => [g.brandId, (g.overrides?.grant ?? []).includes('ai.generate')])));
     const deny = new Set(member.overrides?.deny ?? []);
     const grant = new Set(member.overrides?.grant ?? []);
     setCanExport(!deny.has('designs.export'));
@@ -82,8 +92,18 @@ export function MemberSheet({
     if (dropped.length) {
       out.push(`${member.name} will lose access to ${dropped.length} ${dropped.length === 1 ? 'brand' : 'brands'}.`);
     }
-    if (!canAi && !(member.overrides?.deny ?? []).includes('ai.generate')) {
+    const keptAiOn = mode === 'all' && role !== 'guest'
+      ? []
+      : [...selected].filter((id) => perBrandAi[id]);
+    if (!canAi && !(member.overrides?.deny ?? []).includes('ai.generate') && !keptAiOn.length) {
       out.push(`${member.name} will no longer be able to use AI generation.`);
+    }
+    const lostExceptions = member.grants
+      .filter((g) => (g.overrides?.grant ?? []).includes('ai.generate'))
+      .filter((g) => !(after.includes(g.brandId) && (canAi || perBrandAi[g.brandId])))
+      .map((g) => brands.find((b) => b.id === g.brandId)?.name ?? g.brandId);
+    if (lostExceptions.length) {
+      out.push(`${member.name} will lose the AI exception on ${lostExceptions.join(', ')}.`);
     }
     if (!canExport && !(member.overrides?.deny ?? []).includes('designs.export')) {
       out.push(`${member.name} will no longer be able to download or export.`);
@@ -92,7 +112,14 @@ export function MemberSheet({
       out.push(`${member.name} will drop from ${WORKSPACE_ROLE_LABEL[member.role]} to ${WORKSPACE_ROLE_LABEL[role]}.`);
     }
     return out;
-  }, [member, brands, mode, selected, canAi, canExport, role]);
+  }, [member, brands, mode, selected, canAi, canExport, role, perBrandAi]);
+
+  const aiExceptions = useMemo(
+    () => (mode === 'all' && role !== 'guest' ? [] : [...selected])
+      .filter((id) => perBrandAi[id])
+      .map((id) => brands.find((b) => b.id === id)?.name ?? id),
+    [brands, mode, role, selected, perBrandAi],
+  );
 
   if (!member) return null;
 
@@ -124,10 +151,13 @@ export function MemberSheet({
         const want = role === 'guest' || mode === 'selected' ? [...selected] : [];
         for (const id of want) {
           const wantRole = perBrandRole[id] ?? defaultRole;
+          // The workspace switch decides the default; the row decides the exception.
+          const wantAi = canAi || !!perBrandAi[id];
           const existing = member.grants.find((g) => g.brandId === id);
-          if (!existing || existing.role !== wantRole) {
+          const hadAi = (existing?.overrides?.grant ?? []).includes('ai.generate');
+          if (!existing || existing.role !== wantRole || hadAi !== wantAi) {
             try {
-              await grantBrandAccess({ brandId: id, userId: member.userId, role: wantRole, allowAi: canAi });
+              await grantBrandAccess({ brandId: id, userId: member.userId, role: wantRole, allowAi: wantAi });
             } catch {
               failed.push(brands.find((b) => b.id === id)?.name ?? id);
             }
@@ -262,11 +292,20 @@ export function MemberSheet({
                         <div key={b.id} className="mem-brand-row">
                           <DsCheckbox checked={selected.has(b.id)} onChange={() => toggle(b.id)} label={b.name} />
                           {selected.has(b.id) && (
-                            <DsSelect
-                              value={perBrandRole[b.id] ?? defaultRole}
-                              onChange={(v) => setPerBrandRole((p) => ({ ...p, [b.id]: v as BrandRole }))}
-                              options={BRAND_ROLES.map((r) => ({ value: r, label: BRAND_ROLE_LABEL[r] }))}
-                            />
+                            <>
+                              {!canAi && (
+                                <DsCheckbox
+                                  checked={!!perBrandAi[b.id]}
+                                  onChange={(v) => setPerBrandAi((p) => ({ ...p, [b.id]: v }))}
+                                  label="AI here"
+                                />
+                              )}
+                              <DsSelect
+                                value={perBrandRole[b.id] ?? defaultRole}
+                                onChange={(v) => setPerBrandRole((p) => ({ ...p, [b.id]: v as BrandRole }))}
+                                options={BRAND_ROLES.map((r) => ({ value: r, label: BRAND_ROLE_LABEL[r] }))}
+                              />
+                            </>
                           )}
                         </div>
                       ))}
@@ -280,6 +319,11 @@ export function MemberSheet({
                 <div className="mem-switches">
                   <DsCheckbox checked={canExport} onChange={setCanExport} label="Can download and export" />
                   <DsCheckbox checked={canAi} onChange={setCanAi} label="Can use AI generation" />
+                  {!canAi && aiExceptions.length > 0 && (
+                    <span className="mem-field-hint">
+                      Except on {aiExceptions.join(', ')} — tick “AI here” on a brand to add another.
+                    </span>
+                  )}
                   {role === 'member' && (
                     <DsCheckbox checked={canBilling} onChange={setCanBilling} label="Can see billing" />
                   )}

@@ -103,6 +103,37 @@ invitations that name this brand are listed. **Add people** picks from existing 
 whose mode is Selected (adds a grant) — inviting new people goes through Members so seats are
 counted once. `brand.access.view` sees the list read-only.
 
+### 5b. The exception is on screen (added 2026-09-01, found by using the screen)
+
+A per-brand grant beating a workspace-wide deny — "no AI, except on Client B" — is the
+reason the precedence rule in 03 §3 exists, and it was the one state the People screen
+could not show. The row read `Designer · 2 brands · no AI` and the sheet's **Can use AI
+generation** switch read OFF, while the server granted AI on one of those brands. Two
+costs, and the second is the expensive one:
+
+- the interface stated something the server contradicted, and
+- the next save wrote every brand grant from the WORKSPACE switch (`allowAi: canAi`), so
+  editing anything else about that person silently revoked the exception.
+
+Now: the row counts it (`AI on 1 of 2`, and a plain `no AI` only when there really is
+none); each selected brand carries an **AI here** toggle, shown only while the workspace
+switch is off, because an exception to a permission that is already granted is noise; the
+switch names the brands it is excepted on; a grant is rewritten when the exception changed
+and not only when the ROLE changed; and removing one is a loss, so it goes through the
+same delta confirmation as dropping a brand — *"Dana Ortiz will lose the AI exception on
+Client B."* Tests: `features/members/__tests__/aiException.browser.test.tsx` (7).
+
+### 5c. Which workspace you are in survives a reload (added 2026-09-01)
+
+`accessStore` is deliberately never persisted, so a removed member cannot keep a cached
+yes. That rule was applied to the whole store, the pointer included — so switching to the
+team workspace and then following any link that reloads the document dropped the user back
+into their empty personal workspace, reading `1 of 1 seats` with **Invite member**
+disabled. Remembering the pointer (`brandos:current-workspace`) grants nothing: every
+capability is still resolved by `my_access()` on the server, and a workspace the user has
+since left is simply not in the answer, so it falls back. Cleared on sign-out with
+everything else. Tests: `shared/access/__tests__/currentWorkspace.test.ts` (5).
+
 ## 6. Permission-aware surfaces (03 §4.3 applied)
 - Nav (`WorkspaceShell` tabs, `WorkspaceShellAlt` items): filtered by capability; Guests
   never see Members/Settings/Usage; Viewers see Setup/Strategy/Kit/Guideline as read-only
