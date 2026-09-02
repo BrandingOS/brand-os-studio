@@ -43,8 +43,13 @@ function spike2(parent) {
   log(vectors.length > 0, 2, 'SVG becomes VECTOR nodes, not an image',
       `${vectors.length} vector node(s), wrapper type ${node.type}`);
   if (v) {
-    log(Math.abs(v.strokeWeight - 1.8) < 0.01, 2, 'stroke weight 1.8 preserved',
-        `strokeWeight = ${v.strokeWeight}`);
+    // An icon authored as stroke-width 1.8 in a 24-unit viewBox and rendered at
+    // 14px paints at 1.8 * 14/24 = 1.05. Figma reproduces the RENDERED weight,
+    // which is correct — assert the effective value, not the authored one.
+    const effective = 1.8 * (14 / 24);
+    log(Math.abs(v.strokeWeight - effective) < 0.01, 2,
+        'stroke weight matches the RENDERED value (authored 1.8 in a 24 viewBox at 14px)',
+        `strokeWeight = ${v.strokeWeight.toFixed(3)}, expected ${effective.toFixed(3)}`);
     log(v.strokeCap === 'ROUND', 2, 'round caps preserved', `strokeCap = ${v.strokeCap}`);
     log(Array.isArray(v.fills) && v.fills.length === 0, 2, 'unfilled (line icon, never solid)',
         `fills = ${JSON.stringify(v.fills)}`);

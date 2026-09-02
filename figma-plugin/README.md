@@ -28,7 +28,7 @@ looks right in a screenshot:
 | Spike | Proves |
 |---|---|
 | 1 | CDP forced pseudo-states through Playwright — **passed in the extractor, 8/8** |
-| 2 | An inline DS icon becomes an editable VECTOR with 1.8px round-cap strokes |
+| 2 | An inline DS icon becomes an editable VECTOR with round caps, unfilled, at the correct **rendered** stroke weight |
 | 3 | Components become one real `COMPONENT_SET` with named variant properties, and an instance stays connected |
 | 5 | Auto-layout genuinely reflows on resize — hug stays, fill absorbs, padding holds, nothing scales |
 | 4 | *(next)* An awkward component survives Browser → IR → Figma with losses recorded |
@@ -43,3 +43,7 @@ looks right in a screenshot:
   frame *before* appending, or it keeps its 100×100 birth size.
 - **`prop=value, prop=value` is a contract.** Figma parses component names into
   variant properties on combine. Get the naming wrong and you get loose frames.
+- **Assert the RENDERED value, not the authored one.** The arrow icon is authored
+  `stroke-width="1.8"` in a `0 0 24 24` viewBox and rendered at 14px, so it paints
+  at 1.8 x 14/24 = **1.05px** — in Chrome and in Figma alike. The first version of
+  this assertion tested 1.8 and the assertion was the bug, not the converter.
