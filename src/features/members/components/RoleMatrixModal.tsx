@@ -9,7 +9,7 @@
 import { DsModal, DsButton } from '@/shared/ds';
 import {
   BRAND_ROLES, BRAND_ROLE_CAPABILITIES, BRAND_ROLE_DESCRIPTION, BRAND_ROLE_LABEL,
-  WORKSPACE_ROLES, WORKSPACE_ROLE_CAPABILITIES, WORKSPACE_ROLE_DESCRIPTION, WORKSPACE_ROLE_LABEL,
+  NAMED_SWITCHES, WORKSPACE_ROLES, WORKSPACE_ROLE_CAPABILITIES, WORKSPACE_ROLE_DESCRIPTION, WORKSPACE_ROLE_LABEL,
 } from '@/shared/access';
 
 /** Plain-English names for the capabilities, in the order people think about them. */
@@ -114,16 +114,29 @@ function Table({
           </tr>
         </thead>
         <tbody>
-          {rows.map(([cap, label]) => (
+          {rows.map(([cap, label]) => {
+            // A row a named switch controls can be overridden per person, so say so here
+            // rather than leaving the matrix looking like the last word. Read from
+            // NAMED_SWITCHES, so a new switch marks its own rows.
+            const sw = NAMED_SWITCHES.find((n) => n.capabilities.includes(cap));
+            return (
             <tr key={cap}>
-              <th scope="row">{label}</th>
+              <th scope="row">
+                {label}
+                {sw && (
+                  <span className="mem-matrix-switch" title={`Can be turned on or off per person (“${sw.label}”)`}>
+                    per person
+                  </span>
+                )}
+              </th>
               {roles.map((r) => (
                 <td key={r} aria-label={caps[r]?.includes(cap) ? 'yes' : 'no'}>
                   {caps[r]?.includes(cap) ? '●' : '–'}
                 </td>
               ))}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

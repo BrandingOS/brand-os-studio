@@ -162,14 +162,60 @@ export function overridableCapabilities(scope: 'workspace' | 'brand', role: stri
   ];
 }
 
-/** The three switches every plan gets (03 §2.3), and what each one stores. */
-export const NAMED_SWITCHES = [
+/**
+ * THE named switches — the whole table, and the only place any of them is described.
+ *
+ * These are the handful of permissions an owner actually reaches for, lifted out of the
+ * ~50-capability catalog and given plain names. Everything about one lives HERE: its
+ * label, which capabilities it stores, which roles are offered it, how a row summarises
+ * it, and whether it can be excepted on a single brand.
+ *
+ * It is data because it used to be code, in three places. `MemberSheet`,
+ * `InviteMemberModal` and `MembersTable` each re-derived the same three switches by hand
+ * across ~10 sites, so adding one meant editing three components and they could disagree
+ * — which is exactly how the AI exception came to be written by one of them and rendered
+ * by none of them. Adding a switch is now one entry in this array; `switches.ts` turns it
+ * into state, overrides and summary text, and nothing else knows a capability id.
+ */
+export type NamedSwitch = {
+  id: string;
+  label: string;
+  /** A brand switch changes what someone can do INSIDE a brand; a workspace one does not. */
+  scope: 'brand' | 'workspace';
+  /** What it stores. The server only ever sees these. */
+  capabilities: readonly string[];
+  /** Is it on by default, for someone whose brand role is this? */
+  defaultFor: (role: BrandRole | null) => boolean;
+  /**
+   * `both` writes an explicit grant when on and an explicit deny when off — right when the
+   * role would otherwise carry the capability. `grant-only` writes nothing when off, for a
+   * switch that adds something no preset gives.
+   */
+  write: 'both' | 'grant-only';
+  /** Which workspace roles are offered it. Omitted = all of them. */
+  offeredFor?: readonly WorkspaceRole[];
+  /** How a row names it, and ONLY when it differs from the role's default. */
+  summary: { on?: string; off?: string };
+  /** Completes "<name> will no longer be able to …" in a confirmation. */
+  lossLabel: string;
+  /** May a single brand grant it back after a workspace-wide deny? */
+  perBrandException?: boolean;
+  /** The word used on a brand row for that exception. */
+  exceptionLabel?: string;
+};
+
+export const NAMED_SWITCHES: readonly NamedSwitch[] = [
   {
     id: 'export',
     label: 'Can download and export',
     scope: 'brand',
     capabilities: ['designs.export', 'brand.kit.export'],
-    defaultFor: (role: BrandRole) => role !== 'viewer',
+    defaultFor: (role) => role !== 'viewer',
+    write: 'both',
+    summary: { on: 'exports', off: 'no exports' },
+    lossLabel: 'download or export',
+    perBrandException: true,
+    exceptionLabel: 'Exports here',
   },
   {
     id: 'ai',
@@ -177,7 +223,12 @@ export const NAMED_SWITCHES = [
     scope: 'brand',
     capabilities: ['ai.generate'],
     // off for guests entirely, and for viewers; the server applies the guest rule too
-    defaultFor: (role: BrandRole) => role !== 'viewer',
+    defaultFor: (role) => role !== 'viewer',
+    write: 'both',
+    summary: { on: 'AI', off: 'no AI' },
+    lossLabel: 'use AI generation',
+    perBrandException: true,
+    exceptionLabel: 'AI here',
   },
   {
     id: 'billing',
@@ -185,6 +236,10 @@ export const NAMED_SWITCHES = [
     scope: 'workspace',
     capabilities: ['workspace.billing.view'],
     defaultFor: () => false,
+    write: 'grant-only',
+    offeredFor: ['member'],
+    summary: { on: 'billing' },
+    lossLabel: 'see billing',
   },
 ] as const;
 

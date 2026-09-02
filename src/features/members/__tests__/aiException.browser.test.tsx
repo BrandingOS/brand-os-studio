@@ -94,8 +94,15 @@ describe('the sheet shows the exception and keeps it', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save access' }));
 
     await waitFor(() => expect(grantBrandAccess).toHaveBeenCalledTimes(1));
+    // The EXCEPTION is an explicit grant. `allowAi: true` alone only suppresses the deny
+    // the RPC would otherwise add — it stores `{}` and grants nothing, so asserting the
+    // argument without the override passed while creating no exception at all.
     expect(grantBrandAccess).toHaveBeenCalledWith(
-      expect.objectContaining({ brandId: 'b1', allowAi: true }),
+      expect.objectContaining({
+        brandId: 'b1',
+        allowAi: true,
+        overrides: { grant: ['ai.generate'] },
+      }),
     );
   });
 

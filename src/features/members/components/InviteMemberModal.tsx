@@ -18,8 +18,9 @@ import {
   DsButton, DsInput, DsModal, DsSelect, DsSegmented, DsCheckbox, DsTextArea, DsBadge,
 } from '@/shared/ds';
 import {
-  BRAND_ROLE_LABEL, BRAND_ROLES, WORKSPACE_ROLE_DESCRIPTION, WORKSPACE_ROLE_LABEL,
-  type BrandRole, type WorkspaceRole,
+  BRAND_ROLE_LABEL, BRAND_ROLES, defaultSwitchState, overridesFromSwitches, switchesFor,
+  WORKSPACE_ROLE_DESCRIPTION, WORKSPACE_ROLE_LABEL,
+  type BrandRole, type SwitchState, type WorkspaceRole,
 } from '@/shared/access';
 import { createInvitation, MembersError } from '../data/membersApi';
 
@@ -45,9 +46,8 @@ export function InviteMemberModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [perBrandRole, setPerBrandRole] = useState<Record<string, BrandRole>>({});
   const [search, setSearch] = useState('');
-  const [canExport, setCanExport] = useState(true);
-  const [canAi, setCanAi] = useState(true);
-  const [canBilling, setCanBilling] = useState(false);
+  /** Every named switch, by id — the same table the sheet and the row read. */
+  const [switches, setSwitches] = useState<SwitchState>(() => defaultSwitchState('member', 'editor'));
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -56,8 +56,8 @@ export function InviteMemberModal({
     if (role === 'guest') {
       setMode('selected');
       setBrandRole('viewer');
-      setCanAi(false);
-      setCanBilling(false);
+      // A guest starts with nothing extra; the table says what that means.
+      setSwitches(defaultSwitchState('guest', 'viewer'));
     }
     if (role === 'admin') setMode('all');
   }, [role]);
@@ -70,7 +70,7 @@ export function InviteMemberModal({
   const reset = () => {
     setEmail(''); setRole('member'); setMode('selected'); setBrandRole('editor');
     setSelected(new Set()); setPerBrandRole({}); setSearch('');
-    setCanExport(true); setCanAi(true); setCanBilling(false); setMessage('');
+    setSwitches(defaultSwitchState('member', 'editor')); setMessage('');
   };
 
   const submit = async () => {
@@ -79,13 +79,7 @@ export function InviteMemberModal({
     try {
       // The switches are stored as capability overrides — the same rows the generic
       // editor would write — so the backend stays purely capability-based.
-      const grant: string[] = [];
-      const deny: string[] = [];
-      if (canExport) grant.push('designs.export', 'brand.kit.export');
-      else deny.push('designs.export', 'brand.kit.export');
-      if (canAi) grant.push('ai.generate');
-      else deny.push('ai.generate');
-      if (canBilling && role === 'member') grant.push('workspace.billing.view');
+      const overrides = overridesFromSwitches(switches, role);
 
       const { token } = await createInvitation({
         workspaceId,
@@ -96,7 +90,7 @@ export function InviteMemberModal({
         brandGrants: mode === 'selected'
           ? [...selected].map((id) => ({ brandId: id, role: perBrandRole[id] ?? brandRole }))
           : [],
-        overrides: { grant, deny },
+        overrides,
         message: message.trim() || undefined,
       });
       const link = `${window.location.origin}/invite/${token}`;
@@ -243,16 +237,18 @@ export function InviteMemberModal({
         <div className="mem-field">
           <span className="mem-field-label">Access</span>
           <div className="mem-switches">
-            <DsCheckbox checked={canExport} onChange={setCanExport}
-              label="Can download and export" />
-            <DsCheckbox checked={canAi} onChange={setCanAi}
-              label={role === 'guest' ? 'Can use AI generation on these brands' : 'Can use AI generation'} />
-            {role === 'member' && (
-              <DsCheckbox checked={canBilling} onChange={setCanBilling}
-                label="Can see billing" />
-            )}
+            {switchesFor(role).map((sw) => (
+              <DsCheckbox
+                key={sw.id}
+                checked={!!switches[sw.id]}
+                onChange={(v) => setSwitches((p) => ({ ...p, [sw.id]: v }))}
+                label={role === 'guest' && sw.scope === 'brand'
+                  ? `${sw.label} on these brands`
+                  : sw.label}
+              />
+            ))}
           </div>
-          {role === 'guest' && canAi && (
+          {role === 'guest' && switches.ai && (
             <span className="mem-field-hint">
               <DsBadge tone="warning">Spends credits</DsBadge> This guest will use your workspace’s AI credits.
             </span>

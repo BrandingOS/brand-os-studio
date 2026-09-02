@@ -123,6 +123,29 @@ and not only when the ROLE changed; and removing one is a loss, so it goes throu
 same delta confirmation as dropping a brand — *"Dana Ortiz will lose the AI exception on
 Client B."* Tests: `features/members/__tests__/aiException.browser.test.tsx` (7).
 
+### 5b-ii. One table defines the switches (added 2026-09-03)
+
+The three named switches were declared as data in `catalog.ts` and read by nothing.
+`MemberSheet`, `InviteMemberModal` and `MembersTable` each re-derived them by hand across
+about ten sites, so adding one meant editing three components — and they could disagree.
+They did: the sheet wrote the AI exception with the RPC's `allowAi` flag alone, which only
+suppresses the deny `grant_brand_access` would otherwise add. It stores `{}` and grants
+NOTHING, so the exception 5b had just made visible was never actually created; the browser
+test passed because it asserted the argument rather than the effect.
+
+`NAMED_SWITCHES` is now the whole description of a switch — label, scope, the capabilities
+it stores, which roles are offered it, the words a row uses, the sentence a confirmation
+uses, and whether a single brand may except it. `shared/access/switches.ts` turns that into
+state, overrides, exceptions and summary text, and **no component outside it names a
+capability id**. Adding a switch is one array entry; a test drives the generic functions
+with an invented switch to prove no component needs a special case. The role matrix marks
+every row a switch controls with a *per person* badge, read from the same table, so the
+matrix no longer reads as the last word.
+
+Verified end to end against the local database: ticking a second brand's exception now
+stores `{"grant": ["ai.generate"]}` on that grant, where it previously stored `{}`. Tests:
+`shared/access/__tests__/switches.test.ts` (24).
+
 ### 5c. Which workspace you are in survives a reload (added 2026-09-01)
 
 `accessStore` is deliberately never persisted, so a removed member cannot keep a cached

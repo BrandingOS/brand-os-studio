@@ -6,7 +6,14 @@ export {
   WORKSPACE_ROLE_DESCRIPTION, BRAND_ROLE_DESCRIPTION,
   NAMED_SWITCHES, overridableCapabilities, isReserved,
   type WorkspaceRole, type BrandRole, type BrandAccessMode, type MemberStatus,
+  type NamedSwitch,
 } from './catalog';
+export {
+  switchById, switchesFor, defaultSwitchState, switchStateFrom, overridesFromSwitches,
+  exceptionSwitches, brandExceptionsFrom, brandOverridesFor, allowAiFor, sameExceptions,
+  summariseSwitches, switchLosses,
+  type SwitchState, type Overrides,
+} from './switches';
 export {
   effectiveCapabilities, can, brandRoleFor,
   type Membership, type BrandRef, type BrandGrant, type CapabilityOverrides,

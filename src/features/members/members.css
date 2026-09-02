@@ -95,3 +95,16 @@
 .mem-matrix-table td { text-align: center; }
 .mem-matrix-table thead th { font-weight: 600; }
 .mem-matrix-table tbody th { font-weight: 400; }
+
+/* A matrix row a named switch can override, so the table does not read as the last word. */
+.mem-matrix-switch {
+  margin-left: var(--ds-space-2, 8px);
+  padding: 1px 6px;
+  border: 1px solid var(--ds-border, #e3ded5);
+  border-radius: var(--ds-radius-pill, 999px);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ds-text-secondary, #6b6459);
+  white-space: nowrap;
+  vertical-align: middle;
+}

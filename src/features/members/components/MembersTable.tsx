@@ -12,7 +12,7 @@ import { useMemo, useState } from 'react';
 
 import { DsInput, DsBadge, DsSelect, DsSkeleton } from '@/shared/ds';
 import { RowMenu } from './RowMenu';
-import { BRAND_ROLE_LABEL, WORKSPACE_ROLE_LABEL, type WorkspaceRole } from '@/shared/access';
+import { BRAND_ROLE_LABEL, summariseSwitches, WORKSPACE_ROLE_LABEL, type WorkspaceRole } from '@/shared/access';
 import type { Member } from '../data/membersApi';
 import { PersonAvatar } from './PersonAvatar';
 
@@ -133,18 +133,13 @@ function accessSummary(m: Member): string {
     ? 'All brands'
     : `${m.grants.length} ${m.grants.length === 1 ? 'brand' : 'brands'}`;
 
-  const notes: string[] = [];
-  const deny = new Set(m.overrides?.deny ?? []);
-  const grant = new Set(m.overrides?.grant ?? []);
-  if (deny.has('ai.generate')) {
-    // A bare "no AI" is a lie when a brand grants it back. The exception is the
-    // interesting half of the sentence, so say it here rather than only in the sheet.
-    const on = m.grants.filter((g) => (g.overrides?.grant ?? []).includes('ai.generate')).length;
-    notes.push(on ? `AI on ${on} of ${m.grants.length}` : 'no AI');
-  }
-  if (deny.has('designs.export')) notes.push('no exports');
-  if (grant.has('designs.export') && m.defaultBrandRole === 'viewer') notes.push('exports');
-  if (grant.has('workspace.billing.view')) notes.push('billing');
+  // Every switch, its words and its exceptions come from NAMED_SWITCHES — this row does
+  // not know that AI or exports exist.
+  const notes = summariseSwitches({
+    overrides: m.overrides,
+    defaultBrandRole: m.defaultBrandRole,
+    grants: m.grants,
+  });
 
   return [role, scope, ...notes].join(' · ');
 }

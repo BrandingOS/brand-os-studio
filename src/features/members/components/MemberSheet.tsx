@@ -19,12 +19,15 @@
 // place, so a transform on any ancestor would re-anchor it (the hazard CLAUDE.md records
 // for `.bcm-slot`).
 // ============================================================================
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { DsButton, DsCheckbox, DsConfirmDialog, DsInput, DsModal, DsSelect, DsSegmented } from '@/shared/ds';
 import {
-  BRAND_ROLE_LABEL, BRAND_ROLES, WORKSPACE_ROLE_DESCRIPTION, WORKSPACE_ROLE_LABEL,
-  type BrandRole, type WorkspaceRole,
+  allowAiFor, BRAND_ROLE_LABEL, BRAND_ROLES, brandExceptionsFrom, brandOverridesFor,
+  defaultSwitchState, exceptionSwitches, overridesFromSwitches, sameExceptions,
+  switchesFor, switchLosses, switchStateFrom,
+  WORKSPACE_ROLE_DESCRIPTION, WORKSPACE_ROLE_LABEL,
+  type BrandRole, type SwitchState, type WorkspaceRole,
 } from '@/shared/access';
 import {
   grantBrandAccess, MembersError, revokeBrandAccess, setMemberRole,
@@ -56,11 +59,10 @@ export function MemberSheet({
   const [defaultRole, setDefaultRole] = useState<BrandRole>('editor');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [perBrandRole, setPerBrandRole] = useState<Record<string, BrandRole>>({});
-  /** Brands where AI is granted back despite the workspace-wide deny. */
-  const [perBrandAi, setPerBrandAi] = useState<Record<string, boolean>>({});
-  const [canExport, setCanExport] = useState(true);
-  const [canAi, setCanAi] = useState(true);
-  const [canBilling, setCanBilling] = useState(false);
+  /** Every named switch, by id. The sheet does not know which ones exist. */
+  const [switches, setSwitches] = useState<SwitchState>({});
+  /** Per brand, which switches that brand grants back. */
+  const [exceptions, setExceptions] = useState<Record<string, SwitchState>>({});
   const [cap, setCap] = useState('');
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,66 +74,67 @@ export function MemberSheet({
     setDefaultRole(member.defaultBrandRole ?? 'editor');
     setSelected(new Set(member.grants.map((g) => g.brandId)));
     setPerBrandRole(Object.fromEntries(member.grants.map((g) => [g.brandId, g.role])));
-    setPerBrandAi(Object.fromEntries(member.grants.map(
-      (g) => [g.brandId, (g.overrides?.grant ?? []).includes('ai.generate')])));
-    const deny = new Set(member.overrides?.deny ?? []);
-    const grant = new Set(member.overrides?.grant ?? []);
-    setCanExport(!deny.has('designs.export'));
-    setCanAi(!deny.has('ai.generate'));
-    setCanBilling(grant.has('workspace.billing.view'));
+    setExceptions(Object.fromEntries(
+      member.grants.map((g) => [g.brandId, brandExceptionsFrom(g.overrides)])));
+    setSwitches(switchStateFrom(member.overrides, member.defaultBrandRole));
     setCap(member.creditsMonthlyCap != null ? String(member.creditsMonthlyCap) : '');
   }, [member]);
+
+  /** Brand names, per switch id, keeping an exception after this save. */
+  const keptExceptions = useMemo(() => {
+    const ids = mode === 'all' && role !== 'guest' ? [] : [...selected];
+    const out: Record<string, string[]> = {};
+    for (const sw of exceptionSwitches(switches)) {
+      out[sw.id] = ids
+        .filter((id) => exceptions[id]?.[sw.id])
+        .map((id) => brands.find((br) => br.id === id)?.name ?? id);
+    }
+    return out;
+  }, [brands, mode, role, selected, switches, exceptions]);
 
   /** What this save takes away, in the words the person losing it would use. */
   const losses = useMemo(() => {
     if (!member) return [];
     const out: string[] = [];
-    const before = member.mode === 'all' ? brands.map((b) => b.id) : member.grants.map((g) => g.brandId);
-    const after = mode === 'all' ? brands.map((b) => b.id) : [...selected];
+    const before = member.mode === 'all' ? brands.map((br) => br.id) : member.grants.map((g) => g.brandId);
+    const after = mode === 'all' ? brands.map((br) => br.id) : [...selected];
     const dropped = before.filter((id) => !after.includes(id));
     if (dropped.length) {
       out.push(`${member.name} will lose access to ${dropped.length} ${dropped.length === 1 ? 'brand' : 'brands'}.`);
     }
-    const keptAiOn = mode === 'all' && role !== 'guest'
-      ? []
-      : [...selected].filter((id) => perBrandAi[id]);
-    if (!canAi && !(member.overrides?.deny ?? []).includes('ai.generate') && !keptAiOn.length) {
-      out.push(`${member.name} will no longer be able to use AI generation.`);
+
+    // A brand still selected keeps its exception; one dropped from the list loses it too.
+    const hadExceptions: Record<string, string[]> = {};
+    for (const g of member.grants) {
+      const had = brandExceptionsFrom(g.overrides);
+      for (const key of Object.keys(had)) {
+        if (!had[key]) continue;
+        (hadExceptions[key] ??= []).push(brands.find((br) => br.id === g.brandId)?.name ?? g.brandId);
+      }
     }
-    const lostExceptions = member.grants
-      .filter((g) => (g.overrides?.grant ?? []).includes('ai.generate'))
-      .filter((g) => !(after.includes(g.brandId) && (canAi || perBrandAi[g.brandId])))
-      .map((g) => brands.find((b) => b.id === g.brandId)?.name ?? g.brandId);
-    if (lostExceptions.length) {
-      out.push(`${member.name} will lose the AI exception on ${lostExceptions.join(', ')}.`);
-    }
-    if (!canExport && !(member.overrides?.deny ?? []).includes('designs.export')) {
-      out.push(`${member.name} will no longer be able to download or export.`);
-    }
+    out.push(...switchLosses({
+      name: member.name,
+      before: switchStateFrom(member.overrides, member.defaultBrandRole),
+      after: switches,
+      keptExceptions,
+      hadExceptions,
+    }));
+
     if (RANK[role] > RANK[member.role]) {
       out.push(`${member.name} will drop from ${WORKSPACE_ROLE_LABEL[member.role]} to ${WORKSPACE_ROLE_LABEL[role]}.`);
     }
     return out;
-  }, [member, brands, mode, selected, canAi, canExport, role, perBrandAi]);
+  }, [member, brands, mode, selected, switches, role, keptExceptions]);
 
-  const aiExceptions = useMemo(
-    () => (mode === 'all' && role !== 'guest' ? [] : [...selected])
-      .filter((id) => perBrandAi[id])
-      .map((id) => brands.find((b) => b.id === id)?.name ?? id),
-    [brands, mode, role, selected, perBrandAi],
-  );
+  /** Which switches may be excepted on a brand right now, and where they already are. */
+  const offered = exceptionSwitches(switches);
 
   if (!member) return null;
 
   const apply = async () => {
     setBusy(true);
     try {
-      const grant: string[] = [];
-      const deny: string[] = [];
-      if (canExport) grant.push('designs.export', 'brand.kit.export');
-      else deny.push('designs.export', 'brand.kit.export');
-      if (canAi) grant.push('ai.generate'); else deny.push('ai.generate');
-      if (canBilling && role === 'member') grant.push('workspace.billing.view');
+      const overrides = overridesFromSwitches(switches, role);
 
       await setMemberRole({
         workspaceId,
@@ -139,7 +142,7 @@ export function MemberSheet({
         role,
         mode: role === 'guest' ? 'selected' : mode,
         defaultBrandRole: role === 'admin' ? null : defaultRole,
-        overrides: { grant, deny },
+        overrides,
       });
 
       // Brand grants are separate calls with no transaction around them, so a failure
@@ -151,13 +154,21 @@ export function MemberSheet({
         const want = role === 'guest' || mode === 'selected' ? [...selected] : [];
         for (const id of want) {
           const wantRole = perBrandRole[id] ?? defaultRole;
-          // The workspace switch decides the default; the row decides the exception.
-          const wantAi = canAi || !!perBrandAi[id];
+          // The workspace switch decides the default; the row decides the exception. The
+          // exception is written as an explicit GRANT — `allowAi` alone only suppresses the
+          // deny the RPC would otherwise add, so it grants nothing.
+          const want = exceptions[id] ?? {};
           const existing = member.grants.find((g) => g.brandId === id);
-          const hadAi = (existing?.overrides?.grant ?? []).includes('ai.generate');
-          if (!existing || existing.role !== wantRole || hadAi !== wantAi) {
+          const had = brandExceptionsFrom(existing?.overrides);
+          if (!existing || existing.role !== wantRole || !sameExceptions(had, want)) {
             try {
-              await grantBrandAccess({ brandId: id, userId: member.userId, role: wantRole, allowAi: wantAi });
+              await grantBrandAccess({
+                brandId: id,
+                userId: member.userId,
+                role: wantRole,
+                overrides: brandOverridesFor(want),
+                allowAi: allowAiFor(switches, want),
+              });
             } catch {
               failed.push(brands.find((b) => b.id === id)?.name ?? id);
             }
@@ -293,13 +304,16 @@ export function MemberSheet({
                           <DsCheckbox checked={selected.has(b.id)} onChange={() => toggle(b.id)} label={b.name} />
                           {selected.has(b.id) && (
                             <>
-                              {!canAi && (
+                              {offered.map((sw) => (
                                 <DsCheckbox
-                                  checked={!!perBrandAi[b.id]}
-                                  onChange={(v) => setPerBrandAi((p) => ({ ...p, [b.id]: v }))}
-                                  label="AI here"
+                                  key={sw.id}
+                                  checked={!!exceptions[b.id]?.[sw.id]}
+                                  onChange={(v) => setExceptions((p) => ({
+                                    ...p, [b.id]: { ...(p[b.id] ?? {}), [sw.id]: v },
+                                  }))}
+                                  label={sw.exceptionLabel ?? sw.label}
                                 />
-                              )}
+                              ))}
                               <DsSelect
                                 value={perBrandRole[b.id] ?? defaultRole}
                                 onChange={(v) => setPerBrandRole((p) => ({ ...p, [b.id]: v as BrandRole }))}
@@ -317,16 +331,24 @@ export function MemberSheet({
               <div className="mem-field">
                 <span className="mem-field-label">Access</span>
                 <div className="mem-switches">
-                  <DsCheckbox checked={canExport} onChange={setCanExport} label="Can download and export" />
-                  <DsCheckbox checked={canAi} onChange={setCanAi} label="Can use AI generation" />
-                  {!canAi && aiExceptions.length > 0 && (
-                    <span className="mem-field-hint">
-                      Except on {aiExceptions.join(', ')} — tick “AI here” on a brand to add another.
-                    </span>
-                  )}
-                  {role === 'member' && (
-                    <DsCheckbox checked={canBilling} onChange={setCanBilling} label="Can see billing" />
-                  )}
+                  {switchesFor(role).map((sw) => {
+                    const kept = keptExceptions[sw.id] ?? [];
+                    return (
+                      <Fragment key={sw.id}>
+                        <DsCheckbox
+                          checked={!!switches[sw.id]}
+                          onChange={(v) => setSwitches((p) => ({ ...p, [sw.id]: v }))}
+                          label={sw.label}
+                        />
+                        {kept.length > 0 && (
+                          <span className="mem-field-hint">
+                            Except on {kept.join(', ')} — tick “{sw.exceptionLabel ?? sw.label}”
+                            on a brand to add another.
+                          </span>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </div>
               </div>
 
