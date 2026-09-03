@@ -68,6 +68,12 @@ const DevEditorPage = lazy(() => import("./pages/dev-editor"));
 const DevArchitecturePage = import.meta.env.DEV
   ? lazy(() => import("./pages/__architecture"))
   : null;
+// Code -> Figma capture harness. Same load-bearing ternary as above: the
+// harness imports the manifest, which imports every DS component, so guarding
+// only the <Route> would ship the whole thing.
+const DevFigmaHarnessPage = import.meta.env.DEV
+  ? lazy(() => import("./pages/_dev/figma"))
+  : null;
 const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 // DS v1 component showcase (self-gated on import.meta.env.DEV or ?dev=1).
 const DevDesignSystemPage = lazy(() => import("./pages/_dev/design-system"));
@@ -802,6 +808,11 @@ const App = () => (
           )}
           {import.meta.env.DEV && (
             <Route path="/__architecture/:view" element={<DevArchitecturePage />} />
+          )}
+          {/* Code -> Figma capture harness. Renders every manifest cell tagged
+              with data-fx-* for the extractor. DEV only, never in nav. */}
+          {import.meta.env.DEV && (
+            <Route path="/_dev/figma" element={<DevFigmaHarnessPage />} />
           )}
           {/* DS v1 showcase — self-gated (DEV or ?dev=1), never in nav. */}
           <Route path="/_dev/design-system" element={<DevDesignSystemPage />} />

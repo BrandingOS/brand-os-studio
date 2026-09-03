@@ -1,0 +1,81 @@
+/*
+ * Capture-harness chrome.
+ *
+ * Deliberately minimal and NEVER inherited by a subject: every rule here is
+ * scoped away from `.fx-subject`'s contents, because anything this stylesheet
+ * imposed on a component would be measured as if the product had done it.
+ *
+ * `.fx-subject` sets no font, colour, size, padding or alignment for the same
+ * reason — it is a positioning box, not a style.
+ */
+
+.fx-root {
+  min-height: 100vh;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font);
+  padding: var(--ds-space-8);
+}
+
+.fx-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-4);
+  padding-bottom: var(--ds-space-6);
+  border-bottom: 1px solid var(--ds-hairline);
+  margin-bottom: var(--ds-space-8);
+}
+
+.fx-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fx-meta {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+
+.fx-group {
+  margin-bottom: var(--ds-space-16);
+}
+
+.fx-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
+  margin: 0 0 var(--ds-space-5);
+}
+
+.fx-count {
+  color: var(--ds-text-muted);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/*
+ * A generous, uniform grid. Cells are laid out far enough apart that a hovered
+ * or focused subject cannot visually overlap its neighbour — an overlap would
+ * be measured as part of the wrong node.
+ */
+.fx-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-12);
+  align-items: flex-start;
+}
+
+.fx-cell {
+  display: flex;
+}
+
+/*
+ * The measured box. `display: inline-flex` so it hugs its subject exactly —
+ * a block wrapper would report the grid's width instead of the component's.
+ */
+.fx-subject {
+  display: inline-flex;
+}
