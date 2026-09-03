@@ -45,8 +45,23 @@ select
   (select count(*) from auth.users)                              as users,
   (select count(*) from workspaces w
      where not exists (select 1 from auth.users u where u.id = w.owner_id)) as orphan_workspaces,
+  -- THIS QUERY WAS WRONG UNTIL 2026-09-03 AND IT COST A FAILED PRODUCTION PUSH.
+  -- It asked only whether SOME workspace has the brand's creator as owner. 036 step (c)
+  -- needs a workspace that is also `is_personal` AND `deleted_at IS NULL` — and step (b)
+  -- runs FIRST and soft-deletes every workspace whose owner is gone from auth.users. So a
+  -- brand whose creator has been deleted passes the old check (their orphan workspace is
+  -- still there when you look) and is then stranded by the migration itself. It reported 0
+  -- while 036 aborted on 18. The condition below mirrors 036 exactly, orphan step included.
   (select count(*) from brands b where b.workspace_id is null
-     and not exists (select 1 from workspaces w where w.owner_id = b.user_id)) as brands_with_no_home,
+     and not exists (
+       select 1 from workspaces w
+        where w.owner_id = b.user_id
+          and w.deleted_at is null
+          and exists (select 1 from auth.users u where u.id = w.owner_id)   -- survives step (b)
+     )) as brands_with_no_home,
+  -- and the reason, so a non-zero answer is actionable rather than just a stop sign
+  (select count(*) from brands b where b.workspace_id is null
+     and not exists (select 1 from auth.users u where u.id = b.user_id)) as brands_whose_creator_is_deleted,
   (select sum(balance_credits) from credit_accounts)             as credits_in_circulation,
   (select json_agg(x) from (select role, count(*) from workspace_members group by role) x) as roles;
 ```
@@ -57,9 +72,16 @@ workspaces**, **0 brands with no home**, 14,322 credits, 0 legacy `brand_members
 publications. Remote migration head is `20260820210000` (034) and all eleven of
 `20260829*` report `remote: ""` — none applied.
 
-**`brands_with_no_home` must be 0.** If it is not, migration 036 will log those brands as
-`brand_unassigned` and 036's guard rail will abort the migration. Fix the data first (give
-the creator a workspace, or reassign the brand) rather than weakening the guard.
+**`brands_with_no_home` must be 0.** If it is not, migration 036 logs those brands as
+`brand_unassigned` and its guard rail aborts the migration — which is what happened on the
+first production attempt, 2026-09-03: the push applied 035, aborted inside 036, and left
+production at 035 with 037–046 unapplied. 035 is additive (every column
+`ADD COLUMN IF NOT EXISTS … NOT NULL DEFAULT`, its three constraints dropped and re-added in
+the same transaction) so the running app is unaffected and sitting on it is safe.
+
+Fix the DATA first — give the creator a live personal workspace, reassign the brand, or
+remove it — rather than weakening the guard. In the 2026-09-03 case all 18 were QA brands
+belonging to three deleted accounts, holding one asset and no designs between them.
 
 Take a backup. `supabase db dump` or the dashboard's point-in-time restore — but take one,
 because 037 and 039 are not additive.
