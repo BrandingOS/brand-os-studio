@@ -10,8 +10,8 @@ https://www.figma.com/design/ZTR7jwR1cvjYvs0N9kuHCX
 | Page | id | Expected | Generated | Root node ids | Components / variants / instances | Visual | Structural | Status |
 |---|---|---|---|---|---|---|---|---|
 | 00 — Cover & Usage | `0:1` | usage doc | — | — | — | — | — | **empty** |
-| 01 — Foundations | `1:2` | colours, spacing, radii, type, effects, grids, a11y | — | — | — | — | — | **empty** |
-| 02 — Icons | `1:3` | 7 audited icons as vector components | — | — | — | — | — | **empty** |
+| 01 — Foundations | `1:2` | colours, spacing, radii, type, effects, grids, a11y | 8 sections | `27:2` | 31 colour vars · 15 float vars · 4 effect styles · 4 text styles | ✅ screenshot | ✅ read-back | **complete** |
+| 02 — Icons | `1:3` | 7 audited icons as vector components | 7 | `30:2` | 7 components / 7 instances, all connected | ✅ screenshot | ✅ read-back | **complete** |
 | 03 — Components | `1:4` | ~30 audited DS components | 2 | `8:54`, `24:34` | 2 sets / 30 variants / 0 | ✅ screenshot | ✅ read-back | **in progress** |
 | 04 — Patterns & Navigation | `1:5` | shell, nav, rail, headers | — | — | — | — | — | **empty** |
 | 10 — Setup | `1:6` | 8 sections × states | — | — | — | — | — | **empty** |
