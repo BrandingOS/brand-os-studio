@@ -1,6 +1,6 @@
 # Access Architecture — 12 · Production Runbook
 
-**Nothing in this initiative has been applied to production.** Migrations 035–045 exist in
+**Nothing in this initiative has been applied to production.** Migrations 035–046 exist in
 the repo, run clean against a local Supabase, and are covered by the SQL suite. This is the
 document for the person who applies them.
 
@@ -15,8 +15,8 @@ Production head at the time of writing: **034** (`20260820210000`), verified wit
 git checkout feat/workspace-access-architecture
 npm ci
 supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,pgbouncer
-npm run test:db          # 21 suites; 20 pass, 025 crashes the Supabase image (see §7)
-npm run test:db:stock    # 21/21 on stock postgres:17, including 025
+npm run test:db          # 22 suites; 21 pass, 025 crashes the Supabase image (see §7)
+npm run test:db:stock    # 22/22 on stock postgres:17, including 025
 npm run typecheck:ci && npm run lint && npx vitest run
 ```
 
@@ -64,7 +64,7 @@ because 037 and 039 are not additive.
 ## 2. Apply
 
 ```bash
-supabase db push        # applies 035 → 045 in order
+supabase db push        # applies 035 → 046 in order
 ```
 
 Each migration ends with a guard rail that RAISEs rather than leaving a half-applied state.
@@ -83,6 +83,7 @@ Watch for these NOTICEs, in this order:
 | 043 | `043 OK — entitlements` |
 | 044 | `044 OK — credit reservations, usage events, reaper and reconciliation` |
 | 045 | `045 OK — versioning, checked writes, ownership succession` |
+| 046 | `046 OK — brand_people` |
 
 If 044 prints `pg_cron unavailable`, the schedules did not install — see §4.
 
@@ -209,6 +210,15 @@ should refuse anonymous callers too.
    number to watch; the remedy, if it becomes a complaint, is the same grouping trick
    `brands_with_capability` already uses — the per-brand capability arrays are identical
    for every brand with no explicit grant.
+5. **After a run in which 025 crashed the server, do a bare `supabase db reset` before the
+   next `npm run test:db`.** The script's own reset can run while Postgres is still in
+   crash recovery and complete without applying the platform's table grants — every suite
+   after the first few then fails with `permission denied for table brands ... GRANT SELECT
+   ON public.brands TO authenticated`, which reads like a migration bug and is not one.
+   Confirmed by measurement: a bare reset restores
+   `has_table_privilege('authenticated','public.brands','SELECT') = true`, and
+   `npm run test:db -- --no-reset` then gives 21/22 with only 025 crashing. The grants
+   survive a clean run.
 
 ---
 
@@ -236,7 +246,7 @@ step 2.
 
 ```
 1. backup                       point-in-time restore point, or supabase db dump
-2. supabase db push             035 → 045, each with its own guard rail
+2. supabase db push             035 → 046, each with its own guard rail
 3. verify                       §3 of this runbook — do NOT skip
 4. deploy the app + Edge Functions TOGETHER
 5. supabase secrets set PURGE_CRON_SECRET=…    (see §5 — cleanup now fails closed)

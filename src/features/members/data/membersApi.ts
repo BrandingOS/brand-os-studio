@@ -227,3 +227,37 @@ export async function checkLimit(workspaceId: string, key: string, adding = 1) {
   if (error) rethrow(error);
   return data as { allowed: boolean; limit: number; used: number; plan: string; reason: string | null };
 }
+
+// ── one brand's people (migration 046) ──────────────────────────────────────
+
+/** Why someone can reach a brand. It decides what this screen may change. */
+export type BrandPersonVia = 'role' | 'workspace' | 'direct';
+
+export type BrandPerson = {
+  userId: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  workspaceRole: WorkspaceRole;
+  status: 'active' | 'suspended';
+  /** The brand role actually in force, decided by the server. */
+  brandRole: BrandRole | null;
+  via: BrandPersonVia;
+  /** Overrides on the direct grant — the per-brand exceptions. */
+  overrides: { grant?: string[]; deny?: string[] };
+  /** The person's workspace-level switches, so a row can explain what it is excepting. */
+  workspaceOverrides: { grant?: string[]; deny?: string[] };
+};
+
+/**
+ * Everyone who can reach one brand. This is a single RPC and not two selects because the
+ * effective brand role is a RULE (owner/admin are managers of every brand; an `all`-mode
+ * member falls back to their default) — deriving it a second time in the browser is how
+ * the two come to disagree. It also serves a guest brand manager, who cannot read
+ * `workspace_members` at all.
+ */
+export async function listBrandPeople(brandId: string): Promise<BrandPerson[]> {
+  const { data, error } = await db.rpc('brand_people', { _brand_id: brandId });
+  if (error) rethrow(error);
+  return ((data as { people?: BrandPerson[] } | null)?.people ?? []) as BrandPerson[];
+}

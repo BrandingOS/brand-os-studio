@@ -103,6 +103,40 @@ invitations that name this brand are listed. **Add people** picks from existing 
 whose mode is Selected (adds a grant) — inviting new people goes through Members so seats are
 counted once. `brand.access.view` sees the list read-only.
 
+### 5a. Built 2026-09-03 — `BrandPeoplePanel` + `brand_people()` (migration 046)
+
+The tab specified above is now real, at `/b/:slug/share?tab=access`. Three decisions are
+load-bearing:
+
+- **A row is editable HERE only when the person is on this brand BECAUSE of this brand.**
+  Someone who reaches it as an owner, or through an `all`-brands membership, is not this
+  brand's business: a control that appeared to change them would in fact change every
+  other brand too, silently. Those rows say why they are here — *Owner of the workspace*,
+  *Has every brand* — and point at People. The panel shows exactly one Change and one
+  Remove per direct grant, and a browser test counts them.
+- **One RPC, not two selects.** `brand_people()` (046) returns both halves with the reason
+  each person is there. The effective brand role is a RULE — owner and admin are managers
+  of every brand, an `all`-mode member falls back to their default, a direct grant wins —
+  and deriving it a second time in the browser is how the two come to disagree. It also
+  serves the case plain SQL cannot: a GUEST running one client brand holds
+  `brand.access.view` on it but not the workspace-level `members.view`, so an assembled
+  list would have omitted the owner, the admins and every all-mode teammate from a list
+  that reads as complete. Pinned by `supabase/tests/046_brand_people.test.sql`.
+- **Every permission word comes from `NAMED_SWITCHES`** (5b-ii), so this screen and the
+  People screen cannot describe the same grant differently. A brand row mentions an
+  exception only when it IS one — "AI here" says nothing unless AI is off for that person
+  across the workspace.
+
+**Add people** picks from existing members only; inviting someone new still goes through
+People, so a seat is counted in one place. The panel is DS-native
+(`features/members/components/BrandPeoplePanel.tsx`) even though it renders inside the
+legacy Share page's shadcn tab strip — the tab chrome is that page's existing idiom, the
+content introduces no new legacy import. Tests:
+`features/members/__tests__/brandPeople.browser.test.tsx` (11).
+
+Not built: pending invitations that name this brand are not listed yet (040 stores
+`brand_grants` on the invitation, so this is additive when wanted).
+
 ### 5b. The exception is on screen (added 2026-09-01, found by using the screen)
 
 A per-brand grant beating a workspace-wide deny — "no AI, except on Client B" — is the

@@ -108,3 +108,26 @@
   white-space: nowrap;
   vertical-align: middle;
 }
+
+/* Brand → Access. Same row vocabulary as the People list; two extra columns, because a
+   brand row has to say the ROLE in force and WHY the person is here — the second is what
+   decides whether this screen may change them. */
+[data-members] .bp-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--ds-space-3, 12px); flex-wrap: wrap;
+}
+[data-members] .bp-title { font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+[data-members] .bp-row {
+  flex: 1; display: flex; align-items: center; gap: var(--ds-space-3, 12px); min-width: 0;
+}
+[data-members] .bp-role { font-size: 13px; white-space: nowrap; }
+[data-members] .bp-note { color: var(--ds-text-muted, #6b6b6b); }
+[data-members] .bp-via {
+  color: var(--ds-text-muted, #6b6b6b); font-size: 13px; white-space: nowrap;
+  min-width: 140px; text-align: right;
+}
+[data-members] .bp-actions { display: flex; align-items: center; gap: var(--ds-space-2, 8px); white-space: nowrap; }
+@media (max-width: 720px) {
+  [data-members] .bp-row { flex-wrap: wrap; }
+  [data-members] .bp-via { min-width: 0; text-align: left; }
+}

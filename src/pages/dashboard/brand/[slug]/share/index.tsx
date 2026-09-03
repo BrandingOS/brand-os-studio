@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
-  Globe, Presentation, Download, Link2, Copy, Share2, Code,
+  Globe, Presentation, Download, Link2, Copy, Share2, Code, Users,
   Eye, EyeOff, ExternalLink, Lock, Unlock, BookOpen, FileText,
   Edit,
 } from 'lucide-react';
@@ -27,9 +27,12 @@ import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { activityService } from '@/shared/services/activityService';
 import { useBrandSettings } from '@/shared/brand-settings';
+import { BrandPeoplePanel } from '@/features/members/components/BrandPeoplePanel';
+import { useSessionStore } from '@/shared/store/sessionStore';
+import { useCurrentWorkspace } from '@/shared/access';
 
-type TabId = 'guidelines' | 'showcase' | 'exports';
-const TABS: TabId[] = ['guidelines', 'showcase', 'exports'];
+type TabId = 'guidelines' | 'showcase' | 'exports' | 'access';
+const TABS: TabId[] = ['guidelines', 'showcase', 'exports', 'access'];
 
 function isTab(v: string | null): v is TabId {
   return v !== null && (TABS as string[]).includes(v);
@@ -43,6 +46,9 @@ export default function SharePage() {
   const { update } = useBrandStore();
   const [toggling, setToggling] = useState(false);
   const { openSettingsTab } = useBrandSettings();
+  // Access is about who can reach this brand, so it needs the viewer and the workspace.
+  const currentUserId = useSessionStore((st) => st.user?.id ?? null);
+  const workspace = useCurrentWorkspace();
 
   const showcaseUrl = `${window.location.origin}/brand/${slug}/showcase`;
   const portalUrl = `${window.location.origin}/p/${slug}`;
@@ -124,7 +130,7 @@ export default function SharePage() {
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-xl">
           <TabsTrigger value="guidelines" className="gap-2">
             <BookOpen className="w-4 h-4" />
             <span>Guidelines</span>
@@ -137,6 +143,10 @@ export default function SharePage() {
             <Download className="w-4 h-4" />
             <span>Exports</span>
           </TabsTrigger>
+          <TabsTrigger value="access" className="gap-2">
+            <Users className="w-4 h-4" />
+            <span>Access</span>
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -146,6 +156,15 @@ export default function SharePage() {
           onSlideEditor={() => navigate(`/b/${slug}/brand-guides`)}
           onCanvasEditor={() => navigate(`/b/${slug}/guidelines/canvas`)}
           onBlocks={() => navigate(`/b/${slug}/guidelines/blocks`)}
+        />
+      )}
+
+      {activeTab === 'access' && (
+        <BrandPeoplePanel
+          brandId={brand.id}
+          brandName={brand.name}
+          workspaceId={workspace?.id ?? null}
+          currentUserId={currentUserId}
         />
       )}
 
