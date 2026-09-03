@@ -51,3 +51,8 @@ supabase/.branches/
 
 # the landing built for the dev server (vite.config.ts landingPageDevPlugin)
 landingpage/dist-dev/
+
+# Code -> Figma pipeline outputs (regenerable)
+scripts/figma/.captures/
+scripts/figma/.assets/
+scripts/figma/.plans/

@@ -46,6 +46,16 @@ export interface FxComponent {
   sparse?: (v: AxisValues) => boolean;
   /** Which pseudo-state this cell needs. `disabled` is a DOM state, not a forced pseudo. */
   pseudo?: (v: AxisValues) => PseudoState;
+  /**
+   * WHICH node receives the forced pseudo-state, as a selector relative to the
+   * subject. Defaults to the subject root.
+   *
+   * Load-bearing: a component's `:hover` rule often lives on a CHILD. `DsMenu`
+   * hovers `.ds-menu-item`, not `.ds-menu`, so forcing hover on the root
+   * produced a hover capture byte-identical to default — which deduplication
+   * would then have collapsed, silently deleting the state from the output.
+   */
+  pseudoTarget?: string;
   /** Meaningful child roles, by CSS selector, relative to the component root. */
   roles?: Record<string, string>;
   /** Selectors whose node is structural noise and should be flattened away. */
@@ -93,6 +103,8 @@ export const MANIFEST: readonly FxComponent[] = [
       state: ['default', 'hover'],
     },
     pseudo: (v) => (v.state === 'hover' ? 'hover' : 'default'),
+    // The menu's hover rule is on the ITEM, not the surface.
+    pseudoTarget: '.ds-menu-item',
     roles: {
       '.ds-menu-item': 'item',
       '.ds-menu-item svg': 'icon',

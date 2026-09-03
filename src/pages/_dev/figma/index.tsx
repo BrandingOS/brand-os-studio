@@ -25,7 +25,9 @@ import './harness.css';
  * params exist so a human can eyeball the same states the pipeline sees.
  */
 
-function Cell({ component, values }: { component: FxComponent; values: AxisValues }) {
+function Cell({
+  component, values, index,
+}: { component: FxComponent; values: AxisValues; index: number }) {
   const variant = Object.keys(values)
     .sort()
     .map((k) => `${k}=${values[k]}`)
@@ -34,10 +36,14 @@ function Cell({ component, values }: { component: FxComponent; values: AxisValue
   return (
     <div
       className="fx-cell"
+      // The index addresses this cell uniquely so the extractor can resolve a
+      // pseudo-target inside it via CDP without depending on document order.
+      data-fx-index={index}
       data-fx-component={component.key}
       data-fx-sid={component.sid}
       data-fx-variant={variant}
       data-fx-pseudo={component.pseudo?.(values) ?? 'default'}
+      data-fx-pseudo-target={component.pseudoTarget ?? ''}
     >
       {/* The subject sits alone in its cell so its measured box is its own. */}
       <div className="fx-subject" data-fx-subject="">
@@ -65,7 +71,20 @@ export default function FigmaHarnessPage() {
     return () => document.documentElement.removeAttribute('dir');
   }, [direction]);
 
-  const total = components.reduce((n, c) => n + cellsFor(c).length, 0);
+  /**
+   * Cells are numbered ACROSS the whole page, in render order, so a cell's
+   * index is a stable address the extractor can use to reach inside it. Grouped
+   * rendering below reads its slice rather than counting as it goes.
+   */
+  const groups = useMemo(() => {
+    let next = 0;
+    return components.map((component) => {
+      const cells = cellsFor(component).map((values) => ({ values, index: next++ }));
+      return { component, cells };
+    });
+  }, [components]);
+
+  const total = groups.reduce((n, g) => n + g.cells.length, 0);
 
   return (
     <div className="fx-root" data-workspace data-theme={theme} data-fx-harness="">
@@ -77,25 +96,23 @@ export default function FigmaHarnessPage() {
         </span>
       </header>
 
-      {components.map((component) => {
-        const cells = cellsFor(component);
-        return (
-          <section key={component.key} className="fx-group" data-fx-group={component.key}>
-            <h2 className="fx-group-title">
-              {component.key} <span className="fx-count">{cells.length}</span>
-            </h2>
-            <div className="fx-grid">
-              {cells.map((values) => (
-                <Cell
-                  key={Object.keys(values).sort().map((k) => `${k}=${values[k]}`).join(',')}
-                  component={component}
-                  values={values}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      {groups.map(({ component, cells }) => (
+        <section key={component.key} className="fx-group" data-fx-group={component.key}>
+          <h2 className="fx-group-title">
+            {component.key} <span className="fx-count">{cells.length}</span>
+          </h2>
+          <div className="fx-grid">
+            {cells.map(({ values, index }) => (
+              <Cell
+                key={index}
+                index={index}
+                component={component}
+                values={values}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
