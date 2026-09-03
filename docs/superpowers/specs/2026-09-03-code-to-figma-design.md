@@ -230,6 +230,19 @@ matching nodes by `sid` and, per property:
 `mergeThemes` is pure and unit-tested against fixture pairs, because it is the
 one place a theme bug becomes invisible.
 
+**Only theme merges. Viewport and direction do not.** §6 emits one `IRDoc` per
+(theme × viewport × direction), and it would be a category error to fold all
+three the same way:
+
+| Axis | Join | Why |
+|---|---|---|
+| **theme** | merged into variable **modes** on one node | a theme changes values, not structure — that is exactly what modes are for |
+| **viewport** | **separate frames** (`app/setup@1440`, `app/setup@390`) | a mobile layout has a different node tree; §Cycle 10 forbids scaling a desktop frame to imitate mobile |
+| **direction** | **separate frames** on page `91`, and a `direction` variant axis *only* where geometry genuinely mirrors | duplicating a component per language when a text property suffices is waste; but a mirrored layout is a real structural difference |
+
+So the pipeline is `mergeThemes` per (viewport × direction) cell, producing one
+plan fragment each, concatenated in `sid` order into the run's single plan.
+
 ### Fonts
 
 `--ds-font-mono` is `ui-monospace, SFMono-Regular, Menlo, monospace` — **none of
@@ -248,13 +261,36 @@ happens **before** any transaction:
 5. If nothing resolves, the run **fails before writing**, naming the family. A
    missing font is a fixable input, never a half-written document.
 
-### Images
+### Images — by reference, never inlined
 
-`IRNode.image.bytes` needs an ingestion path. Raster content reaches Figma via
-`figma.createImage(bytes)` inside the walker, from base64 already carried in the
-IR — so it works identically on both transports and needs no `upload_assets`
-call. Vectors are not images: inline SVG goes through `createNodeFromSvg` and
-stays editable (spike 2). The BrandMark is SVG and therefore always a vector.
+**`use_figma`'s `code` parameter is capped at 50,000 characters.** Base64 inflates
+bytes by ~33%, so a single 40 KB PNG would consume the entire script budget and a
+100 KB one cannot be sent at all. Inlining image bytes in the IR — as an earlier
+draft assumed — is therefore impossible on the MCP transport, not merely
+wasteful.
+
+So the IR carries a **reference**, not bytes:
+
+```ts
+image?: { hash: string; mime: string; width: number; height: number;
+          scaleMode: string }      // bytes live in the asset store, keyed by hash
+```
+
+`hash` is the content hash of the bytes, which also deduplicates: the same logo
+used on twenty tiles is stored and uploaded once. Bytes live in
+`scripts/figma/.assets/<hash>` and are served by the plan server.
+
+| Transport | How bytes arrive |
+|---|---|
+| MCP | `upload_assets` (a dedicated tool, outside the 50 KB script budget); the returned handle is substituted into the plan before the script is built |
+| Plugin | the UI iframe fetches `/{hash}` from the plan server and `postMessage`s the bytes to the main thread |
+
+Both then call `figma.createImage(bytes)` inside the **same** walker, so the
+divergence is confined to delivery, exactly as §5 requires.
+
+Vectors are not images: inline SVG goes through `createNodeFromSvg` and stays
+editable (spike 2). The BrandMark is SVG and is therefore always a vector, never
+a raster — which is also why the fixture's identity survives at any zoom.
 
 ### Unit boundaries
 
@@ -603,8 +639,25 @@ Deduplication is **reported, never silent** — every collapse lands in
 
 ### Partial-run recovery
 
-`use_figma` is transactional per script, so a failed slice leaves no half-written
-nodes. On top of that, the runner keeps a **generation journal**
+**Atomicity is a property of the transport, not of the system**, and the two
+differ. Stating it unconditionally would be wrong:
+
+| Transport | Atomicity | Consequence |
+|---|---|---|
+| MCP | `use_figma` is transactional per script — a throw rolls the whole script back (measured in Cycle 0) | a failed slice leaves nothing behind |
+| Plugin | **no ambient transaction**; the walker mutates the document as it goes | a mid-slice failure *can* leave half-written nodes |
+
+The plugin transport therefore implements its own compensating rollback: the
+walker records every node id it creates and every property it overwrites, and on
+failure removes the created nodes and restores the overwritten values before
+rethrowing. This is weaker than a real transaction — a crashed plugin host cannot
+compensate at all — so the plugin walker additionally stamps each slice
+`gen=<run>:pending` on entry and clears it on success. A `pending` stamp found at
+the start of a later run marks that slice dirty, and it is regenerated from
+scratch rather than reconciled.
+
+On top of whichever guarantee the transport provides, the runner keeps a
+**generation journal**
 (`docs/code-to-figma/.generation-journal.json`): one entry per slice with its
 plan hash and outcome. On restart the runner skips slices whose plan hash is
 unchanged and already `ok`, and re-runs everything else. An interrupted run
