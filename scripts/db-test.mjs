@@ -12,6 +12,7 @@
 import { execSync, spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ensureLocalGrants } from './lib/localGrants.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
 const args = process.argv.slice(2);
@@ -28,9 +29,17 @@ if (up.status !== 0 || up.stdout.trim() !== 'true') {
   process.exit(2);
 }
 
+// The local stack's default privileges are wrong on every reset; scripts/lib/localGrants.mjs
+// carries the diagnosis and the repair (and why it is not a migration).
 if (!noReset) {
   console.log('▸ supabase db reset');
   execSync('supabase db reset', { cwd: root, stdio: 'inherit' });
+}
+try {
+  ensureLocalGrants('postgresql://postgres:postgres@127.0.0.1:54322/postgres');
+} catch (e) {
+  console.error(`\n✗ ${e.message}\n`);
+  process.exit(2);
 }
 
 const dir = join(root, 'supabase/tests');

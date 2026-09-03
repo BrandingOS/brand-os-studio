@@ -24,7 +24,9 @@
     "eval:image": "vite-node evals/image/run.ts --",
     "threat:coverage": "node scripts/threat-model-coverage.mjs",
     "test:db:stock": "node scripts/db-test-stock.mjs",
-    "seed:demo": "node scripts/seed-demo.mjs"
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "rehearse:rollback": "node scripts/rehearse-rollback.mjs",
+    "perf:access": "node scripts/perf-access.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.81.0",

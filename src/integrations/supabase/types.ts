@@ -2328,6 +2328,7 @@ export type Database = {
         Args: { _adding?: number; _key: string; _workspace_id: string }
         Returns: undefined
       }
+      brand_people: { Args: { _brand_id: string }; Returns: Json }
       brands_with_capability: {
         Args: { _capability: string }
         Returns: string[]
