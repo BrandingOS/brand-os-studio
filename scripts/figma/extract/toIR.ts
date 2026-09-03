@@ -1,0 +1,312 @@
+/**
+ * Raw browser snapshot -> IR. Pure, and therefore testable without a browser.
+ *
+ * This module holds the decisions that matter most in the whole pipeline:
+ * sizing INTENT, layout inference, and token provenance. Keeping them out of
+ * `page.evaluate` is what makes them verifiable.
+ */
+import type {
+  IRNode, IRPaint, IRLayout, IRSizing, IREffect, IRLoss, Sizing, Direction,
+} from '../ir/types';
+import { childSid, assignOrdinals, variantSid } from '../ir/sid';
+import type { RawNode } from './raw';
+
+// ---------------------------------------------------------------- colour ----
+
+/**
+ * Normalise any CSS colour the browser hands back to `#rrggbb` or `rgba(...)`.
+ *
+ * Tolerates a missing value: a real browser always supplies `color`, but one
+ * absent property must never take down an entire extraction run.
+ */
+export function normalizeColor(css: string | undefined): string {
+  const s = (css ?? '').trim();
+  if (!s) return 'transparent';
+  if (s === 'transparent' || s === 'rgba(0, 0, 0, 0)') return 'transparent';
+  const m = s.match(/^rgba?\(([^)]+)\)$/);
+  if (!m) return s;
+  const parts = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+  const [r, g, b, a = 1] = parts;
+  if ([r, g, b].some((n) => Number.isNaN(n))) return s;
+  if (a >= 1) {
+    const hex = (n: number) => n.toString(16).padStart(2, '0');
+    return `#${hex(r)}${hex(g)}${hex(b)}`;
+  }
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/**
+ * A paint that remembers which token produced it.
+ *
+ * The reverse map is built per theme from the live stylesheet, so this is a
+ * lookup rather than a guess. A value with no token is not an error — it is a
+ * reportable gap in the token system.
+ */
+export function toPaint(css: string | undefined, tokens: Record<string, string>): IRPaint {
+  const value = normalizeColor(css);
+  const token = tokens[value] ?? (css ? tokens[css.trim()] : undefined);
+  return token ? { value, token } : { value };
+}
+
+// ---------------------------------------------------------------- sizing ----
+
+const px = (v: string | undefined): number => {
+  const n = Number.parseFloat(v ?? '');
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * Derive hug | fill | fixed from CSS, NOT from measured pixels.
+ *
+ * A converter that measures `width: 143px` and writes a fixed frame produces a
+ * file that looks perfect and dies the moment anyone resizes it. The measured
+ * value survives only as the fallback for `fixed`.
+ */
+export function deriveSizing(node: RawNode, parent: RawNode | null): IRSizing {
+  const s = node.style;
+  const parentIsFlex = parent
+    ? parent.style.display === 'flex' || parent.style.display === 'inline-flex'
+    : false;
+
+  const axis = (
+    dimension: 'width' | 'height',
+    explicit: string | undefined,
+    grows: boolean,
+    stretches: boolean,
+  ): Sizing => {
+    // An explicit non-auto length is fixed, whatever the parent does.
+    if (explicit && explicit !== 'auto' && !explicit.endsWith('%')) return 'fixed';
+    if (explicit && explicit.endsWith('%')) return 'fill';
+    if (parentIsFlex && (grows || stretches)) return 'fill';
+    return 'hug';
+  };
+
+  const isRow = parent
+    ? parent.style['flex-direction'] !== 'column'
+    : true;
+  const grow = px(s['flex-grow']) > 0;
+  const stretch = s['align-self'] === 'stretch';
+
+  const width = axis('width', rawLength(node, 'width'), isRow && grow, !isRow && stretch);
+  const height = axis('height', rawLength(node, 'height'), !isRow && grow, isRow && stretch);
+
+  const out: IRSizing = {
+    width,
+    height,
+    w: Math.round(node.rect.w * 100) / 100,
+    h: Math.round(node.rect.h * 100) / 100,
+  };
+  // Figma auto-layout supports min/max natively, so carry them rather than
+  // baking the current measurement in. DsMenu's min-width: 200px is this case.
+  const minW = px(s['min-width']);
+  const maxW = s['max-width'] === 'none' ? 0 : px(s['max-width']);
+  const minH = px(s['min-height']);
+  const maxH = s['max-height'] === 'none' ? 0 : px(s['max-height']);
+  if (minW > 0) out.minW = minW;
+  if (maxW > 0) out.maxW = maxW;
+  if (minH > 0) out.minH = minH;
+  if (maxH > 0) out.maxH = maxH;
+  return out;
+}
+
+/**
+ * The author's own width/height declaration, when the collector captured one.
+ * `getComputedStyle` resolves `width` to a used pixel value, which cannot be
+ * told apart from an author's fixed width — so the collector records the
+ * declared value separately under `declaredWidth`/`declaredHeight`.
+ */
+function rawLength(node: RawNode, dim: 'width' | 'height'): string | undefined {
+  const declared = node.style[dim === 'width' ? 'declaredWidth' : 'declaredHeight'];
+  return declared && declared !== '' ? declared : undefined;
+}
+
+// ---------------------------------------------------------------- layout ----
+
+const ALIGN: Record<string, IRLayout extends { primaryAlign: infer A } ? A : never> = {
+  'flex-start': 'min', start: 'min', normal: 'min',
+  center: 'center',
+  'flex-end': 'max', end: 'max',
+  'space-between': 'space-between',
+} as never;
+
+const COUNTER: Record<string, 'min' | 'center' | 'max' | 'baseline'> = {
+  'flex-start': 'min', start: 'min', stretch: 'min', normal: 'min',
+  center: 'center',
+  'flex-end': 'max', end: 'max',
+  baseline: 'baseline',
+};
+
+/**
+ * Flex maps onto Figma auto-layout almost one-to-one. Anything else becomes
+ * `absolute` — an honest, visible fallback rather than a silent bad guess.
+ */
+export function deriveLayout(node: RawNode): IRLayout {
+  const s = node.style;
+  const display = s.display;
+  if (display !== 'flex' && display !== 'inline-flex') return { mode: 'absolute' };
+
+  const column = s['flex-direction'] === 'column' || s['flex-direction'] === 'column-reverse';
+  const gap = px(s.gap || (column ? s['row-gap'] : s['column-gap']));
+
+  return {
+    mode: 'auto',
+    direction: column ? 'column' : 'row',
+    gap,
+    padding: [
+      px(s['padding-top']), px(s['padding-right']),
+      px(s['padding-bottom']), px(s['padding-left']),
+    ],
+    primaryAlign: (ALIGN[s['justify-content']] ?? 'min') as 'min',
+    counterAlign: COUNTER[s['align-items']] ?? 'min',
+    wrap: s['flex-wrap'] === 'wrap',
+  };
+}
+
+// --------------------------------------------------------------- effects ----
+
+/**
+ * Parse `box-shadow`, which may carry several comma-separated layers.
+ * `--ds-shadow-float` is two, and both must survive as one composite effect.
+ */
+export function parseShadows(css: string, tokens: Record<string, string>): IREffect[] {
+  if (!css || css === 'none') return [];
+  const layers: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of css) {
+    if (ch === '(') depth++;
+    if (ch === ')') depth--;
+    if (ch === ',' && depth === 0) { layers.push(current); current = ''; continue; }
+    current += ch;
+  }
+  if (current.trim()) layers.push(current);
+
+  return layers.map((layer, index) => {
+    const colorMatch = layer.match(/(rgba?\([^)]*\)|#[0-9a-fA-F]{3,8})/);
+    const color = colorMatch ? colorMatch[1] : 'rgba(0, 0, 0, 1)';
+    const numbers = layer.replace(color, '').match(/-?\d*\.?\d+px/g) ?? [];
+    const [x = '0', y = '0', blur = '0', spread = '0'] = numbers;
+    return {
+      type: /inset/.test(layer) ? 'inner-shadow' : 'drop-shadow',
+      x: px(x), y: px(y), blur: px(blur), spread: px(spread),
+      color: toPaint(color, tokens),
+      index,
+    } as IREffect;
+  });
+}
+
+// ------------------------------------------------------------------ node ----
+
+const isVisible = (n: RawNode) =>
+  n.style.visibility !== 'hidden' && n.style.display !== 'none' && n.rect.w > 0 && n.rect.h > 0;
+
+export interface ToIROptions {
+  sidRoot: string;
+  variant: Record<string, string>;
+  tokens: Record<string, string>;
+  direction: Direction;
+  /** Selector-to-role map from the manifest, already resolved to class names. */
+  roles?: Record<string, string>;
+}
+
+/** Convert one cell's subject tree into an IR node. */
+export function nodeToIR(
+  raw: RawNode,
+  opts: ToIROptions,
+  parent: RawNode | null = null,
+  sidOverride?: string,
+): IRNode {
+  const sid = sidOverride ?? variantSid(opts.sidRoot, opts.variant);
+  const s = raw.style;
+  const losses: IRLoss[] = [];
+
+  // A transform is a motion affordance here, not geometry. Baking translateY
+  // into a Figma offset would reproduce an ANIMATION as a static position.
+  if (s.transform && s.transform !== 'none') {
+    losses.push({
+      sid, property: 'transform', cssValue: s.transform,
+      reason: 'intentional-normalization',
+      note: 'motion affordance; representing it as geometry would freeze an animation frame',
+    });
+  }
+
+  const fills: IRPaint[] = [];
+  const bg = normalizeColor(s['background-color'] ?? 'transparent');
+  if (bg !== 'transparent') fills.push(toPaint(s['background-color'], opts.tokens));
+
+  const strokes: IRPaint[] = [];
+  const borderWidth = px(s['border-top-width']);
+  if (borderWidth > 0) strokes.push(toPaint(s['border-top-color'], opts.tokens));
+
+  const visibleChildren = raw.children.filter(isVisible);
+  const roleNames = visibleChildren.map((c) => roleFor(c, opts.roles));
+  const ordinals = assignOrdinals(roleNames);
+
+  const node: IRNode = {
+    sid,
+    name: raw.fx.component ?? nameFor(raw),
+    kind: raw.svg ? 'vector' : raw.text !== undefined ? 'text' : 'frame',
+    layout: deriveLayout(raw),
+    sizing: deriveSizing(raw, parent),
+    style: {
+      fills,
+      strokes,
+      ...(borderWidth > 0 ? { strokeWeight: borderWidth } : {}),
+      radii: [
+        px(s['border-top-left-radius']), px(s['border-top-right-radius']),
+        px(s['border-bottom-right-radius']), px(s['border-bottom-left-radius']),
+      ],
+      effects: parseShadows(s['box-shadow'], opts.tokens),
+      opacity: s.opacity ? Number.parseFloat(s.opacity) : 1,
+      clip: s.overflow === 'hidden',
+    },
+    children: visibleChildren.map((child, i) =>
+      nodeToIR(child, opts, raw, childSidFor(sid, ordinals[i])),
+    ),
+    losses,
+  };
+
+  if (raw.text !== undefined) {
+    node.text = {
+      characters: raw.text,
+      family: (s['font-family'] ?? '').split(',')[0].replace(/["']/g, '').trim(),
+      weight: Number.parseInt(s['font-weight'] ?? '400', 10),
+      size: px(s['font-size']),
+      lineHeight: s['line-height'] === 'normal' ? 'auto' : px(s['line-height']),
+      letterSpacing: s['letter-spacing'] === 'normal' ? 0 : px(s['letter-spacing']),
+      align: (s['text-align'] as 'left') ?? 'left',
+      direction: (s.direction as Direction) ?? opts.direction,
+      color: toPaint(s.color, opts.tokens),
+    };
+  }
+
+  if (raw.svg) node.vector = { svg: raw.svg };
+
+  return node;
+}
+
+function childSidFor(parentSid: string, roleWithOrdinal: string): string {
+  const m = roleWithOrdinal.match(/^(.*?)#(\d+)$/);
+  return m ? childSid(parentSid, m[1], Number(m[2])) : childSid(parentSid, roleWithOrdinal);
+}
+
+/** A declared role wins; otherwise fall back to something stable and readable. */
+export function roleFor(node: RawNode, roles?: Record<string, string>): string {
+  if (node.fx.role) return node.fx.role;
+  if (roles) {
+    for (const [selector, role] of Object.entries(roles)) {
+      const cls = selector.startsWith('.') ? selector.slice(1) : null;
+      if (cls && node.classes.includes(cls)) return role;
+      if (selector === node.tag) return role;
+    }
+  }
+  if (node.svg) return 'icon';
+  if (node.text !== undefined) return 'label';
+  return node.tag;
+}
+
+function nameFor(node: RawNode): string {
+  if (node.fx.role) return node.fx.role;
+  const own = node.classes.find((c) => c.startsWith('ds-'));
+  return own ?? node.tag;
+}
