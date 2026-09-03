@@ -117,7 +117,15 @@ export const COLLECTOR_SRC = String.raw`
     if (el.tagName.toLowerCase() === 'svg') {
       // currentColor cannot survive the trip, so resolve it to what painted.
       const clone = el.cloneNode(true);
-      clone.setAttribute('data-resolved-stroke', cs.color);
+      // The dev tagger stamps data-lov-* / data-component-* on every element.
+      // They are ~700 bytes of noise per icon and mean nothing in Figma.
+      (function strip(n) {
+        if (n.nodeType !== 1) return;
+        for (const a of Array.from(n.attributes)) {
+          if (/^data-(lov|component)-/.test(a.name)) n.removeAttribute(a.name);
+        }
+        for (const c of Array.from(n.childNodes)) strip(c);
+      })(clone);
       node.svg = clone.outerHTML.replace(/currentColor/g, normalize(cs.color));
       return node;                                    // an svg is a leaf here
     }
@@ -127,7 +135,49 @@ export const COLLECTOR_SRC = String.raw`
       return node;
     }
 
-    for (const child of Array.from(el.children)) node.children.push(snap(child));
+    // Walk childNodes, not children.
+    //
+    // DsMenuItem renders {icon}{children}{kbd}, where `children` is a BARE TEXT
+    // NODE between two elements. Walking `el.children` skips it, so every menu
+    // item lost its label and would have rendered in Figma as an icon and a
+    // keyboard chip with nothing between them. A bare text node that carries
+    // ink is a real child and gets a synthetic node of its own, inheriting the
+    // parent's text style because that is what actually painted it.
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        node.children.push(snap(child));
+        continue;
+      }
+      if (child.nodeType !== Node.TEXT_NODE) continue;
+      const value = child.textContent.replace(/\s+/g, ' ').trim();
+      if (!value) continue;
+      const range = document.createRange();
+      range.selectNodeContents(child);
+      const tr = range.getBoundingClientRect();
+      range.detach && range.detach();
+      // Inherit TEXT properties only. Copying the parent's whole computed style
+      // gave the label the item's padding, corner radius and — on hover — its
+      // surface fill, so a bare label would have painted its own background and
+      // box. A text run inherits type and colour; it does not inherit a box.
+      const TEXT_PROPS = [
+        'font-family', 'font-size', 'font-weight', 'line-height',
+        'letter-spacing', 'text-align', 'direction', 'color', 'visibility',
+      ];
+      const inherited = { display: 'block', opacity: '1' };
+      for (const p of TEXT_PROPS) inherited[p] = cs.getPropertyValue(p);
+      inherited.declaredWidth = '';
+      inherited.declaredHeight = '';
+      node.children.push({
+        tag: '#text',
+        classes: [],
+        fx: {},
+        aria: {},
+        style: inherited,
+        rect: { x: tr.x, y: tr.y, w: tr.width, h: tr.height },
+        text: value,
+        children: [],
+      });
+    }
     return node;
   }
 
@@ -141,11 +191,14 @@ export const COLLECTOR_SRC = String.raw`
       const i = pair.indexOf('=');
       if (i > 0) variant[pair.slice(0, i)] = pair.slice(i + 1);
     }
+    let roles = {};
+    try { roles = JSON.parse(el.dataset.fxRoles || '{}'); } catch (e) { roles = {}; }
     cells.push({
       component: el.dataset.fxComponent,
       sidRoot: el.dataset.fxSid,
       variant,
       pseudo: el.dataset.fxPseudo || 'default',
+      roles,
       root: snap(subject),
     });
   }

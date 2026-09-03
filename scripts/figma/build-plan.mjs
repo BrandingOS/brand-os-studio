@@ -1,0 +1,163 @@
+/**
+ * Capture(s) -> IR -> RenderPlan -> a ready-to-run use_figma script.
+ *
+ *   node scripts/figma/build-plan.mjs --component DsButton --page "03 — Components"
+ *
+ * Writes:
+ *   scripts/figma/.plans/<name>.plan.json    the pure-data plan
+ *   scripts/figma/.plans/<name>.script.js    walker + plan, ready for use_figma
+ *
+ * The script is what the MCP transport sends. The local plugin reads the SAME
+ * plan through the SAME walker — only delivery differs.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+const arg = (n, d) => {
+  const i = process.argv.indexOf(`--${n}`);
+  return i > -1 ? process.argv[i + 1] : d;
+};
+
+const COMPONENT = arg('component', '');
+const PAGE = arg('page', '03 — Components');
+const CAPTURES = arg('captures', 'scripts/figma/.captures');
+const OUT = arg('out', 'scripts/figma/.plans');
+const GEN = arg('gen', new Date().toISOString());
+
+const suffix = COMPONENT ? `-${COMPONENT}` : '';
+const lightFile = path.join(CAPTURES, `capture-light-ltr-1400${suffix}.json`);
+const darkFile = path.join(CAPTURES, `capture-dark-ltr-1400${suffix}.json`);
+for (const f of [lightFile, darkFile]) {
+  if (!fs.existsSync(f)) {
+    console.error(`missing capture: ${f}\nrun extract.mjs for both themes first`);
+    process.exit(1);
+  }
+}
+
+// The IR conversion and plan modules are TypeScript; run them through vite-node
+// so there is no separate build step to keep in sync.
+const bridge = path.join(OUT, '_bridge.mjs');
+fs.mkdirSync(OUT, { recursive: true });
+fs.writeFileSync(bridge, `
+import fs from 'node:fs';
+import { nodeToIR } from '${path.resolve('scripts/figma/extract/toIR.ts')}';
+import { mergeThemes } from '${path.resolve('scripts/figma/render/plan.ts')}';
+import { IR_VERSION } from '${path.resolve('scripts/figma/ir/types.ts')}';
+
+const light = JSON.parse(fs.readFileSync(${JSON.stringify(lightFile)}, 'utf8'));
+const dark  = JSON.parse(fs.readFileSync(${JSON.stringify(darkFile)}, 'utf8'));
+
+function toDoc(cap) {
+  const roots = cap.cells.map((cell) => {
+    const node = nodeToIR(cell.root, {
+      sidRoot: cell.sidRoot,
+      variant: cell.variant,
+      tokens: cap.tokens,
+      direction: cap.direction,
+      roles: cell.roles,
+    });
+    node.semantic = { component: cell.component, variant: cell.variant };
+    return node;
+  });
+  const tokens = Object.entries(cap.tokens)
+    .filter(([value]) => /^#|^rgba\\(/.test(value))
+    .map(([value, name]) => ({ name, value, kind: 'color' }));
+  return {
+    irVersion: IR_VERSION,
+    meta: {
+      capturedAt: cap.capturedAt, theme: cap.theme, direction: cap.direction,
+      viewport: cap.viewport, appCommit: '', url: cap.url, fixture: 'brandingos',
+    },
+    tokens, roots, losses: [],
+  };
+}
+
+const merged = mergeThemes(toDoc(light), toDoc(dark), {
+  page: ${JSON.stringify(PAGE)},
+  gen: ${JSON.stringify(GEN)},
+});
+process.stdout.write(JSON.stringify(merged));
+`);
+
+const raw = execFileSync('npx', ['vite-node', bridge], {
+  encoding: 'utf8',
+  maxBuffer: 64 * 1024 * 1024,
+  stdio: ['ignore', 'pipe', 'inherit'],
+});
+const { plan, unmapped } = JSON.parse(raw.slice(raw.indexOf('{')));
+fs.unlinkSync(bridge);
+
+const name = COMPONENT || 'all';
+const planFile = path.join(OUT, `${name}.plan.json`);
+fs.writeFileSync(planFile, JSON.stringify(plan, null, 2));
+
+// The walker travels as source text so both transports execute identical code.
+const walkerSrc = fs.readFileSync(path.resolve('scripts/figma/transport/walk.ts'), 'utf8');
+const walker = walkerSrc.slice(
+  walkerSrc.indexOf('String.raw`') + 'String.raw`'.length,
+  walkerSrc.lastIndexOf('`;'),
+);
+
+/**
+ * Drop fields the walker treats as absent-equals-default.
+ *
+ * The plan travels inside a `use_figma` script whose `code` parameter is capped
+ * at 50,000 characters, and the same payload is re-sent for every component, so
+ * empty arrays and default values are pure cost. The walker was made tolerant of
+ * omitted fields specifically so this is safe — the compaction and that
+ * tolerance are one change in two places.
+ */
+function compact(node) {
+  const out = { sid: node.sid, name: node.name, kind: node.kind };
+  if (node.layout?.mode === 'auto') out.layout = node.layout;   // absolute is the default
+  // A node with no children has no intrinsic size in Figma, so it MUST carry
+  // its measured dimensions. Dropping them made the 1px menu divider render as
+  // a 100x100 grey block — an empty auto-layout frame falls back to Figma's
+  // default size, which looks nothing like a hairline.
+  const leaf = !node.children?.length && !node.text && !node.svg;
+  const needsSize = leaf || node.sizing?.width === 'fixed' || node.sizing?.height === 'fixed';
+  if (node.sizing?.width === 'fill' || node.sizing?.height === 'fill'
+      || node.sizing?.minW || node.sizing?.maxW || needsSize) {
+    out.sizing = {};
+    if (node.sizing.width === 'fill') out.sizing.width = 'fill';
+    if (node.sizing.height === 'fill') out.sizing.height = 'fill';
+    if (node.sizing.minW) out.sizing.minW = node.sizing.minW;
+    if (node.sizing.maxW) out.sizing.maxW = node.sizing.maxW;
+    if (needsSize) { out.sizing.w = node.sizing.w; out.sizing.h = node.sizing.h; }
+  }
+  if (node.fills?.length) out.fills = node.fills;
+  if (node.strokes?.length) out.strokes = node.strokes;
+  if (node.sw) out.sw = node.sw;
+  if (node.radii?.some((r) => r !== 0)) out.radii = node.radii;
+  if (node.effects?.length) out.effects = node.effects;
+  if (node.opacity !== 1) out.opacity = node.opacity;
+  if (node.text) out.text = node.text;
+  if (node.svg) out.svg = node.svg;
+  if (node.children?.length) out.children = node.children.map(compact);
+  return out;
+}
+
+const wirePlan = {
+  ...plan,
+  sets: plan.sets.map((s) => ({
+    ...s,
+    variants: s.variants.map((v) => ({ ...v, node: compact(v.node) })),
+  })),
+};
+
+const script = `${walker}\nreturn await runPlan(${JSON.stringify(wirePlan)});\n`;
+const scriptFile = path.join(OUT, `${name}.script.js`);
+fs.writeFileSync(scriptFile, script);
+
+const variantCount = plan.sets.reduce((n, s) => n + s.variants.length, 0);
+console.log(JSON.stringify({
+  planFile, scriptFile,
+  sets: plan.sets.map((s) => ({ sid: s.sid, name: s.name, variants: s.variants.length })),
+  variantCount,
+  variables: plan.collections[0]?.variables.length ?? 0,
+  unmappedThemeValues: unmapped.length,
+  scriptBytes: script.length,
+  // use_figma caps `code` at 50,000 characters.
+  withinMcpLimit: script.length < 50_000,
+}, null, 2));

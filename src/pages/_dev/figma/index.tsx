@@ -44,6 +44,9 @@ function Cell({
       data-fx-variant={variant}
       data-fx-pseudo={component.pseudo?.(values) ?? 'default'}
       data-fx-pseudo-target={component.pseudoTarget ?? ''}
+      // The role map travels as DATA so the extractor can name children without
+      // importing the manifest — the semantic channel stays one-directional.
+      data-fx-roles={JSON.stringify(component.roles ?? {})}
     >
       {/* The subject sits alone in its cell so its measured box is its own. */}
       <div className="fx-subject" data-fx-subject="">
