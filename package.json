@@ -23,7 +23,8 @@
     "gen:icons": "bash scripts/gen-app-icons.sh",
     "eval:image": "vite-node evals/image/run.ts --",
     "threat:coverage": "node scripts/threat-model-coverage.mjs",
-    "test:db:stock": "node scripts/db-test-stock.mjs"
+    "test:db:stock": "node scripts/db-test-stock.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.81.0",
