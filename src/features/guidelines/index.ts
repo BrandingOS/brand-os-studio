@@ -2,7 +2,6 @@ export { GuidelinesEditor } from './components/GuidelinesEditor';
 export { SlideNavigator } from './components/SlideNavigator';
 export { PreviewCanvas } from './components/PreviewCanvas';
 export { GuidelineCustomizer } from './components/GuidelineCustomizer';
-export { CanvasGuidelinesEditor } from './components/CanvasGuidelinesEditor';
 
 export { useGuidelinesStore } from './store/guidelinesStore';
 export { useGuidelinesEditor } from './hooks/useGuidelinesEditor';

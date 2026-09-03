@@ -91,32 +91,6 @@ export const MODULES: PlatformModule[] = [
 
   // ─── Design ────────��─────────────────────────────��─────────
   {
-    id: 'design-editor',
-    name: 'Design Editor',
-    description: 'Canva-like editor for all brand collateral',
-    category: 'design',
-    icon: 'Layout',
-    enabled: true,
-    standalone: true,
-    routePrefix: '/editor/design',
-    requiredPlan: 'free',
-    navOrder: 40,
-    showInNav: true,
-  },
-  {
-    id: 'social-media',
-    name: 'Social Media Designer',
-    description: 'Create social media posts, covers, and stories with brand assets',
-    category: 'design',
-    icon: 'Share2',
-    enabled: true,
-    standalone: true,
-    routePrefix: '/dashboard/brand/:slug/social-media',
-    requiredPlan: 'starter',
-    navOrder: 45,
-    showInNav: true,
-  },
-  {
     id: 'templates',
     name: 'Template Gallery',
     description: 'Browse and customize design templates',

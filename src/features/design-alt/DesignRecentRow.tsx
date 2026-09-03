@@ -2,7 +2,7 @@
 //
 // Reads IDesignStorage.listDesigns(brandId) on mount, sorts newest
 // first, and renders the first 6 as clickable thumbnail tiles. The
-// first tile is always "+ New blank canvas" → /editor/design/:slug,
+// first tile is always "+ New blank canvas" → /b/:slug/editor,
 // matching Canva's "Start with a blank canvas" affordance. Tiles
 // open the unified editor at /b/:slug/design/:designId.
 //
@@ -79,7 +79,7 @@ export function DesignRecentRow({ brand, designStorage }: Props) {
       <div className="dh-recents" role="list">
         {/* New blank canvas tile — always first. */}
         <Link
-          to={`/editor/design/${brand.slug}`}
+          to={`/b/${brand.slug}/editor`}
           className="dh-recent-tile dh-recent-tile--new"
           role="listitem"
         >

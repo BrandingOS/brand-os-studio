@@ -18,7 +18,6 @@ describe('groupForPath', () => {
     ['/b/:slug/tools/typescale', 'Brand Workspace (Studio)'],
     ['/a/:slug/identity', 'Brand Workspace (Classic)'],
     ['/editor', 'Editors'],
-    ['/editor/design/:slug', 'Editors'],
     ['/tools', 'Tools'],
     ['/tools/logo-to-svg', 'Tools'],
     ['/claim', 'Tools'],

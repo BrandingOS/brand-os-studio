@@ -21,7 +21,6 @@ import { toast } from 'sonner';
 import {
   Globe, Presentation, Download, Link2, Copy, Share2, Code, Users,
   Eye, EyeOff, ExternalLink, Lock, Unlock, BookOpen, FileText,
-  Edit,
 } from 'lucide-react';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
@@ -154,7 +153,6 @@ export default function SharePage() {
         <GuidelinesTab
           onReadHub={() => navigate(`/b/${slug}/guidelines`)}
           onSlideEditor={() => navigate(`/b/${slug}/brand-guides`)}
-          onCanvasEditor={() => navigate(`/b/${slug}/guidelines/canvas`)}
           onBlocks={() => navigate(`/b/${slug}/guidelines/blocks`)}
         />
       )}
@@ -199,12 +197,10 @@ export default function SharePage() {
 function GuidelinesTab({
   onReadHub,
   onSlideEditor,
-  onCanvasEditor,
   onBlocks,
 }: {
   onReadHub: () => void;
   onSlideEditor: () => void;
-  onCanvasEditor: () => void;
   onBlocks: () => void;
 }) {
   const cards: { title: string; description: string; icon: React.ElementType; accent: string; onClick: () => void }[] = [
@@ -221,13 +217,6 @@ function GuidelinesTab({
       icon: FileText,
       accent: 'from-purple-500 to-violet-600',
       onClick: onSlideEditor,
-    },
-    {
-      title: 'Canvas editor',
-      description: 'Free-form canvas for bespoke guideline layouts.',
-      icon: Edit,
-      accent: 'from-sky-500 to-blue-600',
-      onClick: onCanvasEditor,
     },
     {
       title: 'Block-based editor',

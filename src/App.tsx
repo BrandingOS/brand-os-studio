@@ -46,7 +46,6 @@ const BrandTemplatesStudioPage = lazy(() => import("./pages/b/[slug]/templates")
 // pages, wrapping the same components in WorkspaceShell. Legacy /a/:slug
 // pages stay mounted untouched for Classic-preference users.
 const StudioIdentityPage = lazy(() => import("./pages/b/[slug]/identity"));
-const StudioContentPage = lazy(() => import("./pages/b/[slug]/content"));
 const StudioFoldersPage = lazy(() => import("./pages/b/[slug]/folders"));
 const StudioSharePage = lazy(() => import("./pages/b/[slug]/share"));
 const StudioSettingsPage = lazy(() => import("./pages/b/[slug]/settings"));
@@ -91,9 +90,7 @@ const CaseStudyPage = lazy(() => import("./features/case-study-deck/pages/CaseSt
 const CaseStudySlideEditorPage = lazy(() => import("./features/case-study-deck/pages/CaseStudySlideEditorPage"));
 const PitchDeckPage = lazy(() => import("./features/pitch-deck/pages/PitchDeckPage"));
 const DeckV2Page = lazy(() => import("./shared/presentation/v2/components/DeckV2Page"));
-const SocialMediaPage = lazy(() => import("./pages/dashboard/brand/[slug]/social-media"));
 const GuidelinesHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines"));
-const CanvasGuidelinesPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines/canvas"));
 const AccountSettingsPage = lazy(() => import("./pages/settings/account"));
 const PreferencesSettingsPage = lazy(() => import("./pages/settings/preferences"));
 const PlansPage = lazy(() => import("./pages/settings/plans"));
@@ -138,15 +135,12 @@ const DesignLaunchpadPage = lazy(() => import("./pages/dashboard/brand/[slug]/de
 const BrandDesignEditorPage = lazy(
   () => import("./pages/dashboard/brand/[slug]/design/[designSlug]"),
 );
-const ContentHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/content"));
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 const BrandBentoPage = lazy(() => import("./pages/dashboard/brand/[slug]/bento"));
 const StandaloneBentoPage = lazy(() => import("./pages/dashboard/tools/bento"));
 const PublicBentoPage = lazy(() => import("./pages/brand/[slug]/bento/[bentoId]"));
 const ConsistencyStudioPage = lazy(() => import("./pages/dashboard/brand/[slug]/studio"));
 const BrandBoardPage = lazy(() => import("./features/brand-board/BrandBoardPage"));
-
-const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 // Tools platform — public + in-app routes for the Tools suite. Lazy-loaded
 // because the variant-studio bundle pulls in jspdf/jszip and isn't needed
 // on the main dashboard path.
@@ -261,7 +255,7 @@ function GuidelineTemplateRedirect() {
  *
  * Day-1 migrated Studio sections: setup, brand-kit, guideline, design, tools
  * (plus the unified-editor, fullscreen surfaces, and Studio launchpad). Any
- * other path under /b/:slug — e.g. /b/:slug/identity, /b/:slug/content — is
+ * other path under /b/:slug — e.g. /b/:slug/identity — is
  * not yet ported to a Studio shell. Per Concern 1 decision (1b: graceful
  * redirect map), bounce to the Classic equivalent until Phase B ports it.
  *
@@ -543,9 +537,6 @@ const App = () => (
           <Route path="/b/:slug/identity" element={
             <ProtectedRoute><StudioIdentityPage /></ProtectedRoute>
           } />
-          <Route path="/b/:slug/content" element={
-            <ProtectedRoute><StudioContentPage /></ProtectedRoute>
-          } />
           <Route path="/b/:slug/folders" element={
             <ProtectedRoute><StudioFoldersPage /></ProtectedRoute>
           } />
@@ -574,9 +565,6 @@ const App = () => (
           <Route path="/b/:slug/design/:designSlug" element={
             <ProtectedRoute><BrandDesignEditorPage /></ProtectedRoute>
           } />
-          <Route path="/b/:slug/social-media" element={
-            <ProtectedRoute><SocialMediaPage /></ProtectedRoute>
-          } />
           <Route path="/b/:slug/presentations" element={
             <ProtectedRoute><PresentationsPage /></ProtectedRoute>
           } />
@@ -598,9 +586,6 @@ const App = () => (
           <Route path="/b/:slug/brand-guides" element={<BrandGuidesToGuidelineRedirect />} />
           <Route path="/b/:slug/logo-presentation" element={
             <ProtectedRoute><LogoPresentationPage /></ProtectedRoute>
-          } />
-          <Route path="/b/:slug/guidelines/canvas" element={
-            <ProtectedRoute><CanvasGuidelinesPage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/guidelines/blocks" element={
             <ProtectedRoute><BlocksGuidelinesPage /></ProtectedRoute>
@@ -637,21 +622,14 @@ const App = () => (
           <Route path="/b/:slug/*" element={
             <ProtectedRoute><StudioToClassicFallback /></ProtectedRoute>
           } />
-          {/* Phase 5 — `/editor` now launches the unified editor with
-              an auto-created "Untitled design" persisted into My
-              Designs. Replaces the previous mount of the legacy
-              StandaloneEditorPage (OptimizedDesignEditor). The legacy
-              editor still lives at `/editor/design/:slug` because it
-              remains a documented carve-out (transitively coupled to
-              stable/editable-export-v1). */}
+          {/* Phase 5 — `/editor` launches the unified editor with an
+              auto-created "Untitled design" persisted into My Designs.
+              The Gen-1 editor that used to sit beside it at
+              `/editor/design/:slug` (OptimizedDesignEditor) was removed
+              on 2026-09-03; the unified editor is the only one now. */}
           <Route path="/editor" element={
             <ProtectedRoute>
               <EditorLauncherPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/editor/design/:slug" element={
-            <ProtectedRoute>
-              <DesignEditorPage />
             </ProtectedRoute>
           } />
 
@@ -730,7 +708,6 @@ const App = () => (
             <Route path="setup" element={<BrandHomePage />} />
             <Route path="edit" element={<BrandEditPage />} />
             <Route path="identity" element={<IdentityPage />} />
-            <Route path="content" element={<ContentHubPage />} />
             <Route path="design" element={<DesignLaunchpadPage />} />
             <Route path="share" element={<SharePage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />

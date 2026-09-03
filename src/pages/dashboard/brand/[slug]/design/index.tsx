@@ -2,7 +2,8 @@
  * Design — launchpad for creating new work.
  *
  * Tabs:
- *   - Blank Canvas  → opens the Fabric.js editor at /editor/design/:slug
+ *   - Blank Canvas  → /b/:slug/editor, which creates an Untitled design
+ *                     and opens the unified editor on it.
  *   - AI Design     → seeds a brand-bound social-post design + navigates
  *                     to the unified editor at /b/:slug/design/:designId.
  *                     The unified editor's top-chrome AI prompt bar is
@@ -38,7 +39,6 @@ import {
   FileText,
   LayoutGrid,
   Presentation,
-  Image as ImageIcon,
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { NavigateFunction } from 'react-router-dom';
@@ -71,7 +71,7 @@ const BLANK_LAUNCHERS: LaunchCard[] = [
     description: 'Open the editor with a blank canvas, brand palette pre-loaded.',
     icon: Paintbrush,
     accent: 'from-fuchsia-500 to-pink-600',
-    path: (slug) => `/editor/design/${slug}`,
+    path: (slug) => `/b/${slug}/editor`,
   },
   {
     title: 'Presentation',
@@ -79,13 +79,6 @@ const BLANK_LAUNCHERS: LaunchCard[] = [
     icon: Presentation,
     accent: 'from-purple-500 to-violet-600',
     path: (slug) => `/b/${slug}/presentations`,
-  },
-  {
-    title: 'Social post',
-    description: 'Pick a platform, get the right canvas size.',
-    icon: ImageIcon,
-    accent: 'from-teal-400 to-cyan-500',
-    path: (slug) => `/b/${slug}/social-media`,
   },
   {
     title: 'Brand board',
@@ -103,10 +96,10 @@ const BLANK_LAUNCHERS: LaunchCard[] = [
   },
   {
     title: 'Guidelines doc',
-    description: 'Slide-based brand guidelines editor.',
+    description: 'Build the brand book from the brand.',
     icon: FileText,
     accent: 'from-rose-500 to-pink-600',
-    path: (slug) => `/b/${slug}/guidelines/canvas`,
+    path: (slug) => `/b/${slug}/guideline`,
   },
 ];
 

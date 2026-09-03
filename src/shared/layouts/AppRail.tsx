@@ -42,7 +42,6 @@ import {
   LayoutTemplate,
   Compass,
   Wand2,
-  CalendarDays,
   Share2,
   BookOpen,
   Wrench,
@@ -186,12 +185,6 @@ function brandItemsClassic(slug: string): RailItem[] {
         `/a/${slug}/ai-design`,
         `/a/${slug}/design-ai`,
       ],
-    },
-    {
-      title: 'Content',
-      url: `/a/${slug}/content`,
-      icon: CalendarDays,
-      matchPrefixes: [`/a/${slug}/content`, `/a/${slug}/social-media`],
     },
     {
       title: 'Folders',

@@ -39,7 +39,6 @@ import {
   BookOpen,
   FolderOpen,
   Palette,
-  Image as ImageIcon,
   Presentation,
   MessageSquare,
   BarChart3,
@@ -155,14 +154,11 @@ const BRAND_FEATURES: FeatureEntry[] = [
 
 const BRAND_DEEP_FEATURES: FeatureEntry[] = [
   { id: 'brand-guides',     title: 'Brand Guides editor',    description: 'Fullscreen slide editor. Off-limits — stable export baseline.', icon: PenTool,     href: (s) => `/b/${s}/brand-guides`,        status: 'deep',   needsBrand: true },
-  { id: 'guidelines-canvas', title: 'Guidelines Canvas',     description: 'Fullscreen DOM-slide guidelines canvas.',          icon: PenTool,        href: (s) => `/b/${s}/guidelines/canvas`,   status: 'deep',   needsBrand: true },
   { id: 'guidelines-blocks', title: 'Guidelines Blocks',     description: 'Block-based guidelines builder.',                  icon: Layers,         href: (s) => `/b/${s}/guidelines/blocks`,   status: 'deep',   needsBrand: true },
   { id: 'logo-presentation', title: 'Logo Presentation',     description: 'Logo concept presentation deck.',                  icon: Presentation,   href: (s) => `/b/${s}/logo-presentation`,   status: 'orphan', needsBrand: true },
   { id: 'presentations',    title: 'Presentations',          description: 'General presentation builder.',                    icon: Presentation,   href: (s) => `/b/${s}/presentations`,       status: 'orphan', needsBrand: true },
-  { id: 'social-media',     title: 'Social Media',           description: 'Per-channel social asset generator.',              icon: ImageIcon,      href: (s) => `/b/${s}/social-media`,        status: 'orphan', needsBrand: true },
   { id: 'analytics',        title: 'Analytics',              description: 'Brand Health Score, WCAG contrast, 12-item checklist.',  icon: BarChart3,      href: (s) => `/b/${s}/analytics`,           status: 'linked', needsBrand: true },
   { id: 'approvals',        title: 'Approvals',              description: 'Review queue for brand artifacts.',                icon: CheckSquare,    href: (s) => `/b/${s}/approvals`,           status: 'orphan', needsBrand: true },
-  { id: 'design-editor',    title: 'Design Editor',          description: 'Fullscreen Fabric.js design editor.',              icon: Palette,        href: (s) => `/editor/design/${s}`,                       status: 'deep',   needsBrand: true },
 ];
 
 const PUBLIC_FEATURES: FeatureEntry[] = [

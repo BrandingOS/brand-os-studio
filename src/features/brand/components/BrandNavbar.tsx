@@ -41,7 +41,6 @@ function resolveSectionLabel(pathname: string, slug: string | undefined): string
       return 'Identity';
     case 'assets':
     case 'dam':
-    case 'social-media':
     case 'presentations':
       return 'Assets';
     case 'guidelines':

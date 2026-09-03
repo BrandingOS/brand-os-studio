@@ -10,7 +10,7 @@ export function DesignToolModule({ brand }: DesignToolModuleProps) {
   const navigate = useNavigate();
 
   const handleCreateDesign = () => {
-    navigate(`/editor/design/${brand.slug}`);
+    navigate(`/b/${brand.slug}/editor`);
   };
 
   return (

@@ -21,7 +21,6 @@ import {
   LayoutTemplate,
   LayoutGrid,
   Printer,
-  Megaphone,
   MonitorPlay,
   Wrench,
   Bookmark,
@@ -29,10 +28,6 @@ import {
   Grid3X3,
   Palette,
   CreditCard,
-  Square,
-  Smartphone,
-  RectangleHorizontal,
-  Share2,
   Presentation,
   Play,
   PenTool,
@@ -42,7 +37,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 
-type CategoryId = 'all' | 'brand-board' | 'guidelines' | 'case-study' | 'bento' | 'social' | 'print' | 'screen' | 'utility';
+type CategoryId = 'all' | 'brand-board' | 'guidelines' | 'case-study' | 'bento' | 'print' | 'screen' | 'utility';
 
 const CATEGORIES: { id: CategoryId; label: string; icon: React.ElementType }[] = [
   { id: 'all',         label: 'All',         icon: LayoutGrid },
@@ -50,7 +45,6 @@ const CATEGORIES: { id: CategoryId; label: string; icon: React.ElementType }[] =
   { id: 'guidelines',  label: 'Guidelines',  icon: BookOpen },
   { id: 'case-study',  label: 'Case Study',  icon: Presentation },
   { id: 'bento',       label: 'Bento',       icon: Grid3X3 },
-  { id: 'social',      label: 'Social',      icon: Megaphone },
   { id: 'print',       label: 'Print',       icon: Printer },
   { id: 'screen',      label: 'Screen',      icon: MonitorPlay },
   { id: 'utility',     label: 'Utility',     icon: Wrench },
@@ -82,7 +76,7 @@ const CATALOG: CatalogCard[] = [
     icon: BookOpen,
     accent: 'from-rose-500 to-pink-600',
     category: 'guidelines',
-    path: (slug) => `/b/${slug}/guidelines/canvas`,
+    path: (slug) => `/b/${slug}/guideline`,
   },
   {
     title: 'Brand Guides library',
@@ -109,39 +103,6 @@ const CATALOG: CatalogCard[] = [
     accent: 'from-emerald-500 to-teal-600',
     category: 'bento',
     path: (slug) => `/b/${slug}/bento`,
-  },
-  // Social
-  {
-    title: 'Instagram Post',
-    description: 'Square feed post (1080×1080).',
-    icon: Square,
-    accent: 'from-teal-400 to-cyan-500',
-    category: 'social',
-    path: (slug) => `/b/${slug}/social-media?platform=instagram&format=post`,
-  },
-  {
-    title: 'Instagram Story',
-    description: 'Vertical story (1080×1920).',
-    icon: Smartphone,
-    accent: 'from-pink-500 to-rose-600',
-    category: 'social',
-    path: (slug) => `/b/${slug}/social-media?platform=instagram&format=story`,
-  },
-  {
-    title: 'Facebook Cover',
-    description: 'Page cover image (1640×624).',
-    icon: RectangleHorizontal,
-    accent: 'from-blue-500 to-indigo-600',
-    category: 'social',
-    path: (slug) => `/b/${slug}/social-media?platform=facebook&format=cover`,
-  },
-  {
-    title: 'Browse all social formats',
-    description: 'Platform-by-platform post picker.',
-    icon: Share2,
-    accent: 'from-violet-500 to-purple-600',
-    category: 'social',
-    path: (slug) => `/b/${slug}/content?tab=posts`,
   },
   // Print
   {
@@ -191,7 +152,7 @@ const CATALOG: CatalogCard[] = [
     icon: PenTool,
     accent: 'from-fuchsia-500 to-pink-600',
     category: 'screen',
-    path: (slug) => `/editor/design/${slug}`,
+    path: (slug) => `/b/${slug}/editor`,
   },
   // Utility
   {

@@ -174,9 +174,10 @@ BrandingOS has **two brand-scoped UI experiences**:
   `WorkspaceShell` (formerly `CosmosWorkspaceShell`). Five sections at
   Day 1: Setup · Brand Kit · Guideline · Design · Tools.
 - **Classic** (alternate): `/a/:slug/...`. Maintained for users who
-  prefer the legacy 7-section IA (Overview · Identity · Templates ·
-  Design · Content · Folders · Share). Bug fixes only — no new feature
-  work. Uses `BrandRouteLayout` with `AppRail` + `InnerNavRail`.
+  prefer the legacy IA (Overview · Identity · Templates · Design ·
+  Folders · Share — six since Content was removed on 2026-09-03). Bug
+  fixes only — no new feature work. Uses `BrandRouteLayout` with
+  `AppRail` + `InnerNavRail`.
 
 **Path harmonization (Commit 6):** `<ns>/:slug/<X>` means the same
 feature in either namespace. Studio canonical names win — Classic
@@ -235,8 +236,9 @@ Clicking a template on the workspace `/templates` page forces a brand chooser
 a brand. (Logo Maker is brand-scoped — saved into a brand via the LogoExportPanel
 "Save to Brand" flow. Don't re-add it as a workspace entry.)
 
-**Brand sidebar** (7 sections, per `ARCHITECTURE.md` §3 revised 2026-04):
-Overview · Identity · Templates · Design · Content · Folders · Share.
+**Brand sidebar** (6 sections; `ARCHITECTURE.md` §3 revised 2026-04 still
+says 7 — Content was removed on 2026-09-03):
+Overview · Identity · Templates · Design · Folders · Share.
 The original five-section rule was loosened after Brand Board, Bento, Social
 Media, AI Design, Content Calendar all shipped. Sub-navigation stays as
 in-page `?tab=` tabs, NOT expanded sidebar groups. The live rail is
@@ -244,11 +246,31 @@ in-page `?tab=` tabs, NOT expanded sidebar groups. The live rail is
 `src/features/brand/components/` is dead code kept for reference, never rendered.
 
 - **Identity** (`/b/:slug/identity`) tabs: Logo · Colors · Typography · Voice · Strategy
-- **Templates** (`/b/:slug/templates`) tabs: All · Brand Board · Guidelines · Bento · Social · Print · Screen · Utility
+- **Templates** (`/b/:slug/templates`) tabs: All · Brand Board · Guidelines · Bento · Print · Screen · Utility
 - **Design** (`/b/:slug/design`) launchpad: Blank Canvas · AI Design · Recent
-- **Content** (`/b/:slug/content`) tabs: Calendar · Posts · Drafts. Clicking a social format goes to `/b/:slug/social-media?platform=X&format=Y` which skips the old dark modal picker and opens the editor directly.
 - **Folders** (`/b/:slug/folders`) tabs: Library · Designs · Kit over one shared brand folder tree — see its own section below
 - **Share** (`/b/:slug/share`) tabs: Guidelines · Showcase · Exports (public link, logo deck, guidelines export)
+
+### Removed on 2026-09-03 — do not bring these back
+
+Five surfaces were deleted outright at the owner's request. They have **no
+redirect**: the URLs are gone, and `/b/:slug/*` falls through
+`StudioToClassicFallback` to a 404 like any other unknown path.
+
+| Removed | What went with it |
+|---|---|
+| `/b/:slug/content` and `/a/:slug/content` | the whole Content hub (Calendar · Posts · Drafts) — one component, two mounts, so both had to go; the Classic rail lost its Content item |
+| `/b/:slug/social-media` | `src/features/social-media/` entirely, plus the four Social cards and the Social category on the Classic Templates page |
+| `/b/:slug/guidelines/canvas` | `guidelines/components/CanvasGuidelinesEditor.tsx` and the `brand/components/Canva*` shell it was the only user of (`CanvaSidebar`, `CanvaTopBar`, `CanvasCard`, `AppShellCanvaLayout`) |
+| `/editor/design/:slug` | `src/features/editor/components/` (the Gen-1 `OptimizedDesignEditor`) plus the unused `features/editor/{index.ts,registry.ts,tools/}` that only it reached |
+
+Everything that linked into them was repointed rather than left dangling:
+blank-canvas entries (`DesignRecentRow`, the Classic Design launchpad, the
+Templates catalog, `DesignToolModule`) now go to **`/b/:slug/editor`**, which
+creates an Untitled design and opens the unified editor; guideline entries go
+to **`/b/:slug/guideline`**, the builder. `features/editor/` still holds
+`core/`, `shell/`, `adapter/`, `ai/`, `renderers/`, … — only `components/` and
+the dead barrel were removed.
 
 **URL aliases**: both `/dashboard/brand/:slug/...` (legacy) and `/b/:slug/...` (short form)
 work. The short form is preferred for new code; existing call sites may still use
@@ -329,7 +351,7 @@ Phase 4 ships the BrandingOS content universe in 4 sub-phases. Read
   `user_uploaded`); premium foundations (`is_premium`,
   `required_plan`) ship as schema fields with no UI yet.
 
-### Phase 3 + 3.5 carve-outs (post-3.5 reduction — 2 remain)
+### Phase 3 + 3.5 carve-outs (1 remains)
 
 Phase 0 catalogued 6 legacy paths flagged "must shrink, never grow."
 Successive reductions:
@@ -347,18 +369,19 @@ Successive reductions:
   editor route. Salvaged `brandCard.ts` moved to
   `src/features/editor/ai/brandCard.ts`.
 
-The two remaining carve-outs and the explicit reason each is kept:
+- **2026-09-03:** 2 → 1. Deleted `src/features/editor/components/`
+  (the Gen-1 `OptimizedDesignEditor`) and its route
+  `/editor/design/:slug`. It was kept only because migrating it would
+  have meant touching the frozen export pipeline — removing it needs
+  none of that, so the coupling stopped being a reason to keep it.
+
+The one remaining carve-out and the explicit reason it is kept:
 
 1. **`src/features/logo-maker/flow/`** — 6-screen brand creation
    wizard at `/logo-maker/*`. **Keep — wrong shape for the unified
    editor.** Wizard, not a canvas. Logo-domain coupling (variant
    generation, contrast checks, IdentityEngine) has no analogue in
    the unified system. Phase 4+ may absorb pieces.
-2. **`src/features/editor/components/`** — Legacy `OptimizedDesignEditor`
-   at `/editor/design/:slug`. **Keep — transitively coupled to
-   `stable/editable-export-v1`** through ExportDialog → vectorize/*.
-   Migration would require updating the export pipeline (off-limits)
-   alongside the editor swap.
 
 When you finish a piece of carve-out work, update this list AND the
 matching "Shipped" section in `docs/brandos-editor-vision.md`. The
@@ -381,11 +404,11 @@ checking if your change is the designated payoff.
 | 7 | AI for resize variants — Phase 6 owns the reflow pipeline; AI not yet integrated | Phase 3.5 spec §2 | **Phase 6** | Open |
 | 8 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Phase 3.5 spec Q7 | **Phase 5 if user feedback demands** | Open |
 | 9 | Skill chips deferred | Phase 3.5 spec Q4 | **Post-Phase-5 (data-driven)** | Open |
-| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Mostly closed (2026-08-19).** Keep the artwork, rebuild everything around it. `/b/:slug/guideline` is now the Brand Guidelines BUILDER — build-from-brand empty state, vertical document, floating rail + sidebar, inline page editing, page CRUD, guideline-scoped brand overrides — and `/b/:slug/brand-guides` plus the old `/guideline/:templateId` deck editor were consolidated into it. One guideline surface, DS-native, no `/a` chrome. The legacy family is now purely a CONTENT library (`features/guidelines/pages/templates/*`), which is reuse rather than debt. Still open: export/present on the builder, the Classic hub `/a/:slug/guideline`, and the two frozen editors `/b/:slug/guidelines/{canvas,blocks}`. |
+| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Mostly closed (2026-08-19).** Keep the artwork, rebuild everything around it. `/b/:slug/guideline` is now the Brand Guidelines BUILDER — build-from-brand empty state, vertical document, floating rail + sidebar, inline page editing, page CRUD, guideline-scoped brand overrides — and `/b/:slug/brand-guides` plus the old `/guideline/:templateId` deck editor were consolidated into it. One guideline surface, DS-native, no `/a` chrome. The legacy family is now purely a CONTENT library (`features/guidelines/pages/templates/*`), which is reuse rather than debt. Still open: export/present on the builder, the Classic hub `/a/:slug/guideline`, and the frozen `/b/:slug/guidelines/blocks`. (`/b/:slug/guidelines/canvas` was deleted on 2026-09-03.) |
 
-Closed during 3.5: ~~"4 carve-outs remain"~~ — went 4 → 2; the
-remaining 2 (`logo-maker/flow`, `editor/components`) are documented
-above with their explicit kept-because reasons.
+Closed since: ~~"4 carve-outs remain"~~ → 2 in Phase 3.5 → **1** on
+2026-09-03. `logo-maker/flow` is the only one left; its kept-because
+reason is above.
 
 The vision doc's "Phase 3 — Shipped" (§8.5) and "Phase 3.5 —
 Shipped" (§8.6) sections carry the same debt items; if you update
@@ -1375,8 +1398,10 @@ guideline published as a public web page; motion sections. None of these is
 blocked by the current architecture — pages are data plus a renderer, so a
 second renderer target is additive.
 
-The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen** and
-unlinked. It keeps its local-brand fallback (see the uuid gotcha below).
+The legacy canvas editor at `/b/:slug/guidelines/canvas` was **deleted** on
+2026-09-03, along with the `Canva*` shell it was the only user of. The uuid
+gotcha it used to illustrate is still real — see below — it just no longer has
+that call site.
 
 ## The dashboard shows PROJECTS, not brands (2026-08-20)
 
@@ -1660,9 +1685,9 @@ called with `true`). Local brands get ids like `brand_1786308941230`,
 which can NEVER satisfy a Supabase `uuid` column: any code path that
 sends a local brand id to a Supabase table fails with Postgres `22P02`
 ("invalid input syntax for type uuid"). Guard such paths with a uuid
-check and degrade to a local fallback (see
-`CanvasGuidelinesEditor.tsx`), and never leave the failure as a spinner
-— surface an error state.
+check and degrade to a local fallback, and never leave the failure as a
+spinner — surface an error state. (The worked example used to be
+`CanvasGuidelinesEditor.tsx`, deleted 2026-09-03; the rule stands.)
 
 ## Centering overflow content (gotcha)
 

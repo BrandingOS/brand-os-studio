@@ -38,7 +38,6 @@ import {
   Square,
   CreditCard,
   Presentation,
-  Megaphone,
   Wand2,
   FolderTree,
   Share2,
@@ -63,14 +62,13 @@ const QUICK_LINKS: QuickLink[] = [
   { label: 'Identity',  description: 'Logo, colors, typography, voice',  path: 'identity',  icon: Edit3 },
   { label: 'Templates', description: 'Branded starters for every surface', path: 'templates', icon: LayoutTemplate },
   { label: 'Design',    description: 'Start a new design from scratch or AI', path: 'design',    icon: Wand2 },
-  { label: 'Content',   description: 'Plan & schedule social posts',      path: 'content',   icon: Megaphone },
   { label: 'Folders',   description: 'Designs and uploaded assets',       path: 'folders',   icon: FolderTree },
   { label: 'Share',     description: 'Guidelines, showcase, exports',     path: 'share',     icon: Share2 },
 ];
 
 const FEATURED_TEMPLATES: { label: string; icon: React.ElementType; accent: string; path: string }[] = [
   { label: 'Brand Board',       icon: Palette,      accent: 'from-indigo-500 to-blue-600',   path: 'brand-board' },
-  { label: 'Guidelines',        icon: BookOpen,     accent: 'from-rose-500 to-pink-600',     path: 'guidelines/canvas' },
+  { label: 'Guidelines',        icon: BookOpen,     accent: 'from-rose-500 to-pink-600',     path: 'guideline' },
   { label: 'Bento Grid',        icon: Grid3X3,      accent: 'from-emerald-500 to-teal-600',  path: 'bento' },
   { label: 'Instagram Posts',   icon: Square,       accent: 'from-teal-400 to-cyan-500',     path: 'brandkit/instagram-posts' },
   { label: 'Business Cards',    icon: CreditCard,   accent: 'from-indigo-500 to-blue-600',   path: 'brandkit/business-cards' },

@@ -100,10 +100,14 @@ export default function CompleteScreen() {
                 note="Coming soon"
                 disabled
               />
+              {/* Pointed at the social-media editor, removed 2026-09-03.
+                  Same honest shape as the entries around it rather than a
+                  link into a page that no longer exists. */}
               <NextStep
                 icon={<MessageSquare className="w-4 h-4" />}
                 label="Create social posts"
-                to={`/dashboard/brand/${slug}/social-media`}
+                note="Coming soon"
+                disabled
               />
               <NextStep
                 icon={<Film className="w-4 h-4" />}

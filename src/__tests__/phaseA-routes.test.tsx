@@ -235,7 +235,6 @@ describe('Phase B feature ports — explicit Studio routes win over catch-all', 
   const portedRoutes = (
     <>
       <Route path="/b/:slug/identity" element={<div data-testid="studio-identity">studio-identity</div>} />
-      <Route path="/b/:slug/content" element={<div data-testid="studio-content">studio-content</div>} />
       <Route path="/b/:slug/folders" element={<div data-testid="studio-folders">studio-folders</div>} />
       <Route path="/b/:slug/share" element={<div data-testid="studio-share">studio-share</div>} />
       <Route path="/b/:slug/settings" element={<div data-testid="studio-settings">studio-settings</div>} />
@@ -247,11 +246,6 @@ describe('Phase B feature ports — explicit Studio routes win over catch-all', 
   it('/b/:slug/identity mounts Studio Identity (does NOT fall through)', () => {
     const { getByTestId } = mount('/b/raqm/identity', portedRoutes);
     expect(getByTestId('studio-identity')).toBeTruthy();
-  });
-
-  it('/b/:slug/content mounts Studio Content (does NOT fall through)', () => {
-    const { getByTestId } = mount('/b/raqm/content', portedRoutes);
-    expect(getByTestId('studio-content')).toBeTruthy();
   });
 
   it('/b/:slug/folders mounts Studio Folders (does NOT fall through)', () => {
