@@ -1,6 +1,9 @@
 import React from 'react';
 import { DsButton } from './Button';
 import { DsMenu, DsMenuItem, DsMenuDivider } from './Menu';
+import { DsInput, DsTextArea, DsDropZone } from './Input';
+import { DsSelect } from './Select';
+import { DsSwitch, DsCheckbox, DsRadio, DsSegmented } from './Toggle';
 import { ArrowRightIcon, PlusIcon, CloseIcon } from './icons';
 
 /**
@@ -32,6 +35,7 @@ export type PseudoState =
   | 'default'
   | 'hover'
   | 'active'
+  | 'focus'
   | 'focus-visible'
   | 'disabled';
 
@@ -130,6 +134,118 @@ export const MANIFEST: readonly FxComponent[] = [
         <DsMenuDivider />
         <DsMenuItem icon={<CloseIcon />} danger kbd="⌫">Remove</DsMenuItem>
       </DsMenu>
+    ),
+  },
+  // ---- batch 2: inputs, text areas, selects, drop zone --------------------
+  {
+    key: 'DsInput',
+    sid: 'ds/input',
+    // `.ds-input--error` and `--pill` are real modifier classes; `:focus` is a
+    // real rule. Nothing here is invented to fill a matrix.
+    axes: {
+      state: ['default', 'focus', 'error'],
+      pill: ['false', 'true'],
+    },
+    // The rule is `.ds-input:focus`, NOT :focus-visible — forcing the wrong
+    // one captured a default and deduplication silently deleted the state.
+    pseudo: (v) => (v.state === 'focus' ? 'focus' : 'default'),
+    pseudoTarget: '.ds-input',
+    roles: { '.ds-label': 'label', '.ds-input': 'field', '.ds-field-error': 'error' },
+    render: (v) => (
+      <DsInput
+        label="Brand name"
+        placeholder="BrandingOS"
+        pill={v.pill === 'true'}
+        error={v.state === 'error' ? 'This name is already taken' : undefined}
+      />
+    ),
+  },
+
+  {
+    key: 'DsTextArea',
+    sid: 'ds/textarea',
+    axes: { state: ['default', 'focus', 'error'] },
+    pseudo: (v) => (v.state === 'focus' ? 'focus' : 'default'),
+    pseudoTarget: '.ds-textarea',
+    roles: { '.ds-label': 'label', '.ds-textarea': 'field', '.ds-field-error': 'error' },
+    render: (v) => (
+      <DsTextArea
+        label="Brand summary"
+        placeholder="One setup. Infinite branded possibilities."
+        rows={3}
+        error={v.state === 'error' ? 'Summary is required' : undefined}
+      />
+    ),
+  },
+
+  {
+    key: 'DsSelect',
+    sid: 'ds/select',
+    // .ds-select is only a wrapper. The real rules are on .ds-select-trigger
+    // (:focus-visible) and .ds-select-option (:hover) — and options exist only
+    // while the list is OPEN, which this capture cannot drive, so option hover
+    // is deliberately NOT claimed rather than captured as a default.
+    axes: { state: ['default', 'focus-visible'] },
+    pseudo: (v) => v.state as PseudoState,
+    pseudoTarget: '.ds-select-trigger',
+    roles: { 'svg': 'icon' },
+    render: () => (
+      <DsSelect
+        aria-label="Theme"
+        value="light"
+        onChange={() => {}}
+        options={[
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+        ]}
+      />
+    ),
+  },
+
+  {
+    key: 'DsDropZone',
+    sid: 'ds/dropzone',
+    axes: { state: ['default'] },
+    render: () => <DsDropZone>Drop a logo here, or browse</DsDropZone>,
+  },
+
+  // ---- batch 3: checkbox, radio, switch, segmented ------------------------
+  {
+    key: 'DsSwitch',
+    sid: 'ds/switch',
+    axes: { checked: ['false', 'true'], disabled: ['false', 'true'] },
+    render: (v) => (
+      <DsSwitch checked={v.checked === 'true'} disabled={v.disabled === 'true'} onChange={() => {}} label="Dark mode" />
+    ),
+  },
+  {
+    key: 'DsCheckbox',
+    sid: 'ds/checkbox',
+    axes: { checked: ['false', 'true'], disabled: ['false', 'true'] },
+    render: (v) => (
+      <DsCheckbox checked={v.checked === 'true'} disabled={v.disabled === 'true'} onChange={() => {}} label="Include neutrals" />
+    ),
+  },
+  {
+    key: 'DsRadio',
+    sid: 'ds/radio',
+    axes: { checked: ['false', 'true'], disabled: ['false', 'true'] },
+    render: (v) => (
+      <DsRadio checked={v.checked === 'true'} disabled={v.disabled === 'true'} onChange={() => {}} label="Primary logo" />
+    ),
+  },
+  {
+    key: 'DsSegmented',
+    sid: 'ds/segmented',
+    axes: { value: ['light', 'dark'] },
+    roles: { '.ds-seg-option': 'option' },
+    render: (v) => (
+      <DsSegmented
+        aria-label="Theme"
+        value={v.value}
+        onChange={() => {}}
+        options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
+      />
     ),
   },
 ];

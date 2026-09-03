@@ -103,7 +103,7 @@ const forced = await page.$$eval('[data-fx-component]', (els) =>
       pseudo: el.dataset.fxPseudo,
       target: el.dataset.fxPseudoTarget || '',
     }))
-    .filter((c) => ['hover', 'active', 'focus-visible'].includes(c.pseudo)),
+    .filter((c) => ['hover', 'active', 'focus', 'focus-visible'].includes(c.pseudo)),
 );
 
 let forcedOk = 0;

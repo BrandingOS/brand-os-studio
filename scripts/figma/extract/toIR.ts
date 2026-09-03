@@ -266,19 +266,42 @@ export function nodeToIR(
     losses,
   };
 
-  if (raw.text !== undefined) {
-    node.text = {
-      characters: raw.text,
-      family: (s['font-family'] ?? '').split(',')[0].replace(/["']/g, '').trim(),
-      weight: Number.parseInt(s['font-weight'] ?? '400', 10),
-      size: px(s['font-size']),
-      lineHeight: s['line-height'] === 'normal' ? 'auto' : px(s['line-height']),
-      letterSpacing: s['letter-spacing'] === 'normal' ? 0 : px(s['letter-spacing']),
-      align: (s['text-align'] as 'left') ?? 'left',
-      direction: (s.direction as Direction) ?? opts.direction,
-      color: toPaint(s.color, opts.tokens),
+  /**
+   * A text-only element that ALSO carries a box becomes a FRAME wrapping a TEXT
+   * child, because a Figma TEXT node cannot have a background, border or corner
+   * radius — only a fill for the glyphs themselves.
+   *
+   * `.ds-kbd` (bordered, rounded) and `.ds-dropzone` (dashed, filled) are both
+   * text-only in the DOM, so emitting them as TEXT silently dropped their entire
+   * box: the keyboard chips rendered borderless and the drop zone lost its
+   * dashed outline.
+   */
+  const hasBox = fills.length > 0 || strokes.length > 0
+    || node.style.radii.some((r) => r !== 0) || node.style.effects.length > 0;
+  if (raw.text !== undefined && hasBox) {
+    const inner: IRNode = {
+      sid: childSid(sid, 'label'),
+      name: 'label',
+      kind: 'text',
+      layout: { mode: 'absolute' },
+      sizing: { width: 'hug', height: 'hug', w: node.sizing.w, h: node.sizing.h },
+      style: { fills: [], strokes: [], radii: [0, 0, 0, 0], effects: [], opacity: 1, clip: false },
+      text: textFor(raw, s, opts),
+      children: [],
+      losses: [],
     };
+    node.kind = 'frame';
+    node.layout = {
+      mode: 'auto', direction: 'row',
+      gap: 0,
+      padding: [px(s['padding-top']), px(s['padding-right']), px(s['padding-bottom']), px(s['padding-left'])],
+      primaryAlign: 'center', counterAlign: 'center', wrap: false,
+    };
+    node.children = [inner];
+    return node;
   }
+
+  if (raw.text !== undefined) node.text = textFor(raw, s, opts);
 
   if (raw.svg) node.vector = { svg: raw.svg };
 
@@ -309,4 +332,19 @@ function nameFor(node: RawNode): string {
   if (node.fx.role) return node.fx.role;
   const own = node.classes.find((c) => c.startsWith('ds-'));
   return own ?? node.tag;
+}
+
+/** Build the IR text block from a raw node's computed style. */
+function textFor(raw: RawNode, s: Record<string, string>, opts: ToIROptions): IRText {
+  return {
+    characters: raw.text ?? '',
+    family: (s['font-family'] ?? '').split(',')[0].replace(/["']/g, '').trim(),
+    weight: Number.parseInt(s['font-weight'] ?? '400', 10),
+    size: px(s['font-size']),
+    lineHeight: s['line-height'] === 'normal' ? 'auto' : px(s['line-height']),
+    letterSpacing: s['letter-spacing'] === 'normal' ? 0 : px(s['letter-spacing']),
+    align: (s['text-align'] as 'left') ?? 'left',
+    direction: (s.direction as Direction) ?? opts.direction,
+    color: toPaint(s.color, opts.tokens),
+  };
 }
