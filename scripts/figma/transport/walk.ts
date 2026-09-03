@@ -171,6 +171,35 @@ async function runPlan(plan) {
     node.setSharedPluginData('brandingos', 'gen', plan.gen);
   }
 
+  /**
+   * An optional child becomes a BOOLEAN property rather than a variant axis:
+   * the same component with one element switched off is a toggle, not a choice
+   * from a list. Modelling it as an axis doubles the set for no information.
+   *
+   * Applied identically whether the set was formed in one call or across
+   * several, so the two delivery paths cannot diverge.
+   */
+  function applyBooleanProps(setNode, set) {
+    for (const bp of (set.booleanProps || [])) {
+      let key;
+      try {
+        key = setNode.addComponentProperty(bp.name, 'BOOLEAN', bp.default);
+      } catch (e) { report.errors.push('boolean prop ' + bp.name + ': ' + e); continue; }
+      let bound = 0;
+      for (const variant of setNode.children) {
+        for (const child of variant.findAll(function (n) {
+          const own = n.getSharedPluginData('brandingos', 'sid').split('/').pop() || '';
+          return own.replace(/#\d+$/, '') === bp.role;
+        })) {
+          child.componentPropertyReferences = { visible: key };
+          child.visible = bp.default;
+          bound++;
+        }
+      }
+      report.booleanProps = (report.booleanProps || []).concat([{ name: bp.name, bound: bound }]);
+    }
+  }
+
   function build(spec, isRoot) {
     let node;
     if (spec.svg) {
@@ -258,6 +287,9 @@ async function runPlan(plan) {
       setNode.x = set.x || 0;
       setNode.y = set.y || 0;
       stamp(setNode, set.sid);
+
+      applyBooleanProps(setNode, set);
+
       const defs = setNode.componentPropertyDefinitions;
       report.created.push({
         sid: set.sid, name: set.name, type: setNode.type,
@@ -305,9 +337,14 @@ async function runPlan(plan) {
     setNode.x = 0;
     setNode.y = cursorY;
     stamp(setNode, set.sid);
+    applyBooleanProps(setNode, set);
     cursorY += setNode.height + 120;
 
-    report.created.push({ sid: set.sid, name: set.name, variants: components.length });
+    const defs = setNode.componentPropertyDefinitions;
+    report.created.push({
+      sid: set.sid, name: set.name, type: setNode.type,
+      variants: components.length, props: Object.keys(defs),
+    });
   }
 
   return report;

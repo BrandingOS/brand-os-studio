@@ -50,6 +50,8 @@ export interface PlanSet {
   sid: string;
   name: string;
   page: string;
+  /** Optional child roles exposed as Figma BOOLEAN properties. */
+  booleanProps?: Array<{ name: string; role: string; default: boolean }>;
   variants: PlanVariant[];
 }
 
@@ -250,7 +252,8 @@ export function mergeThemes(
     // `ds/dsmenu` where the manifest declares `ds/menu`, which would have made
     // reconciliation miss its own prior output and duplicate the set on rerun.
     const setSid = parseSid(root.sid).base;
-    const set = sets.get(setSid) ?? { sid: setSid, name: component, page: opts.page, variants: [] };
+    const set = sets.get(setSid) ?? { sid: setSid, name: component, page: opts.page, variants: [],
+      booleanProps: (root.semantic as { booleanProps?: PlanSet['booleanProps'] })?.booleanProps ?? [] };
 
     const axes = root.semantic?.variant ?? {};
     const darkNode = darkBySid.get(root.sid);

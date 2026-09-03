@@ -60,6 +60,16 @@ export interface FxComponent {
   roles?: Record<string, string>;
   /** Selectors whose node is structural noise and should be flattened away. */
   flatten?: string[];
+  /**
+   * Child roles whose PRESENCE is optional, expressed as a Figma boolean
+   * property rather than a variant axis.
+   *
+   * An optional trailing icon is not a different button — it is the same button
+   * with one element switched off, which is exactly what a BOOLEAN component
+   * property means. Modelling it as an axis doubles the variant count and makes
+   * a designer pick from a list where a toggle belongs.
+   */
+  booleanProps?: Array<{ name: string; role: string; default: boolean }>;
   /** Render one cell. The harness mounts this; the extractor never sees it. */
   render: (v: AxisValues) => React.ReactNode;
 }
@@ -72,8 +82,10 @@ export const MANIFEST: readonly FxComponent[] = [
       tone: ['primary', 'secondary', 'tertiary', 'danger'],
       size: ['md', 'sm'],
       state: ['default', 'hover', 'active', 'focus-visible', 'disabled'],
-      arrow: ['false', 'true'],
     },
+    // The arrow is always RENDERED so its geometry is measured, then switched
+    // off by default through a boolean property.
+    booleanProps: [{ name: 'arrow', role: 'icon', default: false }],
     // The cartesian product lies. `.ds-btn--tertiary` has no :active rule, so
     // that cell would ship a variant byte-identical to another under a different
     // name — the "duplicated hacks" failure the quality gate rejects. Measured
@@ -85,7 +97,7 @@ export const MANIFEST: readonly FxComponent[] = [
       <DsButton
         tone={v.tone as 'primary' | 'secondary' | 'tertiary' | 'danger'}
         size={v.size as 'md' | 'sm'}
-        arrow={v.arrow === 'true'}
+        arrow
         disabled={v.state === 'disabled'}
       >
         Button

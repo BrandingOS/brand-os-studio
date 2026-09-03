@@ -57,12 +57,12 @@ function toDoc(cap) {
       direction: cap.direction,
       roles: cell.roles,
     });
-    node.semantic = { component: cell.component, variant: cell.variant };
+    node.semantic = { component: cell.component, variant: cell.variant, booleanProps: cell.booleanProps };
     return node;
   });
-  const tokens = Object.entries(cap.tokens)
-    .filter(([value]) => /^#|^rgba\\(/.test(value))
-    .map(([value, name]) => ({ name, value, kind: 'color' }));
+  const tokens = Object.entries(cap.tokenValues || {})
+    .filter(([, value]) => /^#|^rgba\\(/.test(value))
+    .map(([name, value]) => ({ name, value, kind: 'color' }));
   return {
     irVersion: IR_VERSION,
     meta: {
@@ -161,7 +161,11 @@ fs.writeFileSync(scriptFile, script);
  * then formed by one small 'combine' call. Splitting is a delivery concern only;
  * every chunk runs the same walker over the same plan shape.
  */
-const BUDGET = 46_000;                       // headroom under the hard 50k cap
+// Sized to what can be RELIABLY READ AND RESENT, not to the 50k API cap.
+// The Figma execution environment has no fetch, XHR or WebSocket (probed), so
+// every byte travels inside the code parameter and therefore through the
+// agent's context. Smaller chunks cost more calls but never truncate.
+const BUDGET = Number(arg('budget', '25000'));
 const chunks = [];
 for (const set of wirePlan.sets) {
   let current = [];
@@ -177,6 +181,22 @@ for (const set of wirePlan.sets) {
   if (current.length) chunks.push({ set, variants: current });
 }
 
+
+/**
+ * Lean chunks: the walker is INSTALLED ONCE in document plugin data and eval'd
+ * by each call, so only plan data travels. The Figma execution environment has
+ * no fetch/XHR/WebSocket (probed), so every byte passes through the agent's
+ * context — removing the ~10KB walker from each call is the single largest
+ * saving available.
+ *
+ * A function DECLARATION inside eval does not leak, so the stored source is
+ * wrapped as an expression and returned.
+ */
+const LEAN_PREFIX = (page) => `const _p=figma.root.children.find(p=>p.name===${JSON.stringify(page)});await figma.setCurrentPageAsync(_p);
+const _s=figma.root.getSharedPluginData('brandingos','walker');
+const runPlan=new Function('return ('+_s.replace('async function runPlan','async function')+')')();
+`;
+
 const chunkFiles = chunks.map((chunk, i) => {
   const p = {
     planVersion: wirePlan.planVersion,
@@ -186,7 +206,7 @@ const chunkFiles = chunks.map((chunk, i) => {
     collections: i === 0 ? wirePlan.collections : [],
     sets: [{ ...chunk.set, variants: chunk.variants }],
   };
-  const src = `${walker}\nreturn await runPlan(${JSON.stringify(p)});\n`;
+  const src = LEAN_PREFIX(PAGE) + 'return await runPlan(' + JSON.stringify(p) + ');';
   const file = path.join(OUT, `${name}.build${i + 1}.js`);
   fs.writeFileSync(file, src);
   return { file, bytes: src.length, variants: chunk.variants.length, fits: src.length < 50_000 };
@@ -199,7 +219,7 @@ const combinePlan = {
   collections: [],
   sets: wirePlan.sets.map((s) => ({ sid: s.sid, name: s.name, variants: [], width: 1400, x: 0, y: 0 })),
 };
-const combineSrc = `${walker}\nreturn await runPlan(${JSON.stringify(combinePlan)});\n`;
+const combineSrc = LEAN_PREFIX(PAGE) + 'return await runPlan(' + JSON.stringify(combinePlan) + ');';
 fs.writeFileSync(path.join(OUT, `${name}.combine.js`), combineSrc);
 
 const variantCount = plan.sets.reduce((n, s) => n + s.variants.length, 0);

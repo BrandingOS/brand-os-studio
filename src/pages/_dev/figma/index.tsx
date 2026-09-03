@@ -47,6 +47,7 @@ function Cell({
       // The role map travels as DATA so the extractor can name children without
       // importing the manifest — the semantic channel stays one-directional.
       data-fx-roles={JSON.stringify(component.roles ?? {})}
+      data-fx-boolean-props={JSON.stringify(component.booleanProps ?? [])}
     >
       {/* The subject sits alone in its cell so its measured box is its own. */}
       <div className="fx-subject" data-fx-subject="">

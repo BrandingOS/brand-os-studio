@@ -44,10 +44,17 @@ export const COLLECTOR_SRC = String.raw`
   const scope = document.querySelector('[data-fx-harness]') || document.documentElement;
   const probe = getComputedStyle(scope);
   const tokens = {};
+  // name -> resolved value. The reverse map below is for PAINT lookup and is
+  // lossy by nature: two tokens sharing a value collide. The variable LIST must
+  // come from names instead, or a colliding token silently gets no variable —
+  // which is how --ds-accent (the primary button fill) went unbound while
+  // --ds-text won the #f5f4f0 slot in dark.
+  const tokenValues = {};
   for (const name of tokenNames()) {
     const raw = probe.getPropertyValue(name).trim();
     if (!raw) continue;
     // A colour maps by its RESOLVED form; sizes and shadows map verbatim.
+    tokenValues[name] = normalize(raw);
     const key = normalize(raw);
     if (!(key in tokens)) tokens[key] = name;
     if (!(raw in tokens)) tokens[raw] = name;
@@ -191,14 +198,16 @@ export const COLLECTOR_SRC = String.raw`
       const i = pair.indexOf('=');
       if (i > 0) variant[pair.slice(0, i)] = pair.slice(i + 1);
     }
-    let roles = {};
+    let roles = {}, booleanProps = [];
     try { roles = JSON.parse(el.dataset.fxRoles || '{}'); } catch (e) { roles = {}; }
+    try { booleanProps = JSON.parse(el.dataset.fxBooleanProps || '[]'); } catch (e) { booleanProps = []; }
     cells.push({
       component: el.dataset.fxComponent,
       sidRoot: el.dataset.fxSid,
       variant,
       pseudo: el.dataset.fxPseudo || 'default',
       roles,
+      booleanProps,
       root: snap(subject),
     });
   }
@@ -210,6 +219,7 @@ export const COLLECTOR_SRC = String.raw`
     url: location.href,
     capturedAt: new Date().toISOString(),
     tokens,
+    tokenValues,
     cells,
   };
 })
