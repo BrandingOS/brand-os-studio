@@ -67,3 +67,85 @@ Recovery point: the full pre-deletion dump (`prod-data-2.sql`, public + auth, ta
 
 Distinct deleted creators: `04bb256f-93b4-4735-8659-584d96b260cb`, `5e94f05d-e56a-4e27-807d-b71eddf3dfd9`, `fa8049f3-4c13-4391-b368-b2c12fbec6b0`
 
+## Attempt 2 — 2026-09-03 — COMPLETE
+
+The 18 brands above were deleted by exact id, inside a transaction that refused to run
+unless all 18 still matched the recorded condition (no workspace, creator gone from
+`auth.users`) and unless the row carried exactly 0 designs and 1 asset. Recovery point:
+`prod-data-2.sql`, taken immediately before.
+
+### Preflight, re-run after the deletion (corrected query)
+
+| check | before deletion | after | expected |
+|---|---|---|---|
+| brands | 82 | 64 | −18 exactly |
+| brands_without_workspace | 45 | 27 | −18 exactly |
+| **brands_with_no_home** | **18** | **0** | 0 ✓ |
+| workspaces / memberships | 29 / 29 | 29 / 29 | unchanged ✓ |
+| users | 13 | 13 | unchanged ✓ |
+| orphan_workspaces | 16 | 16 | unchanged ✓ |
+| legacy brand_members | 0 | 0 | 0 ✓ |
+| credits | 14,322 | 14,322 | unchanged ✓ |
+
+### Applied
+
+`supabase db push --include-all` — 036 → 046, all eleven, exit 0. With 035 from attempt 1,
+production is at **20260903000000 (046)**.
+
+### Verification
+
+| check | result |
+|---|---|
+| brands / without workspace | 64 / **0** |
+| migration_log: moved · orphans retired · left unassigned | 27 · 16 · **0** |
+| credits | **14,322** — unchanged through the whole deployment |
+| capability presets (038) | 98 |
+| policies total · capability-based | 104 · 59 |
+| `brand_people`, `workspace_invitations` | present |
+| active owner memberships | 13 (29 − the 16 orphan workspaces whose members were themselves deleted accounts) |
+| every live workspace has an existing, active owner | 0 violations |
+| credit accounts failing reconciliation | 0 |
+
+**One deviation, investigated and benign.** The runbook's "every brand still has an owner
+who can reach it" returned **1**, not 0: `Demo Smoke Brand` in `QA Auth's Workspace`. It was
+verified against the pre-migration dump — the brand already sat in that workspace, its owner
+was already absent from `auth.users`, and its single member was itself a deleted account
+that 036 step (b) correctly removed. The migration did not cause it and nobody lost access;
+it is the same QA-residue class as the 18, and it was not caught by `brands_with_no_home`
+only because it already had a `workspace_id`. Left in place — deleting it was not authorised.
+
+### Edge Functions
+
+Six deployed together with the app: `ai-generate-image`, `anthropic-proxy`,
+`check-plan-limit`, `cleanup-onboarding-scratch`, `finalize-onboarding-assets`,
+`purge-deleted-accounts` (v1 — genuinely new). All ACTIVE, all **`verify_jwt=true`**,
+including `anthropic-proxy` — so the dashboard step the runbook called for was already
+satisfied by deploying without `--no-verify-jwt`. Both anonymous probes return 401.
+
+### App
+
+Fast-forward `demo` → `edf8982b` (146 commits, nothing on `demo` that was not already in the
+branch). Cloudflare built and is serving it: `/` and `/dashboard` return 200, and the live
+bundle contains `my_access` / `my_brand_access`, which exist only in this release.
+
+### Secrets and schedules
+
+`PURGE_CRON_SECRET` set before the push (15 secrets, was 14). `RESEND_API_KEY` still unset —
+invitations work, the link returns to the inviter, no email is sent.
+
+`pg_cron` was NOT installed, so 044 skipped its schedules. Installed and scheduled per §4:
+
+```
+expire-stale-reservations   * * * * *    active     ← not optional
+reconcile-credit-accounts   17 3 * * *   active
+prune-audit-events          41 3 * * *   active
+```
+
+### Open items
+
+1. **Nothing invokes the two cron-driven Edge Functions.** `cleanup-onboarding-scratch` and
+   `purge-deleted-accounts` now require BOTH a gateway JWT and the `x-cron-secret` header,
+   and no scheduler is configured to call either. Pre-existing gap, not a regression: scratch
+   cleanup and account purging do not run until one is set up.
+2. **`Demo Smoke Brand`** — see above.
+3. **`my_brand_access` is 215–290 ms for a 500-brand owner.** Not optimised, by instruction.
