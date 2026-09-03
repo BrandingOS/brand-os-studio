@@ -444,6 +444,11 @@ export default defineConfig(({ mode }) => ({
           include: [
             'src/**/*.{test,spec}.{ts,tsx}',
             'supabase/functions/**/*.{test,spec}.ts',
+            // Same reasoning as the Edge Functions above: the Code -> Figma
+            // pipeline (IR, renderer, walker) is plain TypeScript with no
+            // browser or Figma globals in the modules under test, so it runs
+            // on the one gate rather than needing a third runner.
+            'scripts/figma/**/*.{test,spec}.ts',
           ],
           exclude: [
             'node_modules/**',
