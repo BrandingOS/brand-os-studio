@@ -111,7 +111,16 @@ that status.
 | 3 | Real `COMPONENT_SET` with variant properties + connected instance | **PASS** |
 | 5 | Auto-layout genuinely reflows on resize | **PASS** — hug held, fill absorbed the delta, padding unscaled |
 | **4** | **Awkward component survives Browser → Extractor → IR → Figma** | **NOT RUN** — this is Cycle 2 |
+| **6** | **`setSharedPluginData` survives rename, move, reparent, copy and component→instance** | **NOT RUN** — Cycle 2, and it gates §9 |
+| **7** | **Reconciliation is idempotent** — run a plan twice, assert the second run creates 0, deletes 0, and changes no property | **NOT RUN** — Cycle 2, and it gates §11 |
 | — | Autonomous native write/read via MCP | **PASS** — preflight, independently audited |
+
+Spikes 6 and 7 exist because §1 states idempotency, `sid` survival and
+reconciliation in the present tense as *properties of the system*, and nothing
+had measured them. `setSharedPluginData` durability in particular is the
+foundation the whole regeneration model rests on; asserting it from
+documentation would repeat the mistake that produced the "free plan has no
+variables" error earlier in this project.
 
 ### Rules the spikes discovered
 
@@ -172,6 +181,80 @@ Because the plan is pure data, the two transports share 100% of rendering
 decisions and differ only in how the operations are delivered. Swapping transport
 is a configuration change, not a rewrite. This satisfies decision 4 and is why
 `figma-plugin/` costs nothing to keep.
+
+### How the plan reaches each transport
+
+Unstated, this is exactly where the two transports would diverge — someone
+reimplements a walker inside the plugin sandbox and the single-renderer claim
+quietly dies. So it is stated:
+
+| | MCP transport | Plugin transport |
+|---|---|---|
+| Delivery | plan serialised into a `use_figma` script | plugin **UI iframe** fetches `http://127.0.0.1:5599/plan.json` |
+| Server | — | `node scripts/figma/serve-plan.mjs` |
+| Manifest | — | `networkAccess.allowedDomains: ["http://127.0.0.1:5599"]` |
+| Walker | `scripts/figma/transport/walk.ts` | **the same module**, bundled into `code.js` |
+
+The plugin sandbox has no filesystem, and its main thread has no network — but
+its **UI iframe does**, which is why the plan is fetched there and passed to the
+main thread by `postMessage`. `figma-plugin/code.js` therefore stops owning any
+node-building logic (its current 257 lines are spike scaffolding) and becomes a
+thin host around the shared walker. A test asserts the walker module is imported
+by both transports and that neither contains node-construction code of its own.
+
+### Merging themes into one plan
+
+`meta.theme` is scalar — a capture never half-describes two themes — but the
+output needs one component bound to `Light`/`Dark` variable modes. The join is an
+explicit, pure step:
+
+```
+mergeThemes(irLight, irDark) → RenderPlan
+```
+
+matching nodes by `sid` and, per property:
+
+- **Both sides carry the same `token`** → bind once to the variable; the variable
+  holds both mode values. This is the overwhelmingly common case.
+- **Values are identical and untokenised** → emit a literal; no mode needed.
+- **Values differ and are untokenised** → the property is theme-varying but has
+  no design token behind it. The renderer mints a variable in a
+  `Generated / Unmapped` collection named after the `sid` and property, binds it,
+  and records a `LOSSES.md` entry of kind `approximated` naming the CSS source.
+  This is deliberately visible: an unmapped theme-varying colour is a gap in the
+  token system, and the file should say so rather than hide it behind a literal.
+- **A node exists in one theme only** → a genuine structural difference. This is
+  the *only* case that may reintroduce a `theme` variant axis, and the manifest
+  entry must justify it (§3).
+
+`mergeThemes` is pure and unit-tested against fixture pairs, because it is the
+one place a theme bug becomes invisible.
+
+### Fonts
+
+`--ds-font-mono` is `ui-monospace, SFMono-Regular, Menlo, monospace` — **none of
+which are Figma fonts.** `loadFontAsync` would throw, and because `use_figma` is
+transactional (§3) that failure discards the entire slice. So font resolution
+happens **before** any transaction:
+
+1. `listAvailableFontsAsync()` once per run, cached.
+2. `resolveFont(cssFamilyStack, weight, style)` walks the CSS stack, maps each
+   candidate through an explicit table (`Plus Jakarta Sans` → itself;
+   `ui-monospace`/`SFMono-Regular`/`Menlo` → `Roboto Mono`; generic `sans-serif`
+   → `Inter`), and returns the first available family plus the Figma style name.
+3. Weight → style-name mapping is a table, not arithmetic —
+   `600 → 'Semi Bold'` (with the space; `'SemiBold'` is the documented footgun).
+4. Any substitution is a `LOSSES.md` entry of kind `approximated`.
+5. If nothing resolves, the run **fails before writing**, naming the family. A
+   missing font is a fixable input, never a half-written document.
+
+### Images
+
+`IRNode.image.bytes` needs an ingestion path. Raster content reaches Figma via
+`figma.createImage(bytes)` inside the walker, from base64 already carried in the
+IR — so it works identically on both transports and needs no `upload_assets`
+call. Vectors are not images: inline SVG goes through `createNodeFromSvg` and
+stays editable (spike 2). The BrandMark is SVG and therefore always a vector.
 
 ### Unit boundaries
 
@@ -321,6 +404,68 @@ Rules that bind:
 - A test asserts the fixture's colours and fonts are *read from* `tokens.json`
   rather than duplicated, so a token change moves the fixture.
 
+## 8b. Screen capture contract
+
+§8 says the fixture is never written to a store. §12 requires capturing four real
+routes. Those two are only compatible if there is a defined seam — the previous
+draft had none, which would have blocked every screen cycle. This is that seam.
+
+### How a route resolves the fixture
+
+`src/shared/hooks/useBrandFromSlug.ts` resolves in this order, and the second
+step is the seam:
+
+1. `useBrandStore.current` when its slug matches.
+2. **`getSeedBrandBySlug(slug)` — synchronous**, from `src/data/brands/index.ts`.
+3. otherwise `undefined`.
+
+So a fixture registered in the seed registry under a reserved slug resolves on
+`/b/<slug>/setup`, `/brand-kit` and `/design` on **first render**, with no store
+write, no localStorage, no Supabase, and no async wait.
+
+### The rules that keep it out of production
+
+- **Reserved slug `brandingos`.** Not a customer name, and reserved so it can
+  never collide with a real brand.
+- **DEV-gated at the registry.** `getSeedBrandBySlug` returns the fixture only
+  under `import.meta.env.DEV`. `SEED_BRANDS` — the array `LocalBrandsService`
+  merges into `list()` — **never** contains it, so it cannot appear in anyone's
+  brand list, cannot be persisted by `patchSeedOverride`, and cannot reach a
+  production build. A test asserts the production `SEED_BRANDS` array is
+  unchanged (still exactly Raqm, SKAM, Vector, Uniex) and that a non-DEV
+  `getSeedBrandBySlug('brandingos')` returns `undefined`.
+- **Read-only by construction.** The fixture object is frozen. Any write path
+  that would persist it (`update`, `patchSeedOverride`) is unreachable because it
+  is not in `SEED_BRAND_IDS`.
+- **Seed brands are untouched.** Raqm, SKAM, Vector and Uniex keep their
+  definitions; the fixture is additive and DEV-only.
+
+### Driving states the URL cannot express
+
+Overlays, dirty/saving states and open menus are not addressable by URL. The
+harness exposes them through a **capture directive** in the query string, read
+only by a DEV-gated capture provider:
+
+```
+/b/brandingos/brand-kit?__fx=overlay:card-editor,tab:logos,state:dirty
+```
+
+`src/pages/_dev/figma/captureDirective.ts` parses it into a typed directive; a
+DEV-only `CaptureProvider` mounted above the route applies it. Rules:
+
+- **Every directive names a state the product genuinely has**, evidenced in the
+  coverage matrices. A directive that cannot be traced to shipping code is
+  rejected by a test — this is the "never invent a state" gate, enforced.
+- The provider is `import.meta.env.DEV`-only and is tree-shaken from builds, the
+  same structural gating `/__architecture` already uses.
+- No directive mutates persistent state.
+
+### Theme and direction
+
+`data-theme` on the workspace element and `dir` on `<html>` are set by the
+extractor before measuring, not by a directive — they are capture axes, not
+product states. Each combination is its own `IRDoc` (§6).
+
 ## 9. Stable semantic IDs — how regeneration finds what it made
 
 Every generated node carries a **stable semantic id** (`sid`), derived from
@@ -328,26 +473,69 @@ meaning, never from position or Figma's node ids:
 
 ```
 ds/button                              component set
-ds/button[tone=primary,state=hover]    variant
-ds/menu/item/icon                      child role inside a component
+ds/button[size=md,state=hover,tone=primary]   variant — axes SORTED
+ds/menu/item#2/icon                    repeated sibling — ordinal required
 app/setup/section/logo                 a page section
 foundations/color/ds-accent            a token swatch
 ```
 
-The renderer writes each `sid` into the node's **`name`-independent** plugin
-data channel — specifically `setSharedPluginData('brandingos', 'sid', …)`, chosen
-because it survives rename, move, copy and library import, whereas layer names do
-not (a designer renaming a layer must not orphan it).
+Three grammar rules, each fixing a way the naive form collides:
 
-Regeneration then works by **reconciliation**, not recreation:
+- **Axis values are sorted by key** before serialising, so `tone` then `state`
+  and `state` then `tone` produce the same `sid`. Iteration order is not identity.
+- **Repeated siblings take an ordinal** (`#2`, `#3`) assigned by document order
+  within the parent. Without it `ds/menu/item/icon` collides three times over by
+  construction, and reconciliation would fold three nodes into one.
+- **A `sid` embeds only DECLARED axes** — those in the manifest — never the axes
+  that survive deduplication. This is load-bearing; see "churn" below.
 
-1. Index every existing node in the generated area by `sid`.
-2. For each planned node: `sid` present → update in place; absent → create.
-3. Any indexed node whose `sid` is no longer in the plan → delete, **but only
-   inside generated areas** (§10).
+The renderer writes each `sid` via
+`setSharedPluginData('brandingos', 'sid', …)`, plus a `gen` stamp holding the
+generation run id. Plugin data was chosen over layer names because a designer
+renaming a layer must not orphan it.
 
-This is what makes regeneration idempotent: the second run finds every `sid`,
-updates nothing materially, and creates and deletes nothing.
+### Duplicate `sid`s are expected, not a failure
+
+`setSharedPluginData` is copied along with a node, so **a designer duplicating a
+generated node produces two nodes with the same `sid`**. Treating that as an
+integrity failure — as an earlier draft did — would make an ordinary design act
+break the gate. Instead:
+
+- The renderer stamps `gen` on every node it writes. On reconciliation, when
+  several nodes share a `sid`, the **canonical** one is the node whose `gen`
+  matches the most recent run that touched it; the others are copies.
+- **Copies are reclassified as designer-owned** — the reconciler clears their
+  `sid`, tags them `owner=designer`, and reports the reclassification. They are
+  never updated and never deleted.
+- Assertion 11 (§13) is therefore *"no duplicate `sid` among renderer-owned
+  nodes"*, which is checkable, rather than "no duplicate `sid`", which is not.
+
+### `sid` churn, and why deduplication must not cause it
+
+Deduplication (§11) drops axes. If `sid`s embedded surviving axes, dropping one
+would rewrite every `sid` in the set — a mass delete-and-create that discards
+designer overrides and, worse, makes the output depend on a *measurement*. That
+is a genuine non-determinism loop, and it is closed by construction:
+
+- `sid`s are built from the **manifest's declared axes**, which change only when
+  a human edits the manifest.
+- Deduplication produces an **alias table** — several declared `sid`s mapping to
+  one surviving node — recorded in the plan and in `LOSSES.md`. Collapsing
+  changes which node a `sid` resolves to, never the `sid` itself.
+- Adding an axis to the manifest *does* change every `sid` in that set. That is a
+  deliberate, human-initiated migration, and the renderer reports it as such
+  rather than silently re-creating: the run refuses and asks for
+  `--accept-sid-migration` unless the flag is passed.
+
+### Reconciliation
+
+1. Index every renderer-owned node in generated areas by `sid` (canonical only).
+2. Planned `sid` present → update in place; absent → create.
+3. Indexed `sid` no longer in the plan → delete, **only** inside generated areas
+   and **only** if the node still carries a renderer `gen` stamp (§10).
+
+The second run therefore finds every `sid`, changes nothing material, and creates
+and deletes nothing — which is the idempotency gate in §11.
 
 ## 10. Generated vs designer-owned areas
 
@@ -368,6 +556,13 @@ Two rules make this safe:
   else's work by definition.
 - **A designer can opt any subtree out** by setting `brandingos:owner=designer`
   on it, which the renderer honours even if the node also carries a `sid`.
+- **Overwrites are reported, never silent.** A generated node *is* replaced on
+  regeneration — that is the contract — but the reconciler diffs each node before
+  writing and records every property it changed in the generation log, with the
+  `sid` and the before/after value. A designer who edited a generated node
+  without tagging it can therefore see exactly what was reverted and re-apply it
+  or tag it. Silent destruction is the failure mode this prevents; the opt-out
+  being manual is acceptable only because the loss is visible.
 
 The Cover & Usage page states all of this in the document itself, so the rules
 are discoverable without reading this spec.
@@ -380,10 +575,15 @@ Two consecutive full runs must produce the same generated structure. The gate is
 mechanical: run, snapshot every generated `sid` with a content hash, run again,
 diff. Any difference is a bug in the renderer, not an acceptable variance.
 
-Sources of non-determinism that are explicitly eliminated: iteration order (all
-plans are sorted by `sid`), timestamps (only in the Cover page's metadata block,
-which is excluded from the idempotency hash), and measured geometry drift (the
-extractor disables animations and waits for fonts).
+Sources of non-determinism that are explicitly eliminated:
+
+| Source | How it is closed |
+|---|---|
+| Iteration order | every plan is sorted by `sid`; axis values sorted by key (§9) |
+| Timestamps | confined to the Cover page metadata block, excluded from the idempotency hash |
+| Measured geometry drift | extractor disables transitions and animations, and waits for fonts before measuring |
+| **Deduplication feeding back into `sid`s** | `sid`s embed *declared* axes only; dedup emits an alias table and never rewrites a `sid` (§9). This is the loop that actually threatened idempotency — dedup is measurement-driven, so had `sid`s depended on its output, a one-pixel measurement change could have re-keyed an entire component set. |
+| Font substitution | resolved once per run from a cached `listAvailableFontsAsync`, through a fixed table (§5) |
 
 ### Measured-state deduplication
 
@@ -430,7 +630,15 @@ All line numbers are `src/App.tsx`.
 | Route | Line | Why excluded |
 |---|---|---|
 | `/b/:slug/brand-kit-next` | 506 | Experimental lifecycle fork; owner froze it at direct-URL-only |
-| `/b/:slug/identity`, `/guideline`, `/tools`, `/templates`, `/content`, `/folders`, `/share`, `/settings` | 511–555 | Not in the mission's four surfaces |
+| `/b/:slug/identity` | 511, 543 | Not in the mission's four surfaces |
+| `/b/:slug/guideline` | 514 | Not in the mission's four surfaces |
+| `/b/:slug/tools` | 525 | Not in the mission's four surfaces |
+| `/b/:slug/templates` | 535 | Not in the mission's four surfaces |
+| `/b/:slug/content` | 546 | Not in the mission's four surfaces |
+| `/b/:slug/folders` | 549 | Not in the mission's four surfaces |
+| `/b/:slug/share` | 552 | Not in the mission's four surfaces |
+| `/b/:slug/settings` | 555 | Not in the mission's four surfaces |
+| `/b/:slug/editor` | 571 | Bare editor entry, superseded by `design/:designSlug` |
 | `/b/:slug/guidelines/canvas`, `/guidelines/blocks` | 602–605 | Frozen and unlinked |
 | `/b/:slug/social-media`, `/presentations`, `/case-study`, `/pitch-deck`, `/deck-v2`, `/logo-presentation`, `/brand-board`, `/bento`, `/analytics`, `/approvals` | 577–617 | Separate feature families |
 | `/b/:slug/tools/*` | 620–629 | Tool surfaces, not in scope |
@@ -457,14 +665,29 @@ Run against the **live** document and returned as data:
 3. No two variants share a visual fingerprint.
 4. Every instance resolves to a main component inside its set.
 5. `layoutMode` set wherever the IR says `layout.mode === 'auto'`.
-6. `hug`/`fill`/`fixed` honoured; a resize probe reflows correctly.
-7. **Every colour and bindable numeric is bound to a variable or a style.** A raw
-   value fails unless it appears in `LOSSES.md` with a reason — *unexplained raw
-   values are rejected*.
+6. `hug`/`fill`/`fixed` honoured. **Oracle:** for each auto-layout frame, widen
+   it by +200px and assert `layoutSizingHorizontal==='HUG'` children keep their
+   width to the pixel, `'FILL'` children absorb the whole delta, padding is
+   unchanged, and no child's `x` shifts by a scale factor. Then restore. This is
+   spike 5, generalised.
+7. **Every colour and every *bindable* numeric resolves to a variable or style.**
+   The bindable set is enumerated, not implied: fills, strokes, `strokeWeight`,
+   `cornerRadius` (each corner), `itemSpacing`, the four paddings, `opacity`,
+   `width`/`height` where fixed. Properties Figma cannot bind — effect geometry,
+   `letterSpacing`, `lineHeight` — are **out of scope for this assertion** and are
+   covered by assertion 8 instead. A raw value in the bindable set fails unless it
+   appears in `LOSSES.md` with a reason. *Unexplained raw values are rejected*;
+   unbindable ones are not silently counted as failures.
 8. Composite effects and type use effect/text styles.
-9. Zero single-child unstyled wrapper frames.
-10. Both `Light` and `Dark` modes resolve.
-11. Every generated node carries a `sid`; no duplicate `sid`s.
+9. Zero unnecessary wrapper frames. **Oracle:** a FRAME fails if it has exactly
+   one child AND no visible fill, stroke or effect AND `cornerRadius === 0` AND
+   all four paddings are 0 AND it is not a `COMPONENT_SET`, not a component root,
+   and not the only clipping ancestor of its child.
+10. Both `Light` and `Dark` modes resolve on every bound variable, and no
+    variable has a mode whose value is unset.
+11. Every renderer-owned node carries a `sid` and a `gen` stamp, and **no two
+    renderer-owned nodes share a `sid`** (§9 — designer copies are reclassified
+    rather than counted as violations).
 
 ### Visual comparison
 
