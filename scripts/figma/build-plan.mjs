@@ -85,7 +85,7 @@ const raw = execFileSync('npx', ['vite-node', bridge], {
   maxBuffer: 64 * 1024 * 1024,
   stdio: ['ignore', 'pipe', 'inherit'],
 });
-const { plan, unmapped } = JSON.parse(raw.slice(raw.indexOf('{')));
+const { plan, unmapped, collapsed, droppedAxes } = JSON.parse(raw.slice(raw.indexOf('{')));
 fs.unlinkSync(bridge);
 
 const name = COMPONENT || 'all';
@@ -94,10 +94,13 @@ fs.writeFileSync(planFile, JSON.stringify(plan, null, 2));
 
 // The walker travels as source text so both transports execute identical code.
 const walkerSrc = fs.readFileSync(path.resolve('scripts/figma/transport/walk.ts'), 'utf8');
-const walker = walkerSrc.slice(
+const walkerRaw = walkerSrc.slice(
   walkerSrc.indexOf('String.raw`') + 'String.raw`'.length,
   walkerSrc.lastIndexOf('`;'),
 );
+// The walker is repeated in every chunk, so its comments are pure transmission
+// cost. The readable source stays in walk.ts; only the wire copy is stripped.
+const walker = walkerRaw.replace(/^\s*\/\/.*$/gm,'').replace(/\n\s*\n/g,'\n').replace(/^ {2,}/gm,' ');
 
 /**
  * Drop fields the walker treats as absent-equals-default.
@@ -150,6 +153,55 @@ const script = `${walker}\nreturn await runPlan(${JSON.stringify(wirePlan)});\n`
 const scriptFile = path.join(OUT, `${name}.script.js`);
 fs.writeFileSync(scriptFile, script);
 
+/**
+ * Split into scripts that each fit `use_figma`'s 50,000-character cap.
+ *
+ * Components persist between calls, so a large set is BUILT across several
+ * 'build' calls that leave components loose on the page carrying their sid, and
+ * then formed by one small 'combine' call. Splitting is a delivery concern only;
+ * every chunk runs the same walker over the same plan shape.
+ */
+const BUDGET = 46_000;                       // headroom under the hard 50k cap
+const chunks = [];
+for (const set of wirePlan.sets) {
+  let current = [];
+  let size = 0;
+  for (const variant of set.variants) {
+    const cost = JSON.stringify(variant).length;
+    if (current.length && size + cost > BUDGET - walker.length) {
+      chunks.push({ set, variants: current });
+      current = []; size = 0;
+    }
+    current.push(variant); size += cost;
+  }
+  if (current.length) chunks.push({ set, variants: current });
+}
+
+const chunkFiles = chunks.map((chunk, i) => {
+  const p = {
+    planVersion: wirePlan.planVersion,
+    gen: wirePlan.gen,
+    phase: 'build',
+    // Variables are created by the FIRST chunk only; later chunks find them.
+    collections: i === 0 ? wirePlan.collections : [],
+    sets: [{ ...chunk.set, variants: chunk.variants }],
+  };
+  const src = `${walker}\nreturn await runPlan(${JSON.stringify(p)});\n`;
+  const file = path.join(OUT, `${name}.build${i + 1}.js`);
+  fs.writeFileSync(file, src);
+  return { file, bytes: src.length, variants: chunk.variants.length, fits: src.length < 50_000 };
+});
+
+const combinePlan = {
+  planVersion: wirePlan.planVersion,
+  gen: wirePlan.gen,
+  phase: 'combine',
+  collections: [],
+  sets: wirePlan.sets.map((s) => ({ sid: s.sid, name: s.name, variants: [], width: 1400, x: 0, y: 0 })),
+};
+const combineSrc = `${walker}\nreturn await runPlan(${JSON.stringify(combinePlan)});\n`;
+fs.writeFileSync(path.join(OUT, `${name}.combine.js`), combineSrc);
+
 const variantCount = plan.sets.reduce((n, s) => n + s.variants.length, 0);
 console.log(JSON.stringify({
   planFile, scriptFile,
@@ -157,7 +209,11 @@ console.log(JSON.stringify({
   variantCount,
   variables: plan.collections[0]?.variables.length ?? 0,
   unmappedThemeValues: unmapped.length,
+  collapsedVariants: collapsed.length,
+  droppedAxes,
   scriptBytes: script.length,
   // use_figma caps `code` at 50,000 characters.
   withinMcpLimit: script.length < 50_000,
+  chunks: chunkFiles,
+  combineBytes: combineSrc.length,
 }, null, 2));

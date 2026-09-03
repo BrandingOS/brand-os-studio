@@ -225,6 +225,48 @@ async function runPlan(plan) {
   const page = figma.currentPage;
   let cursorY = 0;
 
+  // A large set exceeds use_figma's 50,000-character cap, so it is built across
+  // several calls and combined once at the end. Components persist between
+  // calls, so 'build' leaves them loose on the page carrying their sid, and
+  // 'combine' finds them again and forms the set. Phase is a property of
+  // DELIVERY, not of rendering — the node-building code below is identical
+  // either way, so the two transports still share one walker.
+  if (plan.phase === 'combine') {
+    for (const set of plan.sets) {
+      const loose = page.children.filter(function (n) {
+        return n.type === 'COMPONENT'
+          && n.getSharedPluginData('brandingos', 'sid').indexOf(set.sid + '[') === 0;
+      });
+      if (!loose.length) { report.errors.push('no loose components for ' + set.sid); continue; }
+      const prior = page.children.filter(function (n) {
+        return n.type === 'COMPONENT_SET'
+          && n.getSharedPluginData('brandingos', 'sid') === set.sid;
+      });
+      for (const p of prior) p.remove();
+
+      const setNode = figma.combineAsVariants(loose, page);
+      setNode.name = set.name;
+      setNode.layoutMode = 'HORIZONTAL';
+      setNode.layoutWrap = 'WRAP';
+      setNode.itemSpacing = 24;
+      setNode.counterAxisSpacing = 24;
+      setNode.paddingTop = setNode.paddingBottom = 40;
+      setNode.paddingLeft = setNode.paddingRight = 40;
+      setNode.primaryAxisSizingMode = 'FIXED';
+      setNode.counterAxisSizingMode = 'AUTO';
+      setNode.resize(set.width || 1400, setNode.height);
+      setNode.x = set.x || 0;
+      setNode.y = set.y || 0;
+      stamp(setNode, set.sid);
+      const defs = setNode.componentPropertyDefinitions;
+      report.created.push({
+        sid: set.sid, name: set.name, type: setNode.type,
+        variants: loose.length, props: Object.keys(defs),
+      });
+    }
+    return report;
+  }
+
   for (const set of plan.sets) {
     // Reconcile: a set this generator previously wrote is replaced wholesale.
     // Deletion requires a sid THIS renderer stamped — an untagged node is
@@ -241,6 +283,12 @@ async function runPlan(plan) {
       c.name = variant.name;
       page.appendChild(c);
       components.push(c);
+    }
+
+    if (plan.phase === 'build') {
+      // Leave them loose; a later 'combine' call forms the set.
+      report.created.push({ sid: set.sid, name: set.name, built: components.length });
+      continue;
     }
 
     const setNode = figma.combineAsVariants(components, page);

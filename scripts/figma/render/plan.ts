@@ -131,6 +131,85 @@ function toPlanNode(n: IRNode): PlanNode {
 export interface MergeResult {
   plan: RenderPlan;
   unmapped: Array<{ sid: string; property: string; light: string; dark: string }>;
+  /** Every collapsed cell, so a designer can tell "does not differ" from "forgotten". */
+  collapsed: Array<{ sid: string; into: string; axes: Record<string, string> }>;
+  droppedAxes: string[];
+}
+
+/**
+ * A stable hash over what a variant LOOKS and LAYS OUT like.
+ *
+ * `sid` and the variant axes are excluded on purpose — two cells are duplicates
+ * precisely when everything except their names is identical. Node ids and
+ * measured x/y are excluded for the same reason.
+ */
+export function visualFingerprint(node: PlanNode): string {
+  const shape = (n: PlanNode): unknown => ({
+    k: n.kind,
+    l: n.layout,
+    z: n.sizing ? { w: n.sizing.width, h: n.sizing.height, mw: n.sizing.minW } : null,
+    f: n.fills,
+    s: n.strokes,
+    sw: n.sw,
+    r: n.radii,
+    e: n.effects,
+    o: n.opacity,
+    t: n.text ? { ...n.text, characters: n.text.characters } : null,
+    v: n.svg,
+    c: n.children.map(shape),
+  });
+  return JSON.stringify(shape(node));
+}
+
+/**
+ * Collapse variants that are visually identical.
+ *
+ * `sparse` prunes what is knowable in advance; this catches the rest AFTER
+ * measurement. Every collapse is reported — a designer must be able to tell
+ * "this state does not differ" from "this state was forgotten".
+ *
+ * Surviving sids are never rewritten (§9): the alias table records which
+ * declared sid resolves to which survivor, so a measurement can never re-key a
+ * component set.
+ */
+export function dedupeVariants(set: PlanSet): {
+  set: PlanSet;
+  collapsed: MergeResult['collapsed'];
+  droppedAxes: string[];
+} {
+  const byPrint = new Map<string, PlanVariant>();
+  const collapsed: MergeResult['collapsed'] = [];
+
+  for (const variant of set.variants) {
+    const print = visualFingerprint(variant.node);
+    const survivor = byPrint.get(print);
+    if (!survivor) { byPrint.set(print, variant); continue; }
+    collapsed.push({ sid: variant.sid, into: survivor.sid, axes: variant.axes });
+  }
+
+  const kept = [...byPrint.values()];
+
+  // If collapsing leaves an axis with one value across the whole set, that axis
+  // no longer distinguishes anything and is dropped from the variant names.
+  const droppedAxes: string[] = [];
+  const axisNames = [...new Set(kept.flatMap((v) => Object.keys(v.axes)))];
+  for (const axis of axisNames) {
+    const values = new Set(kept.map((v) => v.axes[axis]));
+    if (values.size <= 1) droppedAxes.push(axis);
+  }
+
+  const variants = kept.map((v) => {
+    const axes = Object.fromEntries(
+      Object.entries(v.axes).filter(([k]) => !droppedAxes.includes(k)),
+    );
+    return {
+      ...v,
+      axes,
+      name: Object.keys(axes).sort().map((k) => `${k}=${axes[k]}`).join(', ') || 'default',
+    };
+  });
+
+  return { set: { ...set, variants }, collapsed, droppedAxes };
 }
 
 export function mergeThemes(
@@ -186,6 +265,17 @@ export function mergeThemes(
     sets.set(setSid, set);
   }
 
+  const collapsed: MergeResult['collapsed'] = [];
+  const droppedAxes: string[] = [];
+  const deduped = [...sets.values()]
+    .sort((a, b) => (a.sid < b.sid ? -1 : 1))
+    .map((set) => {
+      const r = dedupeVariants(set);
+      collapsed.push(...r.collapsed);
+      droppedAxes.push(...r.droppedAxes.map((a) => `${set.sid}:${a}`));
+      return r.set;
+    });
+
   return {
     plan: {
       planVersion: PLAN_VERSION,
@@ -193,9 +283,11 @@ export function mergeThemes(
       collections: variables.length
         ? [{ name: 'BrandingOS', modes: ['Light', 'Dark'], variables }]
         : [],
-      sets: [...sets.values()].sort((a, b) => (a.sid < b.sid ? -1 : 1)),
+      sets: deduped,
     },
     unmapped,
+    collapsed,
+    droppedAxes,
   };
 }
 
