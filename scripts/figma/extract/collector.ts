@@ -230,6 +230,13 @@ export const COLLECTOR_SRC = String.raw`
       ? el
       : el.querySelector('[data-fx-subject] > *');
     if (!subject) continue;
+    var rootNode = snap(subject);
+    // A node can be BOTH a pattern's own subject and a reference inside some
+    // container — the first colour swatch is the pattern AND a child of the
+    // colours group. Left in place, the swatch captured itself as an empty
+    // instance of itself. Nothing is self-referential: dropped on the produced
+    // object rather than the DOM, so the CONTAINER's capture still sees it.
+    if (rootNode.fx && rootNode.fx.ref) delete rootNode.fx.ref;
     const variant = {};
     for (const pair of (el.dataset.fxVariant || '').split(',')) {
       if (!pair) continue;
@@ -246,7 +253,7 @@ export const COLLECTOR_SRC = String.raw`
       pseudo: el.dataset.fxPseudo || 'default',
       roles,
       booleanProps,
-      root: snap(subject),
+      root: rootNode,
     });
   }
 

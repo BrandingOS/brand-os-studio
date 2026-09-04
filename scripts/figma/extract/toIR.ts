@@ -334,7 +334,13 @@ export function nodeToIR(
  * half-drawing.
  */
 export function inlineImageHref(svg: string): string {
-  const m = svg.match(/<image\b[^>]*?\shref="(data:image\/svg\+xml[^"]*)"[^>]*\/?>/i);
+  // The closing tag is part of the match. `<image …></image>` is as common as
+  // the self-closing form, and consuming only the opening tag left a stray
+  // `</image>` in the output — which produced `</g></image>` and an SVG that a
+  // parser would reject.
+  const m = svg.match(
+    /<image\b[^>]*?\shref="(data:image\/svg\+xml[^"]*)"[^>]*?(?:\/>|>\s*<\/image>|>)/i,
+  );
   if (!m) return svg;
 
   const uri = m[1];

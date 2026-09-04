@@ -73,4 +73,19 @@ describe('inlineImageHref', () => {
     );
     expect(out).toContain('<g transform="translate(0 0) scale(1 1)">');
   });
+
+  /** A stray </image> produced '</g></image>' and an SVG a parser would reject. */
+  it('consumes the closing tag, leaving no orphan', () => {
+    const out = inlineImageHref(wrap(`data:image/svg+xml;utf8,${encodeURIComponent(MARK)}`));
+    expect(out).not.toContain('</image>');
+    expect(out).toContain('</g>');
+    expect(out.split('<g ').length - 1).toBe(1);
+  });
+
+  it('handles the self-closing form too', () => {
+    const src = `<svg viewBox="0 0 200 200"><image href="data:image/svg+xml;utf8,${encodeURIComponent(MARK)}" x="0" y="0" width="24" height="24"/></svg>`;
+    const out = inlineImageHref(src);
+    expect(out).not.toContain('<image');
+    expect(out).toContain('<circle cx="12" cy="12"');
+  });
 });
