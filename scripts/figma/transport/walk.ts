@@ -67,6 +67,25 @@ async function runPlan(plan) {
 
   // ---- variables ---------------------------------------------------------
   const varByName = {};
+
+  /**
+   * Seed from what the DOCUMENT already holds, before applying the plan's own
+   * collections.
+   *
+   * Only the FIRST chunk of a split plan carries `collections` — the rest omit
+   * it so the definitions do not travel repeatedly. But `varByName` was built
+   * solely from that field, so every chunk after the first bound no variables
+   * at all and painted flat literal colours instead. The components looked
+   * right and were silently disconnected from the token system, which is the
+   * single most expensive kind of wrong here.
+   *
+   * Reading the document first also makes a rerun of one chunk correct on its
+   * own, which is what makes partial-run recovery possible.
+   */
+  for (const v of await figma.variables.getLocalVariablesAsync('COLOR')) {
+    varByName[v.name] = v;
+  }
+
   for (const spec of plan.collections) {
     let collection = (await figma.variables.getLocalVariableCollectionsAsync())
       .filter(function (c) { return c.name === spec.name; })[0];

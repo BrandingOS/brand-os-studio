@@ -115,6 +115,24 @@ const walkerRaw = walkerSrc.slice(
 const walker = walkerRaw.replace(/^\s*\/\/.*$/gm,'').replace(/\n\s*\n/g,'\n').replace(/^ {2,}/gm,' ');
 
 /**
+ * The installed copy of the walker and this string must be IDENTICAL, and the
+ * only cheap proof of that is a byte count both sides can compute.
+ *
+ * A stale installed walker is the worst failure mode here: every chunk reads it
+ * from document plugin data, so an old copy silently applies old rules to a new
+ * plan and the output looks plausible. It has already happened twice — once
+ * two generations behind, and once off by the two newlines an install wrapper
+ * added around a string that already carried them. So the length is written
+ * beside the plan, and the install payload adds nothing to the string.
+ */
+fs.mkdirSync(OUT, { recursive: true });
+fs.writeFileSync(path.join(OUT, '_walker.js'), walker);
+fs.writeFileSync(
+  path.join(OUT, '_walker.meta.json'),
+  JSON.stringify({ bytes: walker.length, note: 'assert getSharedPluginData length equals this' }, null, 2),
+);
+
+/**
  * Drop fields the walker treats as absent-equals-default.
  *
  * The plan travels inside a `use_figma` script whose `code` parameter is capped
