@@ -174,9 +174,29 @@ function compact(node) {
   if (node.opacity !== 1) out.opacity = node.opacity;
   if (node.text) out.text = node.text;
   if (node.svg) out.svg = node.svg;
+  // Without this an instance arrives with nothing to resolve, so the walker
+  // builds it as an empty frame — a composed pattern quietly becomes a hollow
+  // one, with no error anywhere. `kind` alone is not enough.
+  if (node.ref) out.ref = node.ref;
   if (node.children?.length) out.children = node.children.map(compact);
   return out;
 }
+
+/**
+ * Compaction must not lose meaning, only defaults.
+ *
+ * `compact` is an allow-list, so any field added to PlanNode is silently
+ * dropped until someone remembers to add it here. That is exactly what happened
+ * to `ref`: every instance arrived with nothing to resolve and the walker built
+ * it as an empty frame — composed patterns became hollow ones with no error
+ * anywhere. Counting the refs on both sides makes the next omission loud.
+ */
+function countRefs(node) {
+  return (node.ref ? 1 : 0) + (node.children || []).reduce((a, c) => a + countRefs(c), 0);
+}
+const refsBefore = plan.sets.reduce(
+  (a, s) => a + s.variants.reduce((b, v) => b + countRefs(v.node), 0), 0,
+);
 
 const wirePlan = {
   ...plan,
@@ -185,6 +205,14 @@ const wirePlan = {
     variants: s.variants.map((v) => ({ ...v, node: compact(v.node) })),
   })),
 };
+
+const refsAfter = wirePlan.sets.reduce(
+  (a, s) => a + s.variants.reduce((b, v) => b + countRefs(v.node), 0), 0,
+);
+if (refsAfter !== refsBefore) {
+  console.error(`compaction lost ${refsBefore - refsAfter} of ${refsBefore} instance references`);
+  process.exit(1);
+}
 
 const script = `${walker}\nreturn await runPlan(${JSON.stringify(wirePlan)});\n`;
 const scriptFile = path.join(OUT, `${name}.script.js`);
