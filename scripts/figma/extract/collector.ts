@@ -190,7 +190,14 @@ export const COLLECTOR_SRC = String.raw`
 
   const cells = [];
   for (const el of Array.from(document.querySelectorAll('[data-fx-component]'))) {
-    const subject = el.querySelector('[data-fx-subject] > *');
+    // The harness wraps each cell, so the subject is the wrapper's inner child.
+    // A PATTERN is measured in situ on a real product screen instead, where
+    // inserting a wrapper would reflow the page and corrupt every measurement
+    // taken after it — so such a node carries data-fx-self and IS its own
+    // subject. Stamping attributes changes no layout; wrapping does.
+    var subject = el.hasAttribute('data-fx-self')
+      ? el
+      : el.querySelector('[data-fx-subject] > *');
     if (!subject) continue;
     const variant = {};
     for (const pair of (el.dataset.fxVariant || '').split(',')) {

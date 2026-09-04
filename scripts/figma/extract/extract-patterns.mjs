@@ -1,0 +1,189 @@
+/**
+ * The PATTERN extractor — measures product patterns in situ.
+ *
+ *   node scripts/figma/extract/extract-patterns.mjs --port 8082 --theme light
+ *
+ * The component extractor mounts a declared cell in the harness. A pattern has
+ * no harness cell: it is shared Studio chrome that only exists inside a real
+ * screen, wearing that screen's real content. So this driver navigates to the
+ * product route and STAMPS the harness attributes onto the elements the pattern
+ * manifest names.
+ *
+ * Stamping rather than wrapping is load-bearing. Inserting a wrapper element
+ * would reflow the page, so every measurement taken after the first insertion
+ * would describe a document the user never sees. `data-fx-self` (collector.ts)
+ * lets a node be its own subject, which changes no layout at all.
+ *
+ * Rule 1 from the component extractor applies unchanged and is not optional:
+ * TRANSITIONS MUST BE DISABLED BEFORE MEASURING, or getComputedStyle returns
+ * in-flight values.
+ */
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const require = createRequire(path.join(process.cwd(), 'package.json'));
+const { chromium } = require('playwright');
+
+const arg = (n, d) => {
+  const i = process.argv.indexOf(`--${n}`);
+  return i > -1 ? process.argv[i + 1] : d;
+};
+
+const PORT = arg('port', '8082');
+const THEME = arg('theme', 'light');
+const WIDTH = Number(arg('width', '1440'));
+const OUT = arg('out', `scripts/figma/.captures/patterns-${THEME}.json`);
+const ONLY = arg('only', '');
+
+const collectorSrc = fs.readFileSync(path.resolve('scripts/figma/extract/collector.ts'), 'utf8');
+const COLLECTOR = collectorSrc.slice(
+  collectorSrc.indexOf('String.raw`') + 'String.raw`'.length,
+  collectorSrc.lastIndexOf('`;'),
+);
+
+const PROPS = [
+  'display', 'position', 'flex-direction', 'flex-wrap', 'gap', 'row-gap', 'column-gap',
+  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis',
+  'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'background-color', 'color', 'opacity', 'overflow',
+  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+  'border-top-color', 'border-radius',
+  'border-top-left-radius', 'border-top-right-radius',
+  'border-bottom-right-radius', 'border-bottom-left-radius',
+  'box-shadow', 'font-family', 'font-size', 'font-weight',
+  'line-height', 'letter-spacing', 'text-align', 'direction',
+  'transform', 'visibility',
+];
+
+// The manifest is TypeScript with no runtime deps beyond the array literal, so
+// it is read rather than imported — the extractor has no build step.
+const src = fs.readFileSync(path.resolve('src/shared/ds/figma.patterns.ts'), 'utf8');
+const body = src.slice(src.indexOf('FX_PATTERNS: readonly FxPattern[] = ['));
+const json = body.slice(body.indexOf('['), body.lastIndexOf('] as const;') + 1);
+// eslint-disable-next-line no-eval -- a literal array from a file in this repo.
+const PATTERNS = eval(json).filter((p) => !ONLY || p.key === ONLY);
+
+const routes = [...new Set(PATTERNS.map((p) => p.route))];
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 1200 } });
+const page = await ctx.newPage();
+const pageErrors = [];
+page.on('pageerror', (e) => pageErrors.push(String(e).slice(0, 200)));
+
+/**
+ * The theme is NOT a query parameter on a product route — that is a harness
+ * affordance. `brandos-theme` is the one key the product reads (next-themes'
+ * storageKey AND what `[data-workspace] data-theme` resolves from), so setting
+ * anything else yields a "dark" capture that is byte-identical to light. That
+ * happened once here and was caught only by diffing `--ds-bg` between the two
+ * files; the assertion below now makes it impossible to miss.
+ */
+await page.addInitScript((theme) => {
+  try {
+    localStorage.setItem('brandos:dev-bypass', '1');
+    localStorage.setItem('brandos-theme', theme);
+  } catch { /* private mode */ }
+}, THEME);
+
+const cells = [];
+let tokens = null;
+let tokenValues = null;
+const misses = [];
+
+for (const route of routes) {
+  await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: 'networkidle', timeout: 60_000 });
+
+  // Prove the theme took. A capture that silently stays light produces variable
+  // modes with two identical values, which looks like a working dark theme.
+  const applied = await page.evaluate(() =>
+    document.documentElement.getAttribute('data-theme')
+    ?? (document.documentElement.classList.contains('dark') ? 'dark' : 'light'));
+  if (applied !== THEME) {
+    console.error(`THEME NOT APPLIED: asked for ${THEME}, document reports ${applied}`);
+    process.exit(1);
+  }
+
+  await page.addStyleTag({
+    content: '*, *::before, *::after { transition: none !important; animation: none !important; }',
+  });
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+
+  const here = PATTERNS.filter((p) => p.route === route);
+  const stamped = await page.evaluate((defs) => {
+    const missed = [];
+    let index = 0;
+    for (const def of defs) {
+      const all = Array.from(document.querySelectorAll(def.selector));
+      def.at.forEach((n, i) => {
+        const el = all[n];
+        if (!el) { missed.push(`${def.key}[${n}] via ${def.selector}`); return; }
+        const axes = (def.axes && def.axes[i]) || {};
+        el.setAttribute('data-fx-self', '');
+        // Figma groups the assets panel on "/", so the prefix is what keeps the
+        // product layer legible beside the DS primitives instead of interleaved
+        // with them alphabetically.
+        el.setAttribute('data-fx-component', `pattern/${def.key}`);
+        el.setAttribute('data-fx-sid', def.sid);
+        el.setAttribute('data-fx-index', String(index++));
+        el.setAttribute(
+          'data-fx-variant',
+          Object.entries(axes).map(([k, v]) => `${k}=${v}`).join(','),
+        );
+        if (def.roles) el.setAttribute('data-fx-roles', JSON.stringify(def.roles));
+      });
+    }
+    return missed;
+  }, here);
+
+  misses.push(...stamped);
+
+  const capture = await page.evaluate(
+    ([srcText, props]) => (0, eval)(`(${srcText})`)(props),
+    [COLLECTOR, PROPS],
+  );
+  cells.push(...capture.cells);
+  tokens ??= capture.tokens;
+  tokenValues ??= capture.tokenValues;
+}
+
+await browser.close();
+
+// A selector that matches nothing is a manifest that has drifted from the
+// product. Failing loudly beats emitting a pattern set with a silent hole —
+// the same rule the component extractor applies to an unmatched pseudo-target.
+if (misses.length) {
+  console.error('PATTERN SELECTORS MATCHED NOTHING:');
+  for (const m of misses) console.error('  ' + m);
+  process.exit(1);
+}
+if (pageErrors.length) {
+  console.error('PAGE ERRORS:');
+  for (const e of pageErrors) console.error('  ' + e);
+  process.exit(1);
+}
+
+const out = {
+  theme: THEME,
+  direction: 'ltr',
+  viewport: { w: WIDTH, h: 1200 },
+  url: routes.join(','),
+  capturedAt: new Date().toISOString(),
+  tokens,
+  tokenValues,
+  cells,
+};
+
+fs.mkdirSync(path.dirname(OUT), { recursive: true });
+fs.writeFileSync(OUT, JSON.stringify(out));
+
+console.log(`patterns declared : ${PATTERNS.length}`);
+console.log(`cells captured    : ${cells.length}`);
+console.log(`tokens            : ${Object.keys(tokenValues || {}).length}`);
+for (const c of cells) {
+  const n = (function count(x) { return 1 + x.children.reduce((a, k) => a + count(k), 0); })(c.root);
+  console.log(`  ${c.component.padEnd(22)} ${JSON.stringify(c.variant).padEnd(22)} ${String(n).padStart(4)} nodes`);
+}
+console.log(`written: ${OUT}`);

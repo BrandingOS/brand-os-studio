@@ -26,8 +26,11 @@ const OUT = arg('out', 'scripts/figma/.plans');
 const GEN = arg('gen', new Date().toISOString());
 
 const suffix = COMPONENT ? `-${COMPONENT}` : '';
-const lightFile = path.join(CAPTURES, `capture-light-ltr-1400${suffix}.json`);
-const darkFile = path.join(CAPTURES, `capture-dark-ltr-1400${suffix}.json`);
+// Product PATTERNS are measured in situ by extract-patterns.mjs and land under
+// their own names, so the two capture files can be named explicitly. Everything
+// downstream — IR, plan, walker, transport — is identical for both layers.
+const lightFile = arg('light', path.join(CAPTURES, `capture-light-ltr-1400${suffix}.json`));
+const darkFile = arg('dark', path.join(CAPTURES, `capture-dark-ltr-1400${suffix}.json`));
 for (const f of [lightFile, darkFile]) {
   if (!fs.existsSync(f)) {
     console.error(`missing capture: ${f}\nrun extract.mjs for both themes first`);
@@ -77,16 +80,25 @@ const merged = mergeThemes(toDoc(light), toDoc(dark), {
   page: ${JSON.stringify(PAGE)},
   gen: ${JSON.stringify(GEN)},
 });
-process.stdout.write(JSON.stringify(merged));
+// Written to a FILE, not stdout. vite-node loads the root vite.config.ts, whose
+// landingPageDevPlugin prints a whole Vite build — which lands on stdout ahead
+// of the payload and takes the first "{" with it.
+fs.writeFileSync(${JSON.stringify(path.resolve(OUT, '_bridge.out.json'))}, JSON.stringify(merged));
 `);
 
-const raw = execFileSync('npx', ['vite-node', bridge], {
-  encoding: 'utf8',
+const bridgeOut = path.join(OUT, '_bridge.out.json');
+execFileSync('npx', ['vite-node', bridge], {
   maxBuffer: 64 * 1024 * 1024,
-  stdio: ['ignore', 'pipe', 'inherit'],
+  stdio: ['ignore', 'ignore', 'inherit'],
+  // The documented opt-out (CLAUDE.md): anything running `vite build` otherwise
+  // rebuilds the landing page, which this has no use for.
+  env: { ...process.env, SKIP_LANDING_BUILD: '1' },
 });
-const { plan, unmapped, visuallyIdentical, droppedAxes } = JSON.parse(raw.slice(raw.indexOf('{')));
+const { plan, unmapped, visuallyIdentical, droppedAxes } = JSON.parse(
+  fs.readFileSync(bridgeOut, 'utf8'),
+);
 fs.unlinkSync(bridge);
+fs.unlinkSync(bridgeOut);
 
 const name = COMPONENT || 'all';
 const planFile = path.join(OUT, `${name}.plan.json`);
