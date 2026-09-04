@@ -324,7 +324,14 @@ async function runPlan(plan) {
         catch (e) { report.errors.push('variant on ' + spec.sid + ': ' + e); }
       }
       if (spec.ov && spec.ov.texts && spec.ov.texts.length) {
-        const targets = node.findAllWithCriteria({ types: ['TEXT'] });
+        // Only text THIS generator created is a label. createNodeFromSvg turns
+        // an <svg> containing <text> into real TEXT nodes — the rail's
+        // thumbnail holds the glyphs "A" and "a" — and those come first in
+        // document order, so overrides were written into the ARTWORK while the
+        // name and subtitle kept the component's defaults. A node the walker
+        // built carries a sid; one Figma derived from an SVG does not.
+        const targets = node.findAllWithCriteria({ types: ['TEXT'] })
+          .filter(function (t) { return t.getSharedPluginData('brandingos', 'sid'); });
         for (let i = 0; i < targets.length && i < spec.ov.texts.length; i++) {
           try {
             // The font is already loaded: the pre-pass loads the fonts of every
