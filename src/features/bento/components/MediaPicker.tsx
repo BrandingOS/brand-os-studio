@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { Upload, FolderOpen, Search, Loader2, ImageOff, ExternalLink } from 'lucide-react';
+import { DsBanner, DsButton, DsDropZone, DsEmptyState, DsInput, DsModal, DsTabBar } from '@/shared/ds';
+import { Upload, FolderOpen, Search, Loader2, ExternalLink } from 'lucide-react';
 import type { Brand, Asset } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import {
@@ -69,47 +66,36 @@ export function MediaPicker({ open, onClose, brand, defaultTab, onPick, defaultQ
   }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-5 py-4 border-b">
-          <DialogTitle>Add media</DialogTitle>
-          <DialogDescription className="text-xs">
-            Upload, pull from your brand, or search stock photo libraries.
-          </DialogDescription>
-        </DialogHeader>
+    <DsModal
+      open={open}
+      onClose={onClose}
+      title="Add media"
+      eyebrow="Media"
+      size="lg"
+    >
+      <p className="bento-modal-lede">
+        Upload, pull from your brand, or search stock photo libraries.
+      </p>
 
-        {/* Tab bar */}
-        <div className="flex items-center gap-1 px-5 pt-3 border-b overflow-x-auto">
-          {enabledTabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActive(t.id)}
-              className={cn(
-                'px-3 pb-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap -mb-px',
-                active === t.id
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <DsTabBar
+        aria-label="Media source"
+        value={active}
+        onChange={(v) => setActive(v as TabId)}
+        tabs={enabledTabs.map((t) => ({ value: t.id, label: t.label }))}
+      />
 
-        <div className="max-h-[520px] overflow-y-auto">
-          {active === 'upload' && <UploadTab onPick={onPick} />}
-          {active === 'brand' && <BrandAssetsTab brand={brand} onPick={onPick} />}
-          {active !== 'upload' && active !== 'brand' && (
-            <StockProviderTab
-              provider={ALL_PROVIDERS.find((p) => p.id === active)!}
-              defaultQuery={defaultQuery}
-              onPick={onPick}
-            />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <div className="bento-media-body">
+        {active === 'upload' && <UploadTab onPick={onPick} />}
+        {active === 'brand' && <BrandAssetsTab brand={brand} onPick={onPick} />}
+        {active !== 'upload' && active !== 'brand' && (
+          <StockProviderTab
+            provider={ALL_PROVIDERS.find((p) => p.id === active)!}
+            defaultQuery={defaultQuery}
+            onPick={onPick}
+          />
+        )}
+      </div>
+    </DsModal>
   );
 }
 
@@ -128,35 +114,34 @@ function UploadTab({ onPick }: { onPick: (r: MediaPickResult) => void }) {
   };
 
   return (
-    <div className="p-6">
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          handleFile(e.dataTransfer.files?.[0] ?? null);
+    <DsDropZone
+      className={dragging ? 'is-dragging' : undefined}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        handleFile(e.dataTransfer.files?.[0] ?? null);
+      }}
+      onClick={() => inputRef.current?.click()}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          handleFile(e.target.files?.[0] ?? null);
+          e.target.value = '';
         }}
-        className={cn(
-          'block rounded-lg border-2 border-dashed transition-colors p-10 text-center cursor-pointer',
-          dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30',
-        )}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            handleFile(e.target.files?.[0] ?? null);
-            e.target.value = '';
-          }}
-        />
-        <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-        <div className="text-sm font-medium mb-1">Drop an image here, or click to browse</div>
-        <div className="text-xs text-muted-foreground">PNG, JPG, WEBP, SVG · up to 10&nbsp;MB</div>
-      </label>
-    </div>
+      />
+      <Upload size={26} aria-hidden />
+      <strong>Drop an image here, or click to browse</strong>
+      <span>PNG, JPG, WEBP, SVG · up to 10&nbsp;MB</span>
+    </DsDropZone>
   );
 }
 
@@ -170,33 +155,37 @@ function BrandAssetsTab({ brand, onPick }: { brand: Brand | null | undefined; on
 
   if (assets.length === 0) {
     return (
-      <div className="p-10 text-center">
-        <FolderOpen className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-        <div className="text-sm font-medium mb-1">No brand image assets yet</div>
-        <div className="text-xs text-muted-foreground">Upload a photo first to build up your library.</div>
-      </div>
+      <DsEmptyState>
+        <FolderOpen size={22} aria-hidden />
+        No brand image assets yet — upload a photo first to build up your library.
+      </DsEmptyState>
     );
   }
 
   return (
-    <div className="p-5 space-y-3">
-      <div className="relative">
-        <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search assets" className="h-8 pl-8 text-xs" />
+    <div className="bento-media-pane">
+      <div className="bento-search">
+        <Search size={14} className="bento-search-icon" aria-hidden />
+        <DsInput
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search assets"
+          aria-label="Search assets"
+        />
       </div>
       {filtered.length === 0 ? (
-        <div className="text-xs text-muted-foreground text-center py-6">No matches</div>
+        <DsEmptyState>No matches</DsEmptyState>
       ) : (
-        <div className="grid grid-cols-5 gap-2">
+        <div className="bento-mediagrid">
           {filtered.map((a) => (
             <button
               key={a.id}
               type="button"
               onClick={() => onPick({ kind: 'asset', asset: a })}
-              className="group aspect-square rounded border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+              className="bento-mediatile"
               title={a.name}
             >
-              <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
+              <img src={a.url} alt={a.name} />
             </button>
           ))}
         </div>
@@ -252,75 +241,63 @@ function StockProviderTab({
   }, [query, provider.id, run]);
 
   return (
-    <div className="p-5 space-y-3">
-      <div className="relative">
-        <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
+    <div className="bento-media-pane">
+      <div className="bento-search">
+        <Search size={14} className="bento-search-icon" aria-hidden />
+        <DsInput
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={provider.id === 'giphy' ? 'Search GIPHY (leave blank for trending)' : `Search ${provider.name}`}
-          className="h-9 pl-8 text-sm"
+          aria-label={`Search ${provider.name}`}
           autoFocus
         />
-        {loading && <Loader2 className="h-3.5 w-3.5 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />}
+        {loading && <Loader2 size={14} className="bento-search-spin" aria-label="Searching" />}
       </div>
 
-      {error && (
-        <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive flex items-center gap-2">
-          <ImageOff className="h-3.5 w-3.5" /> {error}
-        </div>
-      )}
+      {error && <DsBanner tone="danger">{error}</DsBanner>}
 
       {results.length === 0 && !loading && query.trim() && !error && (
-        <div className="text-xs text-muted-foreground text-center py-6">No results</div>
+        <DsEmptyState>No results</DsEmptyState>
       )}
 
       {results.length > 0 && (
         <>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="bento-mediagrid">
             {results.map((photo) => (
               <button
                 key={`${photo.provider}-${photo.id}`}
                 type="button"
                 onClick={() => onPick({ kind: 'stock', photo })}
                 title={`by ${photo.author}`}
-                className="group relative aspect-square rounded overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                style={{ background: photo.color ?? '#E2E8F0' }}
+                className="bento-mediatile"
+                style={{ background: photo.color ?? 'var(--ds-surface-subtle)' }}
               >
-                <img
-                  src={photo.thumbUrl}
-                  alt=""
-                  loading="lazy"
-                  crossOrigin="anonymous"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1">
-                  <div className="text-[9px] text-white font-medium truncate">{photo.author}</div>
-                </div>
+                <img src={photo.thumbUrl} alt="" loading="lazy" crossOrigin="anonymous" />
+                <span className="bento-mediatile-by">{photo.author}</span>
               </button>
             ))}
           </div>
           {hasMore && (
-            <Button
-              variant="outline"
+            <DsButton
+              tone="secondary"
               size="sm"
-              className="w-full h-8 text-xs"
+              className="bento-block"
               disabled={loading}
               onClick={() => run(query || '', page + 1, true)}
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Load more'}
-            </Button>
+              {loading ? 'Loading…' : 'Load more'}
+            </DsButton>
           )}
         </>
       )}
 
-      <div className="text-[10px] text-muted-foreground flex items-center gap-1 pt-1">
-        Powered by
-        <a href={attributionUrl(provider.id)} target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-0.5">
+      <p className="bento-attrib">
+        Powered by{' '}
+        <a href={attributionUrl(provider.id)} target="_blank" rel="noopener noreferrer">
           {provider.name}
-          <ExternalLink className="h-2.5 w-2.5" />
+          <ExternalLink size={10} aria-hidden />
         </a>
-      </div>
+      </p>
     </div>
   );
 }

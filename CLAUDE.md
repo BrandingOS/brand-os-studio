@@ -1200,6 +1200,25 @@ two that spend money.
 from **Brand Tools → Utilities** and from a launcher in the **Brand Identity**
 nav. Both are links into that one route — neither surface re-implements it.
 
+**The editor is DS-native as of 2026-09-04.** It wears `EditorChrome` (the
+canonical editor topbar, from `@/features/editor/core`) over a document toolbar
+of its own; every control is a `@/shared/ds` primitive; the rail and the
+inspector are built from the workspace shell's `.panel` vocabulary; and the
+root sets `data-workspace` + `data-theme`, without which `--ds-*` cannot
+re-resolve and the page was the one surface that stayed light in dark mode.
+`features/bento/bento.css` holds only what no other surface has — the editor
+frame, the toolbar, the artboard stage and the tile affordances — and every
+colour in it is a token. `EditorTopToolbar` is deliberately NOT used for the
+second row: it reads the unified editor's `useEditor()` context and Bento keeps
+its state in its own zustand store, so adopting it is a rewrite. Pinned by
+`features/bento/__tests__/migration.test.ts`, which fails on a new
+`@/components/ui/*` import or a bare hex in the stylesheet.
+
+**The indigo `#6366F1` still in `shuffle.ts`, `TileRenderer` and
+`buildPalette` is CONTENT, not chrome** — the fallback palette a tile is
+generated from when the brand brings no colours. Do not tokenise it; it changes
+what Bento draws.
+
 **`BentoWall` in `features/brand-identity/sections/Surfaces.tsx` is NOT that
 feature**, despite the name. It is a proof surface inside Identity's Applied
 section — the identity rendered onto a bento LAYOUT, generated from the model

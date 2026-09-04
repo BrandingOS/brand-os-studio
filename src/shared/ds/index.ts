@@ -36,6 +36,7 @@ export {
 } from './Feedback';
 export { DsMenu, DsMenuItem, DsMenuDivider, type DsMenuItemProps } from './Menu';
 export { DsModal, DsConfirmDialog, type DsModalProps, type DsConfirmDialogProps } from './Modal';
+export { DsSlider, type DsSliderProps } from './Slider';
 export { DsSkeleton, DsProgress, type DsSkeletonProps, type DsProgressProps } from './Progress';
 export { DsTabBar, type DsTabBarProps } from './TabBar';
 export { DsRail, type DsRailItem, type DsRailProps } from './Rail';

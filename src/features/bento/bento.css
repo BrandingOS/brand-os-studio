@@ -1,0 +1,583 @@
+/*
+ * The Bento editor's own layer.
+ *
+ * Everything generic comes from `@/shared/ds` (buttons, fields, selects,
+ * sliders, menus, modals, tabs) and everything panel-shaped comes from the
+ * workspace shell's vocabulary (`.panel`, `.panel-list`, `.panel-item`) — the
+ * same rules SetupSidebar, ToolsSidebar and the Guideline builder use. What is
+ * left here is the part no other surface has: an editor's three-column frame,
+ * a document toolbar, an artboard stage, and the tile-editing affordances.
+ *
+ * Every value is a `--ds-*` token. The page used to paint itself in Tailwind's
+ * shadcn aliases plus a hardcoded indigo (#6366F1) that belonged to no palette
+ * in the product; both are gone.
+ *
+ * Scoped under `.bento-editor`, which also carries `data-workspace` — so these
+ * rules and the shell's resolve against the same theme scope.
+ */
+
+.bento-editor {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font);
+}
+
+.bento-editor .bento-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* ── Document toolbar ───────────────────────────────────────────────────
+ * The second row under EditorChrome. Chrome owns the document's identity and
+ * its actions; this owns the document's properties.
+ */
+.bento-editor .bento-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.bento-editor .bento-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.bento-editor .bento-toolbar-rule {
+  width: 1px;
+  height: 18px;
+  background: var(--ds-border);
+}
+.bento-editor .bento-toolbar-extra {
+  margin-left: auto;
+}
+
+.bento-editor .bento-iconbtn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+              color var(--ds-duration-state) var(--ds-ease);
+}
+.bento-editor .bento-iconbtn:hover:not(:disabled) {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+.bento-editor .bento-iconbtn:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+/* Grey is never an enabled state — disabled is the control at 40%. */
+.bento-editor .bento-iconbtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.bento-editor .bento-iconbtn--danger:hover:not(:disabled) {
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+
+.bento-editor .bento-toolbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+.bento-editor .bento-toolbtn:hover {
+  background: var(--ds-surface-hover);
+}
+.bento-editor .bento-toolbtn:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+
+.bento-editor .bento-select {
+  min-width: 168px;
+}
+
+/* The background swatch. The native colour input stays on top and clickable;
+   the chip underneath is what is actually seen. */
+.bento-editor .bento-swatch {
+  position: relative;
+  display: inline-flex;
+  width: 40px;
+  height: 32px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-control);
+  overflow: hidden;
+  cursor: pointer;
+}
+.bento-editor .bento-swatch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.bento-editor .bento-swatch > span {
+  width: 100%;
+  height: 100%;
+}
+.bento-editor .bento-swatch:focus-within {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ── Popover ────────────────────────────────────────────────────────── */
+.bento-editor .bento-pop {
+  position: relative;
+}
+.bento-editor .bento-pop-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 60;
+  width: 300px;
+  padding: var(--ds-space-4);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-menu);
+  box-shadow: var(--ds-shadow-float);
+}
+.bento-editor .bento-pop-panel[data-align='end'] { right: 0; }
+.bento-editor .bento-pop-panel[data-align='start'] { left: 0; }
+.bento-editor .bento-pop-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+.bento-editor .bento-pop-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-hairline);
+}
+.bento-editor .bento-pop-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-2);
+}
+
+/* A DsMenu anchored to a DsButton in the chrome's action row. */
+.bento-menu-anchor {
+  position: relative;
+  display: inline-flex;
+}
+.bento-menu-anchor .bento-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+}
+
+/* ── The two side panels ────────────────────────────────────────────────
+ *
+ * `.panel` is authored for a SCROLLING page: sticky at `top: 80px`, capped at
+ * `calc(100vh - 100px)`, rounded and shadowed so it floats over the board. An
+ * editor is not that page — the rail and the inspector are full-height columns
+ * in a fixed frame, so the card behaviour is undone here and only the panel's
+ * INTERIOR vocabulary (`.panel-top`, `.panel-list`, `.panel-item`) is kept.
+ * Reaching for a bespoke sidebar instead would have meant re-drawing every one
+ * of those rows.
+ */
+.bento-editor .panel {
+  position: static;
+  top: auto;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--ds-surface);
+}
+
+/* ── Left rail ──────────────────────────────────────────────────────── */
+.bento-editor .bento-rail {
+  width: 232px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--ds-border);
+}
+.bento-editor .bento-rail-empty {
+  padding: var(--ds-space-4);
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+.bento-editor .bento-thumb {
+  padding: 3px;
+  background: var(--ds-bg);
+}
+.bento-editor .bento-thumb-grid {
+  display: grid;
+  gap: 1.5px;
+  width: 100%;
+  height: 100%;
+}
+.bento-editor .bento-thumb-grid > span {
+  border-radius: 1px;
+  background: var(--ds-dash-strong);
+}
+.bento-editor .panel-item.is-active .bento-thumb-grid > span {
+  background: var(--ds-accent);
+}
+
+/* ── Search field ───────────────────────────────────────────────────── */
+.bento-search {
+  position: relative;
+  display: block;
+}
+.bento-search .bento-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+.bento-search .ds-input {
+  padding-left: 32px;
+}
+.bento-search .bento-search-spin {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-text-muted);
+  animation: bento-spin 900ms linear infinite;
+}
+@keyframes bento-spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* ── Stage ──────────────────────────────────────────────────────────── */
+.bento-editor .bento-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--ds-bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--ds-dash) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.bento-addcell {
+  position: relative;
+  display: inline-flex;
+}
+.bento-addcell .bento-addmenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  min-width: 172px;
+}
+
+/* ── Inspector ──────────────────────────────────────────────────────── */
+.bento-editor .bento-inspector {
+  width: 304px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--ds-border);
+  border-right: none;
+}
+.bento-editor .bento-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+.bento-editor .bento-inspector-acts {
+  display: inline-flex;
+  gap: 2px;
+}
+.bento-editor .bento-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.bento-editor .bento-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-hairline);
+}
+.bento-editor .bento-group:empty {
+  display: none;
+}
+.bento-editor .bento-group:last-child {
+  border-bottom: none;
+}
+.bento-editor .bento-labelled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+}
+.bento-editor .bento-label {
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+}
+.bento-editor .bento-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+  margin: 0;
+}
+
+.bento-editor .bento-readouts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-2);
+}
+.bento-editor .bento-readouts span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-surface-subtle);
+}
+.bento-editor .bento-readouts em {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+.bento-editor .bento-readouts code {
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  color: var(--ds-text);
+}
+
+.bento-editor .bento-addgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-2);
+}
+.bento-editor .bento-addgrid .ds-btn {
+  justify-content: flex-start;
+  gap: 5px;
+}
+.bento-editor .bento-block {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Swatch picker ──────────────────────────────────────────────────── */
+.bento-editor .bento-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.bento-editor .bento-swatchchip {
+  aspect-ratio: 1;
+  border: 1px solid var(--ds-border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--ds-duration-state) var(--ds-ease),
+              box-shadow var(--ds-duration-state) var(--ds-ease);
+}
+.bento-editor .bento-swatchchip:hover {
+  transform: scale(1.1);
+}
+.bento-editor .bento-swatchchip.is-on {
+  box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 4px var(--ds-accent);
+}
+.bento-editor .bento-swatchchip:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+.bento-editor .bento-hex input,
+.bento-editor .bento-hex {
+  font-family: var(--ds-font-mono);
+}
+
+/* ── Asset + media grids ────────────────────────────────────────────── */
+.bento-editor .bento-assetgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ds-space-2);
+}
+.bento-assettile,
+.bento-mediatile {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-surface-subtle);
+  padding: 0;
+  cursor: pointer;
+  transition: border-color var(--ds-duration-state) var(--ds-ease);
+}
+.bento-assettile img,
+.bento-mediatile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.bento-assettile:hover,
+.bento-mediatile:hover {
+  border-color: var(--ds-border-strong);
+}
+.bento-assettile.is-on {
+  border-color: var(--ds-accent);
+}
+.bento-assettile:focus-visible,
+.bento-mediatile:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+.bento-mediatile-by {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 8px 6px 3px;
+  font-size: 9px;
+  font-weight: 500;
+  color: #fff;
+  text-align: left;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  opacity: 0;
+  transition: opacity var(--ds-duration-state) var(--ds-ease);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bento-mediatile:hover .bento-mediatile-by,
+.bento-mediatile:focus-visible .bento-mediatile-by {
+  opacity: 1;
+}
+
+/* ── Modal interiors ────────────────────────────────────────────────── */
+.bento-modal-lede {
+  margin: 0 0 var(--ds-space-4);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+.bento-preview {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface-subtle);
+}
+.bento-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.bento-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-4);
+}
+.bento-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  transition: border-color var(--ds-duration-state) var(--ds-ease),
+              background var(--ds-duration-state) var(--ds-ease);
+}
+.bento-choice.is-on {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-surface-subtle);
+}
+.bento-choice-note {
+  margin: 0;
+  padding-left: 26px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+}
+
+.bento-media-body {
+  margin-top: var(--ds-space-4);
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.bento-media-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  padding-top: var(--ds-space-3);
+}
+.bento-mediagrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--ds-space-2);
+}
+.bento-attrib {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--ds-text-muted);
+}
+.bento-attrib a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ds-text-secondary);
+  text-decoration: underline;
+}
+
+/* ── Narrower desktops ──────────────────────────────────────────────────
+ * The three columns are the whole layout, so they are kept — the side panels
+ * give up width first, and the stage keeps whatever is left. Below 1100px the
+ * rail folds away: two panels plus an artboard is more chrome than canvas, and
+ * the template list is reachable again the moment there is room for it.
+ */
+@media (max-width: 1400px) {
+  .bento-editor .bento-rail { width: 200px; }
+  .bento-editor .bento-inspector { width: 272px; }
+  .bento-mediagrid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 1100px) {
+  .bento-editor .bento-rail { display: none; }
+  .bento-editor .bento-inspector { width: 256px; }
+  .bento-mediagrid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Held over the page while a tile is dragged or resized, so the cursor stays
+   the resize cursor even as the pointer crosses other elements. */
+.bento-dragveil {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}

@@ -1,17 +1,12 @@
 import type { Brand } from '@/shared/types/brand';
 import type { BentoTile, TileKind } from '../types';
 import { useBentoStore } from '../store';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
+import { DsButton, DsInput, DsSegmented, DsSelect, DsSlider, DsTextArea } from '@/shared/ds';
 import { Copy, Trash2, Plus, AlignLeft, AlignCenter, AlignRight, Images } from 'lucide-react';
 
 const KIND_OPTIONS: Array<{ value: TileKind; label: string }> = [
   { value: 'logo', label: 'Logo' },
-  { value: 'color', label: 'Color' },
+  { value: 'color', label: 'Colour' },
   { value: 'gradient', label: 'Gradient' },
   { value: 'typography', label: 'Typography' },
   { value: 'voice-quote', label: 'Voice / Quote' },
@@ -21,6 +16,19 @@ const KIND_OPTIONS: Array<{ value: TileKind; label: string }> = [
   { value: 'pattern', label: 'Pattern' },
   { value: 'stat', label: 'Stat' },
 ];
+
+const LOGO_VARIANTS = ['full', 'icon', 'wordmark', 'dark', 'light'].map((v) => ({
+  value: v,
+  label: v[0].toUpperCase() + v.slice(1),
+}));
+const PATTERNS = ['dots', 'stripes', 'checker', 'circles'].map((v) => ({
+  value: v,
+  label: v[0].toUpperCase() + v.slice(1),
+}));
+const FITS = ['cover', 'contain', 'fill'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }));
+
+const pct = (v: number) => `${v.toFixed(1)}%`;
+const int = (v: number) => `${v.toFixed(0)}`;
 
 interface Props {
   tile: BentoTile | null;
@@ -38,270 +46,271 @@ export function TileInspector({ tile, brand, onOpenMedia }: Props) {
 
   if (!tile) {
     return (
-      <aside className="w-[300px] shrink-0 border-l bg-background flex flex-col">
-        <div className="p-4 border-b">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Inspector</div>
-        </div>
-        <div className="p-4 space-y-4">
-          <div className="text-sm text-muted-foreground">
-            Click a tile to edit it, drag an image, or search stock photos below.
+      <aside className="panel bento-inspector" aria-label="Inspector">
+        <div className="panel-top">
+          <div className="panel-heading">
+            <span className="panel-heading-eyebrow">Inspector</span>
           </div>
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Add tile</div>
-            <div className="grid grid-cols-2 gap-1.5">
+        </div>
+        <div className="bento-inspector-body">
+          <p className="bento-hint">
+            Select a tile to edit it, drag an image onto one, or browse the media library.
+          </p>
+          <Group label="Add tile">
+            <div className="bento-addgrid">
               {KIND_OPTIONS.slice(0, 8).map((o) => (
-                <Button key={o.value} variant="outline" size="sm" className="h-8 text-xs justify-start"
-                  onClick={() => addTile(o.value, brand)}>
-                  <Plus className="h-3 w-3 mr-1.5" />
+                <DsButton key={o.value} tone="secondary" size="sm" onClick={() => addTile(o.value, brand)}>
+                  <Plus size={12} aria-hidden />
                   {o.label}
-                </Button>
+                </DsButton>
               ))}
             </div>
-          </div>
-          <Button variant="default" size="sm" className="w-full h-9 gap-1.5" onClick={() => onOpenMedia('')}>
-            <Images className="h-3.5 w-3.5" />
+          </Group>
+          <DsButton className="bento-block" onClick={() => onOpenMedia('')}>
+            <Images size={14} aria-hidden />
             Browse media library
-          </Button>
+          </DsButton>
         </div>
       </aside>
     );
   }
 
   const palette = buildPalette(brand);
-  const fonts = buildFonts(brand);
+  const withNeutrals = [...palette, '#FFFFFF', '#000000'];
+  const fonts = buildFonts(brand).map((f) => ({ value: f, label: f }));
   const images = (brand?.assets ?? []).filter((a) => a.type === 'image');
   const style = tile.style ?? {};
-  const isTextLike = tile.kind === 'voice-quote' || tile.kind === 'text' || tile.kind === 'stat' || tile.kind === 'typography';
+  const isTextLike =
+    tile.kind === 'voice-quote' || tile.kind === 'text' || tile.kind === 'stat' || tile.kind === 'typography';
   const isImageLike = tile.kind === 'asset-image' || tile.kind === 'user-image' || tile.kind === 'logo';
+  const grad = tile.content.gradient;
 
   return (
-    <aside className="w-[300px] shrink-0 border-l bg-background flex flex-col">
-      <div className="p-4 border-b flex items-center justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Inspector</div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => duplicateTile(tile.id, brand)} title="Duplicate">
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteTile(tile.id)} title="Delete">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+    <aside className="panel bento-inspector" aria-label="Inspector">
+      <div className="panel-top">
+        <div className="bento-inspector-head">
+          <span className="panel-heading-eyebrow">Inspector</span>
+          <span className="bento-inspector-acts">
+            <button
+              type="button"
+              className="bento-iconbtn"
+              onClick={() => duplicateTile(tile.id, brand)}
+              title="Duplicate"
+              aria-label="Duplicate tile"
+            >
+              <Copy size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="bento-iconbtn bento-iconbtn--danger"
+              onClick={() => deleteTile(tile.id)}
+              title="Delete"
+              aria-label="Delete tile"
+            >
+              <Trash2 size={14} aria-hidden />
+            </button>
+          </span>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="p-4 border-b space-y-3">
-          <Field label="Type">
-            <Select value={tile.kind} onValueChange={(v) => setKind(tile.id, v as TileKind, brand)}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {KIND_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded bg-muted/50 px-2 py-1.5">
-              <div className="text-[10px] text-muted-foreground uppercase">Position</div>
-              <div className="font-mono">r{tile.row} · c{tile.col}</div>
-            </div>
-            <div className="rounded bg-muted/50 px-2 py-1.5">
-              <div className="text-[10px] text-muted-foreground uppercase">Span</div>
-              <div className="font-mono">{tile.colSpan} × {tile.rowSpan}</div>
-            </div>
+      <div className="bento-inspector-body">
+        <Group label="Type">
+          <DsSelect
+            options={KIND_OPTIONS}
+            value={tile.kind}
+            onChange={(v) => setKind(tile.id, v as TileKind, brand)}
+          />
+          <div className="bento-readouts">
+            <span><em>Position</em><code>r{tile.row} · c{tile.col}</code></span>
+            <span><em>Span</em><code>{tile.colSpan} × {tile.rowSpan}</code></span>
           </div>
-        </div>
+        </Group>
 
-        <div className="p-4 space-y-4 border-b">
+        <Group>
           {tile.kind === 'color' && (
-            <Swatches label="Color" value={tile.content.color} palette={palette} onPick={(c) => updateContent(tile.id, { color: c })} />
+            <Swatches label="Colour" value={tile.content.color} palette={palette}
+              onPick={(c) => updateContent(tile.id, { color: c })} />
           )}
 
           {tile.kind === 'gradient' && (
             <>
-              <Swatches label="From" value={tile.content.gradient?.from} palette={palette}
-                onPick={(c) => updateContent(tile.id, { gradient: { from: c, to: tile.content.gradient?.to ?? '#000', angle: tile.content.gradient?.angle ?? 45 } })} />
-              <Swatches label="To" value={tile.content.gradient?.to} palette={palette}
-                onPick={(c) => updateContent(tile.id, { gradient: { from: tile.content.gradient?.from ?? '#000', to: c, angle: tile.content.gradient?.angle ?? 45 } })} />
-              <SliderRow label="Angle" value={tile.content.gradient?.angle ?? 45} min={0} max={360} step={1} unit="°"
-                onChange={(v) => updateContent(tile.id, { gradient: { from: tile.content.gradient?.from ?? '#000', to: tile.content.gradient?.to ?? '#fff', angle: v } })} />
+              <Swatches label="From" value={grad?.from} palette={palette}
+                onPick={(c) => updateContent(tile.id, { gradient: { from: c, to: grad?.to ?? '#000', angle: grad?.angle ?? 45 } })} />
+              <Swatches label="To" value={grad?.to} palette={palette}
+                onPick={(c) => updateContent(tile.id, { gradient: { from: grad?.from ?? '#000', to: c, angle: grad?.angle ?? 45 } })} />
+              <DsSlider label="Angle" value={grad?.angle ?? 45} min={0} max={360} step={1}
+                format={(v) => `${v.toFixed(0)}°`}
+                onChange={(v) => updateContent(tile.id, { gradient: { from: grad?.from ?? '#000', to: grad?.to ?? '#fff', angle: v } })} />
             </>
           )}
 
           {tile.kind === 'logo' && (
             <>
-              <Field label="Variant">
-                <Select value={tile.content.logoVariant ?? 'full'} onValueChange={(v) => updateContent(tile.id, { logoVariant: v as 'full' })}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="full">Full</SelectItem>
-                    <SelectItem value="icon">Icon</SelectItem>
-                    <SelectItem value="wordmark">Wordmark</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="light">Light</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Swatches label="Background" value={tile.content.bg} palette={[...palette, '#FFFFFF', '#000000']}
+              <Labelled label="Variant">
+                <DsSelect options={LOGO_VARIANTS} value={tile.content.logoVariant ?? 'full'}
+                  onChange={(v) => updateContent(tile.id, { logoVariant: v as 'full' })} />
+              </Labelled>
+              <Swatches label="Background" value={tile.content.bg} palette={withNeutrals}
                 onPick={(c) => updateContent(tile.id, { bg: c })} />
             </>
           )}
 
           {tile.kind === 'typography' && (
             <>
-              <Field label="Font">
-                <Select value={tile.content.fontFamily ?? fonts[0]} onValueChange={(v) => updateContent(tile.id, { fontFamily: v })}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>{fonts.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-              <Field label="Sample">
-                <Input value={tile.content.text ?? 'Aa'} onChange={(e) => updateContent(tile.id, { text: e.target.value })} />
-              </Field>
+              <Labelled label="Font">
+                <DsSelect options={fonts} value={tile.content.fontFamily ?? fonts[0]?.value}
+                  onChange={(v) => updateContent(tile.id, { fontFamily: v })} />
+              </Labelled>
+              <DsInput label="Sample" value={tile.content.text ?? 'Aa'}
+                onChange={(e) => updateContent(tile.id, { text: e.target.value })} />
             </>
           )}
 
           {(tile.kind === 'voice-quote' || tile.kind === 'text') && (
             <>
-              <Field label="Text">
-                <Textarea rows={3} value={tile.content.text ?? ''} onChange={(e) => updateContent(tile.id, { text: e.target.value })} />
-              </Field>
-              <Field label="Font">
-                <Select value={tile.content.fontFamily ?? fonts[0]} onValueChange={(v) => updateContent(tile.id, { fontFamily: v })}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>{fonts.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-              <AlignToggle value={tile.content.align ?? 'left'} onChange={(v) => updateContent(tile.id, { align: v })} />
+              <DsTextArea label="Text" rows={3} value={tile.content.text ?? ''}
+                onChange={(e) => updateContent(tile.id, { text: e.target.value })} />
+              <Labelled label="Font">
+                <DsSelect options={fonts} value={tile.content.fontFamily ?? fonts[0]?.value}
+                  onChange={(v) => updateContent(tile.id, { fontFamily: v })} />
+              </Labelled>
+              <Labelled label="Align">
+                <DsSegmented
+                  aria-label="Text alignment"
+                  value={tile.content.align ?? 'left'}
+                  onChange={(v) => updateContent(tile.id, { align: v as 'left' })}
+                  options={[
+                    { value: 'left', label: <AlignLeft size={14} aria-label="Left" /> },
+                    { value: 'center', label: <AlignCenter size={14} aria-label="Centre" /> },
+                    { value: 'right', label: <AlignRight size={14} aria-label="Right" /> },
+                  ]}
+                />
+              </Labelled>
             </>
           )}
 
           {tile.kind === 'stat' && (
             <>
-              <Field label="Value"><Input value={tile.content.text ?? ''} onChange={(e) => updateContent(tile.id, { text: e.target.value })} /></Field>
-              <Field label="Label"><Input value={tile.content.label ?? ''} onChange={(e) => updateContent(tile.id, { label: e.target.value })} /></Field>
+              <DsInput label="Value" value={tile.content.text ?? ''}
+                onChange={(e) => updateContent(tile.id, { text: e.target.value })} />
+              <DsInput label="Label" value={tile.content.label ?? ''}
+                onChange={(e) => updateContent(tile.id, { label: e.target.value })} />
             </>
           )}
 
           {tile.kind === 'asset-image' && (
-            <div className="space-y-3">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Brand assets</div>
+            <>
+              <Labelled label="Brand assets">
                 {images.length === 0 ? (
-                  <div className="text-xs text-muted-foreground">No image assets yet.</div>
+                  <p className="bento-hint">No image assets yet.</p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="bento-assetgrid">
                     {images.map((a) => (
-                      <button key={a.id} type="button"
+                      <button
+                        key={a.id}
+                        type="button"
+                        className={`bento-assettile${tile.content.assetId === a.id ? ' is-on' : ''}`}
                         onClick={() => updateContent(tile.id, { assetId: a.id })}
-                        className={cn('aspect-square rounded overflow-hidden border-2',
-                          tile.content.assetId === a.id ? 'border-primary' : 'border-transparent hover:border-muted-foreground/30')}>
-                        <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
+                        title={a.name}
+                      >
+                        <img src={a.url} alt={a.name} />
                       </button>
                     ))}
                   </div>
                 )}
-              </div>
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={() => onOpenMedia(tile.id)}>
-                <Images className="h-3.5 w-3.5" />
+              </Labelled>
+              <DsButton tone="secondary" size="sm" className="bento-block" onClick={() => onOpenMedia(tile.id)}>
+                <Images size={14} aria-hidden />
                 Browse media
-              </Button>
-            </div>
+              </DsButton>
+            </>
           )}
 
           {tile.kind === 'user-image' && (
             <>
               {tile.content.dataUrl && (
-                <div className="rounded overflow-hidden border aspect-video">
-                  <img src={tile.content.dataUrl} alt="" className="w-full h-full object-cover" />
+                <div className="bento-preview">
+                  <img src={tile.content.dataUrl} alt="" />
                 </div>
               )}
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={() => onOpenMedia(tile.id)}>
-                <Images className="h-3.5 w-3.5" />
+              <DsButton tone="secondary" size="sm" className="bento-block" onClick={() => onOpenMedia(tile.id)}>
+                <Images size={14} aria-hidden />
                 {tile.content.dataUrl ? 'Replace media' : 'Browse media'}
-              </Button>
+              </DsButton>
             </>
           )}
 
           {tile.kind === 'pattern' && (
             <>
-              <Field label="Pattern">
-                <Select value={tile.content.patternKind ?? 'dots'} onValueChange={(v) => updateContent(tile.id, { patternKind: v as 'dots' })}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dots">Dots</SelectItem>
-                    <SelectItem value="stripes">Stripes</SelectItem>
-                    <SelectItem value="checker">Checker</SelectItem>
-                    <SelectItem value="circles">Circles</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Swatches label="Foreground" value={tile.content.fg} palette={palette} onPick={(c) => updateContent(tile.id, { fg: c })} />
-              <Swatches label="Background" value={tile.content.bg} palette={[...palette, '#FFFFFF', '#000000']} onPick={(c) => updateContent(tile.id, { bg: c })} />
+              <Labelled label="Pattern">
+                <DsSelect options={PATTERNS} value={tile.content.patternKind ?? 'dots'}
+                  onChange={(v) => updateContent(tile.id, { patternKind: v as 'dots' })} />
+              </Labelled>
+              <Swatches label="Foreground" value={tile.content.fg} palette={palette}
+                onPick={(c) => updateContent(tile.id, { fg: c })} />
+              <Swatches label="Background" value={tile.content.bg} palette={withNeutrals}
+                onPick={(c) => updateContent(tile.id, { bg: c })} />
             </>
           )}
-        </div>
+        </Group>
 
-        {/* Text-like → font size / weight */}
         {isTextLike && (
-          <div className="p-4 space-y-3 border-b">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Text</div>
-            <SliderRow label="Font size" value={tile.content.fontSizePct ?? defaultFontSizePct(tile.kind)} min={4} max={60} step={0.5} unit="%"
+          <Group label="Text">
+            <DsSlider label="Font size" value={tile.content.fontSizePct ?? defaultFontSizePct(tile.kind)}
+              min={4} max={60} step={0.5} format={pct}
               onChange={(v) => updateContent(tile.id, { fontSizePct: v })} />
-            <SliderRow label="Weight" value={tile.content.fontWeight ?? 600} min={300} max={900} step={100} unit=""
+            <DsSlider label="Weight" value={tile.content.fontWeight ?? 600} min={300} max={900} step={100} format={int}
               onChange={(v) => updateContent(tile.id, { fontWeight: v })} />
-          </div>
+          </Group>
         )}
 
-        {/* Image-like → fit / zoom / offset */}
         {isImageLike && (
-          <div className="p-4 space-y-3 border-b">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Image</div>
-            <Field label="Fit">
-              <Select value={tile.content.fit ?? 'cover'} onValueChange={(v) => updateContent(tile.id, { fit: v as 'cover' })}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cover">Cover</SelectItem>
-                  <SelectItem value="contain">Contain</SelectItem>
-                  <SelectItem value="fill">Fill</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <SliderRow label="Zoom" value={tile.content.zoom ?? 1} min={1} max={3} step={0.05} unit="×"
+          <Group label="Image">
+            <Labelled label="Fit">
+              <DsSelect options={FITS} value={tile.content.fit ?? 'cover'}
+                onChange={(v) => updateContent(tile.id, { fit: v as 'cover' })} />
+            </Labelled>
+            <DsSlider label="Zoom" value={tile.content.zoom ?? 1} min={1} max={3} step={0.05}
+              format={(v) => `${v.toFixed(2)}×`}
               onChange={(v) => updateContent(tile.id, { zoom: v })} />
-            <div className="grid grid-cols-2 gap-2">
-              <SliderRow label="X offset" value={tile.content.offsetX ?? 50} min={0} max={100} step={1} unit="%"
-                onChange={(v) => updateContent(tile.id, { offsetX: v })} />
-              <SliderRow label="Y offset" value={tile.content.offsetY ?? 50} min={0} max={100} step={1} unit="%"
-                onChange={(v) => updateContent(tile.id, { offsetY: v })} />
-            </div>
-          </div>
+            <DsSlider label="X offset" value={tile.content.offsetX ?? 50} min={0} max={100} step={1} format={int}
+              onChange={(v) => updateContent(tile.id, { offsetX: v })} />
+            <DsSlider label="Y offset" value={tile.content.offsetY ?? 50} min={0} max={100} step={1} format={int}
+              onChange={(v) => updateContent(tile.id, { offsetY: v })} />
+          </Group>
         )}
 
-        {/* Universal style */}
-        <div className="p-4 space-y-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Style</div>
-          <SliderRow label="Corner radius" value={style.radius ?? -1} min={-1} max={20} step={0.1} unit={style.radius === undefined ? ' (auto)' : '%'}
+        <Group label="Style">
+          {/*
+            -1 is the "auto" sentinel the store reads back as `undefined`, so
+            the readout has to say "auto" rather than "-1.0%". Same contract as
+            before the migration — only the control changed.
+          */}
+          <DsSlider label="Corner radius" value={style.radius ?? -1} min={-1} max={20} step={0.1}
+            format={(v) => (v < 0 ? 'auto' : pct(v))}
             onChange={(v) => updateStyle(tile.id, { radius: v < 0 ? undefined : v })} />
-          <SliderRow label="Opacity" value={(style.opacity ?? 1) * 100} min={10} max={100} step={1} unit="%"
+          <DsSlider label="Opacity" value={(style.opacity ?? 1) * 100} min={10} max={100} step={1} format={int}
             onChange={(v) => updateStyle(tile.id, { opacity: v / 100 })} />
-          <Field label="Shadow">
-            <div className="flex gap-1">
-              {[0, 1, 2, 3].map((lvl) => (
-                <button key={lvl} type="button" onClick={() => updateStyle(tile.id, { shadow: lvl as 0 })}
-                  className={cn('flex-1 h-8 text-xs rounded border',
-                    (style.shadow ?? 0) === lvl ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border hover:bg-muted/50')}>
-                  {lvl === 0 ? 'None' : ['S', 'M', 'L'][lvl - 1]}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <SliderRow label="Border" value={style.borderWidth ?? 0} min={0} max={2} step={0.05} unit="%"
+          <Labelled label="Shadow">
+            <DsSegmented
+              aria-label="Shadow"
+              value={String(style.shadow ?? 0)}
+              onChange={(v) => updateStyle(tile.id, { shadow: Number(v) as 0 })}
+              options={[
+                { value: '0', label: 'None' },
+                { value: '1', label: 'S' },
+                { value: '2', label: 'M' },
+                { value: '3', label: 'L' },
+              ]}
+            />
+          </Labelled>
+          <DsSlider label="Border" value={style.borderWidth ?? 0} min={0} max={2} step={0.05} format={pct}
             onChange={(v) => updateStyle(tile.id, { borderWidth: v })} />
           {(style.borderWidth ?? 0) > 0 && (
-            <Swatches label="Border color" value={style.borderColor ?? '#0F172A'} palette={[...palette, '#FFFFFF', '#000000']}
+            <Swatches label="Border colour" value={style.borderColor ?? '#0F172A'} palette={withNeutrals}
               onPick={(c) => updateStyle(tile.id, { borderColor: c })} />
           )}
-        </div>
+        </Group>
       </div>
     </aside>
   );
@@ -314,71 +323,53 @@ function defaultFontSizePct(kind: TileKind): number {
   return 12;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** A titled block of controls, separated by a hairline. */
+function Group({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+    <section className="bento-group">
+      {label && <span className="ds-eyebrow">{label}</span>}
+      {children}
+    </section>
+  );
+}
+
+/** A label over a control that has none of its own (DsSelect, DsSegmented). */
+function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="bento-labelled">
+      <span className="bento-label">{label}</span>
       {children}
     </div>
   );
 }
 
-function SliderRow({
-  label, value, min, max, step, unit, onChange,
-}: {
-  label: string; value: number; min: number; max: number; step: number; unit: string;
-  onChange: (v: number) => void;
-}) {
-  const displayValue = value < 0 ? 'auto' : value.toFixed(step < 1 ? 1 : 0);
+function Swatches({
+  label, value, palette, onPick,
+}: { label: string; value?: string; palette: string[]; onPick: (c: string) => void }) {
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          {typeof displayValue === 'string' && displayValue === 'auto' ? 'auto' : `${displayValue}${unit}`}
-        </span>
-      </div>
-      <Slider value={[value]} min={min} max={max} step={step} onValueChange={(v) => onChange(v[0])} />
-    </div>
-  );
-}
-
-function AlignToggle({ value, onChange }: { value: 'left' | 'center' | 'right'; onChange: (v: 'left' | 'center' | 'right') => void }) {
-  const btn = (key: 'left' | 'center' | 'right', Icon: typeof AlignLeft) => (
-    <button
-      type="button"
-      onClick={() => onChange(key)}
-      className={cn('flex-1 h-8 flex items-center justify-center rounded border',
-        value === key ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50 text-muted-foreground')}
-    >
-      <Icon className="h-3.5 w-3.5" />
-    </button>
-  );
-  return (
-    <div>
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Align</div>
-      <div className="flex gap-1">
-        {btn('left', AlignLeft)}
-        {btn('center', AlignCenter)}
-        {btn('right', AlignRight)}
-      </div>
-    </div>
-  );
-}
-
-function Swatches({ label, value, palette, onPick }: { label: string; value?: string; palette: string[]; onPick: (c: string) => void }) {
-  return (
-    <div>
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">{label}</div>
-      <div className="grid grid-cols-8 gap-1 mb-1.5">
+    <div className="bento-labelled">
+      <span className="bento-label">{label}</span>
+      <div className="bento-swatches" role="group" aria-label={label}>
         {palette.slice(0, 16).map((c) => (
-          <button key={c} type="button" onClick={() => onPick(c)}
-            className={cn('aspect-square rounded border transition-all',
-              value?.toLowerCase() === c.toLowerCase() ? 'border-primary scale-110 shadow-sm' : 'border-border hover:border-muted-foreground/50')}
-            style={{ background: c }} />
+          <button
+            key={c}
+            type="button"
+            onClick={() => onPick(c)}
+            className={`bento-swatchchip${value?.toLowerCase() === c.toLowerCase() ? ' is-on' : ''}`}
+            style={{ background: c }}
+            title={c}
+            aria-label={c}
+            aria-pressed={value?.toLowerCase() === c.toLowerCase()}
+          />
         ))}
       </div>
-      <Input type="text" placeholder="#000000" value={value ?? ''} onChange={(e) => onPick(e.target.value)} className="h-7 text-xs font-mono" />
+      <DsInput
+        className="bento-hex"
+        placeholder="#000000"
+        value={value ?? ''}
+        aria-label={`${label} hex`}
+        onChange={(e) => onPick(e.target.value)}
+      />
     </div>
   );
 }

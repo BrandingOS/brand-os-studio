@@ -575,6 +575,9 @@
 /* Three bands, one scroller. The head and the action row are pinned inside
    the box and only `.ds-modal-body` scrolls, so the primary action is on
    screen the moment the dialog opens however tall its content is. */
+.ds-modal--lg {
+  max-width: 860px;
+}
 .ds-modal {
   background: var(--ds-surface);
   border-radius: var(--ds-radius-panel);
@@ -976,4 +979,104 @@
   font-size: 12.5px;
   font-weight: 600;
   color: var(--ds-text-secondary);
+}
+
+/* ── Slider ──────────────────────────────────────────────────────────────
+ *
+ * The vendor pseudo-elements are written as SEPARATE blocks on purpose. A
+ * browser drops an entire rule when it meets a pseudo-element it does not
+ * recognise, so grouping `::-webkit-slider-thumb` with `::-moz-range-thumb`
+ * would leave one engine with an unstyled thumb. The repetition is the fix.
+ */
+.ds-slider-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  font-family: var(--ds-font);
+}
+.ds-slider-field[data-disabled] {
+  opacity: 0.4;
+}
+.ds-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+.ds-slider-label {
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+}
+.ds-slider-value {
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  color: var(--ds-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.ds-slider:disabled {
+  cursor: not-allowed;
+}
+
+/* Track */
+.ds-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-dash);
+}
+.ds-slider::-moz-range-track {
+  height: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-dash);
+}
+
+/* Thumb. The webkit margin centres it on a 3px track: webkit positions the
+   thumb from the track's top edge, Firefox centres it for you. */
+.ds-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-accent);
+  border: 2px solid var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+  transition: transform var(--ds-duration-state) var(--ds-ease);
+}
+.ds-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-accent);
+  border: 2px solid var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+  transition: transform var(--ds-duration-state) var(--ds-ease);
+}
+.ds-slider:not(:disabled):hover::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+.ds-slider:not(:disabled):hover::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+/* Focus is the house 3px charcoal ring, on the thumb rather than the box —
+   the input is 100% wide and a ring around it would frame the whole row. */
+.ds-slider:focus {
+  outline: none;
+}
+.ds-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.ds-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }

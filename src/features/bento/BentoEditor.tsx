@@ -13,6 +13,8 @@ import { ImageUploadPrompt, type PendingUpload } from './components/ImageUploadP
 import { MediaPicker, type MediaPickResult } from './components/MediaPicker';
 import { resolveSize } from './sizes';
 import { fetchPhotoAsDataUrl, type StockPhoto } from './lib/stockPhotos';
+import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
+import './bento.css';
 
 interface Props {
   brand: Brand | null | undefined;
@@ -221,8 +223,18 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
 
   const selectedTile = design.tiles.find((t) => t.id === selectedTileId) ?? null;
 
+  /*
+   * `data-workspace` + `data-theme` is what every Studio surface sets, and it
+   * is load-bearing twice over here: the panel vocabulary the rail and the
+   * inspector are built from lives under `[data-workspace]`, and the same
+   * element is where `--ds-*` re-resolves for light vs dark. Before this the
+   * editor was `fixed inset-0` with no theme scope at all, so it was the one
+   * page in the product that stayed light while everything around it went dark.
+   */
+  const { theme } = useWorkspaceTheme();
+
   return (
-    <div className="fixed inset-0 bg-background flex flex-col overflow-hidden">
+    <div className="bento-editor" data-workspace data-theme={theme}>
       <BentoTopBar
         brand={brand}
         backTo={backTo}
@@ -233,7 +245,7 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
         onOpenMedia={() => setMediaOpen({ tileId: null })}
         extraLeft={extraLeft}
       />
-      <div className="flex-1 min-h-0 flex">
+      <div className="bento-body">
         <TemplateRail selectedId={design.templateId} onSelect={(id) => setTemplate(id, brand ?? null)} />
         <BentoCanvas
           ref={canvasRef}

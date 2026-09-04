@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DsSelect } from '@/shared/ds';
 import { Sparkles } from 'lucide-react';
 
 interface Props {
   brandId: string | null;
   onChange: (brandId: string | null) => void;
 }
+
+const BLANK = 'blank';
 
 export function BrandSourcePicker({ brandId, onChange }: Props) {
   const list = useBrandStore((s) => s.list);
@@ -18,20 +20,21 @@ export function BrandSourcePicker({ brandId, onChange }: Props) {
     }
   }, [list.length, loadAll]);
 
+  const options = useMemo(
+    () => [{ value: BLANK, label: 'Start blank' }, ...list.map((b) => ({ value: b.id, label: b.name }))],
+    [list],
+  );
+
   return (
-    <div className="flex items-center gap-1.5">
-      <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-      <Select value={brandId ?? 'blank'} onValueChange={(v) => onChange(v === 'blank' ? null : v)}>
-        <SelectTrigger className="h-8 w-[180px] text-sm">
-          <SelectValue placeholder="Start blank" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="blank">Start blank</SelectItem>
-          {list.map((b) => (
-            <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="bento-source">
+      <Sparkles className="bento-source-icon" aria-hidden />
+      <DsSelect
+        className="bento-select"
+        options={options}
+        value={brandId ?? BLANK}
+        onChange={(v) => onChange(v === BLANK ? null : v)}
+        placeholder="Start blank"
+      />
     </div>
   );
 }

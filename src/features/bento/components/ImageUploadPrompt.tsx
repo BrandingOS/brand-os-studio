@@ -1,8 +1,5 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useEffect, useState } from 'react';
+import { DsModal, DsButton, DsInput, DsRadio } from '@/shared/ds';
 
 export interface PendingUpload {
   tileId: string;
@@ -20,81 +17,91 @@ interface Props {
    *   - false → caller places into tile only (one-time)
    */
   onConfirm: (args: { saveToBrand: boolean; assetName: string }) => void;
-  /** If true, hides the save-to-brand checkbox (e.g., standalone mode without brand). */
+  /** If true, hides the save-to-brand choice (e.g. standalone mode without brand). */
   brandSaveDisabled?: boolean;
 }
 
+/**
+ * ── Why radios and not the two checkboxes this replaced ──────────────────
+ *
+ * "Save to brand assets" and "Use once" were two checkboxes driven by ONE
+ * boolean, each unticking the other. That is a radio group with the wrong
+ * control on it: a checkbox promises an independent choice, and a screen
+ * reader is told there are two of them. The options, their wording and the
+ * value sent to `onConfirm` are unchanged — only the control is.
+ */
 export function ImageUploadPrompt({ pending, onClose, onConfirm, brandSaveDisabled }: Props) {
   const [saveToBrand, setSaveToBrand] = useState(true);
   const [name, setName] = useState('');
 
-  // Reset when a new upload arrives.
-  if (pending && name === '') {
+  // Reset for each new upload. Doing this in an effect rather than during
+  // render means a user who clears the field keeps it cleared — the old
+  // `if (pending && name === '')` refilled it on the next keystroke.
+  useEffect(() => {
+    if (!pending) return;
     setName(pending.fileName.replace(/\.[^.]+$/, ''));
-  }
+    setSaveToBrand(!brandSaveDisabled);
+  }, [pending, brandSaveDisabled]);
 
   if (!pending) return null;
 
+  const keep = brandSaveDisabled ? false : saveToBrand;
+
   return (
-    <Dialog open={!!pending} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add this image?</DialogTitle>
-          <DialogDescription>
-            Choose whether to save this image to your brand's asset library so you can reuse it later.
-          </DialogDescription>
-        </DialogHeader>
+    <DsModal
+      open
+      onClose={onClose}
+      title="Add this image?"
+      eyebrow="Upload"
+      secondaryActions={<DsButton tone="tertiary" onClick={onClose}>Cancel</DsButton>}
+      actions={
+        <DsButton onClick={() => onConfirm({ saveToBrand: keep, assetName: name })}>
+          Add image
+        </DsButton>
+      }
+    >
+      <p className="bento-modal-lede">
+        Choose whether to save this image to this brand’s asset library so you can reuse it later.
+      </p>
 
-        <div className="rounded-lg border overflow-hidden aspect-video bg-muted">
-          <img src={pending.dataUrl} alt="" className="w-full h-full object-cover" />
-        </div>
+      <div className="bento-preview">
+        <img src={pending.dataUrl} alt="" />
+      </div>
 
+      <div className="bento-choices" role="radiogroup" aria-label="Where this image lives">
         {!brandSaveDisabled && (
-          <label className="flex items-start gap-2.5 rounded-md border p-3 cursor-pointer hover:bg-muted/30 transition-colors">
-            <Checkbox
+          <div className={`bento-choice${saveToBrand ? ' is-on' : ''}`}>
+            <DsRadio
               checked={saveToBrand}
-              onCheckedChange={(v) => setSaveToBrand(v === true)}
-              className="mt-0.5"
+              onChange={() => setSaveToBrand(true)}
+              label="Save to brand assets"
             />
-            <div className="flex-1">
-              <div className="text-sm font-medium">Save to brand assets</div>
-              <div className="text-xs text-muted-foreground">
-                The image appears in this brand's Assets section and can be reused across other designs.
-              </div>
-              {saveToBrand && (
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Asset name"
-                  className="mt-2 h-8 text-sm"
-                />
-              )}
-            </div>
-          </label>
+            <p className="bento-choice-note">
+              The image appears in this brand’s Assets section and can be reused across other designs.
+            </p>
+            {saveToBrand && (
+              <DsInput
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Asset name"
+                aria-label="Asset name"
+              />
+            )}
+          </div>
         )}
 
-        <label className="flex items-start gap-2.5 rounded-md border p-3 cursor-pointer hover:bg-muted/30 transition-colors">
-          <Checkbox
-            checked={brandSaveDisabled ? true : !saveToBrand}
-            onCheckedChange={(v) => setSaveToBrand(v === true ? false : saveToBrand)}
+        <div className={`bento-choice${keep ? '' : ' is-on'}`}>
+          <DsRadio
+            checked={!keep}
+            onChange={() => setSaveToBrand(false)}
+            label="Use once"
             disabled={brandSaveDisabled}
-            className="mt-0.5"
           />
-          <div className="flex-1">
-            <div className="text-sm font-medium">Use once</div>
-            <div className="text-xs text-muted-foreground">
-              The image only lives inside this bento design — nothing is added to brand assets.
-            </div>
-          </div>
-        </label>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onConfirm({ saveToBrand: brandSaveDisabled ? false : saveToBrand, assetName: name })}>
-            Add image
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <p className="bento-choice-note">
+            The image only lives inside this bento design — nothing is added to brand assets.
+          </p>
+        </div>
+      </div>
+    </DsModal>
   );
 }

@@ -6,7 +6,7 @@ import { resolveSize } from '../sizes';
 import { TileRenderer } from './TileRenderer';
 import { useBentoStore } from '../store';
 import { Plus, X, Type, Image as ImageIcon, Palette as PaletteIcon, Shapes } from 'lucide-react';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { DsMenu, DsMenuItem } from '@/shared/ds';
 
 export interface BentoCanvasHandle {
   /** The DOM element rendering the artboard at export resolution. */
@@ -170,13 +170,13 @@ export const BentoCanvas = forwardRef<BentoCanvasHandle, Props>(function BentoCa
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden relative bg-[radial-gradient(circle_at_1px_1px,_rgba(0,0,0,0.05)_1px,_transparent_0)] bg-[length:24px_24px]"
+      className="bento-stage"
       onClick={() => interactive && onSelectTile(null)}
     >
       {/* Drag-cursor overlay */}
       {drag && (
         <div
-          className="fixed inset-0 z-50"
+          className="bento-dragveil"
           style={{ cursor: cursorFor(drag.dir) }}
         />
       )}
@@ -247,7 +247,7 @@ export const BentoCanvas = forwardRef<BentoCanvasHandle, Props>(function BentoCa
                   overflow: 'hidden',
                   position: 'relative',
                   cursor: interactive ? 'pointer' : 'default',
-                  outline: isSelected ? `${Math.max(2, minSide * 0.004)}px solid #6366F1` : 'none',
+                  outline: isSelected ? `${Math.max(2, minSide * 0.004)}px solid var(--ds-accent)` : 'none',
                   outlineOffset: isSelected ? `${Math.max(2, minSide * 0.004)}px` : 0,
                   opacity: style.opacity ?? 1,
                   boxShadow: shadow,
@@ -364,7 +364,22 @@ function EmptyCellPlaceholder({
   onAdd: (kind: TileKind) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [open, setOpen] = useState(false);
   const iconSize = Math.max(20, artboardMinSide * 0.04);
+  const lit = hovered || open;
+
+  const ADD: Array<[TileKind, string, typeof Type]> = [
+    ['text', 'Text', Type],
+    ['color', 'Colour', PaletteIcon],
+    ['gradient', 'Gradient', Shapes],
+    ['logo', 'Logo', ImageIcon],
+    ['typography', 'Typography', Type],
+    ['voice-quote', 'Voice / Quote', Type],
+    ['asset-image', 'Brand image', ImageIcon],
+    ['user-image', 'Upload / Stock', ImageIcon],
+    ['pattern', 'Pattern', Shapes],
+    ['stat', 'Stat', Type],
+  ];
 
   return (
     <div
@@ -375,74 +390,61 @@ function EmptyCellPlaceholder({
         gridRow: `${row} / span 1`,
         gridColumn: `${col} / span 1`,
         borderRadius: radiusPx,
-        border: `${Math.max(2, artboardMinSide * 0.003)}px dashed ${hovered ? 'rgba(99, 102, 241, 0.7)' : 'rgba(148, 163, 184, 0.4)'}`,
-        background: hovered ? 'rgba(99, 102, 241, 0.06)' : 'transparent',
+        // Sizes scale with the artboard, so they stay inline. Colours do not:
+        // they come from the tokens, which is what the indigo used to ignore.
+        border: `${Math.max(2, artboardMinSide * 0.003)}px dashed ${lit ? 'var(--ds-accent)' : 'var(--ds-dash-strong)'}`,
+        background: lit ? 'var(--ds-surface-hover)' : 'transparent',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transition: 'all 120ms ease',
+        transition: 'border-color var(--ds-duration-state) var(--ds-ease), background var(--ds-duration-state) var(--ds-ease)',
         cursor: 'pointer',
         position: 'relative',
       }}
     >
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            style={{
-              width: iconSize * 1.8,
-              height: iconSize * 1.8,
-              borderRadius: 9999,
-              background: hovered ? '#6366F1' : 'rgba(148, 163, 184, 0.35)',
-              color: '#FFFFFF',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: hovered ? '0 4px 16px rgba(99,102,241,0.45)' : 'none',
-              transition: 'all 150ms ease',
-            }}
-            title="Add block"
-          >
-            <Plus style={{ width: iconSize, height: iconSize }} strokeWidth={2.5} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="min-w-[160px]">
-          <DropdownMenuItem onClick={() => onAdd('text')}>
-            <Type className="h-3.5 w-3.5 mr-2" /> Text
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('color')}>
-            <PaletteIcon className="h-3.5 w-3.5 mr-2" /> Color
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('gradient')}>
-            <Shapes className="h-3.5 w-3.5 mr-2" /> Gradient
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('logo')}>
-            <ImageIcon className="h-3.5 w-3.5 mr-2" /> Logo
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('typography')}>
-            <Type className="h-3.5 w-3.5 mr-2" /> Typography
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('voice-quote')}>
-            <Type className="h-3.5 w-3.5 mr-2" /> Voice / Quote
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('asset-image')}>
-            <ImageIcon className="h-3.5 w-3.5 mr-2" /> Brand image
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('user-image')}>
-            <ImageIcon className="h-3.5 w-3.5 mr-2" /> Upload / Stock
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('pattern')}>
-            <Shapes className="h-3.5 w-3.5 mr-2" /> Pattern
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAdd('stat')}>
-            <Type className="h-3.5 w-3.5 mr-2" /> Stat
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <span
+        className="bento-addcell"
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Add block"
+          aria-expanded={open}
+          title="Add block"
+          onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            width: iconSize * 1.8,
+            height: iconSize * 1.8,
+            borderRadius: 9999,
+            background: lit ? 'var(--ds-accent)' : 'var(--ds-dash-strong)',
+            color: 'var(--ds-accent-fg)',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'background var(--ds-duration-state) var(--ds-ease)',
+          }}
+        >
+          <Plus style={{ width: iconSize, height: iconSize }} strokeWidth={2.5} />
+        </button>
+        {open && (
+          <DsMenu className="bento-addmenu">
+            {ADD.map(([kind, label, Icon]) => (
+              <DsMenuItem
+                key={kind}
+                icon={<Icon size={14} aria-hidden />}
+                onClick={() => { setOpen(false); onAdd(kind); }}
+              >
+                {label}
+              </DsMenuItem>
+            ))}
+          </DsMenu>
+        )}
+      </span>
     </div>
   );
 }
@@ -466,8 +468,8 @@ function ResizeHandles({
 
   const handleStyle = (css: React.CSSProperties): React.CSSProperties => ({
     position: 'absolute',
-    background: '#FFFFFF',
-    border: '2px solid #6366F1',
+    background: 'var(--ds-surface)',
+    border: '2px solid var(--ds-accent)',
     borderRadius: 9999,
     pointerEvents: 'auto',
     zIndex: 10,

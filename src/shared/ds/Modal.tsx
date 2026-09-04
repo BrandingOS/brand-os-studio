@@ -63,6 +63,14 @@ export interface DsModalProps {
   actions?: React.ReactNode;
   /** Bottom-left quiet actions (e.g. Skip · Show me more). */
   secondaryActions?: React.ReactNode;
+  /**
+   * How much room the body needs. `md` (620px) is the dialog default and
+   * suits a question with a few controls; `lg` (860px) is for a modal whose
+   * content is a BROWSE — a grid of results that reads as a wall of thumbnails
+   * at the narrower width. Anything wider than a reader's eye can track in one
+   * pass is not offered on purpose.
+   */
+  size?: 'md' | 'lg';
 }
 
 export function DsModal({
@@ -73,6 +81,7 @@ export function DsModal({
   children,
   actions,
   secondaryActions,
+  size = 'md',
 }: DsModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -97,7 +106,12 @@ export function DsModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="ds-modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className={['ds-modal', size === 'lg' ? 'ds-modal--lg' : ''].filter(Boolean).join(' ')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <div className="ds-modal-head">
           <div>
             {eyebrow && <div className="ds-eyebrow" style={{ marginBottom: 4, fontSize: '10.5px' }}>{eyebrow}</div>}
