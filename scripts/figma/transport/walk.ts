@@ -314,12 +314,23 @@ async function runPlan(plan) {
         if (spec.layout && spec.layout.mode === 'auto') {
           if (child.sizing && child.sizing.width === 'fill') built.layoutSizingHorizontal = 'FILL';
           if (child.sizing && child.sizing.height === 'fill') built.layoutSizingVertical = 'FILL';
+        } else if (child.pos) {
+          // An absolute child carries its own offset. Without it every sibling
+          // is appended at the origin and stacks on the first.
+          built.x = child.pos.x;
+          built.y = child.pos.y;
         }
       }
       // A childless frame has nothing to hug, so it must be sized explicitly or
       // Figma gives it a default 100x100 box. This is what turned the menu's
       // 1px divider into a grey block.
-      if (!(spec.children || []).length && spec.sizing && spec.sizing.w) {
+      // Size an ABSOLUTE container as well as a leaf. Its children are placed,
+      // not flowed, so nothing pushes its bounds out and Figma falls back to a
+      // 100x100 default — which is how the top bar, the icon tile and the logo
+      // tile all arrived as identical small squares. The resize comes AFTER the
+      // children so their own placement is already done.
+      const isAuto = spec.layout && spec.layout.mode === 'auto';
+      if (!isAuto && spec.sizing && spec.sizing.w) {
         node.layoutMode = 'NONE';
         node.resize(Math.max(spec.sizing.w, 0.01), Math.max(spec.sizing.h, 0.01));
       }

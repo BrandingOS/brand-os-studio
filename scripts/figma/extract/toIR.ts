@@ -303,6 +303,15 @@ export function nodeToIR(
     return node;
   }
 
+  // An absolutely-laid-out parent positions its children itself. Figma appends
+  // them at the origin otherwise, so every sibling stacks on the first.
+  if (parent && parent.style.display !== 'flex' && parent.style.display !== 'inline-flex') {
+    node.pos = {
+      x: Math.round((raw.rect.x - parent.rect.x) * 100) / 100,
+      y: Math.round((raw.rect.y - parent.rect.y) * 100) / 100,
+    };
+  }
+
   if (raw.text !== undefined) node.text = textFor(raw, s, opts);
 
   if (raw.svg) node.vector = { svg: inlineImageHref(raw.svg) };

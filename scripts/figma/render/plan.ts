@@ -44,6 +44,8 @@ export interface PlanNode {
    * palette that is made of swatches, which is the whole point of a system.
    */
   ref?: string;
+  /** Offset inside an absolutely-laid-out parent. See IRNode.pos. */
+  pos?: { x: number; y: number };
   children: PlanNode[];
 }
 
@@ -124,6 +126,7 @@ function toPlanNode(n: IRNode): PlanNode {
   }
   if (n.vector) out.svg = n.vector.svg;
   if (n.semantic?.instanceOf) out.ref = n.semantic.instanceOf;
+  if (n.pos) out.pos = n.pos;
   return out;
 }
 

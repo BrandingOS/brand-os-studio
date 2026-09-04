@@ -140,6 +140,17 @@ export interface IRNode {
   };
   layout: IRLayout;
   sizing: IRSizing;
+  /**
+   * Offset from the parent's top-left, in the parent's own coordinates.
+   *
+   * Present ONLY when the parent lays its children out absolutely. Figma has no
+   * equivalent of CSS's positioning rules, so an absolute child that arrives
+   * without coordinates is appended at the origin and every sibling stacks on
+   * top of the first — which is what turned the workspace top bar into a pile
+   * at 0,0. Auto-layout children must NOT carry this: their position is the
+   * layout's job, and setting x/y on one is meaningless.
+   */
+  pos?: { x: number; y: number };
   style: {
     fills: IRPaint[];
     strokes: IRPaint[];

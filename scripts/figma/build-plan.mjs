@@ -156,7 +156,14 @@ function compact(node) {
   // a 100x100 grey block — an empty auto-layout frame falls back to Figma's
   // default size, which looks nothing like a hairline.
   const leaf = !node.children?.length && !node.text && !node.svg;
-  const needsSize = leaf || node.sizing?.width === 'fixed' || node.sizing?.height === 'fixed';
+  // An ABSOLUTELY-laid-out container has no intrinsic size in Figma either: its
+  // children are positioned, not flowed, so nothing pushes its bounds out. Left
+  // without dimensions it fell back to Figma's 100x100 default — which is how
+  // the workspace top bar, the icon tile and the logo tile all came out as
+  // identical small squares.
+  const absolute = node.layout?.mode !== 'auto';
+  const needsSize = leaf || absolute
+    || node.sizing?.width === 'fixed' || node.sizing?.height === 'fixed';
   if (node.sizing?.width === 'fill' || node.sizing?.height === 'fill'
       || node.sizing?.minW || node.sizing?.maxW || needsSize) {
     out.sizing = {};
@@ -178,6 +185,7 @@ function compact(node) {
   // builds it as an empty frame — a composed pattern quietly becomes a hollow
   // one, with no error anywhere. `kind` alone is not enough.
   if (node.ref) out.ref = node.ref;
+  if (node.pos) out.pos = node.pos;
   if (node.children?.length) out.children = node.children.map(compact);
   return out;
 }
