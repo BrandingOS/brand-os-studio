@@ -35,6 +35,10 @@ const THEME = arg('theme', 'light');
 const WIDTH = Number(arg('width', '1440'));
 const OUT = arg('out', `scripts/figma/.captures/patterns-${THEME}.json`);
 const ONLY = arg('only', '');
+// Screens are captured by the SAME driver: a screen is a pattern that renders
+// as a frame. Only the manifest array differs, so there is one code path and
+// the two cannot drift.
+const WHICH = arg('which', 'patterns');
 
 const collectorSrc = fs.readFileSync(path.resolve('scripts/figma/extract/collector.ts'), 'utf8');
 const COLLECTOR = collectorSrc.slice(
@@ -60,8 +64,12 @@ const PROPS = [
 // The manifest is TypeScript with no runtime deps beyond the array literal, so
 // it is read rather than imported — the extractor has no build step.
 const src = fs.readFileSync(path.resolve('src/shared/ds/figma.patterns.ts'), 'utf8');
-const body = src.slice(src.indexOf('FX_PATTERNS: readonly FxPattern[] = ['));
-const json = body.slice(body.indexOf('['), body.lastIndexOf('] as const;') + 1);
+const symbol = WHICH === 'screens' ? 'FX_SCREENS' : 'FX_PATTERNS';
+const body = src.slice(src.indexOf(symbol + ': readonly FxPattern[] = ['));
+// The FIRST terminator after the symbol, not the last in the file: FX_SCREENS
+// is declared above FX_PATTERNS, so lastIndexOf swallowed both arrays and the
+// eval died on a stray `] as const;`.
+const json = body.slice(body.indexOf('['), body.indexOf('] as const;') + 1);
 // eslint-disable-next-line no-eval -- a literal array from a file in this repo.
 const PATTERNS = eval(json).filter((p) => !ONLY || p.key === ONLY);
 
@@ -123,6 +131,8 @@ for (const route of routes) {
           key: def.key, sid: def.sid, selector: def.selector, roles: def.roles,
           pseudoTarget: def.pseudoTarget || '',
           contains: def.contains || null,
+          exclude: def.exclude || null,
+          frame: !!def.frame,
           variantOf,
           at: idx.map(([n]) => n),
           axes: idx.map(([, i]) => (def.axes && def.axes[i]) || {}),
@@ -161,11 +171,22 @@ for (const pass of passes) {
       def.at.forEach((n, i) => {
         const el = all[n];
         if (!el) { missed.push(`${def.key}[${n}] via ${def.selector}`); return; }
+        // Excluded subtrees are hidden BEFORE measuring, so `isVisible` drops
+        // them the same way it drops anything the product itself hides.
+        if (def.exclude) {
+          for (const sel of def.exclude) {
+            for (const d of Array.from(el.querySelectorAll(sel))) {
+              d.setAttribute('data-fx-exclude', '1');
+              d.style.display = 'none';
+            }
+          }
+        }
         el.setAttribute('data-fx-self', '');
         // Figma groups the assets panel on "/", so the prefix is what keeps the
         // product layer legible beside the DS primitives instead of interleaved
         // with them alphabetically.
-        el.setAttribute('data-fx-component', `pattern/${def.key}`);
+        el.setAttribute('data-fx-component', def.frame ? def.key : `pattern/${def.key}`);
+        if (def.frame) el.setAttribute('data-fx-frame', '1');
         el.setAttribute('data-fx-sid', def.sid);
         el.setAttribute('data-fx-index', String(index++));
         el.setAttribute(

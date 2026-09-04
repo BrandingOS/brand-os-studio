@@ -255,6 +255,8 @@ export const COLLECTOR_SRC = String.raw`
       sidRoot: el.dataset.fxSid,
       variant,
       pseudo: el.dataset.fxPseudo || 'default',
+      // A SCREEN renders as a top-level frame, never as a component.
+      frame: el.hasAttribute('data-fx-frame'),
       roles,
       booleanProps,
       root: rootNode,

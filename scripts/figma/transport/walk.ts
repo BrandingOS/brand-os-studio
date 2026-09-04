@@ -193,6 +193,15 @@ async function runPlan(plan) {
     node.counterAxisAlignItems = COUNTER[spec.layout.counterAlign] || 'MIN';
     node.primaryAxisSizingMode = 'AUTO';
     node.counterAxisSizingMode = 'AUTO';
+    // `flex-wrap` was captured and then ignored. Setup's board is a wrapping row
+    // whose sections are each full-width, so every section belongs on its own
+    // line; without WRAP they were laid out side by side in one row and the
+    // whole screen collapsed into a narrow overlapping column. Figma allows wrap
+    // on a HORIZONTAL layout only.
+    if (spec.layout.wrap && node.layoutMode === 'HORIZONTAL') {
+      node.layoutWrap = 'WRAP';
+      if (spec.layout.gap) node.counterAxisSpacing = spec.layout.gap;
+    }
   }
 
   function applyStyle(node, spec) {
@@ -372,7 +381,24 @@ async function runPlan(plan) {
         node.appendChild(built);
         // hug/fill can only be set once the node has an auto-layout parent.
         if (spec.layout && spec.layout.mode === 'auto') {
-          if (child.sizing && child.sizing.width === 'fill') built.layoutSizingHorizontal = 'FILL';
+          /**
+           * FILL means something different inside a WRAP container.
+           *
+           * In CSS, `width: 100%` on a child of a wrapping flex row puts that
+           * child on a line of its own. In Figma several FILL children SHARE a
+           * line and divide it — so Setup's seven full-width sections came out
+           * 76px wide, side by side. A child that occupies a whole line is
+           * FIXED at its measured width.
+           */
+          const wrapping = spec.layout.wrap && spec.layout.direction === 'row';
+          if (child.sizing && child.sizing.width === 'fill') {
+            if (wrapping && child.sizing.w) {
+              built.layoutSizingHorizontal = 'FIXED';
+              built.resize(Math.max(child.sizing.w, 0.01), built.height);
+            } else {
+              built.layoutSizingHorizontal = 'FILL';
+            }
+          }
           if (child.sizing && child.sizing.height === 'fill') built.layoutSizingVertical = 'FILL';
         } else if (child.pos) {
           // An absolute child carries its own offset. Without it every sibling

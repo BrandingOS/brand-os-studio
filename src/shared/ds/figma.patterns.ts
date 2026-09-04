@@ -89,7 +89,68 @@ export interface FxPattern {
   roles?: Record<string, string>;
   /** Why this is a pattern and not a raw frame — the promotion evidence. */
   because: string;
+  /**
+   * A SCREEN, not a component.
+   *
+   * A product screen is assembled FROM components rather than being one, so it
+   * is rendered as a top-level FRAME and never combined into a variant set.
+   * Modelling a screen as a component is what makes a Figma file look
+   * systematic while being unusable: a screen cannot be placed inside anything,
+   * and a set of screens-as-variants means nothing.
+   */
+  frame?: boolean;
+  /** Which Figma page this belongs on. Patterns default to 04. */
+  page?: string;
+  /**
+   * Subtrees to leave out entirely.
+   *
+   * Setup mounts its upload and preview modals in the DOM even while closed, so
+   * they are measured as full-size overlays. They are SCREEN STATES — sibling
+   * frames of their own — not part of the default screen, and including them
+   * would put two invisible 1440x1200 sheets on top of the page.
+   */
+  exclude?: string[];
 }
+
+/**
+ * SCREENS — the product's own pages, assembled from the patterns above.
+ *
+ * `contains` maps a selector to the pattern that should REPLACE that subtree
+ * with an instance. The containers deliberately reference the OUTERMOST unit:
+ * `.colors-group` rather than `.swatch`, because the colours group already
+ * instances its swatches, and `.panel` rather than `.panel-item` for the same
+ * reason. Referencing both would be redundant — the collector stops descending
+ * at a reference, so an inner one is unreachable anyway.
+ *
+ * What stays a raw frame is deliberate and is listed in
+ * docs/code-to-figma/SETUP-COMPOSITION-MAP.md §2: the shell, the board wrapper,
+ * the board head and the per-section containers are single-use structural
+ * grouping with no independent meaning.
+ */
+export const FX_SCREENS: readonly FxPattern[] = [
+  {
+    key: 'Setup — Desktop 1440 — Light',
+    sid: 'screen/setup-desktop-light',
+    route: '/b/brandingos/setup',
+    selector: '[data-workspace]',
+    at: [0],
+    frame: true,
+    page: '10',
+    contains: {
+      '[data-workspace] > header': 'pattern/workspace-topbar',
+      '.panel': 'pattern/section-rail',
+      '.brand-field': 'pattern/brand-field',
+      '.logo-tile': 'pattern/logo-tile',
+      '.colors-group': 'pattern/colors-group',
+      '.type-col': 'pattern/type-specimen-col',
+      '.icon-tile': 'pattern/icon-tile',
+      '.about-card': 'pattern/about-card',
+      '.section-add': 'pattern/section-add',
+    },
+    exclude: ['.upload-modal-backdrop', '.preview-backdrop'],
+    because: 'The pilot screen. Setup is what the whole architecture is being proved against.',
+  },
+] as const;
 
 export const FX_PATTERNS: readonly FxPattern[] = [
   // --- chrome ---------------------------------------------------------------

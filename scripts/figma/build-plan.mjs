@@ -60,7 +60,7 @@ function toDoc(cap) {
       direction: cap.direction,
       roles: cell.roles,
     });
-    node.semantic = { component: cell.component, variant: cell.variant, booleanProps: cell.booleanProps };
+    node.semantic = { component: cell.component, variant: cell.variant, booleanProps: cell.booleanProps, frame: cell.frame };
     return node;
   });
   const tokens = Object.entries(cap.tokenValues || {})
@@ -150,6 +150,21 @@ fs.writeFileSync(
  */
 function compact(node, isRoot = false) {
   const out = { sid: node.sid, name: node.name, kind: node.kind };
+  /**
+   * An INSTANCE describes almost nothing of its own.
+   *
+   * Its layout, fills, strokes, radii and effects all belong to the component it
+   * points at; sending them again is not just waste, it is a second opinion the
+   * walker would have to ignore. What an instance genuinely carries is WHERE it
+   * sits and WHAT it overrides. This is what brings the Setup screen — 93
+   * instances — under use_figma's 50,000-character cap.
+   */
+  if (node.ref) {
+    out.ref = node.ref;
+    if (node.ov) out.ov = node.ov;
+    if (node.pos) out.pos = node.pos;
+    return out;
+  }
   if (node.layout?.mode === 'auto') out.layout = node.layout;   // absolute is the default
   // A node with no children has no intrinsic size in Figma, so it MUST carry
   // its measured dimensions. Dropping them made the 1px menu divider render as
@@ -379,12 +394,15 @@ const chunkFiles = chunks.map((sets, i) => {
   };
 });
 
+// A screen is a frame; there is nothing to combine.
+const combineSets = wirePlan.sets.filter((s) => !s.frame);
+
 const combinePlan = {
   planVersion: wirePlan.planVersion,
   gen: wirePlan.gen,
   phase: 'combine',
   collections: [],
-  sets: wirePlan.sets.map((s) => ({ sid: s.sid, name: s.name, variants: [], width: 1400, x: 0, y: 0 })),
+  sets: combineSets.map((s) => ({ sid: s.sid, name: s.name, variants: [], width: 1400, x: 0, y: 0 })),
 };
 const combineSrc = LEAN_PREFIX(PAGE) + 'return await runPlan(' + JSON.stringify(combinePlan) + ');';
 fs.writeFileSync(path.join(OUT, `${name}.combine.js`), combineSrc);
