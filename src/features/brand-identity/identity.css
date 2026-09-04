@@ -2761,6 +2761,39 @@
 [data-identity] .bi-share {
   position: relative;
 }
+/*
+ * A quiet pill beside the share control.
+ *
+ * Share is the primary action on this page and wears the filled charcoal
+ * pill; a launcher that matched it would read as a second primary. Outlined,
+ * on the page's own ink tokens so it follows the register like everything
+ * else in the nav card.
+ */
+[data-identity] .bi-nav-launch {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: transparent;
+  color: var(--bi-ink, #0b0b0c);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  padding: 5px 11px;
+  border-radius: var(--bi-r-pill);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-identity] .bi-nav-launch:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.28);
+}
+[data-identity] .bi-nav-launch:focus-visible {
+  outline: 3px solid var(--bi-ink, #0b0b0c);
+  outline-offset: 2px;
+}
 [data-identity] .bi-share-trigger {
   border: none;
   background: #0b0b0c;

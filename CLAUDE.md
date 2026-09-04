@@ -1193,6 +1193,36 @@ Any suite that mounts the panel MUST spread `src/test/imageGenerationStubs.ts` o
 two that spend money.
 
 
+## Bento — one maker, two names (2026-09-04)
+
+`src/features/bento/` is the Bento MAKER: an editor at `/b/:slug/bento`
+(brand-scoped, `ProtectedRoute`) and `/tools/bento` (no brand). It is reached
+from **Brand Tools → Utilities** and from a launcher in the **Brand Identity**
+nav. Both are links into that one route — neither surface re-implements it.
+
+**`BentoWall` in `features/brand-identity/sections/Surfaces.tsx` is NOT that
+feature**, despite the name. It is a proof surface inside Identity's Applied
+section — the identity rendered onto a bento LAYOUT, generated from the model
+and painted in the page's own `--bi-*` register, sitting beside `CardRow`,
+`InterfaceKit` and `DataRamp`. Do not "deduplicate" the two: the maker's
+`BentoCanvas` does not read the register and would land in that document as a
+different design language. Identity keeps its bento and OFFERS the maker.
+
+**Bento does not persist.** `BentoEditor.handleSave` is a stub that toasts
+"Save coming soon", `brand.bentos` is not on the `Brand` type — the only
+references are a cast-through-`unknown` in `pages/brand/[slug]/bento/[bentoId]
+.tsx` and its own comments — and the store is plain zustand with no `persist`.
+So a bento exists only in memory while the editor is open, and the public route
+`/brand/:slug/bento/:bentoId` always renders its empty state. Anything that
+wants to READ a user's bento (an Identity section, a kit deliverable, a folder
+entry) needs that Save implemented first; there is no data to reuse today.
+
+**The identity launcher is gated by the MOUNT, not by a flag.**
+`IdentityBentoAction` renders into `BrandIdentityPage`'s `actions` slot, and the
+public mount (`pages/i/[token].tsx`) supplies no actions — so an owner control
+cannot leak into a shared link by someone forgetting a `mode` check. Keep it
+that way: a second gate is a second place to get it wrong.
+
 ## Folders — one brand filesystem (`/b/:slug/folders`, 2026-08-20)
 
 **One folder tree, three views.** The tree belongs to the BRAND. `Campaigns /

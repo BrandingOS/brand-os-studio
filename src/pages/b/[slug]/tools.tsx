@@ -9,6 +9,7 @@ import {
 } from '@/features/tools-page/components/ToolsSidebar';
 import { ToolCard } from '@/features/tools-page/components/ToolCard';
 import {
+  BentoIcon,
   ChartIcon,
   ContrastIcon,
   FolderIcon,
@@ -212,6 +213,13 @@ export default function BrandToolsTabPage() {
                 icon={TypeIcon}
                 title="Typescale Editor"
                 description="Pick the type pairing and tune the scale — sizes, leading, and tracking save straight to the brand."
+                size="compact"
+              />
+              <ToolCard
+                to={`/b/${s}/bento`}
+                icon={BentoIcon}
+                title="Bento Grid"
+                description="Compose a bento-grid graphic from this brand's logo, colours, type and photos, then export it as a PNG."
                 size="compact"
               />
               <ToolCard

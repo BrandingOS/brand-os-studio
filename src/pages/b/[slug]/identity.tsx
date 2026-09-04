@@ -16,6 +16,7 @@ import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
 import { BrandIdentityPage } from '@/features/brand-identity/BrandIdentityPage';
 import { loadIdentityMaterial, type IdentityMaterial } from '@/features/brand-identity/identityMaterial';
 import { IdentityShareAction } from '@/features/brand-identity/publish/IdentityShareAction';
+import { IdentityBentoAction } from '@/features/brand-identity/components/IdentityBentoAction';
 
 export default function BrandIdentityRoute() {
   const { slug } = useParams<{ slug: string }>();
@@ -43,7 +44,12 @@ export default function BrandIdentityRoute() {
       images={material.images}
       assetGroups={material.assetGroups}
       mode="studio"
-      actions={<IdentityShareAction />}
+      actions={
+        <>
+          <IdentityBentoAction />
+          <IdentityShareAction />
+        </>
+      }
     />
   );
 }

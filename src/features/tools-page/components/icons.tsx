@@ -107,6 +107,21 @@ export function LayersIcon({ size = 22, className }: IconProps) {
   );
 }
 
+/**
+ * Bento — unequal tiles, which is the whole point of the layout. Four
+ * rects rather than a 2×2 grid: an even grid reads as a table.
+ */
+export function BentoIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" {...baseProps} aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" rx="1.5" />
+      <rect x="13" y="3" width="8" height="4" rx="1.5" />
+      <rect x="13" y="9" width="8" height="12" rx="1.5" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" />
+    </svg>
+  );
+}
+
 /** Palette — UI color system. */
 export function PaletteIcon({ size = 22, className }: IconProps) {
   return (
