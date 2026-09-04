@@ -275,7 +275,19 @@ const chunkFiles = chunks.map((sets, i) => {
     collections: i === 0 ? wirePlan.collections : [],
     sets,
   };
-  const src = LEAN_PREFIX(PAGE) + 'return await runPlan(' + JSON.stringify(p) + ');';
+  // The payload travels through an agent's context as literal source, so a
+  // truncated or mis-copied plan is a live risk. These two counts are cheap and
+  // catch the failure that matters — a plan that arrives short still builds,
+  // and silently produces a page missing components nobody notices are absent.
+  const counts = {
+    sets: p.sets.length,
+    variants: p.sets.reduce((a, s) => a + s.variants.length, 0),
+  };
+  const src = LEAN_PREFIX(PAGE)
+    + 'const _plan = ' + JSON.stringify(p) + ';\n'
+    + `if(_plan.sets.length!==${counts.sets}||_plan.sets.reduce((a,s)=>a+s.variants.length,0)!==${counts.variants})`
+    + `throw new Error('payload incomplete: expected ${counts.sets} sets / ${counts.variants} variants');\n`
+    + 'return await runPlan(_plan);';
   const file = path.join(OUT, `${name}.build${i + 1}.js`);
   fs.writeFileSync(file, src);
   return {

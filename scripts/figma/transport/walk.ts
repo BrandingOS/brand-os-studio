@@ -229,16 +229,28 @@ async function runPlan(plan) {
    */
   const componentBySid = {};
   (function indexComponents() {
+    // A variant's sid is "base[axis=value]". Registering the BASE too is what
+    // makes a reference to the SET resolve while its variants are still loose
+    // components from an earlier build chunk — which is the normal case, since
+    // a container is built before anything has been combined.
+    function put(sid, node) {
+      if (!sid) return;
+      if (!componentBySid[sid]) componentBySid[sid] = node;
+      const bracket = sid.indexOf('[');
+      if (bracket > 0) {
+        const base = sid.slice(0, bracket);
+        if (!componentBySid[base]) componentBySid[base] = node;
+      }
+    }
     for (const p of figma.root.children) {
       for (const n of p.children) {
         const sid = n.getSharedPluginData('brandingos', 'sid');
         if (!sid) continue;
-        if (n.type === 'COMPONENT') componentBySid[sid] = n;
+        if (n.type === 'COMPONENT') put(sid, n);
         if (n.type === 'COMPONENT_SET') {
+          // A set's default variant is what an unqualified reference means.
           componentBySid[sid] = n.defaultVariant || n.children[0];
-          for (const v of n.children) {
-            componentBySid[v.getSharedPluginData('brandingos', 'sid')] = v;
-          }
+          for (const v of n.children) put(v.getSharedPluginData('brandingos', 'sid'), v);
         }
       }
     }
@@ -403,6 +415,29 @@ async function runPlan(plan) {
       return n.getSharedPluginData('brandingos', 'sid') === set.sid;
     });
     for (const p of prior) { cursorY = Math.max(cursorY, p.y); p.remove(); }
+
+    /**
+     * A SCREEN is a frame, not a component.
+     *
+     * `set.frame` marks a top-level product screen: it is assembled FROM
+     * components rather than being one, so it must never be combined into a
+     * variant set. Modelling a screen as a component is the mistake that makes
+     * a Figma file look systematic while being unusable — you cannot place a
+     * screen inside anything, and a set of screens-as-variants is meaningless.
+     */
+    if (set.frame) {
+      for (const variant of set.variants) {
+        const f = build(variant.node, false);
+        f.name = set.name;
+        f.x = set.x || 0;
+        f.y = set.y === undefined ? cursorY : set.y;
+        page.appendChild(f);
+        stamp(f, set.sid);
+        cursorY = f.y + f.height + 160;
+        report.created.push({ sid: set.sid, name: set.name, type: f.type, frame: true });
+      }
+      continue;
+    }
 
     const components = [];
 
