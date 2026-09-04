@@ -14,7 +14,7 @@
 | 02 — Icons | 7 | 16 | 0 | — | 7 icon components |
 | 03 — Components | 20 | 340 | 0 | — | 15 sets + 5 components |
 | **04 — Patterns & Navigation** | **14** | **324** | **10** | **0** | **complete** |
-| 10 — Setup | 0 | — | — | — | **empty — the pilot screen** |
+| **10 — Setup** | **1** | **613** | **105** | **0** | **the pilot screen, built** |
 | 11 — Brand Kit | 0 | — | — | — | not started |
 | 12 — Brand Kit Editors | 0 | — | — | — | not started |
 | 13 — Design | 0 | — | — | — | not started |
@@ -90,11 +90,28 @@ target to hit by binding things to the wrong token.
 
 ---
 
-## What page 10 needs next
+## Page 10 — the Setup pilot
 
-The Setup screen is assembled from what page 04 now provides. Per the
-composition map, the screen resolves to: 1 `workspace-topbar`, 1 `section-rail`,
-7 `setup-section`, and inside them `brand-field` ×2, `logo-tile` ×3,
-`colors-group` ×2 with `color-swatch` ×34, `type-specimen-col` ×6,
-`icon-tile` ×60, `about-card` ×7 — plus the justified raw frames named in the
-map (`shell`, `board-wrap`, `board-head`, and the per-section body containers).
+`Setup — Desktop 1440 — Light`, node `101:2`, a 1440 × 3093 FRAME. 613 nodes,
+**105 instances, 0 detached, 0 unresolved**, 176 fills bound to variables.
+
+| Component | Instances |
+|---|---|
+| `pattern/icon-tile` | 60 |
+| `pattern/section-add` | 11 |
+| `pattern/rail-row` | 7 |
+| `pattern/about-card` | 7 |
+| `pattern/type-specimen-col` | 6 |
+| `pattern/color-swatch` | 4 |
+| `pattern/logo-tile` | 3 |
+| `pattern/brand-field` | 2 |
+| `pattern/colors-group` | 2 |
+| `pattern/workspace-topbar` · `pattern/segmented-nav` · `pattern/section-rail` | 1 each |
+
+185 nodes are the screen's own — the shell, the board, the board head and the
+seven section containers. Each is single-use structural grouping with no
+independent meaning, which is what the composition map §2 says should stay a
+raw frame.
+
+The full 18-item gate result is in `SETUP-PILOT-GATE.md`: 13 pass, 3 partial,
+2 not started.
