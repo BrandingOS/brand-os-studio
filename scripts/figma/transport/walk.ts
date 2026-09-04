@@ -309,8 +309,31 @@ async function runPlan(plan) {
     for (const p of prior) { cursorY = Math.max(cursorY, p.y); p.remove(); }
 
     const components = [];
+
+    /**
+     * build() returns a TEXT node for a text-only spec and a vector frame for
+     * an svg-only one, regardless of isRoot — so a component whose ROOT is
+     * text (DsEyebrow) came out as a bare TEXT node, which cannot be a library
+     * component. Every root is wrapped.
+     */
+    function asComponent(node, name, sid) {
+      if (node.type === 'COMPONENT') return node;
+      const c = figma.createComponent();
+      c.name = name;
+      c.layoutMode = 'HORIZONTAL';
+      c.primaryAxisSizingMode = 'AUTO';
+      c.counterAxisSizingMode = 'AUTO';
+      c.fills = [];
+      page.appendChild(c);
+      c.appendChild(node);
+      c.setSharedPluginData('brandingos', 'sid', sid);
+      c.setSharedPluginData('brandingos', 'gen', plan.gen);
+      return c;
+    }
+
     for (const variant of set.variants) {
-      const c = build(variant.node, true);
+      let c = build(variant.node, true);
+      c = asComponent(c, variant.name, variant.sid);
       // THE naming contract: Figma parses "k=v, k=v" into variant properties.
       c.name = variant.name;
       page.appendChild(c);

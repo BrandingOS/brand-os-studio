@@ -4,6 +4,9 @@ import { DsMenu, DsMenuItem, DsMenuDivider } from './Menu';
 import { DsInput, DsTextArea, DsDropZone } from './Input';
 import { DsSelect } from './Select';
 import { DsSwitch, DsCheckbox, DsRadio, DsSegmented } from './Toggle';
+import { DsToast, DsBanner, DsBadge, DsStatusDot } from './Feedback';
+import { DsSkeleton, DsProgress } from './Progress';
+import { DsEyebrow, DsKbd, DsChip, DsEmptyState } from './primitives';
 import { ArrowRightIcon, PlusIcon, CloseIcon } from './icons';
 
 /**
@@ -246,6 +249,99 @@ export const MANIFEST: readonly FxComponent[] = [
         onChange={() => {}}
         options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
       />
+    ),
+  },
+  // ---- batch 4: badges, toasts, banners, status ---------------------------
+  {
+    key: 'DsBadge',
+    sid: 'ds/badge',
+    // Four declared tones but only three modifier classes: `neutral` is the
+    // unmodified base. The matrix shows both without reconciling them.
+    axes: { tone: ['neutral', 'success', 'warning', 'danger'] },
+    render: (v) => (
+      <DsBadge tone={v.tone as 'neutral' | 'success' | 'warning' | 'danger'}>
+        {v.tone === 'neutral' ? 'Draft' : v.tone === 'success' ? 'Approved' : v.tone === 'warning' ? 'Review' : 'Blocked'}
+      </DsBadge>
+    ),
+  },
+  {
+    key: 'DsStatusDot',
+    sid: 'ds/status-dot',
+    axes: { tone: ['success', 'warning', 'danger', 'muted'] },
+    render: (v) => (
+      <DsStatusDot tone={v.tone as 'success' | 'warning' | 'danger' | 'muted'} label="Generated" />
+    ),
+  },
+  {
+    key: 'DsBanner',
+    sid: 'ds/banner',
+    axes: { tone: ['neutral', 'success', 'warning', 'danger'] },
+    roles: { '.ds-banner-icon': 'icon', '.ds-banner-action': 'action' },
+    render: (v) => (
+      <DsBanner tone={v.tone as 'neutral' | 'success' | 'warning' | 'danger'} actionLabel="Review">
+        Your brand kit finished generating.
+      </DsBanner>
+    ),
+  },
+  {
+    key: 'DsToast',
+    sid: 'ds/toast',
+    // DsToast declares only two tones; DsBanner declares four. They are not the
+    // same vocabulary and are deliberately not unified here.
+    axes: { tone: ['success', 'neutral'] },
+    roles: { '.ds-toast-action': 'action', '.ds-toast-message': 'message' },
+    render: (v) => (
+      <DsToast tone={v.tone as 'success' | 'neutral'} message="Brand kit exported" actionLabel="Undo" />
+    ),
+  },
+
+  // ---- batch 5: progress, skeleton, empty state, chips --------------------
+  {
+    key: 'DsProgress',
+    sid: 'ds/progress',
+    axes: { value: ['0', '40', '100'] },
+    roles: { '.ds-progress-track': 'track', '.ds-progress-fill': 'fill' },
+    render: (v) => (
+      <DsProgress value={Number(v.value)} label="Generating kit" meta={`${v.value}%`} />
+    ),
+  },
+  {
+    key: 'DsSkeleton',
+    sid: 'ds/skeleton',
+    // The shimmer is an ANIMATION; the extractor disables animations, so what is
+    // captured is the settled resting state. Recorded in LOSSES.
+    axes: { state: ['default'] },
+    render: () => <DsSkeleton width={220} height={12} />,
+  },
+  {
+    key: 'DsChip',
+    sid: 'ds/chip',
+    axes: { active: ['false', 'true'], dashed: ['false', 'true'] },
+    render: (v) => (
+      <DsChip active={v.active === 'true'} dashed={v.dashed === 'true'}>Logos</DsChip>
+    ),
+  },
+  {
+    key: 'DsEyebrow',
+    sid: 'ds/eyebrow',
+    axes: { state: ['default'] },
+    render: () => <DsEyebrow>Brand assets</DsEyebrow>,
+  },
+  {
+    key: 'DsKbd',
+    sid: 'ds/kbd',
+    axes: { state: ['default'] },
+    render: () => <DsKbd>⌘K</DsKbd>,
+  },
+  {
+    key: 'DsEmptyState',
+    sid: 'ds/empty-state',
+    axes: { state: ['default'] },
+    roles: { '.ds-btn': 'action' },
+    render: () => (
+      <DsEmptyState actions={<DsButton tone="secondary" size="sm">Add photos</DsButton>}>
+        No photography yet
+      </DsEmptyState>
     ),
   },
 ];

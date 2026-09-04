@@ -12,7 +12,7 @@ https://www.figma.com/design/ZTR7jwR1cvjYvs0N9kuHCX
 | 00 — Cover & Usage | `0:1` | usage doc | — | — | — | — | — | **empty** |
 | 01 — Foundations | `1:2` | colours, spacing, radii, type, effects, grids, a11y | 8 sections | `27:2` | 31 colour vars · 15 float vars · 4 effect styles · 4 text styles | ✅ screenshot | ✅ read-back | **complete** |
 | 02 — Icons | `1:3` | 7 audited icons as vector components | 7 | `30:2` | 7 components / 7 instances, all connected | ✅ screenshot | ✅ read-back | **complete** |
-| 03 — Components | `1:4` | ~30 audited DS components | 10 | see detail | 9 sets + 1 component · 49 variants | ✅ screenshot | ✅ read-back | **in progress** |
+| 03 — Components | `1:4` | ~30 audited DS components | **20** | labelled column | 14 sets + 6 components · **75 variants** · 0 strays | ✅ screenshot | ✅ read-back | **in progress** |
 | 04 — Patterns & Navigation | `1:5` | shell, nav, rail, headers | — | — | — | — | — | **empty** |
 | 10 — Setup | `1:6` | 8 sections × states | 1 capture | `35:2` | 721 nodes · 166 text · 68 vector · 442 auto-layout | ✅ screenshot | ✅ read-back | **in progress** (captured + repaired; needs instance reconciliation) |
 | 11 — Brand Kit | `1:7` | 8 sections, browsing states | — | — | — | — | — | **empty** |
