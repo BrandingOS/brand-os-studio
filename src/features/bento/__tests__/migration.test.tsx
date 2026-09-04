@@ -13,7 +13,7 @@ import { join } from 'node:path';
 
 import { useBentoStore } from '../store';
 import { TileInspector } from '../components/TileInspector';
-import { LayoutPopover } from '../components/LayoutPopover';
+import { DocumentPanel } from '../components/DocumentPanel';
 
 const brand = { id: 'b1', name: 'Raqm', slug: 'raqm', primaryColor: '#C8102E', assets: [] } as never;
 const here = join(process.cwd(), 'src/features/bento');
@@ -28,15 +28,24 @@ afterEach(() => cleanup());
 
 const FILES = [
   'BentoEditor.tsx',
-  'components/BentoTopBar.tsx',
+  'components/BentoActions.tsx',
+  'components/BentoInspector.tsx',
+  'components/DocumentPanel.tsx',
   'components/TileInspector.tsx',
   'components/TemplateRail.tsx',
   'components/MediaPicker.tsx',
   'components/ImageUploadPrompt.tsx',
-  'components/LayoutPopover.tsx',
-  'components/SizePicker.tsx',
+  'components/controls.tsx',
   'components/BrandSourcePicker.tsx',
   'components/BentoCanvas.tsx',
+];
+
+/** Chrome Bento is no longer allowed to draw for itself. */
+const RETIRED = [
+  'components/BentoTopBar.tsx',
+  'components/BentoPopover.tsx',
+  'components/LayoutPopover.tsx',
+  'components/SizePicker.tsx',
 ];
 
 describe('no legacy UI is left on the route', () => {
@@ -60,14 +69,43 @@ describe('no legacy UI is left on the route', () => {
     expect(canvas).toContain('var(--ds-accent)');
   });
 
-  it('scopes the editor to the workspace so --ds-* resolves per theme', () => {
+  it('is a page of the product, not an application over it', () => {
     const src = read('BentoEditor.tsx');
-    expect(src).toContain('data-workspace');
-    expect(src).toContain('data-theme={theme}');
+    // The shell is the navbar, the section nav, the brand switcher and the
+    // theme. A page that renders its own chrome instead has left the product.
+    expect(src).toContain("from '@/shared/layouts/WorkspaceShell'");
+    expect(src).toContain('<WorkspaceShell');
+    // The unified editor's own topbar is chrome for a fullscreen editor, not
+    // for a page inside the shell. Matched as an IMPORT so the history of why
+    // can still be written in a comment.
+    expect(src).not.toMatch(/^import .*@\/features\/editor\/core/m);
   });
 
-  it('wears the canonical editor chrome rather than a bespoke topbar', () => {
-    expect(read('components/BentoTopBar.tsx')).toContain("from '@/features/editor/core'");
+  it('contributes its actions to the shell rather than drawing a second bar', () => {
+    expect(read('BentoEditor.tsx')).toContain('rightActions=');
+  });
+
+  it('does not take the viewport over', () => {
+    // `position: fixed; inset: 0` on the root was the whole of what made this
+    // a separate app: the product was still mounted, behind it.
+    const css = read('bento.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).not.toMatch(/\.bento-editor\b/);
+    expect(css).not.toMatch(/\.bento-shell[^{]*\{[^}]*position:\s*fixed/);
+  });
+
+  it('lets the shell own the theme scope, and does not write a second one', () => {
+    // `data-workspace` + `data-theme` come from WorkspaceShell now. Setting
+    // them again here would be a second writer of the one theme choice.
+    const src = read('BentoEditor.tsx');
+    expect(src).not.toContain('data-theme={theme}');
+    expect(src).not.toContain('useWorkspaceTheme');
+    // The rules still have to be written for that scope.
+    expect(read('bento.css')).toContain('[data-workspace] .bento-work');
+  });
+
+  it.each(RETIRED)('%s is gone, not merely unused', (f) => {
+    // Dead chrome is how a legacy layout grows back.
+    expect(() => read(f)).toThrow();
   });
 
   it('styles itself from tokens only', () => {
@@ -81,8 +119,9 @@ describe('no legacy UI is left on the route', () => {
 
 describe('the migrated controls still drive the document', () => {
   it('the layout sliders write gap and padding', () => {
-    mount(<LayoutPopover />);
-    fireEvent.click(screen.getByRole('button', { name: /layout/i }));
+    // They used to live behind a hand-rolled popover on a toolbar row; they
+    // are now always visible in the Document panel. Same store, no disclosure.
+    mount(<DocumentPanel brand={brand} />);
 
     fireEvent.change(screen.getByLabelText('Gap'), { target: { value: '3' } });
     expect(useBentoStore.getState().design.gap).toBe(3);
@@ -92,8 +131,7 @@ describe('the migrated controls still drive the document', () => {
   });
 
   it('the grid fields clamp instead of writing NaN when emptied', () => {
-    mount(<LayoutPopover />);
-    fireEvent.click(screen.getByRole('button', { name: /layout/i }));
+    mount(<DocumentPanel brand={brand} />);
     fireEvent.change(screen.getByLabelText('Columns'), { target: { value: '' } });
     expect(useBentoStore.getState().design.cols).toBe(1);
   });
@@ -114,6 +152,14 @@ describe('the migrated controls still drive the document', () => {
     mount(<TileInspector tile={tile} brand={brand} onOpenMedia={() => {}} />);
     // The store reads -1 back as undefined; the readout must not say "-1.0%".
     expect(screen.getByText('auto')).toBeTruthy();
+  });
+
+  it('sets the canvas ground from the brand’s own colours', () => {
+    // It used to be a native <input type="color"> — the whole spectrum, with
+    // the brand's colours nowhere in it, on a page for composing FROM a brand.
+    mount(<DocumentPanel brand={brand} />);
+    fireEvent.click(screen.getByRole('button', { name: '#C8102E' }));
+    expect(useBentoStore.getState().design.backgroundColor).toBe('#C8102E');
   });
 
   it('offers the empty inspector as an add surface when nothing is selected', () => {

@@ -1,9 +1,10 @@
 /**
- * Bento Grid — brand-scoped page.
+ * Bento — brand-scoped page at `/b/:slug/bento`.
  *
- * Fullscreen editor (no brand shell), same pattern as design-ai.tsx.
- * Uses the shared BentoEditor; this page is a thin wrapper that loads
- * the brand.
+ * A thin route: load the brand, hand it to the editor. The shell, the top bar
+ * and the section nav all come from `BentoEditor`'s own `WorkspaceShell`, the
+ * same as every other Studio page — this page used to render the editor
+ * fullscreen, outside the application entirely.
  */
 import { useParams } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
@@ -13,5 +14,5 @@ export default function BrandBentoPage() {
   const { slug } = useParams<{ slug: string }>();
   const { brand } = useBrandBySlug(slug);
 
-  return <BentoEditor brand={brand} backTo={`/b/${slug ?? ''}`} />;
+  return <BentoEditor brand={brand} />;
 }

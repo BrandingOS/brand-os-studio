@@ -5,31 +5,59 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useService } from '@/core';
 import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import { useBentoStore } from './store';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { BentoCanvas, type BentoCanvasHandle } from './components/BentoCanvas';
-import { BentoTopBar } from './components/BentoTopBar';
+import { BentoActions } from './components/BentoActions';
 import { TemplateRail } from './components/TemplateRail';
-import { TileInspector } from './components/TileInspector';
+import { BentoInspector } from './components/BentoInspector';
 import { ImageUploadPrompt, type PendingUpload } from './components/ImageUploadPrompt';
 import { MediaPicker, type MediaPickResult } from './components/MediaPicker';
 import { resolveSize } from './sizes';
 import { fetchPhotoAsDataUrl, type StockPhoto } from './lib/stockPhotos';
-import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import './bento.css';
 
 interface Props {
   brand: Brand | null | undefined;
-  /** Back-link destination. */
-  backTo: string;
-  /** Optional extra content on left of topbar (e.g. brand picker in standalone). */
+  /**
+   * A control belonging to the page rather than the document — the brand
+   * source picker on the standalone route. It sits in the page header beside
+   * the title, not in the shell's action row, because it selects what the
+   * page is ABOUT rather than doing something to the document.
+   */
   extraLeft?: React.ReactNode;
 }
 
 /**
- * Shared bento editor — used by both the brand-scope page and the
- * standalone /tools/bento page. When `brand` is null, the editor still
- * renders with neutral defaults and disables brand-only actions.
+ * Bento, as a page of BrandingOS.
+ *
+ * ── What this replaced ───────────────────────────────────────────────────
+ *
+ * A `position: fixed; inset: 0` root that covered the application: no
+ * BrandingOS top bar, no section nav, no brand switcher, no theme control, and
+ * three rows of chrome Bento drew for itself (`EditorChrome`, a document
+ * toolbar, and the rail's own header). It was a separate application that
+ * happened to share a URL space, and the only way back to the brand was a link
+ * it drew itself.
+ *
+ * It is now an ordinary Studio page: `WorkspaceShell` supplies the real top
+ * bar and the five-section nav, the page contributes its ACTIONS to that bar,
+ * and the workspace below is the app-shell grid the Guideline builder
+ * established — a pinned rail and a pinned panel either side of the one thing
+ * that scrolls.
+ *
+ * ── Why the theme scope disappeared from here ────────────────────────────
+ *
+ * It did not; it moved up. `WorkspaceShell` owns `data-workspace` +
+ * `data-theme` for every Studio page, and setting them again here would be a
+ * second writer of the one theme choice. The editor's own rules still resolve
+ * because they are still inside that scope — one level further out than
+ * before.
+ *
+ * Used by both the brand-scope page and the standalone /tools/bento page. When
+ * `brand` is null the page still renders, with neutral defaults, and the
+ * brand-only actions are disabled.
  */
-export function BentoEditor({ brand, backTo, extraLeft }: Props) {
+export function BentoEditor({ brand, extraLeft }: Props) {
   const design = useBentoStore((s) => s.design);
   const selectedTileId = useBentoStore((s) => s.selectedTileId);
   const setTemplate = useBentoStore((s) => s.setTemplate);
@@ -222,44 +250,61 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
   }, [brand]);
 
   const selectedTile = design.tiles.find((t) => t.id === selectedTileId) ?? null;
-
-  /*
-   * `data-workspace` + `data-theme` is what every Studio surface sets, and it
-   * is load-bearing twice over here: the panel vocabulary the rail and the
-   * inspector are built from lives under `[data-workspace]`, and the same
-   * element is where `--ds-*` re-resolves for light vs dark. Before this the
-   * editor was `fixed inset-0` with no theme scope at all, so it was the one
-   * page in the product that stayed light while everything around it went dark.
-   */
-  const { theme } = useWorkspaceTheme();
+  const { width, height, name: sizeName } = resolveSize(design.sizeId, design.customSize);
 
   return (
-    <div className="bento-editor" data-workspace data-theme={theme}>
-      <BentoTopBar
-        brand={brand}
-        backTo={backTo}
-        onShuffle={(mode) => shuffle(brand ?? null, mode)}
-        onExport={handleExport}
-        onSave={brand ? handleSave : undefined}
-        canSave={!!brand}
-        onOpenMedia={() => setMediaOpen({ tileId: null })}
-        extraLeft={extraLeft}
-      />
-      <div className="bento-body">
-        <TemplateRail selectedId={design.templateId} onSelect={(id) => setTemplate(id, brand ?? null)} />
-        <BentoCanvas
-          ref={canvasRef}
-          design={design}
-          brand={brand}
-          selectedTileId={selectedTileId}
-          onSelectTile={selectTile}
-          onImageDropped={handleImageDropped}
+    <WorkspaceShell
+      rightActions={
+        <BentoActions
+          onShuffle={(mode) => shuffle(brand ?? null, mode)}
+          onExport={handleExport}
+          onSave={brand ? handleSave : undefined}
+          canSave={!!brand}
+          onOpenMedia={() => setMediaOpen({ tileId: null })}
         />
-        <TileInspector
-          tile={selectedTile}
-          brand={brand}
-          onOpenMedia={(tileId) => setMediaOpen({ tileId: tileId || null })}
-        />
+      }
+    >
+      <div className="bento-shell">
+        {/*
+          The page header. Slim on purpose: this is an app shell, and every
+          pixel it takes comes off the canvas. It carries what a header is for
+          — what this page is, and one line on what it does — and nothing else.
+          The actions are in the shell's bar above, which is where every other
+          tool in the product puts them.
+        */}
+        <header className="bento-head">
+          <div className="bento-head-titles">
+            <h1 className="bento-title">Bento</h1>
+            <p className="bento-lede">
+              Compose a bento-grid graphic from {brand ? brand.name : 'a brand'}&rsquo;s logo,
+              colours, type and photos, then export it as a PNG.
+            </p>
+          </div>
+          {extraLeft && <div className="bento-head-aside">{extraLeft}</div>}
+          <p className="bento-head-meta">
+            {sizeName} · {width}&times;{height}
+          </p>
+        </header>
+
+        <div className="bento-work">
+          <TemplateRail
+            selectedId={design.templateId}
+            onSelect={(id) => setTemplate(id, brand ?? null)}
+          />
+          <BentoCanvas
+            ref={canvasRef}
+            design={design}
+            brand={brand}
+            selectedTileId={selectedTileId}
+            onSelectTile={selectTile}
+            onImageDropped={handleImageDropped}
+          />
+          <BentoInspector
+            tile={selectedTile}
+            brand={brand}
+            onOpenMedia={(tileId) => setMediaOpen({ tileId: tileId || null })}
+          />
+        </div>
       </div>
 
       <ImageUploadPrompt
@@ -276,7 +321,6 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
         defaultQuery={brand?.name ?? brand?.tone}
         onPick={(result) => void handleMediaPick(mediaOpen?.tileId ?? null, result)}
       />
-    </div>
+    </WorkspaceShell>
   );
 }
-

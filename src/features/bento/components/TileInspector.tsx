@@ -3,6 +3,7 @@ import type { BentoTile, TileKind } from '../types';
 import { useBentoStore } from '../store';
 import { DsButton, DsInput, DsSegmented, DsSelect, DsSlider, DsTextArea } from '@/shared/ds';
 import { Copy, Trash2, Plus, AlignLeft, AlignCenter, AlignRight, Images } from 'lucide-react';
+import { Group, Labelled, Swatches, buildFonts, buildPalette, int, pct } from './controls';
 
 const KIND_OPTIONS: Array<{ value: TileKind; label: string }> = [
   { value: 'logo', label: 'Logo' },
@@ -27,9 +28,6 @@ const PATTERNS = ['dots', 'stripes', 'checker', 'circles'].map((v) => ({
 }));
 const FITS = ['cover', 'contain', 'fill'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }));
 
-const pct = (v: number) => `${v.toFixed(1)}%`;
-const int = (v: number) => `${v.toFixed(0)}`;
-
 interface Props {
   tile: BentoTile | null;
   brand: Brand | null | undefined;
@@ -46,32 +44,25 @@ export function TileInspector({ tile, brand, onOpenMedia }: Props) {
 
   if (!tile) {
     return (
-      <aside className="panel bento-inspector" aria-label="Inspector">
-        <div className="panel-top">
-          <div className="panel-heading">
-            <span className="panel-heading-eyebrow">Inspector</span>
+      <div className="bento-inspector-body">
+        <p className="bento-hint">
+          Select a tile to edit it, drag an image onto one, or browse the media library.
+        </p>
+        <Group label="Add tile">
+          <div className="bento-addgrid">
+            {KIND_OPTIONS.slice(0, 8).map((o) => (
+              <DsButton key={o.value} tone="secondary" size="sm" onClick={() => addTile(o.value, brand)}>
+                <Plus size={12} aria-hidden />
+                {o.label}
+              </DsButton>
+            ))}
           </div>
-        </div>
-        <div className="bento-inspector-body">
-          <p className="bento-hint">
-            Select a tile to edit it, drag an image onto one, or browse the media library.
-          </p>
-          <Group label="Add tile">
-            <div className="bento-addgrid">
-              {KIND_OPTIONS.slice(0, 8).map((o) => (
-                <DsButton key={o.value} tone="secondary" size="sm" onClick={() => addTile(o.value, brand)}>
-                  <Plus size={12} aria-hidden />
-                  {o.label}
-                </DsButton>
-              ))}
-            </div>
-          </Group>
-          <DsButton className="bento-block" onClick={() => onOpenMedia('')}>
-            <Images size={14} aria-hidden />
-            Browse media library
-          </DsButton>
-        </div>
-      </aside>
+        </Group>
+        <DsButton className="bento-block" onClick={() => onOpenMedia('')}>
+          <Images size={14} aria-hidden />
+          Browse media library
+        </DsButton>
+      </div>
     );
   }
 
@@ -86,34 +77,23 @@ export function TileInspector({ tile, brand, onOpenMedia }: Props) {
   const grad = tile.content.gradient;
 
   return (
-    <aside className="panel bento-inspector" aria-label="Inspector">
-      <div className="panel-top">
-        <div className="bento-inspector-head">
-          <span className="panel-heading-eyebrow">Inspector</span>
-          <span className="bento-inspector-acts">
-            <button
-              type="button"
-              className="bento-iconbtn"
-              onClick={() => duplicateTile(tile.id, brand)}
-              title="Duplicate"
-              aria-label="Duplicate tile"
-            >
-              <Copy size={14} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="bento-iconbtn bento-iconbtn--danger"
-              onClick={() => deleteTile(tile.id)}
-              title="Delete"
-              aria-label="Delete tile"
-            >
-              <Trash2 size={14} aria-hidden />
-            </button>
-          </span>
-        </div>
-      </div>
-
+    <>
       <div className="bento-inspector-body">
+        {/* Tile actions. `tertiary` and `danger` are the DS's own tiers for
+            "quiet" and "irreversible" — the hand-rolled `.bento-iconbtn` these
+            replace was neither, and it was the last button in the feature that
+            was not a DsButton. */}
+        <div className="bento-tile-acts">
+          <DsButton tone="tertiary" size="sm" onClick={() => duplicateTile(tile.id, brand)} title="Duplicate">
+            <Copy size={14} aria-hidden />
+            Duplicate
+          </DsButton>
+          <DsButton tone="danger" size="sm" onClick={() => deleteTile(tile.id)} title="Delete">
+            <Trash2 size={14} aria-hidden />
+            Delete
+          </DsButton>
+        </div>
+
         <Group label="Type">
           <DsSelect
             options={KIND_OPTIONS}
@@ -312,7 +292,7 @@ export function TileInspector({ tile, brand, onOpenMedia }: Props) {
           )}
         </Group>
       </div>
-    </aside>
+    </>
   );
 }
 
@@ -321,75 +301,4 @@ function defaultFontSizePct(kind: TileKind): number {
   if (kind === 'typography') return 38;
   if (kind === 'voice-quote') return 14;
   return 12;
-}
-
-/** A titled block of controls, separated by a hairline. */
-function Group({ label, children }: { label?: string; children: React.ReactNode }) {
-  return (
-    <section className="bento-group">
-      {label && <span className="ds-eyebrow">{label}</span>}
-      {children}
-    </section>
-  );
-}
-
-/** A label over a control that has none of its own (DsSelect, DsSegmented). */
-function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="bento-labelled">
-      <span className="bento-label">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function Swatches({
-  label, value, palette, onPick,
-}: { label: string; value?: string; palette: string[]; onPick: (c: string) => void }) {
-  return (
-    <div className="bento-labelled">
-      <span className="bento-label">{label}</span>
-      <div className="bento-swatches" role="group" aria-label={label}>
-        {palette.slice(0, 16).map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => onPick(c)}
-            className={`bento-swatchchip${value?.toLowerCase() === c.toLowerCase() ? ' is-on' : ''}`}
-            style={{ background: c }}
-            title={c}
-            aria-label={c}
-            aria-pressed={value?.toLowerCase() === c.toLowerCase()}
-          />
-        ))}
-      </div>
-      <DsInput
-        className="bento-hex"
-        placeholder="#000000"
-        value={value ?? ''}
-        aria-label={`${label} hex`}
-        onChange={(e) => onPick(e.target.value)}
-      />
-    </div>
-  );
-}
-
-function buildPalette(brand: Brand | null | undefined): string[] {
-  const out: string[] = [];
-  if (brand?.primaryColor) out.push(brand.primaryColor);
-  if (brand?.secondaryColor) out.push(brand.secondaryColor);
-  brand?.guidelines?.colorPalette?.neutral?.forEach((n) => n?.hex && out.push(n.hex));
-  const defaults = ['#0F172A', '#6366F1', '#EC4899', '#F97316', '#10B981', '#0EA5E9', '#EAB308', '#94A3B8'];
-  defaults.forEach((d) => { if (!out.includes(d)) out.push(d); });
-  return out.slice(0, 16);
-}
-
-function buildFonts(brand: Brand | null | undefined): string[] {
-  const out: string[] = [];
-  if (brand?.fonts?.primary) out.push(brand.fonts.primary);
-  if (brand?.fonts?.secondary) out.push(brand.fonts.secondary);
-  ['Inter', 'Helvetica', 'Georgia', 'Playfair Display', 'Space Grotesk', 'Courier'].forEach((f) => {
-    if (!out.includes(f)) out.push(f);
-  });
-  return out;
 }

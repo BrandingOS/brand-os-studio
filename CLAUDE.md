@@ -1681,6 +1681,77 @@ forward when the patch is card-only (`LocalBrandsService` honours a supplied
 the second half exists), and Home's grid claims each brand's position ONCE —
 only a brand it has never placed is sorted in, at the front.
 
+## Bento — a page of the product, not an app inside it (rebuilt 2026-09-04)
+
+`/b/:slug/bento` (and `/tools/bento`, the brandless twin). The composer that
+makes a bento-grid graphic out of a brand and exports it as a PNG.
+
+**The shell is `WorkspaceShell`, and the page contributes ACTIONS to it.** Until
+this rebuild `BentoEditor` was `position: fixed; inset: 0` — a full-viewport
+takeover with the application still mounted behind it, wearing three bars of its
+own chrome (`EditorChrome`, a bespoke document toolbar, the rail's header) and no
+way back to the brand except a link Bento drew itself. It is now an ordinary
+Studio page: the real top bar, the five-section nav, the brand switcher and the
+theme come from the shell, and `rightActions` carries undo/redo · Media ·
+Shuffle · Save · Export, the same slot Guideline and Identity use.
+
+Rules that bind:
+
+- **`WorkspaceShell` owns `data-workspace` + `data-theme`.** Bento used to set
+  both itself, which was the right fix for a page that had escaped the shell and
+  is a second writer of the one theme choice for a page that has not. The
+  feature's rules are still written `[data-workspace] .bento-*`; the scope is
+  just one level further out.
+- **It is an APP SHELL above 1100px**, the Guideline builder's arrangement:
+  `:has(> .bento-shell)` turns the workspace root into a 100vh column,
+  `.bento-work` is `minmax(224px,248px) minmax(0,1fr) 296px` over
+  `grid-template-rows: minmax(0, 1fr)`, and each column manages its own
+  overflow. **Both `minmax(0, …)` are load-bearing**: a track's default
+  `min-content` floor lets the artboard widen the column past the screen, and
+  `BentoCanvas` picks its scale from `clientWidth`/`clientHeight` — a container
+  sized by its content measures the content, and the canvas can never shrink to
+  fit. Below 1100px it goes back to one column and the page scrolls; the media
+  query has to undo the root height, the overflow, the row template AND give
+  `.bento-stage` an `aspect-ratio`, because the canvas has no content height of
+  its own. It used to `display: none` the rail there instead, which removed the
+  template picker — the feature — from every tablet.
+- **Three panels, one vocabulary.** The rail and the properties panel are
+  `.panel` / `.panel-top` / `.panel-list` / `.panel-item`, the same rules
+  SetupSidebar and ToolsSidebar use, and they keep the shell's border, radius
+  and elevation — a page-local rule used to strip all four and draw a single
+  divider, which is the chrome of a standalone editor. `.bento-stage` takes the
+  same border and radius so the three columns read as one workspace.
+- **The document's properties are a PANEL, not a toolbar.** Size, ground, grid
+  and spacing lived in a toolbar row holding a `DsSelect`, a native
+  `<input type="color">` dressed as a chip, and a "Layout" button opening a
+  hand-rolled popover — three disclosure mechanisms for one set of properties,
+  none of them a pattern used elsewhere. They are now `DocumentPanel`, always
+  visible, beside the tile's properties under one `DsSegmented` (**Tile ·
+  Document**). Selecting a tile switches to Tile; deselecting does not switch
+  back. The ground is picked from the BRAND's colours (`Swatches` in
+  `components/controls.tsx`) — a colour wheel with the brand's own colours
+  nowhere in it is the wrong control on a page for composing from a brand.
+- **`components/BentoPopover.tsx` is gone and must not come back.** It existed
+  because the DS has no popover and the frozen shadcn one portals out of the
+  theme scope. A panel needs no popover; if a second surface ever genuinely
+  needs one, it is a DS decision, not a feature-local reimplementation of
+  Escape, click-outside and focus return.
+- **The business logic was not touched.** `store.ts`, `shuffle.ts`,
+  `templates.ts`, `sizes.ts`, `BentoCanvas`, `TileRenderer`, `MediaPicker`,
+  `ImageUploadPrompt` and the export path are the same code; this was a UI
+  rebuild. `TileInspector` lost only its `<aside>` — it renders a body now, and
+  `BentoInspector` owns the panel chrome.
+- **Bento also appears INSIDE the Identity page** as a section, never as a nav
+  item — see `features/brand-identity/sections/BentoSurface.tsx`. That surface
+  renders this feature's own templates, roll and canvas at
+  `interactive={false}`. There is one bento.
+- Tests: `__tests__/migration.test.tsx` (27 — including that the retired chrome
+  files are GONE rather than merely unused) and
+  `__tests__/bentoPage.browser.test.tsx` (10 — one shell not two, the
+  five-section nav, three columns with real width, and an artboard that scaled
+  to fit; the last needs a real layout engine, which is why it is a browser
+  test).
+
 ## Undo / redo — `src/shared/history/` (2026-08-19)
 
 **Do not add a tenth undo stack.** There were nine — a Fabric ring buffer, three

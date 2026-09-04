@@ -18,7 +18,6 @@ export default function StandaloneBentoPage() {
   return (
     <BentoEditor
       brand={brand}
-      backTo="/dashboard/features"
       extraLeft={<BrandSourcePicker brandId={brandId} onChange={setBrandId} />}
     />
   );

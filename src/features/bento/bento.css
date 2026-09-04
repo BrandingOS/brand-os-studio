@@ -1,246 +1,157 @@
 /*
- * The Bento editor's own layer.
+ * Bento's own layer — an editor's workspace, and nothing else.
  *
  * Everything generic comes from `@/shared/ds` (buttons, fields, selects,
  * sliders, menus, modals, tabs) and everything panel-shaped comes from the
  * workspace shell's vocabulary (`.panel`, `.panel-list`, `.panel-item`) — the
  * same rules SetupSidebar, ToolsSidebar and the Guideline builder use. What is
- * left here is the part no other surface has: an editor's three-column frame,
- * a document toolbar, an artboard stage, and the tile-editing affordances.
+ * left here is the part no other surface has: a three-column editing grid, the
+ * artboard stage, and the tile-editing affordances.
  *
- * Every value is a `--ds-*` token. The page used to paint itself in Tailwind's
- * shadcn aliases plus a hardcoded indigo (#6366F1) that belonged to no palette
- * in the product; both are gone.
+ * ── What is no longer here ───────────────────────────────────────────────
  *
- * Scoped under `.bento-editor`, which also carries `data-workspace` — so these
- * rules and the shell's resolve against the same theme scope.
+ * `.bento-editor` was `position: fixed; inset: 0` — a full-viewport takeover
+ * with the application hidden behind it. With it went a document toolbar
+ * (`.bento-toolbar`, `.bento-iconbtn`, `.bento-toolbtn`, `.bento-swatch`) and
+ * a hand-rolled popover (`.bento-pop*`), all replaced by DS controls in a
+ * panel. Those rules are deleted rather than left unused: dead chrome is how a
+ * legacy layout grows back.
+ *
+ * The rules below assume `[data-workspace]` on an ANCESTOR — `WorkspaceShell`
+ * sets it, along with `data-theme`, so `--ds-*` resolves per theme. Bento used
+ * to set both itself, which was the right fix for a page that had escaped the
+ * shell and is a second writer of the theme for a page that has not.
  */
 
-.bento-editor {
-  position: fixed;
-  inset: 0;
+/* ── The page as an app shell ────────────────────────────────────────────
+ *
+ * Above 1100px the page does not scroll; the canvas and the two panels each
+ * manage their own overflow. This is the Guideline builder's arrangement and
+ * the reasoning is the same — `:has()` turns the workspace root into a column
+ * so the shell can claim exactly what the top bar leaves, and the `calc()`
+ * stays as the fallback for engines without it.
+ *
+ * `minmax(0, 1fr)` on both axes is load-bearing twice. A grid track's default
+ * `min-content` floor would let the artboard push the column wider than the
+ * screen, and `BentoCanvas` measures its container to choose a scale — a
+ * container sized by its content measures the content, and the canvas can
+ * never shrink to fit.
+ */
+[data-workspace]:has(> .bento-shell) {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   overflow: hidden;
-  background: var(--ds-bg);
-  color: var(--ds-text);
-  font-family: var(--ds-font);
+}
+[data-workspace]:has(> .bento-shell) .bento-shell {
+  flex: 1 1 auto;
+  height: auto;
 }
 
-.bento-editor .bento-body {
-  flex: 1;
+[data-workspace] .bento-shell {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 68px);
   min-height: 0;
-  display: flex;
+  padding: 0 20px 20px;
+  gap: 14px;
 }
 
-/* ── Document toolbar ───────────────────────────────────────────────────
- * The second row under EditorChrome. Chrome owns the document's identity and
- * its actions; this owns the document's properties.
+/* ── Page header ─────────────────────────────────────────────────────────
+ * One row. The actions live in the shell's top bar with every other tool's,
+ * so this carries identity only.
  */
-.bento-editor .bento-toolbar {
+[data-workspace] .bento-head {
   display: flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-2) var(--ds-space-4);
-  border-bottom: 1px solid var(--ds-border);
-  background: var(--ds-surface);
-  flex-shrink: 0;
-  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 2px 0;
 }
-.bento-editor .bento-toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
+[data-workspace] .bento-head-titles {
+  min-width: 0;
 }
-.bento-editor .bento-toolbar-rule {
-  width: 1px;
-  height: 18px;
-  background: var(--ds-border);
+[data-workspace] .bento-title {
+  margin: 0;
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--ds-text);
 }
-.bento-editor .bento-toolbar-extra {
+[data-workspace] .bento-lede {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+  max-width: 62ch;
+}
+[data-workspace] .bento-head-aside {
   margin-left: auto;
 }
-
-.bento-editor .bento-iconbtn {
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: var(--ds-radius-control);
-  background: transparent;
-  color: var(--ds-text-secondary);
-  cursor: pointer;
-  transition: background var(--ds-duration-state) var(--ds-ease),
-              color var(--ds-duration-state) var(--ds-ease);
+[data-workspace] .bento-head-meta {
+  margin: 0 0 0 auto;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
 }
-.bento-editor .bento-iconbtn:hover:not(:disabled) {
-  background: var(--ds-surface-hover);
-  color: var(--ds-text);
-}
-.bento-editor .bento-iconbtn:focus-visible {
-  outline: 3px solid var(--ds-focus-ring);
-  outline-offset: 1px;
-}
-/* Grey is never an enabled state — disabled is the control at 40%. */
-.bento-editor .bento-iconbtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.bento-editor .bento-iconbtn--danger:hover:not(:disabled) {
-  background: var(--ds-danger-bg);
-  color: var(--ds-danger);
+/* With a page-level control present, the metadata gives up the auto margin —
+   two `margin-left: auto` siblings would push them apart to opposite ends. */
+[data-workspace] .bento-head-aside ~ .bento-head-meta {
+  margin-left: 0;
 }
 
-.bento-editor .bento-toolbtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  border: 1px solid var(--ds-border-strong);
-  border-radius: var(--ds-radius-control);
-  background: var(--ds-surface);
-  color: var(--ds-text);
-  cursor: pointer;
-  transition: background var(--ds-duration-state) var(--ds-ease);
-}
-.bento-editor .bento-toolbtn:hover {
-  background: var(--ds-surface-hover);
-}
-.bento-editor .bento-toolbtn:focus-visible {
-  outline: 3px solid var(--ds-focus-ring);
-  outline-offset: 1px;
-}
-
-.bento-editor .bento-select {
-  min-width: 168px;
-}
-
-/* The background swatch. The native colour input stays on top and clickable;
-   the chip underneath is what is actually seen. */
-.bento-editor .bento-swatch {
-  position: relative;
-  display: inline-flex;
-  width: 40px;
-  height: 32px;
-  border: 1px solid var(--ds-border-strong);
-  border-radius: var(--ds-radius-control);
-  overflow: hidden;
-  cursor: pointer;
-}
-.bento-editor .bento-swatch input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-.bento-editor .bento-swatch > span {
-  width: 100%;
-  height: 100%;
-}
-.bento-editor .bento-swatch:focus-within {
-  outline: 3px solid var(--ds-focus-ring);
-  outline-offset: 1px;
-}
-
-/* ── Popover ────────────────────────────────────────────────────────── */
-.bento-editor .bento-pop {
-  position: relative;
-}
-.bento-editor .bento-pop-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  z-index: 60;
-  width: 300px;
-  padding: var(--ds-space-4);
-  background: var(--ds-surface);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-menu);
-  box-shadow: var(--ds-shadow-float);
-}
-.bento-editor .bento-pop-panel[data-align='end'] { right: 0; }
-.bento-editor .bento-pop-panel[data-align='start'] { left: 0; }
-.bento-editor .bento-pop-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-4);
-}
-.bento-editor .bento-pop-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-2);
-  padding-top: var(--ds-space-3);
-  border-top: 1px solid var(--ds-hairline);
-}
-.bento-editor .bento-pop-pair {
+/* ── The workspace: rail · canvas · properties ───────────────────────── */
+[data-workspace] .bento-work {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--ds-space-2);
+  grid-template-columns: minmax(224px, 248px) minmax(0, 1fr) 296px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 16px;
 }
 
-/* A DsMenu anchored to a DsButton in the chrome's action row. */
-.bento-menu-anchor {
-  position: relative;
-  display: inline-flex;
-}
-.bento-menu-anchor .bento-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 60;
-}
-
-/* ── The two side panels ────────────────────────────────────────────────
- *
- * `.panel` is authored for a SCROLLING page: sticky at `top: 80px`, capped at
- * `calc(100vh - 100px)`, rounded and shadowed so it floats over the board. An
- * editor is not that page — the rail and the inspector are full-height columns
- * in a fixed frame, so the card behaviour is undone here and only the panel's
- * INTERIOR vocabulary (`.panel-top`, `.panel-list`, `.panel-item`) is kept.
- * Reaching for a bespoke sidebar instead would have meant re-drawing every one
- * of those rows.
+/*
+ * The shell's `.panel` is a sticky card sized against the page. Here it is a
+ * grid child that fills its column, so the stickiness and the viewport-derived
+ * max-height are cancelled — and NOTHING else. The border, the radius, the
+ * shadow and the elevated surface stay, because they are what makes these look
+ * like the Tools and Setup sidebars instead of a flush editor gutter. The old
+ * rule stripped all four and drew a single dividing line instead, which is the
+ * chrome of a standalone application.
  */
-.bento-editor .panel {
+[data-workspace] .bento-shell .panel {
   position: static;
   top: auto;
   height: 100%;
   max-height: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  background: var(--ds-surface);
 }
 
-/* ── Left rail ──────────────────────────────────────────────────────── */
-.bento-editor .bento-rail {
-  width: 232px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--ds-border);
+/* ── Left rail — the template list ──────────────────────────────────── */
+[data-workspace] .bento-rail {
+  min-width: 0;
 }
-.bento-editor .bento-rail-empty {
+[data-workspace] .bento-rail-empty {
   padding: var(--ds-space-4);
   font-size: 12px;
   color: var(--ds-text-muted);
 }
-.bento-editor .bento-thumb {
+[data-workspace] .bento-thumb {
   padding: 3px;
   background: var(--ds-bg);
 }
-.bento-editor .bento-thumb-grid {
+[data-workspace] .bento-thumb-grid {
   display: grid;
   gap: 1.5px;
   width: 100%;
   height: 100%;
 }
-.bento-editor .bento-thumb-grid > span {
+[data-workspace] .bento-thumb-grid > span {
   border-radius: 1px;
   background: var(--ds-dash-strong);
 }
-.bento-editor .panel-item.is-active .bento-thumb-grid > span {
+[data-workspace] .panel-item.is-active .bento-thumb-grid > span {
   background: var(--ds-accent);
 }
 
@@ -274,8 +185,14 @@
 }
 
 /* ── Stage ──────────────────────────────────────────────────────────── */
-.bento-editor .bento-stage {
-  flex: 1;
+/*
+ * The artboard sits ON a surface rather than in a gutter: the same border and
+ * radius as the panels either side of it, so the three columns read as one
+ * workspace. The dotted ground stays — it is what says "this is the area
+ * around the document, not the document" — drawn in `--ds-dash`, the token the
+ * DS has for exactly that.
+ */
+[data-workspace] .bento-stage {
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -283,6 +200,8 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
   background-color: var(--ds-bg);
   background-image: radial-gradient(circle at 1px 1px, var(--ds-dash) 1px, transparent 0);
   background-size: 24px 24px;
@@ -302,62 +221,69 @@
 }
 
 /* ── Inspector ──────────────────────────────────────────────────────── */
-.bento-editor .bento-inspector {
-  width: 304px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--ds-border);
-  border-right: none;
+[data-workspace] .bento-inspector {
+  min-width: 0;
 }
-.bento-editor .bento-inspector-head {
+/* The subject switch is the whole of the panel's header. */
+[data-workspace] .bento-inspector .panel-top .ds-segmented {
+  width: 100%;
+}
+/* Duplicate and Delete, at the head of a tile's properties. */
+[data-workspace] .bento-tile-acts {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-hairline);
+}
+[data-workspace] .bento-tile-acts .ds-btn {
+  flex: 1;
+}
+/* Two number fields side by side — the grid's columns and rows. */
+[data-workspace] .bento-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--ds-space-3);
 }
-.bento-editor .bento-inspector-acts {
-  display: inline-flex;
-  gap: 2px;
-}
-.bento-editor .bento-inspector-body {
+[data-workspace] .bento-inspector-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
-.bento-editor .bento-group {
+[data-workspace] .bento-group {
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-3);
   padding: var(--ds-space-4);
   border-bottom: 1px solid var(--ds-hairline);
 }
-.bento-editor .bento-group:empty {
+[data-workspace] .bento-group:empty {
   display: none;
 }
-.bento-editor .bento-group:last-child {
+[data-workspace] .bento-group:last-child {
   border-bottom: none;
 }
-.bento-editor .bento-labelled {
+[data-workspace] .bento-labelled {
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-2);
 }
-.bento-editor .bento-label {
+[data-workspace] .bento-label {
   font-size: 12px;
   color: var(--ds-text-secondary);
 }
-.bento-editor .bento-hint {
+[data-workspace] .bento-hint {
   font-size: 12px;
   line-height: 1.5;
   color: var(--ds-text-muted);
   margin: 0;
 }
 
-.bento-editor .bento-readouts {
+[data-workspace] .bento-readouts {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--ds-space-2);
 }
-.bento-editor .bento-readouts span {
+[data-workspace] .bento-readouts span {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -365,40 +291,40 @@
   border-radius: var(--ds-radius-control);
   background: var(--ds-surface-subtle);
 }
-.bento-editor .bento-readouts em {
+[data-workspace] .bento-readouts em {
   font-style: normal;
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ds-text-muted);
 }
-.bento-editor .bento-readouts code {
+[data-workspace] .bento-readouts code {
   font-family: var(--ds-font-mono);
   font-size: 11px;
   color: var(--ds-text);
 }
 
-.bento-editor .bento-addgrid {
+[data-workspace] .bento-addgrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--ds-space-2);
 }
-.bento-editor .bento-addgrid .ds-btn {
+[data-workspace] .bento-addgrid .ds-btn {
   justify-content: flex-start;
   gap: 5px;
 }
-.bento-editor .bento-block {
+[data-workspace] .bento-block {
   width: 100%;
   justify-content: center;
 }
 
 /* ── Swatch picker ──────────────────────────────────────────────────── */
-.bento-editor .bento-swatches {
+[data-workspace] .bento-swatches {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 4px;
 }
-.bento-editor .bento-swatchchip {
+[data-workspace] .bento-swatchchip {
   aspect-ratio: 1;
   border: 1px solid var(--ds-border);
   border-radius: 4px;
@@ -407,23 +333,23 @@
   transition: transform var(--ds-duration-state) var(--ds-ease),
               box-shadow var(--ds-duration-state) var(--ds-ease);
 }
-.bento-editor .bento-swatchchip:hover {
+[data-workspace] .bento-swatchchip:hover {
   transform: scale(1.1);
 }
-.bento-editor .bento-swatchchip.is-on {
+[data-workspace] .bento-swatchchip.is-on {
   box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 4px var(--ds-accent);
 }
-.bento-editor .bento-swatchchip:focus-visible {
+[data-workspace] .bento-swatchchip:focus-visible {
   outline: 3px solid var(--ds-focus-ring);
   outline-offset: 2px;
 }
-.bento-editor .bento-hex input,
-.bento-editor .bento-hex {
+[data-workspace] .bento-hex input,
+[data-workspace] .bento-hex {
   font-family: var(--ds-font-mono);
 }
 
 /* ── Asset + media grids ────────────────────────────────────────────── */
-.bento-editor .bento-assetgrid {
+[data-workspace] .bento-assetgrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--ds-space-2);
@@ -559,18 +485,50 @@
 
 /* ── Narrower desktops ──────────────────────────────────────────────────
  * The three columns are the whole layout, so they are kept — the side panels
- * give up width first, and the stage keeps whatever is left. Below 1100px the
- * rail folds away: two panels plus an artboard is more chrome than canvas, and
- * the template list is reachable again the moment there is room for it.
+ * give up width first, and the stage keeps whatever is left.
  */
 @media (max-width: 1400px) {
-  .bento-editor .bento-rail { width: 200px; }
-  .bento-editor .bento-inspector { width: 272px; }
+  [data-workspace] .bento-work {
+    grid-template-columns: minmax(196px, 216px) minmax(0, 1fr) 272px;
+  }
   .bento-mediagrid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/*
+ * Narrow: one column, and the PAGE scrolls again.
+ *
+ * Three pinned columns need width to be worth their space; stacked inside a
+ * fixed-height shell they would each get a sliver to scroll inside. The rail
+ * used to be `display: none` here instead — which removed the template picker,
+ * i.e. the feature, from every tablet. Every part of the height and overflow
+ * arrangement has to be undone, not just the column count.
+ */
 @media (max-width: 1100px) {
-  .bento-editor .bento-rail { display: none; }
-  .bento-editor .bento-inspector { width: 256px; }
+  [data-workspace]:has(> .bento-shell) {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  [data-workspace] .bento-shell {
+    height: auto;
+    min-height: calc(100vh - 68px);
+  }
+  [data-workspace] .bento-work {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  [data-workspace] .bento-shell .panel {
+    height: auto;
+    max-height: 52vh;
+  }
+  /* The canvas has no content height of its own — it scales to its box — so
+     stacked it needs one, or it collapses to nothing. */
+  [data-workspace] .bento-stage {
+    aspect-ratio: 4 / 3;
+  }
+  [data-workspace] .bento-head {
+    flex-wrap: wrap;
+  }
   .bento-mediagrid { grid-template-columns: repeat(3, 1fr); }
 }
 
