@@ -162,6 +162,30 @@ const COUNTER: Record<string, 'min' | 'center' | 'max' | 'baseline'> = {
  * Flex maps onto Figma auto-layout almost one-to-one. Anything else becomes
  * `absolute` — an honest, visible fallback rather than a silent bad guess.
  */
+/**
+ * A uniform NEGATIVE margin between flex siblings is an overlapping stack.
+ *
+ * The product draws its palettes that way: the 32-step neutral ramp is 32
+ * swatches 158px wide sharing a 1044px row, each pulled 130px back over the one
+ * before it. CSS says that with `margin-left`; Figma says exactly the same thing
+ * with a negative `itemSpacing`. Read as a plain gap of 0, the ramp laid out
+ * 5,056px wide — so the row either overflowed or every swatch was crushed.
+ *
+ * Only a value EVERY sibling after the first agrees on counts. A single odd
+ * margin among several is a one-off nudge, not a stacking rule, and folding it
+ * into the container's spacing would move every other child to accommodate one.
+ * With exactly two children there is nothing to disagree with — that one margin
+ * IS the row's only gap — and the Core palette is that case.
+ */
+function overlapOf(node: RawNode, column: boolean): number {
+  const prop = column ? 'margin-top' : 'margin-left';
+  const rest = node.children.slice(1);
+  if (!rest.length) return 0;
+  const first = px(rest[0].style[prop]);
+  if (first >= 0) return 0;
+  return rest.every((c) => px(c.style[prop]) === first) ? first : 0;
+}
+
 export function deriveLayout(node: RawNode): IRLayout {
   const s = node.style;
   const display = s.display;
@@ -173,7 +197,7 @@ export function deriveLayout(node: RawNode): IRLayout {
   return {
     mode: 'auto',
     direction: column ? 'column' : 'row',
-    gap,
+    gap: gap + overlapOf(node, column),
     padding: [
       px(s['padding-top']), px(s['padding-right']),
       px(s['padding-bottom']), px(s['padding-left']),
@@ -348,9 +372,23 @@ export function nodeToIR(
     return node;
   }
 
-  // An absolutely-laid-out parent positions its children itself. Figma appends
-  // them at the origin otherwise, so every sibling stacks on the first.
-  if (parent && parent.style.display !== 'flex' && parent.style.display !== 'inline-flex') {
+  /**
+   * A child that is POSITIONED rather than flowed carries its own offset.
+   *
+   * Two different cases produce the same need. An absolutely-laid-out PARENT
+   * positions all its children, and without an offset Figma appends them at the
+   * origin so every sibling stacks on the first. And a child that is itself
+   * `position: absolute` is out of its parent's flow even when that parent is a
+   * flex row — the segmented nav's sliding pill is exactly that, and appended
+   * into the row it became a 63px empty box that pushed Setup, Brand Kit,
+   * Guideline, Design and Tools along in front of it.
+   *
+   * The walker turns the second case into `layoutPositioning = 'ABSOLUTE'`.
+   */
+  const selfPositioned = s.position === 'absolute' || s.position === 'fixed';
+  const parentFlows = !!parent
+    && (parent.style.display === 'flex' || parent.style.display === 'inline-flex');
+  if (parent && (!parentFlows || selfPositioned)) {
     node.pos = {
       x: Math.round((raw.rect.x - parent.rect.x) * 100) / 100,
       y: Math.round((raw.rect.y - parent.rect.y) * 100) / 100,
@@ -378,10 +416,20 @@ export function nodeToIR(
     }
     let texts: string[] = [];
     try { texts = raw.fx.refText ? JSON.parse(raw.fx.refText) : []; } catch { texts = []; }
-    if (Object.keys(axes).length || texts.length) {
+    // The occurrence's own paint and box, present only where they differ from
+    // the component's. Instanced without them, 34 swatches carrying 34 colours
+    // all came out as the one black box the component was measured from.
+    const fill = raw.fx.refFill ? toPaint(raw.fx.refFill, opts.tokens) : undefined;
+    const dims = (raw.fx.refSize ?? '').split(',').map(Number);
+    const size = dims.length === 2 && dims.every((n) => Number.isFinite(n))
+      ? { w: dims[0], h: dims[1] }
+      : undefined;
+    if (Object.keys(axes).length || texts.length || fill || size) {
       node.overrides = {
         ...(Object.keys(axes).length ? { variant: axes } : {}),
         ...(texts.length ? { texts } : {}),
+        ...(fill ? { fill } : {}),
+        ...(size ? { size } : {}),
       };
     }
   }

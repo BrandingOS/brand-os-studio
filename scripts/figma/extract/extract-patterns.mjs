@@ -46,20 +46,22 @@ const COLLECTOR = collectorSrc.slice(
   collectorSrc.lastIndexOf('`;'),
 );
 
-const PROPS = [
-  'display', 'position', 'flex-direction', 'flex-wrap', 'gap', 'row-gap', 'column-gap',
-  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis', 'order',
-  'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
-  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-  'background-color', 'color', 'opacity', 'overflow',
-  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
-  'border-top-color', 'border-radius',
-  'border-top-left-radius', 'border-top-right-radius',
-  'border-bottom-right-radius', 'border-bottom-left-radius',
-  'box-shadow', 'font-family', 'font-size', 'font-weight',
-  'line-height', 'letter-spacing', 'text-align', 'direction', 'text-transform',
-  'transform', 'visibility',
-];
+/**
+ * The properties to read, taken FROM `raw.ts` rather than restated here.
+ *
+ * These were two lists — the typed one in `raw.ts` and a copy in this driver —
+ * and only the copy was ever used. Adding `margin-left` to the documented list
+ * therefore changed nothing, and the neutral ramp went on laying out 5,056px
+ * wide with no error anywhere. A second list that silently outranks the first
+ * is worse than no list, so there is now one.
+ */
+const rawSrc = fs.readFileSync(path.resolve('scripts/figma/extract/raw.ts'), 'utf8');
+const propsBody = rawSrc.slice(rawSrc.indexOf('export const COLLECTED_PROPS = ['));
+// eslint-disable-next-line no-eval
+const PROPS = eval(propsBody.slice(propsBody.indexOf('['), propsBody.indexOf('] as const;') + 1));
+if (!Array.isArray(PROPS) || !PROPS.includes('display')) {
+  throw new Error('could not read COLLECTED_PROPS from scripts/figma/extract/raw.ts');
+}
 
 // The manifest is TypeScript with no runtime deps beyond the array literal, so
 // it is read rather than imported — the extractor has no build step.
@@ -134,10 +136,16 @@ for (const route of routes) {
       const idx = def.at.map((n, i) => [n, i]).filter(([, i]) => per[i] === state);
       if (idx.length) {
         // Every pattern a container may reference, so the stamping pass can read
-        // the CONTAINED pattern's own variant rule without a second lookup.
+        // the CONTAINED pattern's own variant rule — and the element it was
+        // measured from, which is what a per-instance override is compared
+        // against — without a second lookup.
         const variantOf = {};
         for (const other of ALL_PATTERNS.concat(here)) {
-          if (other.variantBy) variantOf[other.sid] = { variantBy: other.variantBy };
+          variantOf[other.sid] = {
+            variantBy: other.variantBy || null,
+            selector: other.selector,
+            at: other.at,
+          };
         }
         work.push({
           key: def.key, sid: def.sid, selector: def.selector, roles: def.roles,
@@ -259,6 +267,41 @@ for (const pass of passes) {
                 if (v) texts.push(v);
               }
               if (texts.length) d.setAttribute('data-fx-ref-text', JSON.stringify(texts));
+
+              /**
+               * What this occurrence is PAINTED and SIZED as.
+               *
+               * A component decides fill and size for every instance of it, and
+               * for most patterns that is right. It is wrong wherever the value
+               * IS the content: 34 colour swatches are one shape carrying 34
+               * different colours, and the primary one is 626px wide against a
+               * neutral step's 158. Instanced from one component they all came
+               * out the same black box.
+               *
+               * Both are recorded only when they DIFFER from the component's own
+               * measurement, so an ordinary instance still costs nothing and the
+               * override means "this one is genuinely different".
+               */
+              if (target) {
+                const base = document.querySelectorAll(target.selector)[
+                  (target.at && target.at[0]) || 0
+                ];
+                if (base && base !== d) {
+                  const bs = getComputedStyle(base);
+                  const ds = getComputedStyle(d);
+                  if (ds.backgroundColor !== bs.backgroundColor) {
+                    d.setAttribute('data-fx-ref-fill', ds.backgroundColor);
+                  }
+                  const br = base.getBoundingClientRect();
+                  const dr = d.getBoundingClientRect();
+                  if (Math.abs(br.width - dr.width) > 1 || Math.abs(br.height - dr.height) > 1) {
+                    d.setAttribute(
+                      'data-fx-ref-size',
+                      Math.round(dr.width * 100) / 100 + ',' + Math.round(dr.height * 100) / 100,
+                    );
+                  }
+                }
+              }
               hit++;
             }
             if (!hit) missed.push(`${def.key} contains ${sel} — matched nothing`);

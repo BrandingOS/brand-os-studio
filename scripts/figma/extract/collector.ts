@@ -180,6 +180,8 @@ export const COLLECTOR_SRC = String.raw`
               ref: child.getAttribute('data-fx-ref'),
               refVariant: child.getAttribute('data-fx-ref-variant') || '',
               refText: child.getAttribute('data-fx-ref-text') || '',
+              refFill: child.getAttribute('data-fx-ref-fill') || '',
+              refSize: child.getAttribute('data-fx-ref-size') || '',
             },
             aria: {},
             // Enough style to place the instance; its INSIDES belong to the
@@ -190,6 +192,12 @@ export const COLLECTOR_SRC = String.raw`
               'flex-grow': rcs.getPropertyValue('flex-grow'),
               'flex-shrink': rcs.getPropertyValue('flex-shrink'),
               'flex-basis': rcs.getPropertyValue('flex-basis'),
+              // The instance's own margins, because a uniform negative one is
+              // how the parent stacks its children — and the 32 swatches of the
+              // neutral ramp are all instances, so reading it only on
+              // non-reference children would miss every case that matters.
+              'margin-left': rcs.getPropertyValue('margin-left'),
+              'margin-top': rcs.getPropertyValue('margin-top'),
               width: rcs.width,
               height: rcs.height,
               declaredWidth: '',

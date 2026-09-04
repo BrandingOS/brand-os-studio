@@ -20,8 +20,10 @@ Every claim below is tagged with what kind of claim it is:
 
 ## 0. Current state — audited, not reported
 
-The tracking documents were behind and in two places **wrong**. This is the live
-truth, read back from Figma on 2026-09-04.
+The tracking documents were behind and in two places **wrong**. The table below
+is the audit **as it stood when this contract was written**; it is a record of
+why the plan changed, not a current ledger. The current ledger is
+`PAGE-POPULATION.md`, which is rewritten from a live read-back every round.
 
 | Page | Direct children | Deep nodes | Instances |
 |---|---|---|---|
@@ -146,6 +148,49 @@ Learned the hard way, both now enforced by the walker and by assertions:
 - **[DSR]** No blind cartesian product. `DsButton` went 76 declared cells → 38
   (arrow became a BOOLEAN property) → 28 (measured dedup of *truly* redundant
   cells). Every collapse is recorded.
+
+### 3a. What may be a component at all [DSR — added after the parity round]
+
+- **A container whose CHILD COUNT is data is not a component; its repeated unit
+  is.** Core Colors holds 2 swatches and Neutral Colors holds 32, and a
+  component's children are fixed — so instancing the group painted the 32-step
+  neutral ramp as a copy of Core's two. The swatch is the component; the row
+  around it is layout. `pattern/colors-group` stays in the library as the Core
+  row it was measured from, and the screen does not instance it.
+- **Shared markup is not shared meaning.** The three `.type-col` columns share a
+  base class and nothing else: the identity column sets its second line in the
+  specimen face at 52px, the weight and example columns set theirs at 16. Built
+  as one component the other two inherited the specimen's size and their text
+  was drawn at 52px and clipped. Three columns, three variants — the class name
+  was not evidence.
+
+### 3b. CSS the converter must TRANSLATE, not copy [LIMIT]
+
+Each of these cost a visibly wrong screen before it was found. They are properties
+whose Figma meaning differs from their CSS meaning, so reading the value and
+setting the same-named field produces something that looks plausible and is wrong.
+
+| CSS | Figma | What went wrong without it |
+|---|---|---|
+| `flex-wrap: wrap` | `layoutWrap` | The board collapsed into one narrow overlapping column |
+| `width:100%` inside a WRAP row | **FIXED**, not FILL | Several FILL children share a line in Figma, so the seven full-width sections came out 76px wide side by side |
+| `flex: 1` on the PRIMARY axis of a hugging parent | leave it hugging | The rail's list said `height: fill` inside a hugging column and Figma squashed it to 356 instead of 483, clipping two rows |
+| uniform negative `margin-left` between siblings | negative `itemSpacing` | The 32-step neutral ramp laid out 5,056px wide instead of overlapping into 1,044 |
+| `position: absolute` child of a flex row | `layoutPositioning = 'ABSOLUTE'` | The nav's sliding pill joined the flow as a 63px empty box and pushed every tab along in front of it |
+| `order` | sort the children | Website painted 6th instead of last |
+| `text-transform` | `textCase` | Eyebrows lost their capitals |
+| `color(srgb …)` | parse it | Unparsed it fell back to black and painted a black border |
+| a form control's value | read `value \|\| placeholder` | Every input was empty |
+- **[LIMIT]** An INSTANCE may override its own `fills` and its own SIZE without
+  detaching, and some patterns need both: a colour swatch's colour and its width
+  ARE the content. Those overrides are carried only where they DIFFER from the
+  component's own measurement, so an ordinary instance still carries neither.
+- **[LIMIT]** A variant override cannot be applied during the build phase — the
+  variants are still loose components with no variant properties, so
+  `setProperties` throws and the instance silently keeps whichever variant was
+  indexed first (alphabetically). The variant sid is derivable, so the right
+  component is resolved directly and `setProperties` runs only once the set
+  exists. Before this fix the section rail was seven copies of the EMPTY row.
 
 ---
 

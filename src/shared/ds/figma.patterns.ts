@@ -145,7 +145,13 @@ export const FX_SCREENS: readonly FxPattern[] = [
       '.panel': 'pattern/section-rail',
       '.brand-field': 'pattern/brand-field',
       '.logo-tile': 'pattern/logo-tile',
-      '.colors-group': 'pattern/colors-group',
+      // The SWATCH, not the group. Core holds 2 swatches and Neutral holds 32,
+      // and a component's children are fixed — instancing the group painted the
+      // 32-step neutral ramp as a copy of Core's two. Child count that comes
+      // from data is not a variant; the repeated unit is what may be a
+      // component, and the row around it is layout. `pattern/colors-group`
+      // stays in the library as the Core row it was measured from.
+      '.swatch': 'pattern/color-swatch',
       '.type-col': 'pattern/type-specimen-col',
       '.icon-tile': 'pattern/icon-tile',
       '.about-card': 'pattern/about-card',
@@ -301,6 +307,12 @@ export const FX_PATTERNS: readonly FxPattern[] = [
       { role: 'plain', state: 'hover' },
     ],
     pseudo: ['default', 'default', 'hover', 'hover'],
+    // Only `role` can be read from the markup. `state` is a pseudo-class, which
+    // a static page cannot be in, so every placed swatch is the resting one.
+    variantBy: {
+      role: { when: [{ selector: '.is-primary', value: 'primary' }], else: 'plain' },
+      state: { when: [], else: 'default' },
+    },
     roles: {
       '.swatch-name': 'name',
       '.swatch-hex': 'hex',
@@ -321,20 +333,38 @@ export const FX_PATTERNS: readonly FxPattern[] = [
       '.cp-expand': 'expand',
     },
     contains: { '.swatch': 'pattern/color-swatch' },
-    because: 'Titled, wrapping swatch row; repeats for Core and Neutral.',
+    because:
+      'Titled swatch row, captured at Core. LIBRARY ONLY — the Setup screen does not '
+      + 'instance it, because Neutral holds 32 swatches to Core\'s 2 and a component '
+      + 'cannot vary its child count. See the screen manifest.',
   },
   {
     key: 'type-specimen-col',
     sid: 'pattern/type-specimen-col',
     route: '/b/brandingos/setup',
     selector: '.type-col',
-    at: [0],
+    // THREE columns, not one repeated three times. They share `.type-col` and
+    // nothing else: the identity column sets its second line in the specimen
+    // typeface at 48px, the weight and example columns set theirs at 13. Built
+    // as one component, the two of them inherited the specimen's display size
+    // and "The professional standard" was drawn at 48px and clipped.
+    at: [0, 1, 2],
+    axes: [{ role: 'identity' }, { role: 'weights' }, { role: 'examples' }],
+    variantBy: {
+      role: {
+        when: [
+          { selector: '.type-col--weights', value: 'weights' },
+          { selector: '.type-col--examples', value: 'examples' },
+        ],
+        else: 'identity',
+      },
+    },
     roles: {
       '.type-name': 'name',
       '.type-glyphs': 'glyphs',
       '.type-list': 'list',
     },
-    because: '6 occurrences; one per typeface role.',
+    because: '6 occurrences — 2 each of 3 genuinely different columns.',
   },
   {
     key: 'icon-tile',

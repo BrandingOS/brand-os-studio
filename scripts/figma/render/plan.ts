@@ -49,7 +49,12 @@ export interface PlanNode {
   /** Offset inside an absolutely-laid-out parent. See IRNode.pos. */
   pos?: { x: number; y: number };
   /** What this instance overrides on its component. See IRNode.overrides. */
-  ov?: { variant?: Record<string, string>; texts?: string[] };
+  ov?: {
+    variant?: Record<string, string>;
+    texts?: string[];
+    fill?: PlanPaint;
+    size?: { w: number; h: number };
+  };
   children: PlanNode[];
 }
 
@@ -137,7 +142,10 @@ function toPlanNode(n: IRNode): PlanNode {
   if (n.vector) out.svg = n.vector.svg;
   if (n.semantic?.instanceOf) out.ref = n.semantic.instanceOf;
   if (n.pos) out.pos = n.pos;
-  if (n.overrides) out.ov = n.overrides;
+  if (n.overrides) {
+    const { fill, ...rest } = n.overrides;
+    out.ov = { ...rest, ...(fill ? { fill: toPlanPaint(fill) } : {}) };
+  }
   return out;
 }
 

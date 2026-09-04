@@ -11,7 +11,11 @@
 /** The computed properties the collector reads. Kept explicit so the cost is visible. */
 export const COLLECTED_PROPS = [
   'display', 'position', 'flex-direction', 'flex-wrap', 'gap', 'row-gap', 'column-gap',
-  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis',
+  // Read for ONE reason: a uniform NEGATIVE margin between flex siblings is how
+  // the product draws an overlapping stack (the 32-step neutral ramp), and Figma
+  // expresses exactly that as a negative itemSpacing. See deriveLayout.
+  'margin-left', 'margin-top',
+  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis', 'order',
   'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
   'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
   'background-color', 'color', 'opacity', 'overflow',
@@ -20,7 +24,7 @@ export const COLLECTED_PROPS = [
   'border-top-left-radius', 'border-top-right-radius',
   'border-bottom-right-radius', 'border-bottom-left-radius',
   'box-shadow', 'font-family', 'font-size', 'font-weight',
-  'line-height', 'letter-spacing', 'text-align', 'direction',
+  'line-height', 'letter-spacing', 'text-align', 'direction', 'text-transform',
   'transform', 'visibility',
 ] as const;
 

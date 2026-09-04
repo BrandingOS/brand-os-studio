@@ -165,8 +165,19 @@ export interface IRNode {
    * What an INSTANCE overrides on the component it points at: which variant it
    * is, and the words it shows. `texts` is in document order, matching the order
    * the renderer walks the instance's own text nodes.
+   *
+   * `fill` and `size` are the two things a component decides for its instances
+   * that some patterns must decide per occurrence, because there the value IS
+   * the content: a colour swatch's colour, and the width of the primary swatch
+   * against a neutral ramp step. Both are recorded only when they differ from
+   * the component's own measurement, so an ordinary instance carries neither.
    */
-  overrides?: { variant?: Record<string, string>; texts?: string[] };
+  overrides?: {
+    variant?: Record<string, string>;
+    texts?: string[];
+    fill?: IRPaint;
+    size?: { w: number; h: number };
+  };
   style: {
     fills: IRPaint[];
     strokes: IRPaint[];

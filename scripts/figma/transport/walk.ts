@@ -309,7 +309,27 @@ async function runPlan(plan) {
     // An INSTANCE of an already-built component. Composition, not copying:
     // editing the swatch must change every palette made of swatches.
     if (spec.ref) {
-      const main = componentBySid[spec.ref];
+      /**
+       * Resolve the VARIANT, not just the family.
+       *
+       * A container references a pattern by its base sid and names the variant
+       * in `ov.variant` — but during the build phase the variants are still
+       * loose components with no variant properties, so `setProperties` throws
+       * and every instance silently keeps whichever variant happened to be
+       * indexed first. That is how the section rail came out as seven copies of
+       * the EMPTY row: alphabetically `empty` precedes `filled`.
+       *
+       * The variant sid is derivable, and `componentBySid` holds each variant
+       * under it, so the right component can be picked directly. `setProperties`
+       * is then only for a set that genuinely exists.
+       */
+      let main = componentBySid[spec.ref];
+      if (spec.ov && spec.ov.variant) {
+        const keys = Object.keys(spec.ov.variant).sort();
+        const exact = spec.ref + '['
+          + keys.map(function (k) { return k + '=' + spec.ov.variant[k]; }).join(',') + ']';
+        if (componentBySid[exact]) main = componentBySid[exact];
+      }
       if (!main) {
         report.errors.push('no component for ref ' + spec.ref + ' at ' + spec.sid);
         // A placeholder frame keeps the parent's layout honest and makes the
@@ -328,7 +348,11 @@ async function runPlan(plan) {
       // shows. Without them every rail row is the component's default and the
       // rail reads "Website" seven times — structurally correct and a picture
       // of something the product never shows.
-      if (spec.ov && spec.ov.variant) {
+      // Only meaningful once the set exists. Before combine the instance is
+      // already the right variant by construction (above), and calling this on
+      // a loose component throws.
+      if (spec.ov && spec.ov.variant
+          && main.parent && main.parent.type === 'COMPONENT_SET') {
         try { node.setProperties(spec.ov.variant); }
         catch (e) { report.errors.push('variant on ' + spec.sid + ': ' + e); }
       }
@@ -349,6 +373,16 @@ async function runPlan(plan) {
             targets[i].characters = spec.ov.texts[i];
           } catch (e) { report.errors.push('text on ' + spec.sid + '#' + i + ': ' + e); }
         }
+      }
+      // The two things a component decides that some patterns must decide per
+      // occurrence, because there the value IS the content: a colour swatch's
+      // colour, and the primary swatch's 626px against a ramp step's 158. Both
+      // are ordinary instance overrides — nothing detaches. The size is applied
+      // in `place()` alongside the FIXED sizing mode, because a resize before
+      // the node is parented is overwritten by auto-layout.
+      if (spec.ov && spec.ov.fill) {
+        try { node.fills = [paint(spec.ov.fill)]; }
+        catch (e) { report.errors.push('fill on ' + spec.sid + ': ' + e); }
       }
       stamp(node, spec.sid);
       return node;
@@ -387,8 +421,27 @@ async function runPlan(plan) {
       for (const child of (spec.children||[])) {
         const built = build(child, false);
         node.appendChild(built);
+        /**
+         * A child that is `position: absolute` is out of its parent's flow even
+         * when that parent is a flex row, and Figma says so with
+         * `layoutPositioning`. Appended into the flow instead, the segmented
+         * nav's sliding pill became a 63px empty box that pushed Setup, Brand
+         * Kit, Guideline, Design and Tools along in front of it.
+         *
+         * It must be set BEFORE any sizing below: FILL is rejected on an
+         * absolutely-positioned child, and the offsets are overwritten the
+         * moment the node re-enters the flow.
+         */
+        const outOfFlow = spec.layout && spec.layout.mode === 'auto' && child.pos;
+        if (outOfFlow) {
+          try {
+            built.layoutPositioning = 'ABSOLUTE';
+            built.x = child.pos.x;
+            built.y = child.pos.y;
+          } catch (e) { report.errors.push('absolute on ' + child.sid + ': ' + e); }
+        }
         // hug/fill can only be set once the node has an auto-layout parent.
-        if (spec.layout && spec.layout.mode === 'auto') {
+        if (!outOfFlow && spec.layout && spec.layout.mode === 'auto') {
           /**
            * FILL means something different inside a WRAP container.
            *
@@ -429,6 +482,24 @@ async function runPlan(plan) {
           // is appended at the origin and stacks on the first.
           built.x = child.pos.x;
           built.y = child.pos.y;
+        }
+        /**
+         * An instance that is genuinely a different SIZE from its component.
+         *
+         * Applied last, and only here: a resize before the node is parented is
+         * overwritten the moment auto-layout runs, and setting FIXED requires
+         * the auto-layout parent to already exist. The colour swatches are the
+         * case — one component, 34 occurrences, the primary 626px wide against
+         * a neutral ramp step's 158.
+         */
+        if (child.ov && child.ov.size) {
+          try {
+            if (spec.layout && spec.layout.mode === 'auto') {
+              built.layoutSizingHorizontal = 'FIXED';
+              built.layoutSizingVertical = 'FIXED';
+            }
+            built.resize(Math.max(child.ov.size.w, 0.01), Math.max(child.ov.size.h, 0.01));
+          } catch (e) { report.errors.push('size on ' + child.sid + ': ' + e); }
         }
       }
       // A childless frame has nothing to hug, so it must be sized explicitly or
