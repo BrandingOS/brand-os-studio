@@ -333,6 +333,20 @@ async function runPlan(plan) {
       if (!isAuto && spec.sizing && spec.sizing.w) {
         node.layoutMode = 'NONE';
         node.resize(Math.max(spec.sizing.w, 0.01), Math.max(spec.sizing.h, 0.01));
+      } else if (isAuto && spec.sizing && (spec.fixW || spec.fixH)) {
+        // An auto-layout frame HUGS unless told otherwise, so a measured width
+        // alone changes nothing: section-add hugged its 15px icon instead of
+        // being the 30px square it ships as, and the colours group hugged to
+        // 178 instead of 1044. Per AXIS, because a fixed width very often pairs
+        // with a height that must still grow with its content.
+        if (spec.fixW) {
+          node.layoutSizingHorizontal = 'FIXED';
+          node.resize(Math.max(spec.sizing.w, 0.01), node.height);
+        }
+        if (spec.fixH) {
+          node.layoutSizingVertical = 'FIXED';
+          node.resize(node.width, Math.max(spec.sizing.h, 0.01));
+        }
       }
       // min/max width exist only inside an auto-layout context. CSS has no such
       // rule, so a measured max-width can land on a node whose parent is

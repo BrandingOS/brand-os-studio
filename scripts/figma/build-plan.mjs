@@ -148,7 +148,7 @@ fs.writeFileSync(
  * omitted fields specifically so this is safe — the compaction and that
  * tolerance are one change in two places.
  */
-function compact(node) {
+function compact(node, isRoot = false) {
   const out = { sid: node.sid, name: node.name, kind: node.kind };
   if (node.layout?.mode === 'auto') out.layout = node.layout;   // absolute is the default
   // A node with no children has no intrinsic size in Figma, so it MUST carry
@@ -162,8 +162,17 @@ function compact(node) {
   // the workspace top bar, the icon tile and the logo tile all came out as
   // identical small squares.
   const absolute = node.layout?.mode !== 'auto';
-  const needsSize = leaf || absolute
-    || node.sizing?.width === 'fixed' || node.sizing?.height === 'fixed';
+  /**
+   * A pattern ROOT always takes its measured size.
+   *
+   * `brand-field` hugs to 69px on its own, because its real 510px width comes
+   * from the grid cell it sits in — true of the CSS and useless as a component,
+   * since a fill child then collapses with it. What a designer must see is the
+   * thing as it ships, at the width it was measured at.
+   */
+  const fixW = isRoot || node.sizing?.width === 'fixed';
+  const fixH = node.sizing?.height === 'fixed';
+  const needsSize = leaf || absolute || fixW || fixH;
   if (node.sizing?.width === 'fill' || node.sizing?.height === 'fill'
       || node.sizing?.minW || node.sizing?.maxW || needsSize) {
     out.sizing = {};
@@ -173,6 +182,12 @@ function compact(node) {
     if (node.sizing.maxW) out.sizing.maxW = node.sizing.maxW;
     if (needsSize) { out.sizing.w = node.sizing.w; out.sizing.h = node.sizing.h; }
   }
+  // An auto-layout frame HUGS unless told otherwise, so a measured width means
+  // nothing to the walker without the intent beside it. Without these, the
+  // section-add affordance hugged its 15px icon instead of being the 30px
+  // square it ships as, and the colours group hugged to 178 instead of 1044.
+  if (fixW) out.fixW = true;
+  if (fixH) out.fixH = true;
   if (node.fills?.length) out.fills = node.fills;
   if (node.strokes?.length) out.strokes = node.strokes;
   if (node.sw) out.sw = node.sw;
@@ -210,7 +225,7 @@ const wirePlan = {
   ...plan,
   sets: plan.sets.map((s) => ({
     ...s,
-    variants: s.variants.map((v) => ({ ...v, node: compact(v.node) })),
+    variants: s.variants.map((v) => ({ ...v, node: compact(v.node, true) })),
   })),
 };
 
