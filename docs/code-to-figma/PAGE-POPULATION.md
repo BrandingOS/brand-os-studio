@@ -1,52 +1,100 @@
-# Page population ledger
+# Page population — read back from Figma
 
-The non-empty page invariant: no required page is marked complete while it holds
-only a title, an empty frame, a placeholder, or scaffolding. Every row is filled
-from a live Figma read-back, never from intent.
+**File:** https://www.figma.com/design/ZTR7jwR1cvjYvs0N9kuHCX
+**Read back:** 2026-09-04, in the same session as the work it describes.
 
-**File:** `ZTR7jwR1cvjYvs0N9kuHCX` (Brand OS, pro) ·
-https://www.figma.com/design/ZTR7jwR1cvjYvs0N9kuHCX
+> This document is written ONLY from a live read-back, never from what a build
+> reported. Two artifacts were once recorded here as verified and later found to
+> be absent, so "the run said it created it" is not evidence that it is there.
 
-| Page | id | Expected | Generated | Root node ids | Components / variants / instances | Visual | Structural | Status |
-|---|---|---|---|---|---|---|---|---|
-| 00 — Cover & Usage | `0:1` | usage doc | — | — | — | — | — | **empty** |
-| 01 — Foundations | `1:2` | colours, spacing, radii, type, effects, grids, a11y | 8 sections | `27:2` | 31 colour vars · 15 float vars · 4 effect styles · 4 text styles | ✅ screenshot | ✅ read-back | **complete** |
-| 02 — Icons | `1:3` | 7 audited icons as vector components | 7 | `30:2` | 7 components / 7 instances, all connected | ✅ screenshot | ✅ read-back | **complete** |
-| 03 — Components | `1:4` | ~30 audited DS components | **20** | labelled column | 14 sets + 6 components · **75 variants** · 0 strays | ✅ screenshot | ✅ read-back | **in progress** |
-| 04 — Patterns & Navigation | `1:5` | shell, nav, rail, headers | — | — | — | — | — | **empty** |
-| 10 — Setup | `1:6` | 8 sections × states | 1 capture | `35:2` | 721 nodes · 166 text · 68 vector · 442 auto-layout | ✅ screenshot | ✅ read-back | **in progress** (captured + repaired; needs instance reconciliation) |
-| 11 — Brand Kit | `1:7` | 8 sections, browsing states | — | — | — | — | — | **empty** |
-| 12 — Brand Kit Editors | `1:8` | editor families | — | — | — | — | — | **empty** |
-| 13 — Design | `1:9` | launchpad + editor shell | — | — | — | — | — | **empty** |
-| 90 — Component State Matrix | `1:10` | full state matrix | — | — | — | — | — | **empty** |
-| 91 — Responsive & RTL Tests | `1:11` | breakpoints, long text, Arabic | — | — | — | — | — | **empty** |
-| 98 — Visual Parity | `1:12` | browser/Figma evidence | — | — | — | — | — | **empty** |
-| 99 — QA, Losses & Generation | `1:13` | QA + losses + report | — | — | — | — | — | **empty** |
-
-## Page 03 — detail
-
-| sid | Node | Type | Variants | Properties | Coverage entries satisfied |
+| Page | Direct | Deep | Instances | Detached | State |
 |---|---|---|---|---|---|
-| `ds/menu` | `8:54` | `COMPONENT_SET` | 2 | `state` = default \| hover | DsMenu, DsMenuItem, DsMenuDivider |
-| `ds/button` | `24:34` | `COMPONENT_SET` | 28 | `arrow` (BOOLEAN, default false) · `size` = md \| sm · `state` = active \| default \| disabled \| focus-visible \| hover · `tone` = danger \| primary \| secondary \| tertiary | DsButton |
+| 00 — Cover & Usage | 0 | — | — | — | empty |
+| 01 — Foundations | 1 | 314 | 0 | — | tokens board |
+| 02 — Icons | 7 | 16 | 0 | — | 7 icon components |
+| 03 — Components | 20 | 340 | 0 | — | 15 sets + 5 components |
+| **04 — Patterns & Navigation** | **14** | **324** | **10** | **0** | **complete** |
+| 10 — Setup | 0 | — | — | — | **empty — the pilot screen** |
+| 11 — Brand Kit | 0 | — | — | — | not started |
+| 12 — Brand Kit Editors | 0 | — | — | — | not started |
+| 13 — Design | 0 | — | — | — | not started |
+| 90 — Component State Matrix | 0 | — | — | — | not started |
+| 91 — Responsive & RTL Tests | 0 | — | — | — | not started |
+| 98 — Visual Parity | 1 | 721 | — | — | the labelled reference capture |
+| 99 — QA, Losses & Generation Report | 0 | — | — | — | not started |
 
-**Variables:** one `BrandingOS` collection, **31 colour variables**, real `Light`
-and `Dark` modes. Verified bound: `ds/button` fills resolve to
-`VARIABLE_ALIAS → VariableID:8:5`.
+**Variables:** `BrandingOS` — Light + Dark, 31 colour variables ·
+`Shape & Space` — 1 mode, 15 floats.
+**Styles:** 4 text, 4 effect, 0 paint.
+**Installed walker:** 17,402 bytes, matching `scripts/figma/.plans/_walker.meta.json`.
 
-### DsButton benchmark
+---
 
-| Metric | Value |
-|---|---|
-| Declared cells | 76 (4 tone × 2 size × 5 state × 2 arrow) |
-| After `arrow` → BOOLEAN property | 38 |
-| After `sparse` (no `tertiary:active` rule) | 38 |
-| After measured deduplication | **28** (10 collapsed) |
-| Generation | 3 build calls + 1 combine, all under the 50k cap |
-| Payload | 14.5KB + 11.5KB + 9.6KB + 0.5KB |
-| Bound paints / unbound literals | 66 / 6 |
-| Instance usability | 4 properties; `arrow` is a toggle, not a list |
+## Page 04 — the product pattern layer
 
-The 6 unbound literals are the primary button's resting and hover shadows, which
-are **hardcoded in `components.css`** rather than tokenised — a real finding for
-`LOSSES.md`, not a pipeline defect.
+14 patterns: **11 plain components + 3 component sets** carrying real variant
+properties. 324 nodes. **10 instances, 0 detached, 0 unresolved.**
+
+| Pattern | Type | Size | Variant properties |
+|---|---|---|---|
+| `pattern/workspace-topbar` | COMPONENT | 1440 × 73 | — |
+| `pattern/segmented-nav` | COMPONENT | 376 × 41 | — |
+| `pattern/section-rail` | COMPONENT | 256 × 356 | — |
+| `pattern/rail-row` | COMPONENT_SET | 1400 × 131 | `state` |
+| `pattern/setup-section` | COMPONENT_SET | 1400 × 466 | `width` |
+| `pattern/section-add` | COMPONENT | 30 × 30 | — |
+| `pattern/brand-field` | COMPONENT | 510 × 65 | — |
+| `pattern/logo-tile` | COMPONENT | 130 × 130 | — |
+| `pattern/color-swatch` | COMPONENT_SET | 1400 × 479 | `role`, `state` |
+| `pattern/colors-group` | COMPONENT | 1044 × 193 | — |
+| `pattern/type-specimen-col` | COMPONENT | 408 × 133 | — |
+| `pattern/icon-tile` | COMPONENT | 86 × 86 | — |
+| `pattern/about-card` | COMPONENT | 514 × 76 | — |
+| `pattern/preview-card` | COMPONENT | 56 × 64 | — |
+
+### Composition, verified
+
+| Container | Instances of | Count |
+|---|---|---|
+| `pattern/section-rail` | `pattern/rail-row` | 7 |
+| `pattern/colors-group` | `pattern/color-swatch` | 2 |
+| `pattern/workspace-topbar` | `pattern/segmented-nav` | 1 |
+
+Each of the seven rail rows carries its own variant and its own words —
+Brand · Logo · Color · Typography · Iconography · Brand Strategy (all
+`state=filled`) and Website (`state=empty`) — rather than seven copies of the
+component's default.
+
+**Token binding:** 65 fills bound to variables, 88 literal. The literals are
+alpha-composited values (`rgba(255,255,255,0.96)` over the brand colour, shadow
+colours) that no `--ds-*` token defines. That ratio is a fact to improve, not a
+target to hit by binding things to the wrong token.
+
+### Verified visually
+- The top bar reads correctly end to end: brand switcher, five-item nav with the
+  sliding pill, "Rebrand with AI", "Brand Identity →", theme toggle.
+- The rail reads correctly: eyebrow, brand name in Instrument Serif, the
+  completion meter at 6/7, and seven distinct rows with their check marks.
+
+---
+
+## Known gaps on page 04
+
+| # | Gap | Kind |
+|---|---|---|
+| 1 | Every rail row shows the SAME thumbnail (the typography "Aa" glyph). The product draws a different icon per section. Needs an INSTANCE_SWAP property; text overrides cannot carry artwork. | modelling gap |
+| 2 | `pattern/setup-section[width=narrow]`'s border is `color(srgb …)`, a modern CSS colour function the walker cannot parse, so it paints black. | pipeline defect |
+| 3 | `pattern/preview-card/img` loses its `max-width`: Figma allows min/max size only inside an auto-layout context. Recorded, non-fatal. | Figma limitation |
+| 4 | `pattern/icon-tile` renders an empty tile — the product draws its glyph with an icon FONT, which has no geometry to capture. | known limitation |
+| 5 | `setup-section` embeds `brand-field` inline rather than instancing it; the containment is not declared yet. | modelling gap |
+
+---
+
+## What page 10 needs next
+
+The Setup screen is assembled from what page 04 now provides. Per the
+composition map, the screen resolves to: 1 `workspace-topbar`, 1 `section-rail`,
+7 `setup-section`, and inside them `brand-field` ×2, `logo-tile` ×3,
+`colors-group` ×2 with `color-swatch` ×34, `type-specimen-col` ×6,
+`icon-tile` ×60, `about-card` ×7 — plus the justified raw frames named in the
+map (`shell`, `board-wrap`, `board-head`, and the per-section body containers).
