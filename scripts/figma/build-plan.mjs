@@ -254,7 +254,14 @@ const chunks = [];
  * A function DECLARATION inside eval does not leak, so the stored source is
  * wrapped as an expression and returned.
  */
-const LEAN_PREFIX = (page) => `const _p=figma.root.children.find(p=>p.name===${JSON.stringify(page)});await figma.setCurrentPageAsync(_p);
+// The page is matched on its NUMBER, not its title. Titles are the one thing a
+// designer is free to reword — "04 — Patterns" became "04 — Patterns &
+// Navigation" and an exact match threw inside setCurrentPageAsync with a
+// message that named neither the page nor the plan.
+const LEAN_PREFIX = (page) => `const _n=${JSON.stringify(String(page).trim().split(/[^0-9]/)[0])};
+const _p=figma.root.children.find(p=>p.name.trim().split(/[^0-9]/)[0]===_n);
+if(!_p)throw new Error('no page numbered '+_n+'; have: '+figma.root.children.map(p=>p.name).join(' | '));
+await figma.setCurrentPageAsync(_p);
 const _s=figma.root.getSharedPluginData('brandingos','walker');
 if(_s.length!==${walker.length})throw new Error('stale walker: installed '+_s.length+' bytes, this plan was built for ${walker.length}. Reinstall scripts/figma/.plans/_walker.js');
 const runPlan=new Function('return ('+_s.replace('async function runPlan','async function')+')')();

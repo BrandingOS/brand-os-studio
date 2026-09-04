@@ -228,20 +228,25 @@ async function runPlan(plan) {
    * already been loaded by its own build call in the same session.
    */
   const componentBySid = {};
-  (function indexComponents() {
-    // A variant's sid is "base[axis=value]". Registering the BASE too is what
-    // makes a reference to the SET resolve while its variants are still loose
-    // components from an earlier build chunk — which is the normal case, since
-    // a container is built before anything has been combined.
-    function put(sid, node) {
-      if (!sid) return;
-      if (!componentBySid[sid]) componentBySid[sid] = node;
-      const bracket = sid.indexOf('[');
-      if (bracket > 0) {
-        const base = sid.slice(0, bracket);
-        if (!componentBySid[base]) componentBySid[base] = node;
-      }
+  // A variant's sid is "base[axis=value]". Registering the BASE too is what
+  // makes a reference to the SET resolve while its variants are still loose
+  // components from an earlier build chunk — which is the normal case, since
+  // a container is built before anything has been combined.
+  //
+  // Declared OUTSIDE the indexing pass because the build loop calls it as well:
+  // a container and the component it instantiates are usually in the SAME chunk
+  // (colors-group beside color-swatch), and an index taken once on entry does
+  // not contain anything this run is about to create.
+  function put(sid, node) {
+    if (!sid) return;
+    if (!componentBySid[sid]) componentBySid[sid] = node;
+    const bracket = sid.indexOf('[');
+    if (bracket > 0) {
+      const base = sid.slice(0, bracket);
+      if (!componentBySid[base]) componentBySid[base] = node;
     }
+  }
+  (function indexComponents() {
     for (const p of figma.root.children) {
       for (const n of p.children) {
         const sid = n.getSharedPluginData('brandingos', 'sid');
@@ -468,6 +473,9 @@ async function runPlan(plan) {
       // THE naming contract: Figma parses "k=v, k=v" into variant properties.
       c.name = variant.name;
       page.appendChild(c);
+      // Available to any container built LATER IN THIS SAME RUN. Without it,
+      // colors-group could not instantiate the color-swatch standing beside it.
+      put(variant.sid, c);
       components.push(c);
     }
 
