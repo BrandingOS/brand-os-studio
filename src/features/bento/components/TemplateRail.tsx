@@ -4,6 +4,8 @@ import { DsInput } from '@/shared/ds';
 import { TEMPLATES } from '../templates';
 
 interface Props {
+  /** Named in the header, exactly as every other Studio sidebar names it. */
+  brandName: string;
   selectedId: string;
   onSelect: (id: string) => void;
 }
@@ -13,6 +15,11 @@ interface Props {
  * communicate the GEOMETRY of each template, letting the actual brand content
  * speak through the artboard on the right.
  *
+ * The header is the one every Studio sidebar carries — an eyebrow naming the
+ * panel over the brand's name set in the serif — so this rail and
+ * SetupSidebar / ToolsSidebar are visibly the same furniture. It used to show
+ * the eyebrow alone, which is the half that says the least.
+ *
  * The markup is the workspace shell's own panel vocabulary — `.panel`,
  * `.panel-top`, `.panel-heading`, `.panel-list`, and a row of
  * `.panel-item > .panel-item-body > .panel-item-thumb + .panel-item-meta` —
@@ -20,7 +27,7 @@ interface Props {
  * Those rules live under `[data-workspace]`, which the editor root sets. Only
  * the thumbnail's grid is Bento's own, because no other panel draws one.
  */
-export function TemplateRail({ selectedId, onSelect }: Props) {
+export function TemplateRail({ brandName, selectedId, onSelect }: Props) {
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -33,6 +40,7 @@ export function TemplateRail({ selectedId, onSelect }: Props) {
       <div className="panel-top">
         <div className="panel-heading">
           <span className="panel-heading-eyebrow">Templates</span>
+          <h1 className="panel-heading-title">{brandName}</h1>
         </div>
         <div className="bento-search">
           <Search size={14} className="bento-search-icon" aria-hidden />

@@ -15,12 +15,28 @@
  *
  * The chrome is the workspace shell's own panel vocabulary — `.panel`,
  * `.panel-top`, `.panel-heading` — the same one SetupSidebar, ToolsSidebar and
- * the Guideline builder are built from.
+ * the Guideline builder are built from, and the header follows the Brand Kit
+ * card editor's customise rail: the eyebrow says what the panel is, the title
+ * says what you are editing. A bare segmented control said neither.
  */
+
+const KIND_NAME: Record<TileKind, string> = {
+  logo: 'Logo',
+  color: 'Colour',
+  gradient: 'Gradient',
+  typography: 'Typography',
+  'voice-quote': 'Voice / Quote',
+  'asset-image': 'Brand asset',
+  'user-image': 'Uploaded image',
+  text: 'Text',
+  pattern: 'Pattern',
+  stat: 'Stat',
+  empty: 'Empty',
+};
 import { useEffect, useRef, useState } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { DsSegmented } from '@/shared/ds';
-import type { BentoTile } from '../types';
+import type { BentoTile, TileKind } from '../types';
 import { TileInspector } from './TileInspector';
 import { DocumentPanel } from './DocumentPanel';
 
@@ -46,9 +62,16 @@ export function BentoInspector({
   }, [tile]);
 
   return (
-    <aside className="panel bento-inspector" aria-label="Properties">
+    <aside className="panel bento-inspector" aria-label="Customize">
       <div className="panel-top">
+        <div className="panel-heading">
+          <span className="panel-heading-eyebrow">Customize</span>
+          <h2 className="panel-heading-title">
+            {subject === 'document' ? 'Canvas' : tile ? KIND_NAME[tile.kind] : 'No tile selected'}
+          </h2>
+        </div>
         <DsSegmented
+          aria-label="What to customize"
           value={subject}
           onChange={(v) => setSubject(v as Subject)}
           options={[

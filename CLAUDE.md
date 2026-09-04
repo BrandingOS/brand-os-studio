@@ -1736,6 +1736,31 @@ Rules that bind:
   theme scope. A panel needs no popover; if a second surface ever genuinely
   needs one, it is a DS decision, not a feature-local reimplementation of
   Escape, click-outside and focus return.
+- **Both panels carry the canonical named header** — `.panel-heading-eyebrow`
+  over `.panel-heading-title`, exactly as `ToolsSidebar` puts "Tools" over the
+  brand's name. Templates is eyebrow + BRAND; the properties panel is
+  "Customize" over what you are editing ("Canvas", or the tile's kind). An
+  eyebrow alone, or a bare segmented control, names nothing. Group heads follow
+  the Brand Kit card editor's customise rail — a real title, an optional hint,
+  and a Reset that appears only once there is something to reset — written in
+  `--ds-*` rather than importing that feature's `--bke-*` register.
+- **Export ASKS first** (`components/BentoExportDialog.tsx`), the same shape as
+  `ExportKitDialog`: state what will be produced, let it be changed, price it,
+  then the button. It used to fire a single 1080px PNG at the download folder
+  with a toast — no format, no resolution, no transparent option, nothing said
+  beforehand. `scale` multiplies html2canvas's own scale rather than the
+  width/height it is given: the artboard's geometry is authored against the
+  preset size, so doubling the BOX re-lays-out the grid at 2160px and changes
+  the composition.
+- **`brandColors` in `shuffle.ts` is the one answer to "what may this bento be
+  painted in", and it extends a short brand along its OWN ramp.** It used to
+  pad from `ACCENT_COLORS` — indigo, violet, pink, orange — and most brands
+  record a primary and little else, so most bentos came out in colours the
+  brand does not own next to a logo it does: measured on Raqm (#C8102E), the
+  canvas was violet gradients and a hot-pink chequerboard. `controls.buildPalette`
+  reads the same function, so the swatches the panel OFFERS and the colours the
+  canvas DRAWS cannot disagree. `ACCENT_COLORS` survives only for the brandless
+  `/tools/bento`, which has nothing to derive from.
 - **The business logic was not touched.** `store.ts`, `shuffle.ts`,
   `templates.ts`, `sizes.ts`, `BentoCanvas`, `TileRenderer`, `MediaPicker`,
   `ImageUploadPrompt` and the export path are the same code; this was a UI
@@ -1745,12 +1770,13 @@ Rules that bind:
   item — see `features/brand-identity/sections/BentoSurface.tsx`. That surface
   renders this feature's own templates, roll and canvas at
   `interactive={false}`. There is one bento.
-- Tests: `__tests__/migration.test.tsx` (27 — including that the retired chrome
-  files are GONE rather than merely unused) and
-  `__tests__/bentoPage.browser.test.tsx` (10 — one shell not two, the
-  five-section nav, three columns with real width, and an artboard that scaled
-  to fit; the last needs a real layout engine, which is why it is a browser
-  test).
+- Tests: `__tests__/migration.test.tsx` (33 — including that the retired chrome
+  files are GONE rather than merely unused, that the export sheet reports its
+  choices, and that the palette offers no colour the brand does not own) and
+  `__tests__/bentoPage.browser.test.tsx` (12 — one shell not two, the
+  five-section nav, the named panel headers, three columns with real width, and
+  an artboard that scaled to fit; the last needs a real layout engine, which is
+  why it is a browser test).
 
 ## Undo / redo — `src/shared/history/` (2026-08-19)
 

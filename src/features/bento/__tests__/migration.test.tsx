@@ -5,7 +5,7 @@
 // controls the migration replaced still drive the same store the old ones did.
 // A migration that looks right and no longer edits the document is the failure
 // worth guarding against.
-import { describe, expect, it, afterEach, beforeEach } from 'vitest';
+import { describe, expect, it, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { readFileSync } from 'node:fs';
@@ -14,6 +14,8 @@ import { join } from 'node:path';
 import { useBentoStore } from '../store';
 import { TileInspector } from '../components/TileInspector';
 import { DocumentPanel } from '../components/DocumentPanel';
+import { buildPalette } from '../components/controls';
+import { BentoExportDialog } from '../components/BentoExportDialog';
 
 const brand = { id: 'b1', name: 'Raqm', slug: 'raqm', primaryColor: '#C8102E', assets: [] } as never;
 const here = join(process.cwd(), 'src/features/bento');
@@ -36,6 +38,7 @@ const FILES = [
   'components/MediaPicker.tsx',
   'components/ImageUploadPrompt.tsx',
   'components/controls.tsx',
+  'components/BentoExportDialog.tsx',
   'components/BrandSourcePicker.tsx',
   'components/BentoCanvas.tsx',
 ];
@@ -117,6 +120,56 @@ describe('no legacy UI is left on the route', () => {
   });
 });
 
+describe('export asks before it writes a file', () => {
+  it('offers format, resolution and transparency, and prices the result', () => {
+    // The same shape as the Brand Kit's ExportKitDialog: state what will be
+    // produced, let it be changed, price it, THEN the button. Bento used to
+    // fire a 1080px PNG at the download folder with no dialog at all.
+    mount(
+      <BentoExportDialog
+        open
+        design={useBentoStore.getState().design}
+        brandName="Raqm"
+        onClose={() => {}}
+        onExport={() => {}}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: 'PNG' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'JPG' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /1× · 1080×1080/ })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: /transparent/i })).toBeTruthy();
+    expect(screen.getByText(/1080×1080 · about/)).toBeTruthy();
+  });
+
+  it('reports the choices back, so nothing is assumed', () => {
+    const onExport = vi.fn();
+    mount(
+      <BentoExportDialog
+        open
+        design={useBentoStore.getState().design}
+        onClose={() => {}}
+        onExport={onExport}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /2× · 2160×2160/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Export PNG/ }));
+    expect(onExport).toHaveBeenCalledWith({ format: 'png', scale: 2, transparent: false });
+  });
+
+  it('does not offer transparency on a format that has no alpha channel', () => {
+    mount(
+      <BentoExportDialog
+        open
+        design={useBentoStore.getState().design}
+        onClose={() => {}}
+        onExport={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'JPG' }));
+    expect(screen.queryByRole('checkbox', { name: /transparent/i })).toBeNull();
+  });
+});
+
 describe('the migrated controls still drive the document', () => {
   it('the layout sliders write gap and padding', () => {
     // They used to live behind a hand-rolled popover on a toolbar row; they
@@ -160,6 +213,25 @@ describe('the migrated controls still drive the document', () => {
     mount(<DocumentPanel brand={brand} />);
     fireEvent.click(screen.getByRole('button', { name: '#C8102E' }));
     expect(useBentoStore.getState().design.backgroundColor).toBe('#C8102E');
+  });
+
+  it('offers only colours the brand actually owns', () => {
+    // The panel's swatch row used to be its own list, padded with indigo,
+    // pink, orange, emerald and sky whenever the brand was short — so a red
+    // brand was offered eight colours it does not own, and picking one put it
+    // on the artboard. A short brand is now extended along its OWN ramp.
+    const offered = buildPalette(brand).map((c) => c.toLowerCase());
+    for (const foreign of ['#6366f1', '#ec4899', '#f97316', '#10b981', '#0ea5e9']) {
+      expect(offered).not.toContain(foreign);
+    }
+    expect(offered).toContain('#c8102e');
+    expect(offered.length).toBeGreaterThan(2);
+  });
+
+  it('paints a brandless canvas from the fallback, which is what it is for', () => {
+    // `/tools/bento` before a brand is picked has nothing to derive from, and
+    // a grey page is not a demo.
+    expect(buildPalette(null).length).toBeGreaterThan(2);
   });
 
   it('offers the empty inspector as an add surface when nothing is selected', () => {

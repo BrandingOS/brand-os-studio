@@ -10,6 +10,7 @@ import { BentoCanvas, type BentoCanvasHandle } from './components/BentoCanvas';
 import { BentoActions } from './components/BentoActions';
 import { TemplateRail } from './components/TemplateRail';
 import { BentoInspector } from './components/BentoInspector';
+import { BentoExportDialog, type BentoExportOptions } from './components/BentoExportDialog';
 import { ImageUploadPrompt, type PendingUpload } from './components/ImageUploadPrompt';
 import { MediaPicker, type MediaPickResult } from './components/MediaPicker';
 import { resolveSize } from './sizes';
@@ -74,6 +75,8 @@ export function BentoEditor({ brand, extraLeft }: Props) {
 
   const [pending, setPending] = useState<PendingUpload | null>(null);
   const [mediaOpen, setMediaOpen] = useState<{ tileId: string | null } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Init on brand change.
   useEffect(() => {
@@ -211,34 +214,56 @@ export function BentoEditor({ brand, extraLeft }: Props) {
   }, [pending, brand, updateTile, assets]);
 
   // ─── Export ──────────────────────────────────────────────────────────
-  const handleExport = useCallback(async () => {
+  /*
+   * The dialog decides WHAT; this renders it.
+   *
+   * `scale` multiplies html2canvas's own scale rather than the width/height it
+   * is given: the artboard's pixel geometry is authored against the preset
+   * size, so doubling the box would re-lay-out the grid at 2160px and change
+   * the composition. Doubling the SCALE draws the same composition with four
+   * times the pixels, which is what "2×" means everywhere else in the product.
+   *
+   * A transparent export passes `null` as the background — html2canvas's own
+   * way of saying "paint nothing" — and the artboard's own ground has to come
+   * off with it, or the tiles sit on the colour the canvas was showing.
+   */
+  const handleExport = useCallback(async ({ format, scale, transparent }: BentoExportOptions) => {
     const el = canvasRef.current?.getExportElement();
     if (!el) { toast.error('Canvas not ready'); return; }
+    const wantsAlpha = transparent && format === 'png';
+    const restore = el.style.background;
+    setExporting(true);
     try {
-      toast.loading('Exporting PNG…', { id: 'export' });
+      toast.loading(`Exporting ${format.toUpperCase()}…`, { id: 'export' });
       const { default: html2canvas } = await import('html2canvas');
       const { width, height } = resolveSize(design.sizeId, design.customSize);
+      if (wantsAlpha) el.style.background = 'transparent';
       const canvas = await html2canvas(el, {
-        backgroundColor: design.backgroundColor,
+        backgroundColor: wantsAlpha ? null : design.backgroundColor,
         width,
         height,
         windowWidth: width,
         windowHeight: height,
-        scale: 1,
+        scale,
         useCORS: true,
       });
+      const mime = format === 'png' ? 'image/png' : 'image/jpeg';
       const blob: Blob = await new Promise((resolve) =>
-        canvas.toBlob((b) => resolve(b!), 'image/png'),
+        canvas.toBlob((b) => resolve(b!), mime, format === 'jpg' ? 0.92 : undefined),
       );
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `bento-${(brand?.slug ?? 'design')}-${design.sizeId}-${Date.now()}.png`;
+      a.download = `bento-${(brand?.slug ?? 'design')}-${design.sizeId}-${Date.now()}.${format}`;
       a.click();
       URL.revokeObjectURL(a.href);
-      toast.success('PNG exported', { id: 'export' });
+      toast.success(`${format.toUpperCase()} exported`, { id: 'export' });
+      setExportOpen(false);
     } catch (err) {
       console.error(err);
       toast.error('Export failed', { id: 'export' });
+    } finally {
+      if (wantsAlpha) el.style.background = restore;
+      setExporting(false);
     }
   }, [design.sizeId, design.customSize, design.backgroundColor, brand]);
 
@@ -257,7 +282,7 @@ export function BentoEditor({ brand, extraLeft }: Props) {
       rightActions={
         <BentoActions
           onShuffle={(mode) => shuffle(brand ?? null, mode)}
-          onExport={handleExport}
+          onExport={() => setExportOpen(true)}
           onSave={brand ? handleSave : undefined}
           canSave={!!brand}
           onOpenMedia={() => setMediaOpen({ tileId: null })}
@@ -288,6 +313,7 @@ export function BentoEditor({ brand, extraLeft }: Props) {
 
         <div className="bento-work">
           <TemplateRail
+            brandName={brand?.name ?? 'No brand'}
             selectedId={design.templateId}
             onSelect={(id) => setTemplate(id, brand ?? null)}
           />
@@ -312,6 +338,15 @@ export function BentoEditor({ brand, extraLeft }: Props) {
         onClose={() => setPending(null)}
         onConfirm={handleConfirmUpload}
         brandSaveDisabled={!brand}
+      />
+
+      <BentoExportDialog
+        open={exportOpen}
+        design={design}
+        brandName={brand?.name}
+        busy={exporting}
+        onClose={() => setExportOpen(false)}
+        onExport={(options) => void handleExport(options)}
       />
 
       <MediaPicker

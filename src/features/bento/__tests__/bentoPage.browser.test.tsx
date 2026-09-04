@@ -113,6 +113,20 @@ describe('the workspace has real geometry', () => {
 });
 
 describe('the properties panel', () => {
+  it('says what it is and what you are editing', () => {
+    // Every Studio sidebar carries an eyebrow over a name — ToolsSidebar is
+    // "Tools" over the brand. A bare segmented control said neither.
+    mount();
+    expect(screen.getByText('Customize')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Canvas' })).toBeTruthy();
+  });
+
+  it('names the template rail after the brand, like every other sidebar', () => {
+    mount();
+    expect(screen.getByText('Templates')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Raqm' })).toBeTruthy();
+  });
+
   it('offers the document and the tile in one place', () => {
     mount();
     expect(screen.getByRole('radio', { name: 'Tile' })).toBeTruthy();

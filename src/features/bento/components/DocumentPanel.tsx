@@ -32,6 +32,9 @@ const SIZE_OPTIONS = SIZE_PRESETS.map((p) => ({
   label: `${p.name} · ${p.width}×${p.height}`,
 }));
 
+/** What `makeDefaultDesign` starts every bento on. Reset returns here. */
+const DEFAULT_GROUND = '#FFFFFF';
+
 // Reads the raw input value: an emptied number field is "", which must land
 // on 1 rather than NaN.
 const clampTrack = (v: string) => Math.max(1, Math.min(12, Number(v) || 1));
@@ -49,21 +52,25 @@ export function DocumentPanel({ brand }: { brand: Brand | null | undefined }) {
   const cols = design.cols ?? tpl.cols;
   const rows = design.rows ?? tpl.rows;
   const palette = [...buildPalette(brand), '#FFFFFF', '#000000'];
+  const isDefaultGround = design.backgroundColor.toLowerCase() === DEFAULT_GROUND.toLowerCase();
 
   return (
     <div className="bento-inspector-body">
-      <Group label="Canvas">
-        <Labelled label="Size">
-          <DsSelect
-            options={SIZE_OPTIONS}
-            value={design.sizeId}
-            onChange={(v) => setSize(v as SizePresetId)}
-          />
-        </Labelled>
+      {/* The panel's own header already says "Canvas"; a group called Canvas
+          under it is the same word twice and names nothing. */}
+      <Group label="Size" hint="What the exported file measures.">
+        <DsSelect
+          options={SIZE_OPTIONS}
+          value={design.sizeId}
+          onChange={(v) => setSize(v as SizePresetId)}
+        />
+      </Group>
+
+      <Group label="Ground" onReset={isDefaultGround ? undefined : () => setBackground(DEFAULT_GROUND)}>
         <Swatches label="Background" value={design.backgroundColor} palette={palette} onPick={setBackground} />
       </Group>
 
-      <Group label="Grid">
+      <Group label="Grid" hint="How many cells the tiles are placed on.">
         <div className="bento-pair">
           <DsInput
             label="Columns"

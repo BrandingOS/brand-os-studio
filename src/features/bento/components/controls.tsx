@@ -12,12 +12,43 @@
 import type { ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { DsInput } from '@/shared/ds';
+import { brandColors } from '../shuffle';
 
-/** A titled block of controls, separated by a hairline. */
-export function Group({ label, children }: { label?: string; children: ReactNode }) {
+/**
+ * A titled block of controls, separated by a hairline.
+ *
+ * The head follows the Brand Kit card editor's customise rail — a real title
+ * rather than an eyebrow, an optional line of guidance, and a Reset that only
+ * appears once there is something to reset. An eyebrow alone reads as a
+ * category label; these are the sections of a form.
+ */
+export function Group({
+  label,
+  hint,
+  onReset,
+  children,
+}: {
+  label?: string;
+  hint?: string;
+  /** Rendered only when passed AND the group has been changed. */
+  onReset?: () => void;
+  children: ReactNode;
+}) {
   return (
     <section className="bento-group">
-      {label && <span className="ds-eyebrow">{label}</span>}
+      {label && (
+        <div className="bento-group-head">
+          <div className="bento-group-head-row">
+            <h3 className="bento-group-title">{label}</h3>
+            {onReset && (
+              <button type="button" className="bento-group-reset" onClick={onReset}>
+                Reset
+              </button>
+            )}
+          </div>
+          {hint && <p className="bento-group-hint">{hint}</p>}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -80,16 +111,17 @@ export function Swatches({
   );
 }
 
+/**
+ * The colours offered in the panel are the colours the canvas draws in.
+ *
+ * This used to be its own list, padded with indigo, pink, orange, emerald and
+ * sky when the brand was short — so a red brand's Background row offered eight
+ * colours it does not own, and picking one put it on the artboard. `shuffle`'s
+ * `brandColors` is the single answer to "what may this bento be painted in",
+ * and it extends a short brand along its OWN ramp. One list, two readers.
+ */
 export function buildPalette(brand: Brand | null | undefined): string[] {
-  const out: string[] = [];
-  if (brand?.primaryColor) out.push(brand.primaryColor);
-  if (brand?.secondaryColor) out.push(brand.secondaryColor);
-  brand?.guidelines?.colorPalette?.neutral?.forEach((n) => n?.hex && out.push(n.hex));
-  const defaults = ['#0F172A', '#6366F1', '#EC4899', '#F97316', '#10B981', '#0EA5E9', '#EAB308', '#94A3B8'];
-  defaults.forEach((d) => {
-    if (!out.includes(d)) out.push(d);
-  });
-  return out.slice(0, 16);
+  return brandColors(brand).slice(0, 16);
 }
 
 export function buildFonts(brand: Brand | null | undefined): string[] {

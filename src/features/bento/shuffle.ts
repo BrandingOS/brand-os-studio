@@ -9,6 +9,7 @@
  * Each tile picks a kind (from template hint or randomly) + content.
  */
 import type { Brand, Asset } from '@/shared/types/brand';
+import { generateShades } from '@/lib/color-engine';
 import type { BentoTemplate, BentoTile, TileContent, TileKind } from './types';
 
 // ─── Tiny seeded RNG (mulberry32). Deterministic across platforms. ─────
@@ -52,13 +53,43 @@ const SAMPLE_STATS: Array<[string, string]> = [
 const SAMPLE_TEXT = ['Aa', 'The quick brown fox', 'Brand • Identity', 'Made with care', 'Timeless'];
 
 // ─── Brand-derived pickers. ────────────────────────────────────────────
-function brandColors(brand: Brand | null | undefined): string[] {
-  const list: string[] = [];
-  if (brand?.primaryColor) list.push(brand.primaryColor);
-  if (brand?.secondaryColor) list.push(brand.secondaryColor);
-  const neutrals = brand?.guidelines?.colorPalette?.neutral ?? [];
-  neutrals.forEach((n) => n?.hex && list.push(n.hex));
-  if (list.length < 3) list.push(...ACCENT_COLORS.slice(0, 3));
+/**
+ * The colours this bento may be painted in.
+ *
+ * ── Why a brand with one colour used to come out indigo and pink ────────
+ *
+ * A tile needs a few colours to be worth generating, so a short list was
+ * padded from `ACCENT_COLORS` — indigo, violet, pink, orange. Most brands
+ * record a primary and little else, so most bentos came out in a palette the
+ * brand does not own, next to a logo it does: measured on Raqm, whose colour
+ * is #C8102E, the canvas was violet gradients and a hot-pink chequerboard.
+ *
+ * The right filler for a brand colour is MORE OF THAT COLOUR. `generateShades`
+ * is the product's own ramp generator — the same one the identity page's
+ * register and the colour system tool build their showcases from — so a bento
+ * extended this way is extended in colours the brand already ships.
+ *
+ * `ACCENT_COLORS` survives for the case it was written for: NO brand at all
+ * (`/tools/bento` before a brand is picked), where there is nothing to derive
+ * from and a grey page is not a demo.
+ */
+export function brandColors(brand: Brand | null | undefined): string[] {
+  const own: string[] = [];
+  if (brand?.primaryColor) own.push(brand.primaryColor);
+  if (brand?.secondaryColor) own.push(brand.secondaryColor);
+  brand?.guidelines?.colorPalette?.neutral?.forEach((n) => n?.hex && own.push(n.hex));
+
+  const list = Array.from(new Set(own.filter(Boolean)));
+  if (list.length === 0) return [...ACCENT_COLORS.slice(0, 3), ...NEUTRAL_COLORS.slice(0, 2)];
+  if (list.length >= 5) return list;
+
+  // Steps of the brand's own ramp, light to dark, so tiles beside each other
+  // read as one family rather than as a set of unrelated blocks.
+  const ramp = generateShades(list[0]).shades;
+  for (const step of [100, 300, 500, 700, 900] as const) {
+    const hex = ramp[step]?.hex;
+    if (hex && !list.some((c) => c.toLowerCase() === hex.toLowerCase())) list.push(hex);
+  }
   return list;
 }
 
