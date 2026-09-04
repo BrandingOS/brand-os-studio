@@ -219,8 +219,54 @@ async function runPlan(plan) {
     }
   }
 
+  /**
+   * Find a component this generator wrote, by sid, anywhere in the document.
+   *
+   * A referenced pattern may live on another page (a screen on page 10 built
+   * from patterns on page 04), so the search cannot be scoped to the current
+   * page. Pages load lazily, but every page this generator has written to has
+   * already been loaded by its own build call in the same session.
+   */
+  const componentBySid = {};
+  (function indexComponents() {
+    for (const p of figma.root.children) {
+      for (const n of p.children) {
+        const sid = n.getSharedPluginData('brandingos', 'sid');
+        if (!sid) continue;
+        if (n.type === 'COMPONENT') componentBySid[sid] = n;
+        if (n.type === 'COMPONENT_SET') {
+          componentBySid[sid] = n.defaultVariant || n.children[0];
+          for (const v of n.children) {
+            componentBySid[v.getSharedPluginData('brandingos', 'sid')] = v;
+          }
+        }
+      }
+    }
+  })();
+
   function build(spec, isRoot) {
     let node;
+    // An INSTANCE of an already-built component. Composition, not copying:
+    // editing the swatch must change every palette made of swatches.
+    if (spec.ref) {
+      const main = componentBySid[spec.ref];
+      if (!main) {
+        report.errors.push('no component for ref ' + spec.ref + ' at ' + spec.sid);
+        // A placeholder frame keeps the parent's layout honest and makes the
+        // gap visible on the canvas rather than silently closing it up.
+        const gap = figma.createFrame();
+        gap.name = 'MISSING INSTANCE — ' + spec.ref;
+        gap.resize(Math.max((spec.sizing && spec.sizing.w) || 8, 0.01),
+          Math.max((spec.sizing && spec.sizing.h) || 8, 0.01));
+        gap.fills = [];
+        stamp(gap, spec.sid);
+        return gap;
+      }
+      node = main.createInstance();
+      node.name = spec.name;
+      stamp(node, spec.sid);
+      return node;
+    }
     if (spec.svg) {
       node = figma.createNodeFromSvg(spec.svg);
       node.name = spec.name;

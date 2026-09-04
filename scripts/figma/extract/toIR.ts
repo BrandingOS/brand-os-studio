@@ -245,7 +245,9 @@ export function nodeToIR(
   const node: IRNode = {
     sid,
     name: raw.fx.component ?? nameFor(raw),
-    kind: raw.svg ? 'vector' : raw.text !== undefined ? 'text' : 'frame',
+    kind: raw.fx.ref ? 'instance'
+      : raw.svg ? 'vector'
+        : raw.text !== undefined ? 'text' : 'frame',
     layout: deriveLayout(raw),
     sizing: deriveSizing(raw, parent),
     style: {
@@ -304,6 +306,15 @@ export function nodeToIR(
   if (raw.text !== undefined) node.text = textFor(raw, s, opts);
 
   if (raw.svg) node.vector = { svg: inlineImageHref(raw.svg) };
+
+  // A referenced pattern names the component it must become an INSTANCE of.
+  // Its own children were deliberately not captured — they belong to that
+  // component, and re-measuring them here would produce a copy that silently
+  // stops tracking it.
+  if (raw.fx.ref) {
+    node.semantic = { ...(node.semantic ?? {}), instanceOf: raw.fx.ref };
+    node.children = [];
+  }
 
   return node;
 }

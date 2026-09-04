@@ -35,6 +35,15 @@ export interface PlanNode {
     lineHeight: number | 'auto'; letterSpacing: number; color: PlanPaint;
   };
   svg?: string;
+  /**
+   * The sid of a component this node must become an INSTANCE of.
+   *
+   * A pattern that contains another pattern — a colours group made of swatches,
+   * a rail made of rows — is composed, not copied. Without this the container
+   * held a flattened stranger, so editing the swatch would not change the
+   * palette that is made of swatches, which is the whole point of a system.
+   */
+  ref?: string;
   children: PlanNode[];
 }
 
@@ -114,6 +123,7 @@ function toPlanNode(n: IRNode): PlanNode {
     };
   }
   if (n.vector) out.svg = n.vector.svg;
+  if (n.semantic?.instanceOf) out.ref = n.semantic.instanceOf;
   return out;
 }
 
@@ -164,6 +174,9 @@ export function visualFingerprint(node: PlanNode): string {
     o: n.opacity,
     t: n.text ? { ...n.text, characters: n.text.characters } : null,
     v: n.svg,
+    // Two cells pointing at DIFFERENT components are not the same cell, even
+    // when everything the fingerprint can see about them matches.
+    i: n.ref,
     c: n.children.map(shape),
   });
   return JSON.stringify(shape(node));
@@ -226,6 +239,54 @@ export function dedupeVariants(set: PlanSet): {
   return { set: { ...set, variants }, visuallyIdentical, droppedAxes };
 }
 
+/** Every component sid this set instantiates. */
+export function refsOf(set: PlanSet): string[] {
+  const out = new Set<string>();
+  const walk = (n: PlanNode) => {
+    if (n.ref) out.add(n.ref);
+    n.children.forEach(walk);
+  };
+  set.variants.forEach((v) => walk(v.node));
+  return [...out];
+}
+
+/**
+ * Order sets so a container is built AFTER everything it instantiates.
+ *
+ * The walker resolves a `ref` against components that already exist, so a
+ * container built first finds nothing and emits a MISSING INSTANCE placeholder.
+ * Sorting by sid happened to satisfy all three of the current dependencies —
+ * `color-swatch` precedes `colors-group`, `rail-row` precedes `section-rail`,
+ * `segmented-nav` precedes `workspace-topbar` — which is luck, not a property,
+ * and the next pattern named `a-…` containing a `z-…` would break silently.
+ *
+ * Ties keep sid order so the output stays deterministic, and a cycle is left in
+ * sid order rather than throwing: a cycle is a manifest bug that should surface
+ * as a named missing instance on the canvas, not as a failed run.
+ */
+export function orderByDependency(sets: PlanSet[]): PlanSet[] {
+  const bySid = new Map(sets.map((s) => [s.sid, s]));
+  const sorted = [...sets].sort((a, b) => (a.sid < b.sid ? -1 : 1));
+  const out: PlanSet[] = [];
+  const state = new Map<string, 'visiting' | 'done'>();
+
+  const visit = (set: PlanSet) => {
+    const at = state.get(set.sid);
+    if (at) return;                       // done, or a cycle we decline to chase
+    state.set(set.sid, 'visiting');
+    for (const ref of refsOf(set).sort()) {
+      // A variant sid carries an "[axis=value]" suffix; the SET is what is built.
+      const dep = bySid.get(ref) ?? bySid.get(parseSid(ref).base);
+      if (dep && dep !== set) visit(dep);
+    }
+    state.set(set.sid, 'done');
+    out.push(set);
+  };
+
+  for (const set of sorted) visit(set);
+  return out;
+}
+
 export function mergeThemes(
   light: IRDoc,
   dark: IRDoc,
@@ -282,8 +343,7 @@ export function mergeThemes(
 
   const visuallyIdentical: MergeResult['visuallyIdentical'] = [];
   const droppedAxes: string[] = [];
-  const deduped = [...sets.values()]
-    .sort((a, b) => (a.sid < b.sid ? -1 : 1))
+  const deduped = orderByDependency([...sets.values()])
     .map((set) => {
       const r = dedupeVariants(set);
       visuallyIdentical.push(...r.visuallyIdentical);

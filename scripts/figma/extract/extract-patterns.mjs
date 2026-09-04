@@ -116,6 +116,7 @@ for (const route of routes) {
         work.push({
           key: def.key, sid: def.sid, selector: def.selector, roles: def.roles,
           pseudoTarget: def.pseudoTarget || '',
+          contains: def.contains || null,
           at: idx.map(([n]) => n),
           axes: idx.map(([, i]) => (def.axes && def.axes[i]) || {}),
         });
@@ -165,6 +166,23 @@ for (const pass of passes) {
           Object.entries(def.axes[i]).map(([k, v]) => `${k}=${v}`).join(','),
         );
         if (def.roles) el.setAttribute('data-fx-roles', JSON.stringify(def.roles));
+
+        // Mark descendants that are themselves patterns. The collector records
+        // them as references and does not descend, so the container composes
+        // them rather than embedding a flattened copy.
+        if (def.contains) {
+          for (const sel in def.contains) {
+            let hit = 0;
+            for (const d of Array.from(el.querySelectorAll(sel))) {
+              // Only the OUTERMOST match: a nested one is already inside the
+              // component being referenced.
+              if (d.parentElement && d.parentElement.closest(sel)) continue;
+              d.setAttribute('data-fx-ref', def.contains[sel]);
+              hit++;
+            }
+            if (!hit) missed.push(`${def.key} contains ${sel} — matched nothing`);
+          }
+        }
       });
     }
     return missed;

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { dedupeVariants, visualFingerprint, variableNameFor } from './plan';
+import {
+  dedupeVariants, orderByDependency, refsOf, visualFingerprint, variableNameFor,
+} from './plan';
 import type { PlanNode, PlanSet, PlanVariant } from './plan';
 
 function node(over: Partial<PlanNode> = {}): PlanNode {
@@ -124,6 +126,83 @@ describe('visualFingerprint', () => {
   it('reaches into children', () => {
     expect(visualFingerprint(node({ children: [node({ opacity: 0.4 })] })))
       .not.toBe(visualFingerprint(node({ children: [node({ opacity: 1 })] })));
+  });
+});
+
+describe('orderByDependency', () => {
+  const withRef = (sid: string, ref?: string): PlanSet => ({
+    sid,
+    name: sid,
+    page: '04',
+    variants: [variant({}, node(ref ? { children: [node({ ref })] } : {}))],
+  });
+
+  it('places a container after the component it instantiates', () => {
+    const out = orderByDependency([
+      withRef('p/colors-group', 'p/color-swatch'),
+      withRef('p/color-swatch'),
+    ]);
+    expect(out.map((s) => s.sid)).toEqual(['p/color-swatch', 'p/colors-group']);
+  });
+
+  /**
+   * The case sid ordering gets wrong. Every dependency in the current manifest
+   * happens to be satisfied alphabetically, which is luck, not a property.
+   */
+  it('orders a container named before its dependency', () => {
+    const out = orderByDependency([withRef('p/aaa', 'p/zzz'), withRef('p/zzz')]);
+    expect(out.map((s) => s.sid)).toEqual(['p/zzz', 'p/aaa']);
+  });
+
+  it('resolves a ref carrying a variant suffix back to its set', () => {
+    const out = orderByDependency([withRef('p/aaa', 'p/zzz[state=on]'), withRef('p/zzz')]);
+    expect(out.map((s) => s.sid)).toEqual(['p/zzz', 'p/aaa']);
+  });
+
+  it('reaches through a chain', () => {
+    const out = orderByDependency([
+      withRef('p/a', 'p/b'), withRef('p/b', 'p/c'), withRef('p/c'),
+    ]);
+    expect(out.map((s) => s.sid)).toEqual(['p/c', 'p/b', 'p/a']);
+  });
+
+  it('keeps sid order among sets that depend on nothing', () => {
+    const out = orderByDependency([withRef('p/c'), withRef('p/a'), withRef('p/b')]);
+    expect(out.map((s) => s.sid)).toEqual(['p/a', 'p/b', 'p/c']);
+  });
+
+  /** A cycle is a manifest bug; it must surface on the canvas, not kill the run. */
+  it('survives a cycle without throwing, emitting every set once', () => {
+    const out = orderByDependency([withRef('p/a', 'p/b'), withRef('p/b', 'p/a')]);
+    expect(out).toHaveLength(2);
+    expect(new Set(out.map((s) => s.sid)).size).toBe(2);
+  });
+
+  it('ignores a ref to something outside the plan', () => {
+    const out = orderByDependency([withRef('p/a', 'ds/button')]);
+    expect(out.map((s) => s.sid)).toEqual(['p/a']);
+  });
+});
+
+describe('refsOf', () => {
+  it('collects refs from anywhere in the tree, deduplicated', () => {
+    const set: PlanSet = {
+      sid: 'p/x',
+      name: 'x',
+      page: '04',
+      variants: [variant({}, node({
+        children: [
+          node({ ref: 'p/a' }),
+          node({ children: [node({ ref: 'p/a' }), node({ ref: 'p/b' })] }),
+        ],
+      }))],
+    };
+    expect(refsOf(set).sort()).toEqual(['p/a', 'p/b']);
+  });
+
+  it('is empty for a set that instantiates nothing', () => {
+    expect(refsOf({ sid: 'p/x', name: 'x', page: '04', variants: [variant({}, node())] }))
+      .toEqual([]);
   });
 });
 

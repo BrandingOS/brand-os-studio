@@ -54,6 +54,21 @@ export interface FxPattern {
   /** Which node receives the forced state, relative to the pattern root. */
   pseudoTarget?: string;
   /**
+   * Descendants that are themselves patterns, as selector -> pattern key.
+   *
+   * Such a descendant is recorded as a REFERENCE and rendered as an instance.
+   * Capturing it inline instead produces a container holding a flattened
+   * stranger: editing the swatch would not change the palette that is made of
+   * swatches, which is the whole point of having a system rather than a folder
+   * of pictures. It also stops the same subtree travelling twice in the
+   * payload.
+   *
+   * The referenced pattern must be BUILT FIRST — `FX_PATTERNS` is ordered so
+   * that contained patterns precede their containers, and a missing reference
+   * fails loudly with a named placeholder rather than closing the gap.
+   */
+  contains?: Record<string, string>;
+  /**
    * Meaningful child roles, keyed SELECTOR -> role — the same direction the
    * component manifest uses, and the direction `roleFor` reads. Written the
    * other way round it produces sids like `.segmented-nav`, which is not a
@@ -78,6 +93,7 @@ export const FX_PATTERNS: readonly FxPattern[] = [
       '.pill-btn': 'actions',
       '.theme-toggle': 'theme',
     },
+    contains: { '.segmented-nav': 'pattern/segmented-nav' },
     because: 'WorkspaceShell has 42 source consumers and is the front door of every Studio screen.',
   },
   {
@@ -102,6 +118,7 @@ export const FX_PATTERNS: readonly FxPattern[] = [
       '.panel-heading': 'heading',
       '.panel-list': 'list',
     },
+    contains: { '.panel-item': 'pattern/rail-row' },
     because: 'Completion-tracking rail; the `.panel` vocabulary is shared with Guideline.',
   },
   {
@@ -210,6 +227,7 @@ export const FX_PATTERNS: readonly FxPattern[] = [
       '.colors-row': 'row',
       '.cp-expand': 'expand',
     },
+    contains: { '.swatch': 'pattern/color-swatch' },
     because: 'Titled, wrapping swatch row; repeats for Core and Neutral.',
   },
   {

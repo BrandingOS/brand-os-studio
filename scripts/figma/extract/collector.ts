@@ -152,6 +152,37 @@ export const COLLECTOR_SRC = String.raw`
     // parent's text style because that is what actually painted it.
     for (const child of Array.from(el.childNodes)) {
       if (child.nodeType === Node.ELEMENT_NODE) {
+        // A descendant that IS another declared pattern is recorded as a
+        // reference, not copied. Copying it duplicates the data in the payload
+        // and, worse, produces a container holding a flattened stranger instead
+        // of an instance — so editing the swatch would not change the palette
+        // that is made of swatches.
+        if (child.hasAttribute && child.hasAttribute('data-fx-ref')) {
+          const rr = child.getBoundingClientRect();
+          const rcs = getComputedStyle(child);
+          node.children.push({
+            tag: child.tagName.toLowerCase(),
+            classes: Array.from(child.classList),
+            fx: { ref: child.getAttribute('data-fx-ref') },
+            aria: {},
+            // Enough style to place the instance; its INSIDES belong to the
+            // component it points at and must not be re-measured here.
+            style: {
+              display: rcs.display,
+              'align-self': rcs.getPropertyValue('align-self'),
+              'flex-grow': rcs.getPropertyValue('flex-grow'),
+              'flex-shrink': rcs.getPropertyValue('flex-shrink'),
+              'flex-basis': rcs.getPropertyValue('flex-basis'),
+              width: rcs.width,
+              height: rcs.height,
+              declaredWidth: '',
+              declaredHeight: '',
+            },
+            rect: { x: rr.x, y: rr.y, w: rr.width, h: rr.height },
+            children: [],
+          });
+          continue;
+        }
         node.children.push(snap(child));
         continue;
       }
