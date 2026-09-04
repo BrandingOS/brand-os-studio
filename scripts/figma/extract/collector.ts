@@ -163,7 +163,11 @@ export const COLLECTOR_SRC = String.raw`
           node.children.push({
             tag: child.tagName.toLowerCase(),
             classes: Array.from(child.classList),
-            fx: { ref: child.getAttribute('data-fx-ref') },
+            fx: {
+              ref: child.getAttribute('data-fx-ref'),
+              refVariant: child.getAttribute('data-fx-ref-variant') || '',
+              refText: child.getAttribute('data-fx-ref-text') || '',
+            },
             aria: {},
             // Enough style to place the instance; its INSIDES belong to the
             // component it points at and must not be re-measured here.

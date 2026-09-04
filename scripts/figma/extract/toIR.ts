@@ -236,7 +236,17 @@ export function nodeToIR(
 
   const strokes: IRPaint[] = [];
   const borderWidth = px(s['border-top-width']);
-  if (borderWidth > 0) strokes.push(toPaint(s['border-top-color'], opts.tokens));
+  // A width with a TRANSPARENT colour is how CSS reserves the space a border
+  // will occupy in another state — `.panel-item` does exactly this, so its rows
+  // came out ringed in opaque black once the walker read "transparent" as a
+  // colour it could not parse and fell back to #000. Reserved space is not a
+  // stroke; the layout keeps it through the border width alone.
+  const strokeColor = borderWidth > 0
+    ? normalizeColor(s['border-top-color'])
+    : 'transparent';
+  if (borderWidth > 0 && strokeColor !== 'transparent') {
+    strokes.push(toPaint(s['border-top-color'], opts.tokens));
+  }
 
   const visibleChildren = raw.children.filter(isVisible);
   const roleNames = visibleChildren.map((c) => roleFor(c, opts.roles));
@@ -323,6 +333,22 @@ export function nodeToIR(
   if (raw.fx.ref) {
     node.semantic = { ...(node.semantic ?? {}), instanceOf: raw.fx.ref };
     node.children = [];
+    // What this occurrence overrides on the component it instances: which
+    // variant it is, and the words it actually shows. Without them every rail
+    // row is the default and the rail reads "Website" seven times.
+    const axes: Record<string, string> = {};
+    for (const pair of (raw.fx.refVariant ?? '').split(',')) {
+      const i = pair.indexOf('=');
+      if (i > 0) axes[pair.slice(0, i)] = pair.slice(i + 1);
+    }
+    let texts: string[] = [];
+    try { texts = raw.fx.refText ? JSON.parse(raw.fx.refText) : []; } catch { texts = []; }
+    if (Object.keys(axes).length || texts.length) {
+      node.overrides = {
+        ...(Object.keys(axes).length ? { variant: axes } : {}),
+        ...(texts.length ? { texts } : {}),
+      };
+    }
   }
 
   return node;

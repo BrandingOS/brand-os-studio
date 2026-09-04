@@ -151,6 +151,12 @@ export interface IRNode {
    * layout's job, and setting x/y on one is meaningless.
    */
   pos?: { x: number; y: number };
+  /**
+   * What an INSTANCE overrides on the component it points at: which variant it
+   * is, and the words it shows. `texts` is in document order, matching the order
+   * the renderer walks the instance's own text nodes.
+   */
+  overrides?: { variant?: Record<string, string>; texts?: string[] };
   style: {
     fills: IRPaint[];
     strokes: IRPaint[];

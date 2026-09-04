@@ -113,10 +113,17 @@ for (const route of routes) {
       const per = def.pseudo ?? def.at.map(() => 'default');
       const idx = def.at.map((n, i) => [n, i]).filter(([, i]) => per[i] === state);
       if (idx.length) {
+        // Every pattern a container may reference, so the stamping pass can read
+        // the CONTAINED pattern's own variant rule without a second lookup.
+        const variantOf = {};
+        for (const other of here) {
+          if (other.variantBy) variantOf[other.sid] = { variantBy: other.variantBy };
+        }
         work.push({
           key: def.key, sid: def.sid, selector: def.selector, roles: def.roles,
           pseudoTarget: def.pseudoTarget || '',
           contains: def.contains || null,
+          variantOf,
           at: idx.map(([n]) => n),
           axes: idx.map(([, i]) => (def.axes && def.axes[i]) || {}),
         });
@@ -178,6 +185,39 @@ for (const pass of passes) {
               // component being referenced.
               if (d.parentElement && d.parentElement.closest(sel)) continue;
               d.setAttribute('data-fx-ref', def.contains[sel]);
+
+              // Which VARIANT this occurrence is, and what TEXT it overrides.
+              // An instance that carries neither is a picture of the default —
+              // seven identical rail rows all reading "Website".
+              const target = def.variantOf[def.contains[sel]];
+              if (target && target.variantBy) {
+                const axes = {};
+                for (const axis in target.variantBy) {
+                  const rule = target.variantBy[axis];
+                  axes[axis] = d.querySelector(rule.selector) ? rule.present : rule.absent;
+                }
+                d.setAttribute(
+                  'data-fx-ref-variant',
+                  Object.keys(axes).sort().map((k) => k + '=' + axes[k]).join(','),
+                );
+              }
+              // Text in DOCUMENT ORDER, which is the order the walker walks the
+              // instance's own text nodes in. Only the characters travel — the
+              // styling belongs to the component being instanced.
+              const texts = [];
+              const tw = document.createTreeWalker(d, NodeFilter.SHOW_TEXT);
+              let t;
+              while ((t = tw.nextNode())) {
+                // Text INSIDE an <svg> is drawn geometry, not a label — the
+                // rail's thumbnail is an SVG containing the glyphs "A" and "a",
+                // which would otherwise be written over the row's name and
+                // subtitle. Figma renders that subtree as a vector, so it has no
+                // text node to receive an override anyway.
+                if (t.parentElement && t.parentElement.closest('svg')) continue;
+                const v = t.textContent.replace(/\s+/g, ' ').trim();
+                if (v) texts.push(v);
+              }
+              if (texts.length) d.setAttribute('data-fx-ref-text', JSON.stringify(texts));
               hit++;
             }
             if (!hit) missed.push(`${def.key} contains ${sel} — matched nothing`);

@@ -65,6 +65,40 @@ async function runPlan(plan) {
     report.fonts.push(f.family + ' ' + f.style);
   }
 
+  /**
+   * Also load the fonts of every component this plan INSTANCES.
+   *
+   * An instance's text belongs to the component, whose fonts were loaded in a
+   * different call and therefore not in this session. `build()` is synchronous,
+   * so an override cannot load one on demand — and writing to a text node with
+   * an unloaded font throws.
+   */
+  const refsWanted = new Set();
+  (function scanRefs(nodes) {
+    for (const n of nodes) {
+      if (n.ref && n.ov && n.ov.texts) refsWanted.add(n.ref);
+      if (n.children) scanRefs(n.children);
+    }
+  })(plan.sets.reduce((acc, s) => acc.concat(s.variants.map(v => v.node)), []));
+
+  if (refsWanted.size) {
+    for (const p of figma.root.children) {
+      for (const n of p.children) {
+        const sid = n.getSharedPluginData('brandingos', 'sid');
+        const base = sid.indexOf('[') > 0 ? sid.slice(0, sid.indexOf('[')) : sid;
+        if (!refsWanted.has(sid) && !refsWanted.has(base)) continue;
+        for (const t of n.findAllWithCriteria({ types: ['TEXT'] })) {
+          if (t.fontName === figma.mixed) continue;
+          const key = t.fontName.family + '|' + t.fontName.style;
+          if (fontsNeeded.has(key)) continue;
+          fontsNeeded.set(key, t.fontName);
+          await figma.loadFontAsync(t.fontName);
+          report.fonts.push(t.fontName.family + ' ' + t.fontName.style);
+        }
+      }
+    }
+  }
+
   // ---- variables ---------------------------------------------------------
   const varByName = {};
 
@@ -281,6 +315,25 @@ async function runPlan(plan) {
       }
       node = main.createInstance();
       node.name = spec.name;
+      // What this occurrence overrides: which variant it is, and the words it
+      // shows. Without them every rail row is the component's default and the
+      // rail reads "Website" seven times — structurally correct and a picture
+      // of something the product never shows.
+      if (spec.ov && spec.ov.variant) {
+        try { node.setProperties(spec.ov.variant); }
+        catch (e) { report.errors.push('variant on ' + spec.sid + ': ' + e); }
+      }
+      if (spec.ov && spec.ov.texts && spec.ov.texts.length) {
+        const targets = node.findAllWithCriteria({ types: ['TEXT'] });
+        for (let i = 0; i < targets.length && i < spec.ov.texts.length; i++) {
+          try {
+            // The font is already loaded: the pre-pass loads the fonts of every
+            // component this plan references, because build() is synchronous
+            // and a text write without its font throws.
+            targets[i].characters = spec.ov.texts[i];
+          } catch (e) { report.errors.push('text on ' + spec.sid + '#' + i + ': ' + e); }
+        }
+      }
       stamp(node, spec.sid);
       return node;
     }

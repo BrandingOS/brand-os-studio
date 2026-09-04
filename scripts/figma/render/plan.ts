@@ -46,6 +46,8 @@ export interface PlanNode {
   ref?: string;
   /** Offset inside an absolutely-laid-out parent. See IRNode.pos. */
   pos?: { x: number; y: number };
+  /** What this instance overrides on its component. See IRNode.overrides. */
+  ov?: { variant?: Record<string, string>; texts?: string[] };
   children: PlanNode[];
 }
 
@@ -127,6 +129,7 @@ function toPlanNode(n: IRNode): PlanNode {
   if (n.vector) out.svg = n.vector.svg;
   if (n.semantic?.instanceOf) out.ref = n.semantic.instanceOf;
   if (n.pos) out.pos = n.pos;
+  if (n.overrides) out.ov = n.overrides;
   return out;
 }
 
@@ -180,6 +183,10 @@ export function visualFingerprint(node: PlanNode): string {
     // Two cells pointing at DIFFERENT components are not the same cell, even
     // when everything the fingerprint can see about them matches.
     i: n.ref,
+    // Two instances of one component showing different words are different
+    // cells, and collapsing them would be the flattening this layer exists to
+    // prevent.
+    ov: n.ov,
     c: n.children.map(shape),
   });
   return JSON.stringify(shape(node));

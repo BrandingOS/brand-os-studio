@@ -69,6 +69,18 @@ export interface FxPattern {
    */
   contains?: Record<string, string>;
   /**
+   * How to tell which VARIANT a referenced occurrence is, without measuring it.
+   *
+   * Declared on the CONTAINED pattern, so every container that references it
+   * gets the right variant for free. Keyed by axis: a selector that is PRESENT
+   * means one value, absent means the other.
+   *
+   * Without this, all seven rail rows became instances of the default variant
+   * and the rail read "Website" seven times — structurally correct, and a
+   * picture of something the product never shows.
+   */
+  variantBy?: Record<string, { selector: string; present: string; absent: string }>;
+  /**
    * Meaningful child roles, keyed SELECTOR -> role — the same direction the
    * component manifest uses, and the direction `roleFor` reads. Written the
    * other way round it produces sids like `.segmented-nav`, which is not a
@@ -130,6 +142,8 @@ export const FX_PATTERNS: readonly FxPattern[] = [
     // a different cell rather than the same one rendered short.
     at: [0, 6],
     axes: [{ state: 'filled' }, { state: 'empty' }],
+    // A row with a thumbnail is a section that has content; one without is empty.
+    variantBy: { state: { selector: '.panel-item-thumb', present: 'filled', absent: 'empty' } },
     roles: {
       '.panel-item-thumb': 'thumb',
       '.panel-item-name': 'name',

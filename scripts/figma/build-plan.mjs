@@ -161,7 +161,28 @@ function compact(node, isRoot = false) {
   // without dimensions it fell back to Figma's 100x100 default — which is how
   // the workspace top bar, the icon tile and the logo tile all came out as
   // identical small squares.
-  const absolute = node.layout?.mode !== 'auto';
+  /**
+   * TEXT is never "absolute" in this sense, and must not be given a fixed width.
+   *
+   * `deriveLayout` reports every text node as absolute because it carries no
+   * flex container of its own — so the rule below marked all of them fixed, and
+   * a measured browser width became a hard box in Figma. Figma's metrics differ
+   * by a fraction of a pixel, so "BrandingOS" clipped to "Brandin" and "Rebrand
+   * with AI" wrapped and lost its second line.
+   *
+   * A label hugs. A width is imposed only when the source text ACTUALLY wrapped,
+   * which is the one case where hugging would change the design.
+   */
+  const isText = !!node.text;
+  const lineHeight = isText
+    ? (typeof node.text.lineHeight === 'number' ? node.text.lineHeight : node.text.size * 1.2)
+    : 0;
+  // Two WHOLE lines, not "taller than one". A flex parent with align-items:
+  // stretch makes a single-line label as tall as its row — the segmented-nav
+  // items measure 32.75 against an 18.75 line-height, which is 1.75x and not a
+  // wrap at all. A genuine wrap lands near an integer multiple of 2 or more.
+  const wrapped = isText && node.sizing?.h >= lineHeight * 1.9;
+  const absolute = !isText && node.layout?.mode !== 'auto';
   /**
    * A pattern ROOT always takes its measured size.
    *
@@ -170,8 +191,8 @@ function compact(node, isRoot = false) {
    * since a fill child then collapses with it. What a designer must see is the
    * thing as it ships, at the width it was measured at.
    */
-  const fixW = isRoot || node.sizing?.width === 'fixed';
-  const fixH = node.sizing?.height === 'fixed';
+  const fixW = isText ? wrapped : (isRoot || node.sizing?.width === 'fixed');
+  const fixH = isText ? false : node.sizing?.height === 'fixed';
   const needsSize = leaf || absolute || fixW || fixH;
   if (node.sizing?.width === 'fill' || node.sizing?.height === 'fill'
       || node.sizing?.minW || node.sizing?.maxW || needsSize) {
@@ -201,6 +222,7 @@ function compact(node, isRoot = false) {
   // one, with no error anywhere. `kind` alone is not enough.
   if (node.ref) out.ref = node.ref;
   if (node.pos) out.pos = node.pos;
+  if (node.ov) out.ov = node.ov;
   if (node.children?.length) out.children = node.children.map(compact);
   return out;
 }
