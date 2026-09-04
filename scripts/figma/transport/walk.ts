@@ -262,9 +262,14 @@ async function runPlan(plan) {
   // either way, so the two transports still share one walker.
   if (plan.phase === 'combine') {
     for (const set of plan.sets) {
+      // A variant sid is the set sid plus an "[axis=value]" suffix — EXCEPT
+      // when the component has no axes, where the two are equal. Matching only
+      // the suffixed form lost every axis-less component, which is 11 of the 14
+      // product patterns.
       const loose = page.children.filter(function (n) {
-        return n.type === 'COMPONENT'
-          && n.getSharedPluginData('brandingos', 'sid').indexOf(set.sid + '[') === 0;
+        if (n.type !== 'COMPONENT') return false;
+        const sid = n.getSharedPluginData('brandingos', 'sid');
+        return sid === set.sid || sid.indexOf(set.sid + '[') === 0;
       });
       if (!loose.length) { report.errors.push('no loose components for ' + set.sid); continue; }
       const prior = page.children.filter(function (n) {
@@ -272,6 +277,28 @@ async function runPlan(plan) {
           && n.getSharedPluginData('brandingos', 'sid') === set.sid;
       });
       for (const p of prior) p.remove();
+
+      // The same rule the single-call path applies: a COMPONENT_SET needs every
+      // variant to carry a "prop=value" name, so one axis-less component is a
+      // plain COMPONENT. Combining it yields a set Figma reports as having
+      // existing errors, and every later property read throws.
+      // The combine plan carries no variant bodies, so the evidence is the sid
+      // itself: an axis-less variant's sid IS the set's sid, with no suffix.
+      // Testing that rather than a variants[] the plan does not send means a
+      // multi-variant set that only found one component still fails loudly.
+      if (loose.length === 1
+        && loose[0].getSharedPluginData('brandingos', 'sid') === set.sid) {
+        const only = loose[0];
+        only.name = set.name;
+        only.x = 0;
+        only.y = cursorY;
+        stamp(only, set.sid);
+        cursorY += only.height + 120;
+        report.created.push({
+          sid: set.sid, name: set.name, type: only.type, variants: 1, props: [],
+        });
+        continue;
+      }
 
       const setNode = figma.combineAsVariants(loose, page);
       setNode.name = set.name;
@@ -284,8 +311,12 @@ async function runPlan(plan) {
       setNode.primaryAxisSizingMode = 'FIXED';
       setNode.counterAxisSizingMode = 'AUTO';
       setNode.resize(set.width || 1400, setNode.height);
-      setNode.x = set.x || 0;
-      setNode.y = set.y || 0;
+      // Laid out with the same running cursor the single-call path uses. The
+      // plan sends x/y of 0 for every set, so honouring them stacked all 14
+      // patterns on top of each other at the origin.
+      setNode.x = 0;
+      setNode.y = cursorY;
+      cursorY += setNode.height + 120;
       stamp(setNode, set.sid);
 
       applyBooleanProps(setNode, set);

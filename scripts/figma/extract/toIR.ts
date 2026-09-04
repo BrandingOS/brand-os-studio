@@ -303,9 +303,73 @@ export function nodeToIR(
 
   if (raw.text !== undefined) node.text = textFor(raw, s, opts);
 
-  if (raw.svg) node.vector = { svg: raw.svg };
+  if (raw.svg) node.vector = { svg: inlineImageHref(raw.svg) };
 
   return node;
+}
+
+/**
+ * Replace an `<image href="data:image/svg+xml,…">` with the drawing it points at.
+ *
+ * Setup hands the kit each logo variant as `<svg><rect/><image href="…"/></svg>`
+ * so a tile can paint it on a ground. `figma.createNodeFromSvg` does not resolve
+ * a nested `<image>`, so what reaches the canvas is the RECT alone — a solid
+ * block where the mark should be. That is the same failure the kit exporter hit
+ * from the other direction, where the PNG came out blank; the cause is shared,
+ * which is why the fix belongs at this boundary rather than in one consumer.
+ *
+ * Only a data URI is inlined. A remote href cannot be resolved synchronously and
+ * is left alone, so the loss stays visible instead of turning into a silent
+ * half-drawing.
+ */
+export function inlineImageHref(svg: string): string {
+  const m = svg.match(/<image\b[^>]*?\shref="(data:image\/svg\+xml[^"]*)"[^>]*\/?>/i);
+  if (!m) return svg;
+
+  const uri = m[1];
+  const comma = uri.indexOf(',');
+  if (comma < 0) return svg;
+
+  const payload = uri.slice(comma + 1);
+  let inner: string;
+  try {
+    inner = /;base64/i.test(uri.slice(0, comma))
+      ? decodeBase64(payload)
+      : decodeURIComponent(payload);
+  } catch {
+    return svg;
+  }
+  if (!/^\s*<svg/i.test(inner)) return svg;
+
+  // Carry the placement across: the outer <image> positions the drawing inside
+  // the outer viewBox, and dropping that would paint the mark at the origin at
+  // its own scale. A <g transform> reproduces it without needing the renderer
+  // to understand <image> at all.
+  const attr = (name: string) => {
+    const a = m[0].match(new RegExp(`\\s${name}="([^"]*)"`, 'i'));
+    return a ? Number.parseFloat(a[1]) : undefined;
+  };
+  const x = attr('x') ?? 0;
+  const y = attr('y') ?? 0;
+  const w = attr('width');
+  const h = attr('height');
+
+  const vb = inner.match(/viewBox="([^"]+)"/i);
+  const box = vb ? vb[1].trim().split(/[\s,]+/).map(Number) : null;
+  const sx = w && box && box[2] ? w / box[2] : 1;
+  const sy = h && box && box[3] ? h / box[3] : 1;
+
+  const body = inner.replace(/^[\s\S]*?<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
+  const wrapped = `<g transform="translate(${x} ${y}) scale(${sx} ${sy})">${body}</g>`;
+  return svg.replace(m[0], wrapped);
+}
+
+/** atob is not defined in node; the walker never runs this, the extractor does. */
+function decodeBase64(s: string): string {
+  const g = globalThis as { atob?: (v: string) => string; Buffer?: { from: (v: string, e: string) => { toString: (e: string) => string } } };
+  if (typeof g.atob === 'function') return g.atob(s);
+  if (g.Buffer) return g.Buffer.from(s, 'base64').toString('utf8');
+  throw new Error('no base64 decoder');
 }
 
 function childSidFor(parentSid: string, roleWithOrdinal: string): string {

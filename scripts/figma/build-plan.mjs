@@ -177,20 +177,45 @@ fs.writeFileSync(scriptFile, script);
 // The Figma execution environment has no fetch, XHR or WebSocket (probed), so
 // every byte travels inside the code parameter and therefore through the
 // agent's context. Smaller chunks cost more calls but never truncate.
-const BUDGET = Number(arg('budget', '25000'));
+const BUDGET = Number(arg('budget', '38000'));
+
+/**
+ * Bin-pack SETS into chunks, splitting a set only when one alone overflows.
+ *
+ * This used to emit at least one chunk per set, so 14 small product patterns
+ * became 14 round trips carrying 76KB in total — where four would have done.
+ * The walker is no longer inlined (LEAN_PREFIX reads the installed copy), so
+ * the budget is plan data plus a preamble of a few hundred bytes.
+ */
 const chunks = [];
-for (const set of wirePlan.sets) {
-  let current = [];
+{
+  let bin = [];
   let size = 0;
-  for (const variant of set.variants) {
-    const cost = JSON.stringify(variant).length;
-    if (current.length && size + cost > BUDGET - walker.length) {
-      chunks.push({ set, variants: current });
-      current = []; size = 0;
+  const flush = () => { if (bin.length) { chunks.push(bin); bin = []; size = 0; } };
+
+  for (const set of wirePlan.sets) {
+    const whole = JSON.stringify(set).length;
+    if (whole <= BUDGET) {
+      if (size + whole > BUDGET) flush();
+      bin.push(set); size += whole;
+      continue;
     }
-    current.push(variant); size += cost;
+    // One set is too large on its own: split it across chunks by variant, and
+    // give it whole chunks so a partial set is never mixed with complete ones.
+    flush();
+    let current = [];
+    let vsize = 0;
+    for (const variant of set.variants) {
+      const cost = JSON.stringify(variant).length;
+      if (current.length && vsize + cost > BUDGET) {
+        chunks.push([{ ...set, variants: current }]);
+        current = []; vsize = 0;
+      }
+      current.push(variant); vsize += cost;
+    }
+    if (current.length) chunks.push([{ ...set, variants: current }]);
   }
-  if (current.length) chunks.push({ set, variants: current });
+  flush();
 }
 
 
@@ -209,19 +234,31 @@ const _s=figma.root.getSharedPluginData('brandingos','walker');
 const runPlan=new Function('return ('+_s.replace('async function runPlan','async function')+')')();
 `;
 
-const chunkFiles = chunks.map((chunk, i) => {
+// Stale chunks from a previous, differently-packed run would otherwise be
+// re-sent as if they were current — the exact shape of the stale-walker bug.
+for (const f of fs.readdirSync(OUT)) {
+  if (new RegExp(`^${name}\\.build\\d+\\.js$`).test(f)) fs.unlinkSync(path.join(OUT, f));
+}
+
+const chunkFiles = chunks.map((sets, i) => {
   const p = {
     planVersion: wirePlan.planVersion,
     gen: wirePlan.gen,
     phase: 'build',
     // Variables are created by the FIRST chunk only; later chunks find them.
     collections: i === 0 ? wirePlan.collections : [],
-    sets: [{ ...chunk.set, variants: chunk.variants }],
+    sets,
   };
   const src = LEAN_PREFIX(PAGE) + 'return await runPlan(' + JSON.stringify(p) + ');';
   const file = path.join(OUT, `${name}.build${i + 1}.js`);
   fs.writeFileSync(file, src);
-  return { file, bytes: src.length, variants: chunk.variants.length, fits: src.length < 50_000 };
+  return {
+    file,
+    bytes: src.length,
+    sets: sets.map((s) => s.name),
+    variants: sets.reduce((a, s) => a + s.variants.length, 0),
+    fits: src.length < 50_000,
+  };
 });
 
 const combinePlan = {

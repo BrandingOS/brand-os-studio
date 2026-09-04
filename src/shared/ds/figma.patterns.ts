@@ -43,6 +43,17 @@ export interface FxPattern {
   /** Variant axis values, positionally matched to `at`. */
   axes?: Array<Record<string, string>>;
   /**
+   * Pseudo-state to force per occurrence, positionally matched to `at`.
+   *
+   * Forced through CDP exactly as the component extractor does. Needed because
+   * some product patterns hide meaning until hover: a colour swatch captured at
+   * rest has its name and hex at `opacity: 0`, so the component would ship with
+   * invisible labels and a designer could not read the palette off it.
+   */
+  pseudo?: Array<'default' | 'hover' | 'active' | 'focus' | 'focus-visible'>;
+  /** Which node receives the forced state, relative to the pattern root. */
+  pseudoTarget?: string;
+  /**
    * Meaningful child roles, keyed SELECTOR -> role — the same direction the
    * component manifest uses, and the direction `roleFor` reads. Written the
    * other way round it produces sids like `.segmented-nav`, which is not a
@@ -169,9 +180,17 @@ export const FX_PATTERNS: readonly FxPattern[] = [
     sid: 'pattern/color-swatch',
     route: '/b/brandingos/setup',
     selector: '.swatch',
-    // The first core swatch carries the primary tag; a neutral does not.
-    at: [0, 4],
-    axes: [{ role: 'primary' }, { role: 'plain' }],
+    // The first core swatch carries the primary tag; a neutral does not. Both
+    // are captured hovered as well, because at rest the name and the hex are at
+    // opacity 0 — a swatch you cannot read is not a palette.
+    at: [0, 4, 0, 4],
+    axes: [
+      { role: 'primary', state: 'default' },
+      { role: 'plain', state: 'default' },
+      { role: 'primary', state: 'hover' },
+      { role: 'plain', state: 'hover' },
+    ],
+    pseudo: ['default', 'default', 'hover', 'hover'],
     roles: {
       '.swatch-name': 'name',
       '.swatch-hex': 'hex',

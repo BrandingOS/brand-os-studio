@@ -92,7 +92,41 @@ let tokens = null;
 let tokenValues = null;
 const misses = [];
 
+/**
+ * One PASS per pseudo-state, not one stamp per cell.
+ *
+ * `at: [0, 4, 0, 4]` names the same two elements twice — once at rest and once
+ * hovered. Stamping all four in a single pass would simply overwrite the first
+ * two, and forcing :hover would then apply to the cells labelled "default" as
+ * well. So each pseudo gets its own pass over a freshly reloaded page.
+ */
+const passes = [];
 for (const route of routes) {
+  const here = PATTERNS.filter((p) => p.route === route);
+  const states = new Set();
+  for (const p of here) {
+    (p.pseudo ?? p.at.map(() => 'default')).forEach((s) => states.add(s));
+  }
+  for (const state of states) {
+    const work = [];
+    for (const def of here) {
+      const per = def.pseudo ?? def.at.map(() => 'default');
+      const idx = def.at.map((n, i) => [n, i]).filter(([, i]) => per[i] === state);
+      if (idx.length) {
+        work.push({
+          key: def.key, sid: def.sid, selector: def.selector, roles: def.roles,
+          pseudoTarget: def.pseudoTarget || '',
+          at: idx.map(([n]) => n),
+          axes: idx.map(([, i]) => (def.axes && def.axes[i]) || {}),
+        });
+      }
+    }
+    if (work.length) passes.push({ route, state, work });
+  }
+}
+
+for (const pass of passes) {
+  const { route, state, work: here } = pass;
   await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: 'networkidle', timeout: 60_000 });
 
   // Prove the theme took. A capture that silently stays light produces variable
@@ -111,7 +145,6 @@ for (const route of routes) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
 
-  const here = PATTERNS.filter((p) => p.route === route);
   const stamped = await page.evaluate((defs) => {
     const missed = [];
     let index = 0;
@@ -120,7 +153,6 @@ for (const route of routes) {
       def.at.forEach((n, i) => {
         const el = all[n];
         if (!el) { missed.push(`${def.key}[${n}] via ${def.selector}`); return; }
-        const axes = (def.axes && def.axes[i]) || {};
         el.setAttribute('data-fx-self', '');
         // Figma groups the assets panel on "/", so the prefix is what keeps the
         // product layer legible beside the DS primitives instead of interleaved
@@ -130,7 +162,7 @@ for (const route of routes) {
         el.setAttribute('data-fx-index', String(index++));
         el.setAttribute(
           'data-fx-variant',
-          Object.entries(axes).map(([k, v]) => `${k}=${v}`).join(','),
+          Object.entries(def.axes[i]).map(([k, v]) => `${k}=${v}`).join(','),
         );
         if (def.roles) el.setAttribute('data-fx-roles', JSON.stringify(def.roles));
       });
@@ -139,6 +171,30 @@ for (const route of routes) {
   }, here);
 
   misses.push(...stamped);
+
+  // Force the pseudo-state through CDP — the same mechanism DevTools' ":hov"
+  // toggle uses, and the only way to reach :hover from outside the page.
+  if (state !== 'default') {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('DOM.enable');
+    await cdp.send('CSS.enable');
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1 });
+    const targets = await page.$$eval('[data-fx-component]', (els) =>
+      els.map((el) => Number(el.dataset.fxIndex)));
+    for (const idx of targets) {
+      const def = here.find((d) => d.pseudoTarget);
+      const selector = def && def.pseudoTarget
+        ? `[data-fx-index="${idx}"] ${def.pseudoTarget}`
+        : `[data-fx-index="${idx}"]`;
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+      // A target that matches nothing yields a capture identical to default,
+      // which deduplication would then report as a duplicate state. Loud beats
+      // plausible.
+      if (!nodeId) { misses.push(`pseudo target ${selector}`); continue; }
+      await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [state] });
+    }
+    await page.waitForTimeout(120);
+  }
 
   const capture = await page.evaluate(
     ([srcText, props]) => (0, eval)(`(${srcText})`)(props),
