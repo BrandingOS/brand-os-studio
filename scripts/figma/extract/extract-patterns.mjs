@@ -73,6 +73,18 @@ const json = body.slice(body.indexOf('['), body.indexOf('] as const;') + 1);
 // eslint-disable-next-line no-eval -- a literal array from a file in this repo.
 const PATTERNS = eval(json).filter((p) => !ONLY || p.key === ONLY);
 
+/**
+ * A SCREEN references patterns, so it needs their variant rules — but they live
+ * in the other array. Without this the screen's three logo tiles were captured
+ * as three instances of the component's DEFAULT variant, and the dark tile and
+ * the empty slot both came out as the light one.
+ */
+const patternsBody = src.slice(src.indexOf('FX_PATTERNS: readonly FxPattern[] = ['));
+// eslint-disable-next-line no-eval -- a literal array from a file in this repo.
+const ALL_PATTERNS = eval(
+  patternsBody.slice(patternsBody.indexOf('['), patternsBody.indexOf('] as const;') + 1),
+);
+
 const routes = [...new Set(PATTERNS.map((p) => p.route))];
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 1200 } });
@@ -124,7 +136,7 @@ for (const route of routes) {
         // Every pattern a container may reference, so the stamping pass can read
         // the CONTAINED pattern's own variant rule without a second lookup.
         const variantOf = {};
-        for (const other of here) {
+        for (const other of ALL_PATTERNS.concat(here)) {
           if (other.variantBy) variantOf[other.sid] = { variantBy: other.variantBy };
         }
         work.push({
