@@ -237,3 +237,38 @@ describe('roleFor', () => {
     expect(roleFor(node({ text: 'hi' }))).toBe('label');
   });
 });
+
+describe('normalizeColor — color(srgb …)', () => {
+  /**
+   * Every section border on Setup is authored with this function, and Chromium
+   * returns it verbatim. Unparsed, the walker fell back to opaque black and drew
+   * heavy black rules the product does not have.
+   */
+  it('converts an opaque srgb colour to hex', () => {
+    expect(normalizeColor('color(srgb 1 0 0)')).toBe('#ff0000');
+  });
+
+  it('converts a translucent srgb colour to rgba', () => {
+    expect(normalizeColor('color(srgb 0.901961 0.894118 0.866667 / 0.6)'))
+      .toBe('rgba(230, 228, 221, 0.6)');
+  });
+
+  it('clamps an out-of-gamut channel rather than emitting nonsense', () => {
+    expect(normalizeColor('color(srgb 1.4 -0.2 0.5)')).toBe('#ff0080');
+  });
+
+  it('is case-insensitive about the function name', () => {
+    expect(normalizeColor('COLOR(SRGB 0 0 0)')).toBe('#000000');
+  });
+
+  /** An unrecognised colour space must pass through, not become black. */
+  it('leaves a non-srgb colour space alone', () => {
+    const v = 'color(display-p3 1 0 0)';
+    expect(normalizeColor(v)).toBe(v);
+  });
+
+  it('leaves a malformed srgb colour alone', () => {
+    const v = 'color(srgb red green blue)';
+    expect(normalizeColor(v)).toBe(v);
+  });
+});

@@ -368,6 +368,14 @@ async function runPlan(plan) {
         t.letterSpacing = { unit: 'PIXELS', value: spec.text.letterSpacing };
       }
       t.fills = [paint(spec.text.color)];
+      // `text-transform` as a CASE, not baked into the characters: Setup's field
+      // labels are authored "Brand name" and displayed "BRAND NAME", and
+      // uppercasing the string would make the Figma text disagree with the
+      // source and survive an edit.
+      if (spec.text.case) {
+        const CASES = { upper: 'UPPER', lower: 'LOWER', title: 'TITLE' };
+        try { t.textCase = CASES[spec.text.case]; } catch (e) { report.errors.push('textCase: ' + e); }
+      }
       t.name = spec.name;
       node = t;
     } else {
@@ -391,15 +399,31 @@ async function runPlan(plan) {
            * FIXED at its measured width.
            */
           const wrapping = spec.layout.wrap && spec.layout.direction === 'row';
+          const column = spec.layout.direction === 'column';
+          /**
+           * FILL on the parent's PRIMARY axis needs the parent to be fixed on
+           * that axis — there is nothing to fill inside a frame that hugs. The
+           * section rail's list said `height: fill` inside a hugging column, and
+           * Figma resolved it by squashing the list to 356 instead of the 483
+           * the seven rows need, clipping the last two.
+           */
           if (child.sizing && child.sizing.width === 'fill') {
             if (wrapping && child.sizing.w) {
               built.layoutSizingHorizontal = 'FIXED';
               built.resize(Math.max(child.sizing.w, 0.01), built.height);
+            } else if (!column && !spec.fixW) {
+              // Primary axis of a hugging row: let it hug.
             } else {
               built.layoutSizingHorizontal = 'FILL';
             }
           }
-          if (child.sizing && child.sizing.height === 'fill') built.layoutSizingVertical = 'FILL';
+          if (child.sizing && child.sizing.height === 'fill') {
+            if (column && !spec.fixH) {
+              // Primary axis of a hugging column: let it hug.
+            } else {
+              built.layoutSizingVertical = 'FILL';
+            }
+          }
         } else if (child.pos) {
           // An absolute child carries its own offset. Without it every sibling
           // is appended at the origin and stacks on the first.

@@ -142,6 +142,19 @@ export const COLLECTOR_SRC = String.raw`
       return node;
     }
 
+    // An <input> holds its words in a PROPERTY, not in the DOM. Setup's brand
+    // field shows "BrandingOS" and the slogan field shows a placeholder; both
+    // came through as empty boxes because textContent is "" for a form control.
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'textarea') {
+      const shown = el.value || el.getAttribute('placeholder') || '';
+      if (shown) {
+        node.text = shown;
+        node.isPlaceholder = !el.value;
+      }
+      return node;
+    }
+
     // Walk childNodes, not children.
     //
     // DsMenuItem renders {icon}{children}{kbd}, where `children` is a BARE TEXT

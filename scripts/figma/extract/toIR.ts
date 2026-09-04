@@ -23,6 +23,28 @@ export function normalizeColor(css: string | undefined): string {
   const s = (css ?? '').trim();
   if (!s) return 'transparent';
   if (s === 'transparent' || s === 'rgba(0, 0, 0, 0)') return 'transparent';
+
+  /**
+   * `color(srgb r g b / a)` is a modern CSS colour function with 0..1 channels.
+   * Chromium returns it verbatim from getComputedStyle wherever the author used
+   * it, and every section border on Setup is written that way — so the walker
+   * received a string it could not parse and fell back to opaque black, drawing
+   * heavy black rules the product does not have.
+   */
+  const fn = s.match(/^color\(\s*srgb\s+([^)]+)\)$/i);
+  if (fn) {
+    const p = fn[1].split(/[\s/]+/).filter(Boolean).map(Number);
+    const [r, g, b, alpha = 1] = p;
+    if (![r, g, b].some((n) => Number.isNaN(n))) {
+      const to255 = (n: number) => Math.round(Math.min(Math.max(n, 0), 1) * 255);
+      return normalizeColor(
+        alpha >= 1
+          ? `rgb(${to255(r)}, ${to255(g)}, ${to255(b)})`
+          : `rgba(${to255(r)}, ${to255(g)}, ${to255(b)}, ${alpha})`,
+      );
+    }
+  }
+
   const m = s.match(/^rgba?\(([^)]+)\)$/);
   if (!m) return s;
   const parts = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
@@ -248,7 +270,20 @@ export function nodeToIR(
     strokes.push(toPaint(s['border-top-color'], opts.tokens));
   }
 
-  const visibleChildren = raw.children.filter(isVisible);
+  /**
+   * PAINT order, not DOM order.
+   *
+   * Setup's Website section carries `order: 10` and every sibling `order: 0`, so
+   * it paints last while sitting sixth in the DOM — and the Figma screen showed
+   * it sixth, above Brand Strategy. A flex container's children are ordered by
+   * `order` first and document position second; Figma has no such property, so
+   * the ordering must be resolved here.
+   */
+  const visibleChildren = raw.children
+    .filter(isVisible)
+    .map((c, i) => ({ c, i, o: Number.parseInt(c.style.order ?? '0', 10) || 0 }))
+    .sort((a, b) => (a.o - b.o) || (a.i - b.i))
+    .map((e) => e.c);
   const roleNames = visibleChildren.map((c) => roleFor(c, opts.roles));
   const ordinals = assignOrdinals(roleNames);
 
@@ -462,5 +497,13 @@ function textFor(raw: RawNode, s: Record<string, string>, opts: ToIROptions): IR
     align: (s['text-align'] as 'left') ?? 'left',
     direction: (s.direction as Direction) ?? opts.direction,
     color: toPaint(s.color, opts.tokens),
+    ...(TEXT_CASE[s['text-transform'] ?? ''] ? { textCase: TEXT_CASE[s['text-transform']] } : {}),
+    ...(raw.isPlaceholder ? { placeholder: true } : {}),
   };
 }
+
+const TEXT_CASE: Record<string, 'upper' | 'lower' | 'title'> = {
+  uppercase: 'upper',
+  lowercase: 'lower',
+  capitalize: 'title',
+};

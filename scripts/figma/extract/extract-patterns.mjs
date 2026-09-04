@@ -48,7 +48,7 @@ const COLLECTOR = collectorSrc.slice(
 
 const PROPS = [
   'display', 'position', 'flex-direction', 'flex-wrap', 'gap', 'row-gap', 'column-gap',
-  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis',
+  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis', 'order',
   'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
   'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
   'background-color', 'color', 'opacity', 'overflow',
@@ -57,7 +57,7 @@ const PROPS = [
   'border-top-left-radius', 'border-top-right-radius',
   'border-bottom-right-radius', 'border-bottom-left-radius',
   'box-shadow', 'font-family', 'font-size', 'font-weight',
-  'line-height', 'letter-spacing', 'text-align', 'direction',
+  'line-height', 'letter-spacing', 'text-align', 'direction', 'text-transform',
   'transform', 'visibility',
 ];
 
@@ -215,7 +215,15 @@ for (const pass of passes) {
                 const axes = {};
                 for (const axis in target.variantBy) {
                   const rule = target.variantBy[axis];
-                  axes[axis] = d.querySelector(rule.selector) ? rule.present : rule.absent;
+                  // The FIRST matching rule wins. A selector is tested against
+                  // the element ITSELF and against its descendants, because a
+                  // logo tile declares its variant with its own class while a
+                  // rail row declares it with a child.
+                  let value = rule.else;
+                  for (const w of rule.when) {
+                    if (d.matches(w.selector) || d.querySelector(w.selector)) { value = w.value; break; }
+                  }
+                  axes[axis] = value;
                 }
                 d.setAttribute(
                   'data-fx-ref-variant',

@@ -72,14 +72,18 @@ export interface FxPattern {
    * How to tell which VARIANT a referenced occurrence is, without measuring it.
    *
    * Declared on the CONTAINED pattern, so every container that references it
-   * gets the right variant for free. Keyed by axis: a selector that is PRESENT
-   * means one value, absent means the other.
+   * gets the right variant for free. Keyed by axis: the FIRST rule whose
+   * selector matches wins, and `else` is the value when none do.
+   *
+   * A selector is tested against the element ITSELF and against its
+   * descendants: a logo tile says which variant it is with its own class
+   * (`.is-dark`), while a rail row says it with a child (`.panel-item-thumb`).
    *
    * Without this, all seven rail rows became instances of the default variant
    * and the rail read "Website" seven times — structurally correct, and a
    * picture of something the product never shows.
    */
-  variantBy?: Record<string, { selector: string; present: string; absent: string }>;
+  variantBy?: Record<string, { when: Array<{ selector: string; value: string }>; else: string }>;
   /**
    * Meaningful child roles, keyed SELECTOR -> role — the same direction the
    * component manifest uses, and the direction `roleFor` reads. Written the
@@ -204,7 +208,9 @@ export const FX_PATTERNS: readonly FxPattern[] = [
     at: [0, 6],
     axes: [{ state: 'filled' }, { state: 'empty' }],
     // A row with a thumbnail is a section that has content; one without is empty.
-    variantBy: { state: { selector: '.panel-item-thumb', present: 'filled', absent: 'empty' } },
+    variantBy: {
+      state: { when: [{ selector: '.panel-item-thumb', value: 'filled' }], else: 'empty' },
+    },
     roles: {
       '.panel-item-thumb': 'thumb',
       '.panel-item-name': 'name',
@@ -259,7 +265,19 @@ export const FX_PATTERNS: readonly FxPattern[] = [
     sid: 'pattern/logo-tile',
     route: '/b/brandingos/setup',
     selector: '.logo-tile',
-    at: [0],
+    // Three genuinely different tiles, not one tile three times: a light tile,
+    // a dark tile whose artwork is the light cut, and an empty dashed slot.
+    at: [0, 1, 2],
+    axes: [{ state: 'primary' }, { state: 'dark' }, { state: 'empty' }],
+    variantBy: {
+      state: {
+        when: [
+          { selector: '.is-dark', value: 'dark' },
+          { selector: '.is-empty', value: 'empty' },
+        ],
+        else: 'primary',
+      },
+    },
     roles: {
       '.logo-svg': 'art',
       '.logo-tile-name': 'name',

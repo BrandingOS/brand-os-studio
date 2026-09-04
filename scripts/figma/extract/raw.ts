@@ -43,6 +43,8 @@ export interface RawNode {
   rect: RawRect;
   /** Own text, only when this node's sole content is text. */
   text?: string;
+  /** The text came from a form control's PLACEHOLDER, not from its value. */
+  isPlaceholder?: boolean;
   /** outerHTML of an <svg>, already colour-resolved. */
   svg?: string;
   children: RawNode[];

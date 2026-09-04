@@ -102,6 +102,16 @@ export interface IRText {
   align: 'left' | 'center' | 'right' | 'justify';
   direction: Direction;
   color: IRPaint;
+  /**
+   * `text-transform`, kept as a CASE rather than baked into `characters`.
+   *
+   * Setup's field labels are authored "Brand name" and displayed "BRAND NAME".
+   * Uppercasing the string would make the Figma text disagree with the source
+   * and would survive an edit; Figma has `textCase` for exactly this.
+   */
+  textCase?: 'upper' | 'lower' | 'title';
+  /** The value is a PLACEHOLDER, not content the brand owns. */
+  placeholder?: boolean;
 }
 
 export type IRLossReason =

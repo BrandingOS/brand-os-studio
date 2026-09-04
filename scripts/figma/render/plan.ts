@@ -33,6 +33,8 @@ export interface PlanNode {
   text?: {
     characters: string; family: string; weight: number; size: number;
     lineHeight: number | 'auto'; letterSpacing: number; color: PlanPaint;
+    /** `text-transform` as a Figma text case. See IRText.textCase. */
+    case?: 'upper' | 'lower' | 'title';
   };
   svg?: string;
   /**
@@ -129,6 +131,7 @@ function toPlanNode(n: IRNode): PlanNode {
       lineHeight: n.text.lineHeight,
       letterSpacing: n.text.letterSpacing,
       color: toPlanPaint(n.text.color),
+      ...(n.text.textCase ? { case: n.text.textCase } : {}),
     };
   }
   if (n.vector) out.svg = n.vector.svg;

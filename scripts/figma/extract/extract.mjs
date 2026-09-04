@@ -46,7 +46,7 @@ const COLLECTOR = collectorSrc.slice(
 
 const PROPS = [
   'display', 'position', 'flex-direction', 'flex-wrap', 'gap', 'row-gap', 'column-gap',
-  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis',
+  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis', 'order',
   'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
   'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
   'background-color', 'color', 'opacity', 'overflow',
@@ -55,7 +55,7 @@ const PROPS = [
   'border-top-left-radius', 'border-top-right-radius',
   'border-bottom-right-radius', 'border-bottom-left-radius',
   'box-shadow', 'font-family', 'font-size', 'font-weight',
-  'line-height', 'letter-spacing', 'text-align', 'direction',
+  'line-height', 'letter-spacing', 'text-align', 'direction', 'text-transform',
   'transform', 'visibility',
 ];
 
