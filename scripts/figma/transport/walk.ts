@@ -323,8 +323,17 @@ async function runPlan(plan) {
         node.layoutMode = 'NONE';
         node.resize(Math.max(spec.sizing.w, 0.01), Math.max(spec.sizing.h, 0.01));
       }
-      if (spec.sizing && spec.sizing.minW) node.minWidth = spec.sizing.minW;
-      if (spec.sizing && spec.sizing.maxW) node.maxWidth = spec.sizing.maxW;
+      // min/max width exist only inside an auto-layout context. CSS has no such
+      // rule, so a measured max-width can land on a node whose parent is
+      // absolutely positioned — preview-card's image is one. Figma throws, and
+      // an uncaught throw abandons the whole chunk over a constraint that is
+      // advisory here. Recorded instead, so the loss is visible.
+      try {
+        if (spec.sizing && spec.sizing.minW) node.minWidth = spec.sizing.minW;
+        if (spec.sizing && spec.sizing.maxW) node.maxWidth = spec.sizing.maxW;
+      } catch (e) {
+        report.errors.push('sizing bounds on ' + spec.sid + ': ' + e);
+      }
       stamp(node, spec.sid);
       return node;
     }
