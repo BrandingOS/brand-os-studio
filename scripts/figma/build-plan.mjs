@@ -112,7 +112,14 @@ const walkerRaw = walkerSrc.slice(
 );
 // The walker is repeated in every chunk, so its comments are pure transmission
 // cost. The readable source stays in walk.ts; only the wire copy is stripped.
-const walker = walkerRaw.replace(/^\s*\/\/.*$/gm,'').replace(/\n\s*\n/g,'\n').replace(/^ {2,}/gm,' ');
+// `.trim()` is load-bearing, not tidiness. The template literal opens and closes
+// on its own line, so the stripped string carries a leading and a trailing
+// newline. Those two invisible characters cost two failed installs: every tool
+// that prints the file shows them as blank lines, so a transcription is short by
+// exactly two and the byte-count check fails with nothing visible to fix.
+const walker = walkerRaw
+  .replace(/^\s*\/\/.*$/gm, '').replace(/\n\s*\n/g, '\n').replace(/^ {2,}/gm, ' ')
+  .trim();
 
 /**
  * The installed copy of the walker and this string must be IDENTICAL, and the
@@ -249,6 +256,7 @@ const chunks = [];
  */
 const LEAN_PREFIX = (page) => `const _p=figma.root.children.find(p=>p.name===${JSON.stringify(page)});await figma.setCurrentPageAsync(_p);
 const _s=figma.root.getSharedPluginData('brandingos','walker');
+if(_s.length!==${walker.length})throw new Error('stale walker: installed '+_s.length+' bytes, this plan was built for ${walker.length}. Reinstall scripts/figma/.plans/_walker.js');
 const runPlan=new Function('return ('+_s.replace('async function runPlan','async function')+')')();
 `;
 
