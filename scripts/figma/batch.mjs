@@ -37,7 +37,7 @@ for (const component of COMPONENTS) {
       ['--component', component, '--page', PAGE, '--budget', BUDGET]);
     const plan = JSON.parse(built.slice(built.indexOf('{')));
     row.variants = plan.variantCount;
-    row.collapsed = plan.collapsedVariants;
+    row.visuallyIdentical = plan.visuallyIdenticalVariants;
     row.chunks = plan.chunks.map((c) => c.bytes);
     row.allFit = plan.chunks.every((c) => c.fits);
     row.unmapped = plan.unmappedThemeValues;

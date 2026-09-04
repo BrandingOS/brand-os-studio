@@ -85,7 +85,7 @@ const raw = execFileSync('npx', ['vite-node', bridge], {
   maxBuffer: 64 * 1024 * 1024,
   stdio: ['ignore', 'pipe', 'inherit'],
 });
-const { plan, unmapped, collapsed, droppedAxes } = JSON.parse(raw.slice(raw.indexOf('{')));
+const { plan, unmapped, visuallyIdentical, droppedAxes } = JSON.parse(raw.slice(raw.indexOf('{')));
 fs.unlinkSync(bridge);
 
 const name = COMPONENT || 'all';
@@ -229,7 +229,7 @@ console.log(JSON.stringify({
   variantCount,
   variables: plan.collections[0]?.variables.length ?? 0,
   unmappedThemeValues: unmapped.length,
-  collapsedVariants: collapsed.length,
+  visuallyIdenticalVariants: visuallyIdentical.length,
   droppedAxes,
   scriptBytes: script.length,
   // use_figma caps `code` at 50,000 characters.
