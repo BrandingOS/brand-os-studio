@@ -323,6 +323,21 @@ async function runPlan(plan) {
       continue;
     }
 
+    // A COMPONENT_SET requires every variant to carry a prop=value name. A
+    // component with ONE variant and no axes has no such name, so
+    // combineAsVariants yields a set Figma reports as having "existing
+    // errors", and every later read of componentPropertyDefinitions throws.
+    // Such a component is not a set at all — it is a plain COMPONENT.
+    if (components.length === 1 && Object.keys(set.variants[0].axes || {}).length === 0) {
+      const only = components[0];
+      only.name = set.name;
+      only.x = set.x || 0; only.y = cursorY;
+      stamp(only, set.sid);
+      cursorY += only.height + 120;
+      report.created.push({ sid: set.sid, name: set.name, type: only.type, variants: 1, props: [] });
+      continue;
+    }
+
     const setNode = figma.combineAsVariants(components, page);
     setNode.name = set.name;
     setNode.layoutMode = 'HORIZONTAL';
