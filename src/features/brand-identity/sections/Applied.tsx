@@ -37,7 +37,8 @@ import { saysName, useArtworkShape } from '../artworkShape';
 import { lines } from '../brandCopy';
 import { Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
-import { BentoWall, CardRow, DataRamp, InterfaceKit } from './Surfaces';
+import { CardRow, DataRamp, InterfaceKit } from './Surfaces';
+import { BentoSurface } from './BentoSurface';
 
 type Shades = ColorScale['shades'];
 
@@ -99,7 +100,7 @@ export function SocialApplications({
         ))}
       </div>
 
-      <BentoWall model={model} register={register} />
+      <BentoSurface model={model} register={register} />
       <CardRow model={model} register={register} />
       <SiteMock model={model} register={register} />
       <InterfaceKit model={model} register={register} />

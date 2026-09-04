@@ -1,6 +1,9 @@
 /**
- * Four more surfaces the identity has to survive: a bento wall, editorial
- * cards, an interface kit and a data ramp.
+ * Three more surfaces the identity has to survive: editorial cards, an
+ * interface kit and a data ramp.
+ *
+ * The bento used to be a fourth. It is now `BentoSurface.tsx`, because it
+ * stopped being a drawing of a bento and became the real one — see that file.
  *
  * Same rule as the rest of the applied section (see `Applied.tsx`): structural
  * UI chrome may be invented — a button that says "Save", a field labelled
@@ -19,213 +22,35 @@
  */
 import type { ReactNode } from 'react';
 import type { ColorScale } from '@/lib/color-engine';
-import { pickFgOnBackground, pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
+import { pickFgOnBackground } from '@/shared/brand/logoOnBackground';
 import type { IdentityModel } from '../identityModel';
 import type { IdentityRegister } from '../identityRegister';
-import { saysName, useArtworkShape } from '../artworkShape';
-import { lines } from '../brandCopy';
-import { CountUp } from '../motion/CountUp';
 import { useReveal } from '../motion/useReveal';
 
 type Shades = ColorScale['shades'];
 const on = (bg: string, light: string, dark: string) => pickFgOnBackground(bg, [light, dark]);
-
-/** Real steps of the ramp. Anything between them does not exist. */
-const SPARK = [200, 300, 400, 500, 600, 700, 800, 900] as const;
 
 interface SurfaceProps {
   model: IdentityModel;
   register: IdentityRegister;
 }
 
-/** A captioned block, matching the site and product mockups above. */
-function Applied({ label, delay, children }: { label: string; delay?: number; children: ReactNode }) {
+/**
+ * A captioned block, matching the site and product mockups above.
+ *
+ * Exported because `BentoSurface` is a sibling file rather than a function in
+ * this one — the bento is the identity's only applied surface that renders
+ * ANOTHER feature's output, and burying it among these page-local drawings
+ * would say the opposite. Named `AppliedFigure` so it cannot be confused with
+ * the `Applied.tsx` section that mounts it.
+ */
+export function AppliedFigure({ label, delay, children }: { label: string; delay?: number; children: ReactNode }) {
   const reveal = useReveal({ delay });
   return (
     <figure className="bi-applied" {...reveal}>
       <figcaption className="bi-applied-cap bi-quiet">{label}</figcaption>
       {children}
     </figure>
-  );
-}
-
-/* ── Bento ───────────────────────────────────────────────────────────── */
-
-/**
- * The wall.
- *
- * Six tiles at six columns, and every tile is a different SHAPE of content —
- * a picture, a number, a colour stack, a list, a line, a call to action — so
- * the identity is tested against all of them at once rather than against six
- * variations of a card. Tiles whose content the brand does not have collapse
- * out and the grid closes up, which is why the spans are declared per tile
- * rather than as a fixed template.
- */
-export function BentoWall({ model, register }: SurfaceProps) {
-  const p = register.scale.shades;
-  const n = register.neutral.shades;
-  const s = register.secondScale?.shades ?? p;
-  /*
-   * The mark that reads on THIS tile, not the primary one.
-   *
-   * The hero tile is a deep brand gradient, and `hero.logo` is the variant
-   * drawn for a white page — SKAM's red mark on a red tile, which is the exact
-   * collision `pickLogoOnBackground` exists to catch.
-   */
-  const mark = pickLogoOnBackground(model.brand, p[700].hex)?.url;
-  const speaks = saysName(useArtworkShape(mark));
-
-  const photo = model.photography.images[0];
-  const quote = model.voice.examples[0] ?? model.voice.examples[1];
-  const values = (
-    model.personality.values.length ? model.personality.values : model.personality.traits
-  ).slice(0, 4);
-  // The shortest line the brand owns — a tile two rows tall cannot hold a
-  // 150-character positioning statement and a mark without them colliding.
-  const line = lines(model)[0];
-
-  const tiles: Array<{ span: string; node: ReactNode }> = [];
-
-  // Hero — the brand's own photograph when it has one, its colour when it does
-  // not. Never a stock photograph, which would be a picture of someone else's
-  // brand sitting at the top of this one's wall.
-  tiles.push({
-    span: '3 / span 2',
-    node: (
-      <div
-        className="bi-bento-hero"
-        style={{
-          background: photo
-            ? undefined
-            : `linear-gradient(140deg, ${p[500].hex}, ${p[800].hex})`,
-          color: n[50].hex,
-        }}
-      >
-        {photo && <img src={photo.url} alt={photo.name} loading="lazy" />}
-        <span
-          className="bi-bento-scrim"
-          aria-hidden
-          style={{
-            background: photo
-              ? `linear-gradient(180deg, ${p[700].hex}55 0%, ${n[950].hex}dd 100%)`
-              : 'none',
-          }}
-        />
-        <span className="bi-cover-grid" style={{ color: n[50].hex, opacity: 0.1 }} aria-hidden />
-        <div className="bi-bento-hero-copy">
-          {mark && (
-            <img className="bi-bento-mark" src={mark} alt="" data-speaks={speaks ? '' : undefined} />
-          )}
-          {line && <p className="bi-bento-line">{line}</p>}
-        </div>
-      </div>
-    ),
-  });
-
-  // The count that is easiest to verify: how many marks this brand keeps.
-  tiles.push({
-    span: '2 / span 1',
-    node: (
-      <div className="bi-bento-stat" style={{ background: n[50].hex, borderColor: n[200].hex }}>
-        {/* The tile IS the number, which is the only place counting earns its
-            keep — a number inside a sentence counting up is a distraction. */}
-        <CountUp
-          value={model.logo.variants.length}
-          className="bi-bento-num"
-          style={{ color: p[600].hex }}
-        />
-        <span className="bi-bento-cap" style={{ color: n[600].hex }}>
-          {model.logo.variants.length === 1 ? 'logo variant' : 'logo variants'}
-        </span>
-        {/* One rising bar per variant. The stops are named, never computed —
-            `300 + i * 150` produced `p[450]`, which is not a step of the ramp
-            and read as `undefined.hex`. */}
-        <span className="bi-bento-spark" aria-hidden>
-          {model.logo.variants.map((_, i) => (
-            <span key={i} style={{ background: p[SPARK[i % SPARK.length]].hex }} />
-          ))}
-        </span>
-      </div>
-    ),
-  });
-
-  tiles.push({
-    span: '1 / span 2',
-    node: (
-      <div className="bi-bento-chips">
-        {register.chips.slice(0, 6).map((c) => (
-          <span key={c.hex} style={{ background: c.hex }} />
-        ))}
-      </div>
-    ),
-  });
-
-  if (values.length > 0) {
-    tiles.push({
-      span: '2 / span 1',
-      node: (
-        <div className="bi-bento-features" style={{ background: n[50].hex, borderColor: n[200].hex }}>
-          {values.map((v, i) => (
-            <span key={v} style={{ color: n[900].hex }}>
-              <i style={{ background: [p[600], s[500], p[300], p[800]][i % 4].hex }} />
-              {v}
-            </span>
-          ))}
-        </div>
-      ),
-    });
-  }
-
-  if (quote) {
-    tiles.push({
-      span: '3 / span 1',
-      node: (
-        <div className="bi-bento-quote" style={{ background: p[100].hex, color: n[950].hex }}>
-          <p>{quote.text}</p>
-          {quote.context && <span style={{ color: p[800].hex }}>{quote.context}</span>}
-        </div>
-      ),
-    });
-  }
-
-  tiles.push({
-    span: '2 / span 1',
-    node: (
-      <div
-        className="bi-bento-cta"
-        style={{ background: s[600].hex, color: on(s[600].hex, n[50].hex, n[950].hex) }}
-      >
-        <span className="bi-bento-cta-name">{model.name}</span>
-        <span className="bi-bento-cta-go" aria-hidden>
-          →
-        </span>
-      </div>
-    ),
-  });
-
-  return (
-    <Applied label="Bento">
-      <div className="bi-bento">
-        {tiles.map((t, i) => (
-          <BentoCell key={i} span={t.span} delay={i * 60}>
-            {t.node}
-          </BentoCell>
-        ))}
-      </div>
-    </Applied>
-  );
-}
-
-function BentoCell({ span, delay, children }: { span: string; delay: number; children: ReactNode }) {
-  const reveal = useReveal({ delay });
-  return (
-    <div
-      className="bi-bento-cell"
-      {...reveal}
-      style={{ ...reveal.style, gridColumn: `span ${span.split(' / ')[0]}`, gridRow: `span ${span.split('span ')[1]}` }}
-    >
-      {children}
-    </div>
   );
 }
 
@@ -250,7 +75,7 @@ export function CardRow({ model, register }: SurfaceProps) {
   const line = model.purpose.mission ?? model.tagline ?? model.purpose.positioning;
 
   return (
-    <Applied label="Cards" delay={60}>
+    <AppliedFigure label="Cards" delay={60}>
       <div className="bi-cards">
         {/* Picture, or the ramp standing in for one. */}
         <article className="bi-card bi-card--photo" style={{ borderColor: n[200].hex }}>
@@ -320,7 +145,7 @@ export function CardRow({ model, register }: SurfaceProps) {
           </span>
         </article>
       </div>
-    </Applied>
+    </AppliedFigure>
   );
 }
 
@@ -342,7 +167,7 @@ export function InterfaceKit({ register }: SurfaceProps) {
   const onS = on(s[600].hex, n[50].hex, n[950].hex);
 
   return (
-    <Applied label="Interface" delay={120}>
+    <AppliedFigure label="Interface" delay={120}>
       <div className="bi-kit">
         <div className="bi-kit-panel" style={{ background: n[50].hex, borderColor: n[200].hex }}>
           <h4 style={{ color: n[900].hex }}>Buttons</h4>
@@ -441,7 +266,7 @@ export function InterfaceKit({ register }: SurfaceProps) {
           </span>
         </div>
       </div>
-    </Applied>
+    </AppliedFigure>
   );
 }
 
@@ -478,7 +303,7 @@ export function DataRamp({ model, register }: SurfaceProps) {
   let sweep = 0;
 
   return (
-    <Applied label="Data" delay={180}>
+    <AppliedFigure label="Data" delay={180}>
       <div className="bi-data">
         <div className="bi-data-card" style={{ background: n[50].hex, borderColor: n[200].hex }}>
           <span className="bi-data-cap" style={{ color: n[500].hex }}>
@@ -543,6 +368,6 @@ export function DataRamp({ model, register }: SurfaceProps) {
           </div>
         </div>
       </div>
-    </Applied>
+    </AppliedFigure>
   );
 }
