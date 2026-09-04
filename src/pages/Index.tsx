@@ -1,34 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
-import { HeroSection } from '@/domains/landing/components/HeroSection';
-import { MarqueeSection } from '@/domains/landing/components/MarqueeSection';
-import { PainPointsSection } from '@/domains/landing/components/PainPointsSection';
-import { SetupSection } from '@/domains/landing/components/SetupSection';
-import { ProductModulesSection } from '@/domains/landing/components/ProductModulesSection';
-import { StatisticsSection } from '@/domains/landing/components/StatisticsSection';
-import { FinalCTASection } from '@/domains/landing/components/FinalCTASection';
-import { EarlyAccessProvider } from '@/domains/landing/components/EarlyAccessProvider';
-import { EarlyAccessDialog } from '@/domains/landing/components/EarlyAccessDialog';
-import { AuthModal } from '@/features/auth/components/AuthModal';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 /**
- * `/` is the marketing landing, and the landing is a document of its own
- * (landingpage/, built into dist/index.html by scripts/build-landing.mjs).
+ * `/` is the marketing landing, and the landing is a DOCUMENT of its own
+ * (landingpage/, built into dist/landing/index.html by
+ * scripts/build-landing.mjs and served at `/` by functions/_middleware.ts).
  * A visitor typing the address never reaches React Router at all.
  *
- * React Router only lands here on an IN-APP navigation to `/` — a logo
- * click, a dismissed login modal. The honest answer to that is a full
- * document load: ask the server for `/` and it hands back the landing.
+ * React Router lands here only on an IN-APP navigation to `/` — a logo
+ * click, a logout, NotFound's "home". So this route is a BRIDGE, and it
+ * renders nothing.
+ *
+ * It used to render a SECOND landing page (src/domains/landing, the orange
+ * one) as its visible content while it waited for the session to resolve,
+ * and bounce only afterwards. That painted the old marketing site over the
+ * app for as long as auth took to answer — up to the auth controller's 6s
+ * fallback — and then replaced it with the real one. Two landing pages is
+ * the bug; the legacy one was deleted on 2026-09-04. Never render markup
+ * here: whatever this route paints is a landing page competing with the
+ * real one.
  *
  * This holds in dev too: vite.config.ts's landingPageDevPlugin serves the
  * landing at `/` on port 8080, so localhost is the same front door.
- *
- * `bounced` is the loop guard. If a deploy — or a dev server whose landing
- * build failed — answers `/` with the SPA again, the marker is already set,
- * so the legacy page below renders instead of reloading for ever.
  */
 const BOUNCE_MARKER = 'brandos:landing-bounced';
 
@@ -36,62 +30,39 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Redirect authenticated users to dashboard unless they explicitly hit ?auth=required
   useEffect(() => {
-    if (searchParams.get('auth') === 'required') {
-      setShowAuthModal(true);
-      return;
-    }
+    // `isAuthenticated` is false while the session is still resolving, so
+    // acting now would throw a signed-in visitor out to the landing.
+    if (isLoading) return;
+
     if (isAuthenticated) {
       navigate('/dashboard', { replace: true });
+      return;
     }
-  }, [searchParams, isAuthenticated, navigate]);
 
-  // Hand `/` back to the landing document. Guests only — a signed-in
-  // visitor is already on their way to the dashboard above, and the
-  // ?auth=required entry point wants the modal, not a reload. Waiting
-  // for the session to resolve matters: `isAuthenticated` is false while
-  // it is still loading, and bouncing then would throw a signed-in user
-  // out to the landing on a full page load.
-  useEffect(() => {
-    if (isLoading || isAuthenticated || searchParams.get('auth') === 'required') return;
-    let bounced = false;
+    // A guest asked for `/`. Ask the SERVER for it: the middleware answers
+    // with the landing document.
+    //
+    // Once per tab. If the reply is this route again, the deploy has no
+    // landing document and a second replace would loop for ever — so the
+    // marker is set BEFORE the bounce, and the fallback is the login page.
+    // That is also where `?auth=required` belongs now that there is no
+    // landing here to open a modal over.
+    let bounced = searchParams.get('auth') === 'required';
     try {
-      bounced = sessionStorage.getItem(BOUNCE_MARKER) === '1';
+      bounced ||= sessionStorage.getItem(BOUNCE_MARKER) === '1';
       sessionStorage.setItem(BOUNCE_MARKER, '1');
     } catch {
       // Private mode with storage disabled: never risk a reload loop.
       bounced = true;
     }
-    if (!bounced) window.location.replace('/');
-  }, [isLoading, isAuthenticated, searchParams]);
 
-  return (
-    <EarlyAccessProvider>
-      <div className="min-h-screen bg-background bg-dot-grid animate-bg-pan text-foreground antialiased overflow-x-hidden">
-        <Navbar />
-        <main>
-          <HeroSection />
-          <MarqueeSection />
-          <PainPointsSection />
-          <SetupSection />
-          <ProductModulesSection />
-          <StatisticsSection />
-          <FinalCTASection />
-        </main>
-        <Footer />
-      </div>
+    if (bounced) navigate('/login', { replace: true });
+    else window.location.replace('/');
+  }, [isLoading, isAuthenticated, searchParams, navigate]);
 
-      <EarlyAccessDialog />
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
-    </EarlyAccessProvider>
-  );
+  return null;
 };
 
 export default Index;

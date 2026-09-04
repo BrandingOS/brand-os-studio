@@ -75,8 +75,22 @@ project (`demo`, root dir `.`) and the same `dist/`.
   Function means `/` serves the app, not a broken site.
 - **`src/pages/Index.tsx` (the SPA's `/` route) hands `/` back** with a
   full document load, guarded by a one-shot sessionStorage marker so a
-  deploy without the landing renders the legacy page instead of reloading
-  for ever. It is only reachable by in-app navigation.
+  deploy without the landing sends the visitor to `/login` instead of
+  reloading for ever. It is only reachable by in-app navigation.
+  **It renders NOTHING, and that is the rule.** Until 2026-09-04 it
+  rendered a second, legacy marketing landing (`src/domains/landing`) as
+  its visible content while it waited for the session to resolve, and
+  bounced only afterwards — so a logo click, a logout or NotFound's
+  "home" painted the OLD landing over the app for as long as auth took to
+  answer (up to `authController`'s 6s fallback), then replaced it with
+  the real one. The two landings shared component class names but not
+  their tokens: `src/index.css` sets `--accent-pop: 18 87% 54%` (#F36123,
+  orange) and `landingpage/src/index.css` sets it to `240 6% 7%`
+  (charcoal), which is exactly why the flash read as "the old orange
+  site". The legacy landing, `src/components/layout/{Navbar,Footer}` and
+  `src/assets/landing/` were deleted; whatever this route paints is a
+  landing page competing with the real one. Pinned by
+  `src/pages/Index.test.tsx`.
 - **Dev serves it too.** `landingPageDevPlugin` (root `vite.config.ts`)
   builds the landing into `landingpage/dist-dev` and serves it at `/` on
   port 8080, rebuilding whenever anything under `landingpage/` is newer,
@@ -117,7 +131,7 @@ Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/*
 | Deploy target | Cloudflare Pages (root dir: `.`) | Cloudflare Pages (root dir: `landingpage`) |
 | Path alias | `@/` → `./src/` | `@/` → `./src/` |
 
-There are also legacy landing page versions at `src/domains/landing` (v1) and `src/features/landing-v2` (v2) — these are dead code kept for reference. The live landing page is `landingpage/`.
+**`landingpage/` is the only landing page.** The legacy in-app versions are gone — `src/features/landing-v2` first, then `src/domains/landing` (v1) with `src/components/layout/{Navbar,Footer}` and `src/assets/landing/` on 2026-09-04. A landing page inside the SPA bundle is a second landing page that the `/` route can paint over the real one; do not add one back.
 
 ### Demo environment
 
