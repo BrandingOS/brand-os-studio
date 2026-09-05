@@ -1,8 +1,36 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const setNextTheme = vi.fn();
-vi.mock('next-themes', () => ({ useTheme: () => ({ setTheme: setNextTheme }) }));
+/*
+ * A STATEFUL stand-in for next-themes.
+ *
+ * The old mock returned only `setTheme`, so `useTheme().theme` was always
+ * undefined and every assertion here was really testing the hook's own private
+ * copy of the theme. That is exactly the bug this file now guards against —
+ * a mock that cannot disagree with the hook cannot catch two consumers
+ * disagreeing with each other. This one holds a value and notifies, like the
+ * real provider.
+ */
+let current: string | undefined;
+const listeners = new Set<() => void>();
+const setNextTheme = vi.fn((next: string) => {
+  current = next;
+  listeners.forEach((l) => l());
+});
+
+vi.mock('next-themes', () => ({
+  useTheme: () => {
+    const [, bump] = React.useReducer((n: number) => n + 1, 0);
+    React.useEffect(() => {
+      const l = () => bump();
+      listeners.add(l);
+      return () => { listeners.delete(l); };
+    }, []);
+    return { theme: current, setTheme: setNextTheme };
+  },
+}));
+
+import React from 'react';
 
 import {
   THEME_STORAGE_KEY,
@@ -32,6 +60,8 @@ describe('useWorkspaceTheme', () => {
   beforeEach(() => {
     window.localStorage.clear();
     setNextTheme.mockClear();
+    current = undefined;
+    listeners.clear();
   });
 
   it('starts from the stored value synchronously, so dark never flashes light', () => {
@@ -43,7 +73,9 @@ describe('useWorkspaceTheme', () => {
 
   it('pushes every change through next-themes so the <html> class follows', () => {
     const { result } = renderHook(() => useWorkspaceTheme());
-    expect(setNextTheme).toHaveBeenCalledWith('light');
+    // Nothing is asserted on mount any more: next-themes already owns the
+    // value, and re-asserting a local copy over it was the defect.
+    expect(setNextTheme).not.toHaveBeenCalled();
 
     act(() => result.current.toggleTheme());
     expect(result.current.theme).toBe('dark');
@@ -80,5 +112,21 @@ describe('useWorkspaceTheme', () => {
       );
     });
     expect(result.current.theme).toBe('light');
+  });
+
+  it('every consumer sees the same theme — one owner, no local copies', () => {
+    // Two mounted surfaces (a shell and Settings → Preferences, say). When one
+    // changes the theme the other MUST follow. When each kept its own useState
+    // the second went on rendering — and re-asserting — the old value, which
+    // is how the page ended up flickering between two answers.
+    const a = renderHook(() => useWorkspaceTheme());
+    const b = renderHook(() => useWorkspaceTheme());
+    expect(a.result.current.theme).toBe('light');
+    expect(b.result.current.theme).toBe('light');
+
+    act(() => a.result.current.toggleTheme());
+
+    expect(a.result.current.theme).toBe('dark');
+    expect(b.result.current.theme).toBe('dark');
   });
 });

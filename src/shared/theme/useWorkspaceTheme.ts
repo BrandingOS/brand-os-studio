@@ -50,42 +50,60 @@ export function useWorkspaceTheme(): {
   setTheme: (next: WorkspaceTheme) => void;
   toggleTheme: () => void;
 } {
-  const { setTheme: setNextTheme } = useTheme();
-  const [theme, setThemeState] = useState<WorkspaceTheme>(readStoredTheme);
+  const { theme: nextTheme, setTheme: setNextTheme } = useTheme();
 
-  // next-themes owns the write (its storageKey IS this key), so we do not
-  // touch localStorage here — a second writer is how the two systems drifted
-  // apart in the first place.
-  useEffect(() => {
-    setNextTheme(theme);
-  }, [theme, setNextTheme]);
+  /*
+   * next-themes resolves its value only AFTER mount, so the first render would
+   * otherwise be `undefined` and a dark-mode user would see a light flash on
+   * every route change. `readStoredTheme` answers synchronously for that one
+   * paint and is never consulted again.
+   */
+  const [firstPaint] = useState(readStoredTheme);
 
-  // Another tab changed the theme. `storage` fires only in OTHER tabs, so
-  // this cannot loop back into the effect above.
+  /*
+   * DERIVED, never copied.
+   *
+   * This used to be `useState(readStoredTheme)` with an effect pushing the
+   * local value back into next-themes. That gave every consumer its OWN theme,
+   * and `setThemeState` only ever updated the one that was clicked — so a
+   * second mounted surface (WorkspaceShellAlt, Settings → Preferences,
+   * NotFound) kept its stale value and went on asserting it. Two components
+   * holding two opinions about one global, each re-asserting on render, is the
+   * shape that produces a flicker rather than a theme.
+   *
+   * There is one owner now: next-themes. Everything else reads it.
+   */
+  const theme: WorkspaceTheme =
+    nextTheme === 'dark' || nextTheme === 'light' ? nextTheme : firstPaint;
+
+  /*
+   * Another tab changed the theme. Push it into the OWNER rather than into a
+   * local copy, so every surface in this tab follows the same value. `storage`
+   * fires only in other tabs, so this cannot loop back on the writer.
+   */
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== THEME_STORAGE_KEY) return;
-      if (e.newValue === 'dark' || e.newValue === 'light') setThemeState(e.newValue);
+      if (e.newValue === 'dark' || e.newValue === 'light') setNextTheme(e.newValue);
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [setNextTheme]);
 
   // Persist the choice to the user's account as well as this browser, so it
   // follows them to another device. Fire-and-forget: the local value has
   // already been applied and a preference is never worth blocking the UI over.
-  const setTheme = useCallback((next: WorkspaceTheme) => {
-    setThemeState(next);
-    writePreference({ theme: next });
-  }, []);
+  const setTheme = useCallback(
+    (next: WorkspaceTheme) => {
+      setNextTheme(next);
+      writePreference({ theme: next });
+    },
+    [setNextTheme],
+  );
+
   const toggleTheme = useCallback(
-    () =>
-      setThemeState((t) => {
-        const next = t === 'dark' ? 'light' : 'dark';
-        writePreference({ theme: next });
-        return next;
-      }),
-    [],
+    () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+    [theme, setTheme],
   );
 
   return { theme, setTheme, toggleTheme };
