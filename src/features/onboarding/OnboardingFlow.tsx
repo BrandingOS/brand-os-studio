@@ -33,7 +33,7 @@ import { SetupStep } from './steps/SetupStep';
 import { UnderstandingStage } from './steps/UnderstandingStage';
 import { ReviewStep } from './steps/ReviewStep';
 import { useOnboardingStore } from './state/onboardingStore';
-import { buildCreateInput, normalizeUrl } from './understanding/createBrand';
+import { buildCreateInput, createFailureMessage, normalizeUrl } from './understanding/createBrand';
 import { interpret, type Understanding } from './understanding/interpret';
 import { applyBusinessFacts, applyProposals, sentinelsRetiredBy } from './understanding/applyProposals';
 import { acceptAll, acceptProposal, editValue } from './understanding/acceptance';
@@ -209,13 +209,8 @@ export default function OnboardingFlow() {
          * The friendly message stays; the cause goes to the console.
          */
         console.error('[onboarding] createBrand failed', e);
-        setError(
-          e instanceof Error && /duplicate|unique/i.test(e.message)
-            ? 'You already have a brand with that name. Try another, or add a word to tell them apart.'
-            : `Couldn't save that just now. Your details are still here — try again.${
-                e instanceof Error && e.message ? ` (${e.message})` : ''
-              }`,
-        );
+        const failure = createFailureMessage(e);
+        setError(failure.description ? `${failure.title} (${failure.description})` : failure.title);
         gate.current = false;
       } finally {
         setBusy(false);

@@ -25,6 +25,7 @@
  */
 import type { Brand, CreateBrandInput } from '@/shared/types/brand';
 import { CORE_PLACEHOLDERS, startedState } from '@/shared/onboarding/onboardingState';
+import { isUpgradeable, parseDenial, reasonMessage } from '@/shared/access';
 
 export interface CreateOnboardingBrandInput {
   name: string;
@@ -71,4 +72,46 @@ export function normalizeUrl(raw: string): string {
 export function isUndecided(brand: Pick<Brand, 'onboarding'>): boolean {
   const raw = (brand.onboarding as { placeholders?: unknown } | undefined)?.placeholders;
   return Array.isArray(raw) && raw.length > 0;
+}
+
+/* ─── What to tell the user when creating a brand fails ─────────────────── */
+
+const GENERIC_FAILURE = "Couldn't save that just now. Your details are still here — try again.";
+const DUPLICATE_NAME =
+  'You already have a brand with that name. Try another, or add a word to tell them apart.';
+
+/** `RAISE EXCEPTION … USING DETAIL = '42 of 2 used on the free plan'` (migration 043). */
+const LIMIT_DETAIL = /(\d+) of (\d+) used on the (\S+) plan/;
+
+/**
+ * The sentence for a failed brand creation.
+ *
+ * The database is precise about WHY it refused — `brands_limit_reached`, with
+ * the numbers in DETAIL — and until 2026-09-05 both onboarding surfaces threw
+ * that away for "Couldn't save that just now", so a plan limit read as an
+ * outage. A reason the access layer knows is rendered with its own words; a
+ * duplicate name keeps its sentence; anything else stays generic and carries
+ * the raw message as the detail, so the cause is never lost twice.
+ */
+export function createFailureMessage(err: unknown): { title: string; description?: string } {
+  const raw = err instanceof Error ? err.message : (err as { message?: unknown } | null)?.message;
+  const message = typeof raw === 'string' ? raw : '';
+  if (/duplicate|unique/i.test(message)) return { title: DUPLICATE_NAME };
+
+  const denial = parseDenial(err);
+  if (denial) {
+    const details = (err as { details?: unknown } | null)?.details;
+    const m = typeof details === 'string' ? details.match(LIMIT_DETAIL) : null;
+    const title = m
+      ? reasonMessage(denial.reason, { used: Number(m[1]), limit: Number(m[2]), plan: m[3] })
+      : `You've reached the ${denial.reason.replace(/_limit_reached$/, '').replace(/_/g, ' ')} limit of your plan.`;
+    return {
+      title,
+      description: isUpgradeable(denial.reason)
+        ? 'Upgrade your plan to add another, or remove one you no longer need.'
+        : undefined,
+    };
+  }
+
+  return { title: GENERIC_FAILURE, description: message || undefined };
 }

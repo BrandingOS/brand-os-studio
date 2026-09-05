@@ -39,6 +39,7 @@ import type { IBrandContextService } from '@/core/services/IBrandContextService'
 import type { Brand } from '@/shared/types/brand';
 import { atStep, placeholderPaths, readOnboardingState, resumeStep } from '@/shared/onboarding/onboardingState';
 import { UnderstandingStage } from '@/features/onboarding/steps/UnderstandingStage';
+import { createFailureMessage } from '@/features/onboarding/understanding/createBrand';
 import { planStages, findingsFrom, type Finding } from '@/features/onboarding/understanding/stages';
 import { groupFontFamilies } from '@/features/onboarding/understanding/fonts';
 import { classifyLogos } from '@/features/onboarding/understanding/logoClassify';
@@ -378,13 +379,8 @@ export function SetUpScreen() {
        * The friendly message stays; the cause goes to the console.
        */
       console.error('[onboarding] createBrand failed', err);
-      const duplicate = err instanceof Error && /duplicate|unique/i.test(err.message);
-      const message = duplicate
-        ? 'You already have a brand with that name. Try another, or add a word to tell them apart.'
-        : "Couldn't save that just now. Your details are still here — try again.";
-      toast.error(message, {
-        description: duplicate || !(err instanceof Error) ? undefined : err.message,
-      });
+      const failure = createFailureMessage(err);
+      toast.error(failure.title, { description: failure.description });
     } finally {
       setBusy(false);
     }
