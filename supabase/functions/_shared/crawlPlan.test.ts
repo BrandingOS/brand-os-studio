@@ -74,6 +74,8 @@ describe('robots.txt', () => {
     expect(robotsAllows(star, '/about')).toBe(true);
     expect(robotsAllows(star, '/private/x')).toBe(false);
     expect(robotsAllows(star, '/private/open/y')).toBe(true);
+    expect(robotsAllows(star, '/brochure.pdf')).toBe(false);
+    expect(robotsAllows(star, '/brochure.pdf/view')).toBe(true);
   });
 
   it('an empty file allows everything', () => {

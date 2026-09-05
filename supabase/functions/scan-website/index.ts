@@ -20,17 +20,27 @@ const cors = { ...corsHeaders, 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 Deno.serve(withCors(cors, async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: cors });
 
+  // Who is asking, before anything of theirs is read: an unauthenticated
+  // request costs nothing but a token check.
+  let caller;
+  try {
+    caller = await requireCaller(req);
+  } catch (err) {
+    if (err instanceof AuthzError) return err.toResponse();
+    throw err;
+  }
+  const declared = Number(req.headers.get('content-length') ?? '0');
+  if (declared > 4096) return Response.json({ error: 'body_too_large' }, { status: 413, headers: cors });
   let body: { brandId?: string; url?: string };
   try {
-    body = await req.json();
+    const text = await req.text();
+    if (text.length > 4096) return Response.json({ error: 'body_too_large' }, { status: 413, headers: cors });
+    body = JSON.parse(text);
   } catch {
     return Response.json({ error: 'bad_json' }, { status: 400, headers: cors });
   }
   if (typeof body.url !== 'string' || !body.url.trim()) return Response.json({ error: 'url_required' }, { status: 400, headers: cors });
-
-  let caller;
   try {
-    caller = await requireCaller(req);
     if (typeof body.brandId === 'string' && body.brandId) await resolveBrandContext(caller, body.brandId);
   } catch (err) {
     if (err instanceof AuthzError) return err.toResponse();

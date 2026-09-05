@@ -520,13 +520,15 @@ export function SetUpScreen() {
     }
 
     const items = useV4Store.getState().assets;
-    const { understanding, notSaved } = await understand(
+    const liveBefore = useBrandStore.getState().list.find((x) => x.id === brand.id) ?? brand;
+    const { understanding, notSaved, businessWritten } = await understand(
       brand,
       items,
       updateBrand as never,
       define.description,
       define.descriptionAuthorship,
       scan?.evidence ? { websiteEvidence: scan.evidence, websiteInference: scan.inference } : undefined,
+      readOnboardingState(liveBefore)?.websiteScan?.facts,
     );
 
     if (notSaved.length) {
@@ -570,6 +572,7 @@ export function SetUpScreen() {
         pagesRead: scan.evidence?.crawl.pagesRead ?? 0,
         problems: scan.outcome.problems.map((p) => ({ code: p.code, ...(p.page ? { page: p.page } : {}) })),
         ...(Object.keys(origins).length ? { origins } : {}),
+        ...(Object.keys(businessWritten).length ? { facts: businessWritten } : {}),
         ai: {
           calls: scan.enrichment?.calls ?? 0,
           ...(scan.enrichment ? { tier: scan.enrichment.routing.tier, reason: scan.enrichment.routing.reason, ms: Math.round(scan.enrichment.ms) } : {}),

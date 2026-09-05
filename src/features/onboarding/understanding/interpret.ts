@@ -189,33 +189,25 @@ function fromBrief(b: ParsedBrief): Candidate[] {
  */
 function fromColors(items: OnboardingAsset[]): Candidate[] {
   const colours = items.filter((a) => a.kind === 'color' && a.value);
-  const hexes = colours.map((a) => (a.value ?? '').toUpperCase());
-  if (!hexes.length) return [];
-  const fromSite = colours.every((a) => a.origin === 'website');
-  const rank = fromSite ? RANK.website : RANK.uploaded;
-  const provenance = fromSite ? ('imported' as const) : ('inferred' as const);
-  const ev = fromSite ? 'your website' : 'your artwork';
-  const out: Candidate[] = [
-    { corePath: 'colors.primary', value: { hex: hexes[0] }, rank, provenance, evidence: ev },
-  ];
-  if (hexes[1]) {
-    out.push({ corePath: 'colors.secondary', value: { hex: hexes[1] }, rank, provenance, evidence: ev });
-  }
-  // Everything past the second is neutrals — deliberately NOT an accent. An
-  // uploaded palette is just the brand's colours; guessing that the third
-  // swatch is "the accent" drops a lone colour into a section on its own.
-  const rest = hexes.slice(2);
-  if (rest.length) {
-    out.push({
-      corePath: 'colors.neutrals',
-      value: rest.map((hex) => ({ hex })),
-      rank,
-      provenance,
-      evidence: ev,
-    });
+  if (!colours.length) return [];
+  // Each swatch carries its OWN rank: a website colour beside an uploaded one
+  // must not borrow the upload's standing.
+  const meta = (a: OnboardingAsset) =>
+    a.origin === 'website'
+      ? { rank: RANK.website, provenance: 'imported' as const, evidence: 'your website' }
+      : { rank: RANK.uploaded, provenance: 'inferred' as const, evidence: 'your artwork' };
+  const hex = (a: OnboardingAsset) => (a.value ?? '').toUpperCase();
+  const out: Candidate[] = [{ corePath: 'colors.primary', value: { hex: hex(colours[0]) }, ...meta(colours[0]) }];
+  if (colours[1]) out.push({ corePath: 'colors.secondary', value: { hex: hex(colours[1]) }, ...meta(colours[1]) });
+  const rest = colours.slice(2);
+  for (const origin of ['user', 'website'] as const) {
+    const group = rest.filter((a) => (a.origin === 'website') === (origin === 'website'));
+    if (!group.length) continue;
+    out.push({ corePath: 'colors.neutrals', value: group.map((a) => ({ hex: hex(a) })), ...meta(group[0]) });
   }
   return out;
 }
+
 
 /**
  * One colour, one role. When the roles were won by different sources — the

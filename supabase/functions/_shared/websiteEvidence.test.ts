@@ -40,6 +40,12 @@ describe('reading one page', () => {
     expect(doc.meta['theme-color']).toBe('#1F3A2E');
   });
 
+  it('survives hostile entities and encodings without throwing', () => {
+    const hostile = parseDocument('<html><head><link href="https://fonts.googleapis.com/css2?family=%E0%A4%A" rel="stylesheet"><title>&#x110000; &#99999999; &#xD800; ok &amp; fine</title></head><body><p>x</p></body></html>', BASE);
+    expect(hostile.title).toBe('ok & fine');
+    expect(() => fontsFromCss('', hostile.linkTags.map((l) => l.href))).not.toThrow();
+  });
+
   it('never reads script contents as page content', () => {
     expect(doc.headings.map((h) => h.text)).not.toContain('not a heading');
     expect(doc.copy).not.toContain('ignore me');

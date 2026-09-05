@@ -90,6 +90,21 @@ describe('rescanning', () => {
     expect(after.identity.colors.secondary?.hex.toUpperCase()).toBe('#E4D9C3');
   });
 
+  it('a business fact the user edited survives a rescan; one the site wrote follows the site', async () => {
+    const { repo, brand } = await freshBrand();
+    const first = await understand(brand, [], update, '', undefined, { websiteEvidence: EVIDENCE });
+    expect(first.businessWritten.tagline).toBe('Spaces that feel like they were always there.');
+    // The user rewrites the tagline on the review.
+    const { applyBusinessFacts } = await import('../../understanding/applyProposals');
+    await applyBusinessFacts(repo, brand.id, { tagline: 'My own tagline.' });
+
+    const changed = { ...EVIDENCE, business: { ...EVIDENCE.business, tagline: { value: 'A newer site tagline.', page: 'https://northwind.studio/', source: 'page title' }, products: [{ value: 'Interior design', page: 'https://northwind.studio/services' }] } };
+    await understand(brand, [], update, '', undefined, { websiteEvidence: changed }, first.businessWritten);
+    const after = (await repo.getById(brand.id))!;
+    expect(after.businessInfo?.tagline).toBe('My own tagline.');
+    expect(after.businessInfo?.description).toBe('Interior design');
+  });
+
   it('the latest evidence may legitimately differ when the site changed', async () => {
     const { repo, brand } = await freshBrand();
     await understand(brand, [], update, '', undefined, { websiteEvidence: EVIDENCE });

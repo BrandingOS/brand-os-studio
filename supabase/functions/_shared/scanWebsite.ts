@@ -214,8 +214,12 @@ export async function scanWebsite(requestedUrl: string, emit: (e: ScanEvent) => 
     const withBytes = await Promise.all(
       candidates.slice(0, BUDGET.maxAssets).map(async (c): Promise<LogoCandidate> => {
         if (c.inline) return { ...c, contentType: 'image/svg+xml', byteLength: c.inline.length };
-        if (total >= BUDGET.assetsTotalBytes) return c;
+        // Reserve the cap up front: six concurrent downloads must not each pass
+        // the check before any of them has counted.
+        if (total + BUDGET.assetBytes > BUDGET.assetsTotalBytes) return c;
+        total += BUDGET.assetBytes;
         const r = await fetchOne(c.url, { maxBytes: BUDGET.assetBytes, timeoutMs: BUDGET.assetMs, allow: IMAGE_TYPES, maxRedirects: 2 });
+        total -= BUDGET.assetBytes;
         if (r.ok === false) {
           problems.push({ code: r.code, page: c.url, message: r.message, fatal: false });
           return c;

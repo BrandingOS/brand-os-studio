@@ -183,12 +183,29 @@ const ENTITIES: Record<string, string> = {
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—', hellip: '…', copy: '©', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
 };
 
+function codePoint(n: number): string {
+  // An out-of-range reference on a hostile page must not abort the scan.
+  return Number.isFinite(n) && n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '';
+}
+
 export function decodeEntities(s: string): string {
   return s
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&#x([0-9a-f]{1,6});/gi, (_, h) => codePoint(parseInt(h, 16)))
+    .replace(/&#(\d{1,9});/g, (_, d) => codePoint(parseInt(d, 10)))
     .replace(/&([a-z]+);/gi, (m, n) => ENTITIES[n.toLowerCase()] ?? m);
 }
+
+function safeDecodeURIComponent(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** How much of a document the tag scanner reads. The body cap is 2 MB; the scan is bounded tighter. */
+export const PARSE_BYTES = 1_000_000;
+const CAPS = { meta: 200, link: 150, img: 300, button: 100, jsonLd: 20 } as const;
 
 /** Attributes of one tag, lower-cased names, entity-decoded values. */
 export function attrs(tag: string): Record<string, string> {
@@ -268,7 +285,8 @@ function resolveHref(href: string, base: string): string | null {
 }
 
 /** Scans one HTML document. Pure. */
-export function parseDocument(html: string, baseUrl: string): ParsedDocument {
+export function parseDocument(input: string, baseUrl: string): ParsedDocument {
+  const html = input.length > PARSE_BYTES ? input.slice(0, PARSE_BYTES) : input;
   const noScripts = removeBlocks(html, ['script', 'style', 'noscript', 'template', 'iframe']);
   const headerRegion = firstBlock(noScripts, 'header') ?? noScripts.slice(0, 4000);
   const navRegion = [firstBlock(noScripts, 'nav') ?? '', headerRegion].join(' ');
@@ -277,7 +295,9 @@ export function parseDocument(html: string, baseUrl: string): ParsedDocument {
   const lang = /<html[^>]*\blang\s*=\s*["']?([a-zA-Z-]+)/i.exec(html)?.[1] ?? null;
 
   const meta: Record<string, string> = {};
+  let metaSeen = 0;
   for (const m of html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (++metaSeen > CAPS.meta) break;
     const a = attrs(m[0]);
     const key = (a.property ?? a.name ?? a['http-equiv'] ?? '').toLowerCase();
     if (key && a.content !== undefined && !(key in meta)) meta[key] = a.content.trim();
@@ -285,6 +305,7 @@ export function parseDocument(html: string, baseUrl: string): ParsedDocument {
 
   const linkTags: LinkTag[] = [];
   for (const m of html.matchAll(/<link\b[^>]*>/gi)) {
+    if (linkTags.length >= CAPS.link) break;
     const a = attrs(m[0]);
     if (!a.rel || !a.href) continue;
     const href = resolveHref(a.href, baseUrl);
@@ -316,6 +337,7 @@ export function parseDocument(html: string, baseUrl: string): ParsedDocument {
     if (a.src || a['data-src']) headerImgSrcs.add(a.src ?? a['data-src']);
   }
   for (const m of noScripts.matchAll(/<img\b[^>]*>/gi)) {
+    if (images.length >= CAPS.img) break;
     const a = attrs(m[0]);
     const src = a.src ?? a['data-src'] ?? '';
     if (!src) continue;
@@ -339,6 +361,7 @@ export function parseDocument(html: string, baseUrl: string): ParsedDocument {
 
   const jsonLd: unknown[] = [];
   for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    if (jsonLd.length >= CAPS.jsonLd) break;
     try {
       const parsed = JSON.parse(m[1].trim()) as unknown;
       const graph = parsed && typeof parsed === 'object' ? (parsed as { '@graph'?: unknown })['@graph'] : undefined;
@@ -359,6 +382,7 @@ export function parseDocument(html: string, baseUrl: string): ParsedDocument {
 
   const buttons: string[] = [];
   for (const m of noScripts.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/gi)) {
+    if (buttons.length >= CAPS.button) break;
     const t = stripTags(m[1]);
     if (t && t.length <= 40) buttons.push(t);
   }
@@ -589,7 +613,7 @@ export function fontsFromCss(css: string, googleFontLinks: string[]): FontEviden
   for (const link of googleFontLinks) {
     const q = link.split('?')[1] ?? '';
     for (const fam of q.split('&').filter((p) => p.startsWith('family='))) {
-      for (const one of decodeURIComponent(fam.slice(7)).split('|')) {
+      for (const one of safeDecodeURIComponent(fam.slice(7)).split('|')) {
         const [name, spec] = one.split(':');
         const family = name.replace(/\+/g, ' ').trim();
         if (!family) continue;

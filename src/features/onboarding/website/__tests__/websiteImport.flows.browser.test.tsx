@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { page } from '@vitest/browser/context';
+
+const settled = () => new Promise((r) => setTimeout(r, 700));
 import { bootServices } from '@/core/boot';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
@@ -122,6 +124,7 @@ describe('URL entry', () => {
     const chip = await screen.findByTestId('site-chip');
     expect(chip).toHaveAttribute('data-source', 'description');
     expect(chip).toHaveTextContent("We'll read northwind.studio");
+    await settled();
     await page.screenshot({ path: '__screenshots__/website-import/01-entry-detected.png' });
     fireEvent.click(within(chip).getByRole('button', { name: /don't read/i }));
     expect(screen.getByTestId('site-chip')).toHaveAttribute('data-source', 'none');
@@ -134,6 +137,7 @@ describe('URL entry', () => {
     expect(chip).toHaveAttribute('data-source', 'pill');
     expect(chip).toHaveTextContent("We'll read northwind-arch.com");
     expect(chip).toHaveTextContent('also mentions northwind.studio');
+    await settled();
     await page.screenshot({ path: '__screenshots__/website-import/02-entry-pill-precedence.png' });
     fireEvent.click(within(chip).getByRole('button', { name: /read that instead/i }));
     expect(screen.getByTestId('site-chip')).toHaveTextContent("We'll read northwind.studio");
@@ -147,6 +151,7 @@ describe('a complete scan', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue/i }));
     await waitFor(() => expect(screen.getByText('Opening northwind.studio')).toBeInTheDocument(), { timeout: 8000 });
     await waitFor(() => expect(screen.getByText(/2 found/)).toBeInTheDocument(), { timeout: 8000 });
+    await settled();
     await page.screenshot({ path: '__screenshots__/website-import/03-scan.png' });
     await waitFor(() => expect(screen.getByText('Review your uploads')).toBeInTheDocument(), { timeout: 12_000 });
     // The scan and the model answered in well under a second; the moment did
@@ -179,7 +184,8 @@ describe('a complete scan', () => {
     const logo = useV4Store.getState().assets.find((a) => a.kind === 'image' && a.origin === 'website');
     expect(logo?._file).toBeInstanceOf(File);
     expect(screen.queryByTestId('scan-notice')).toBeNull();
-    await page.screenshot({ path: '__screenshots__/website-import/04-review-complete.png', fullPage: true });
+    await settled();
+    await page.screenshot({ path: '__screenshots__/website-import/04-review-complete.png', element: document.querySelector('.uploads-review') as Element });
   });
 });
 
@@ -194,6 +200,7 @@ describe('when the site does not fully cooperate', () => {
     expect(notice).toHaveTextContent('About page');
     expect(notice).toHaveTextContent('not read');
     expect(screen.getByText('Playfair Display')).toBeInTheDocument();
+    await settled();
     await page.screenshot({ path: '__screenshots__/website-import/05-review-partial.png' });
   });
 
@@ -205,6 +212,7 @@ describe('when the site does not fully cooperate', () => {
     expect(notice).toHaveAttribute('data-status', 'failed');
     expect(notice).toHaveTextContent("We couldn't find northwind.studio.");
     expect(useV4Store.getState().assets.filter((a) => a.origin === 'website')).toEqual([]);
+    await settled();
     await page.screenshot({ path: '__screenshots__/website-import/06-review-unavailable.png' });
     // Try again re-runs only the scan; a good site now fills the review.
     script = { events: complete() };
@@ -224,6 +232,7 @@ describe('when the site does not fully cooperate', () => {
     expect(within(notice).getByRole('button', { name: /add credits/i })).toBeInTheDocument();
     expect(screen.getByText('Playfair Display')).toBeInTheDocument();
     expect(screen.queryByText('Luxury buyers')).toBeNull();
+    await settled();
     await page.screenshot({ path: '__screenshots__/website-import/07-review-extracted-only.png' });
   });
 

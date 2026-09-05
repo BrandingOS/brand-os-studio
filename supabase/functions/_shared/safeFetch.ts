@@ -124,6 +124,7 @@ function privateIpv6(g: number[]): boolean {
   if (g.slice(0, 7).every((x) => x === 0) && g[7] === 1) return true; // ::1
   if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
   if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((g[0] & 0xffc0) === 0xfec0) return true; // fec0::/10 deprecated site-local
   if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   if (g[0] === 0x2001 && g[1] === 0x0db8) return true; // documentation
   // IPv4-mapped ::ffff:a.b.c.d and IPv4-compatible ::a.b.c.d
@@ -131,7 +132,11 @@ function privateIpv6(g: number[]): boolean {
     return privateIpv4([g[6] >> 8, g[6] & 0xff, g[7] >> 8, g[7] & 0xff]);
   }
   // NAT64 64:ff9b::/96 and 6to4 2002::/16 carry an IPv4 address inside
-  if (g[0] === 0x0064 && g[1] === 0xff9b) return privateIpv4([g[6] >> 8, g[6] & 0xff, g[7] >> 8, g[7] & 0xff]);
+  if (g[0] === 0x0064 && g[1] === 0xff9b) {
+    if (g[2] === 1) return true; // 64:ff9b:1::/48 local-use NAT64
+    return privateIpv4([g[6] >> 8, g[6] & 0xff, g[7] >> 8, g[7] & 0xff]);
+  }
+  if (g[0] === 0x2001 && g[1] === 0x0000) return true; // 2001::/32 Teredo (embedded addresses)
   if (g[0] === 0x2002) return privateIpv4([g[1] >> 8, g[1] & 0xff, g[2] >> 8, g[2] & 0xff]);
   return false;
 }
@@ -168,7 +173,9 @@ export function checkUrl(raw: string): UrlCheck {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     return { ok: false, code: 'disallowed_scheme', message: 'Only http and https addresses can be read.' };
   }
-  if (url.port && url.port !== '80' && url.port !== '443') {
+  // Only the scheme's own default port: http on 443 or https on 80 is an
+  // alternate listener, not a website.
+  if (url.port && url.port !== (url.protocol === 'https:' ? '443' : '80')) {
     return { ok: false, code: 'disallowed_port', message: 'Only the standard web ports can be read.' };
   }
   if (url.username || url.password) {

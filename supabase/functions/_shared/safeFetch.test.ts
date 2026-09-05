@@ -26,7 +26,7 @@ describe('addresses a scan must never connect to', () => {
   it.each([
     ['::1'], ['::'], ['fc00::1'], ['fd12:3456::1'], ['fe80::1'], ['ff02::1'], ['2001:db8::1'],
     ['::ffff:127.0.0.1'], ['::ffff:10.0.0.1'], ['::ffff:169.254.169.254'], ['::ffff:7f00:1'],
-    ['64:ff9b::7f00:1'], ['2002:0a00:0001::'], ['[::1]'], ['fe80::1%eth0'],
+    ['64:ff9b::7f00:1'], ['2002:0a00:0001::'], ['[::1]'], ['fe80::1%eth0'], ['fec0::1'], ['64:ff9b:1::1'], ['2001:0:1::1'],
   ])('IPv6 %s is private', (ip) => {
     expect(isPrivateAddress(ip)).toBe(true);
   });
@@ -56,6 +56,8 @@ describe('the address policy', () => {
   it('refuses non-standard ports', () => {
     expect(checkUrl('http://x.com:8080')).toMatchObject({ ok: false, code: 'disallowed_port' });
     expect(checkUrl('https://x.com:443/a')).toMatchObject({ ok: true });
+    expect(checkUrl('http://x.com:443/a')).toMatchObject({ ok: false, code: 'disallowed_port' });
+    expect(checkUrl('https://x.com:80/a')).toMatchObject({ ok: false, code: 'disallowed_port' });
   });
 
   it('refuses credentials in the address', () => {

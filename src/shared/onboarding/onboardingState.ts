@@ -43,6 +43,12 @@ export interface WebsiteScanSummary {
   /** Where each value came from ("northwind.studio/about"), keyed by Core path or `business.<field>`. */
   origins?: Record<string, string>;
   ai?: { tier?: string; reason?: string; calls: number; skipped?: string; ms?: number };
+  /**
+   * The business facts this scan wrote. Business facts carry no authority
+   * sidecar, so this is how a rescan tells "what the site said last time" from
+   * "what the user changed since" — the latter is never overwritten.
+   */
+  facts?: Partial<Record<'industry' | 'tagline' | 'description', string>>;
   timing?: { firstEventMs?: number; scanMs?: number; totalMs?: number };
   /** ISO timestamp. */
   at: string;

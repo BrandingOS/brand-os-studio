@@ -56,7 +56,11 @@ export interface UnderstandResult {
   notSaved: string[];
   /** Core paths the user had already confirmed — untouched by this pass. */
   decided: CoreFieldPath[];
+  /** The business facts this pass wrote, for the scan summary. */
+  businessWritten: Partial<Record<'industry' | 'tagline' | 'description', string>>;
 }
+
+const GUARDED_FACTS = ['industry', 'tagline', 'description'] as const;
 
 /** The agent every website-derived value is written by. The review's origin label keys on it. */
 export const WEBSITE_SCAN: SystemActor = { kind: 'system', agent: 'website-scan' };
@@ -130,12 +134,15 @@ export async function understand(
   authorship?: DescriptionAuthorship,
   /** The website scan's evidence and the model's reading of it, when a scan ran. */
   website?: WebsiteInput,
+  /** What the previous scan wrote as business facts (the marker's copy), on a rescan. */
+  priorFacts?: Partial<Record<'industry' | 'tagline' | 'description', string>>,
 ): Promise<UnderstandResult> {
   const text = description?.trim() || readOnboardingState(brand)?.brief;
   // What the user has already confirmed is read LIVE and never proposed for:
   // the write path would overwrite it and drop it to provisional. This is
   // what makes a rescan safe.
-  const decided = confirmedPaths(await repo().getById(brand.id));
+  const canonical = await repo().getById(brand.id);
+  const decided = confirmedPaths(canonical);
   const understanding = await interpret(
     { description: text, items, website: brand.publicUrl, authorship, decided, ...(website ?? {}) },
     { groupFonts: groupFontFamilies },
@@ -145,6 +152,21 @@ export async function understand(
   // say "From your website"; everything else by the interpreter, as before.
   const fromSite = understanding.proposals.filter((p) => p.evidence === WEBSITE_EVIDENCE);
   const fromRest = understanding.proposals.filter((p) => p.evidence !== WEBSITE_EVIDENCE);
+  // Business facts carry no authority, so their guard is here: on a rescan a
+  // fact that no longer matches what the last scan wrote is the user's, and
+  // the site does not get to change it.
+  if (website) {
+    const current = canonical?.businessInfo ?? {};
+    for (const key of GUARDED_FACTS) {
+      const held = current[key];
+      if (held && held !== priorFacts?.[key] && understanding.business[key] !== undefined && understanding.business[key] !== held) {
+        delete understanding.business[key];
+      }
+    }
+  }
+  const businessWritten: UnderstandResult['businessWritten'] = {};
+  for (const key of GUARDED_FACTS) if (understanding.business[key] !== undefined) businessWritten[key] = understanding.business[key];
+
   const report = await applyProposals(repo(), brand.id, fromRest);
   if (fromSite.length) {
     const siteReport = await applyProposals(repo(), brand.id, fromSite, { actor: WEBSITE_SCAN });
@@ -164,7 +186,7 @@ export async function understand(
   if (report.failed.length) {
     notSaved.push(`${report.failed.length} thing${report.failed.length === 1 ? '' : 's'} we found`);
   }
-  return { understanding, notSaved, decided };
+  return { understanding, notSaved, decided, businessWritten };
 }
 
 /** Resolves a stored vocabulary id back to its label. Falls back to the value. */

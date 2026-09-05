@@ -161,7 +161,10 @@ export function parseRobots(text: string, agent = 'brandingosbot'): RobotsRules 
 }
 
 function ruleMatches(rule: string, path: string): boolean {
-  const re = new RegExp('^' + rule.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + (rule.endsWith('$') ? '' : ''));
+  // A trailing `$` anchors the rule to the end of the path, as the standard says.
+  const anchored = rule.endsWith('$');
+  const body = anchored ? rule.slice(0, -1) : rule;
+  const re = new RegExp('^' + body.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + (anchored ? '$' : ''));
   return re.test(path);
 }
 

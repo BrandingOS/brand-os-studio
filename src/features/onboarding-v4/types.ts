@@ -96,6 +96,8 @@ export interface OnboardingAsset {
    *  even when the file was renamed. */
   contentHash?: string;
   _file?: File;
+  /** Where the item came from when it was not the user's own upload — a logo or link the website scan brought. Loses to uploads wherever the two compete. */
+  origin?: 'website';
 }
 
 export interface AboutSection {

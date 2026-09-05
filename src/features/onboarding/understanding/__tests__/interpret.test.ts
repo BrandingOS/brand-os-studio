@@ -267,10 +267,11 @@ describe('the website inside the understanding pass', () => {
 describe('colours from scraped artwork', () => {
   const siteColour = (hex: string): OnboardingAsset => ({ ...color(hex), origin: 'website' });
 
-  it('rank as website evidence, so an uploaded colour still wins', async () => {
-    const out = await interpret({ description: '', items: [siteColour('#111111'), color('#C8102E')] });
-    // Mixed material is the user's: the first swatch is the primary as before.
-    expect(out.proposals.find((p) => p.corePath === 'colors.primary')?.value).toEqual({ hex: '#111111' });
+  it('each swatch keeps its own rank: a website colour beside an upload does not borrow its standing', async () => {
+    const out = await interpret({ description: '', items: [siteColour('#111111'), color('#C8102E')], websiteEvidence: EVIDENCE });
+    // The site's CSS primary (#1F3A2E) and the scraped-logo swatch (#111111) tie at website rank; the earlier one wins.
+    expect(out.proposals.find((p) => p.corePath === 'colors.primary')?.provenance).toBe('imported');
+    expect(out.proposals.find((p) => p.corePath === 'colors.secondary')).toMatchObject({ value: { hex: '#C8102E' }, provenance: 'inferred' });
     const site = await interpret({ description: '', items: [siteColour('#111111')], websiteEvidence: EVIDENCE });
     expect(site.proposals.find((p) => p.corePath === 'colors.primary')?.provenance).toBe('imported');
   });

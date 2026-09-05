@@ -66,3 +66,14 @@ real events; visual pacing never delays completion.
 | `AboutGroup` origin line | KEEP, and fix audience/positioning to render vocabulary labels |
 | `descriptionAuthorship` | IMPLEMENT properly: store field set by `BriefHandoff` mode, read by `interpret` |
 | prototype `detectSite`, chip, scan script | detectSite + chip move to `features/onboarding/website/`; the scripted scan stays prototype-only |
+
+## Status (2026-09-06)
+
+Built and proven on `dev` (commit `feat(onboarding): Website Brand Import — the
+Brand Scan, end to end`). All sixteen steps landed; see the CLAUDE.md section
+"Website Brand Import — the Brand Scan" for the canonical description.
+
+Owner actions left: deploy `supabase/functions/scan-website` (no secrets; add
+to the runbook list); decide when the Gate 2 prototype `/_dev/website-import`
+is removed. Known, deliberate V1.1 items: headless rendering, vision, imagery
+import, rescan from Setup, social-profile crawling, multilingual, PDFs.
