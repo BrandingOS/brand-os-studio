@@ -158,13 +158,14 @@ export const MAX_PALETTE = 5;
  * and must never be mistaken for each other. Uploaded evidence outranks the
  * brief, which outranks anything we suggested — and the label says so.
  */
-export type ValueOrigin = 'uploaded' | 'brief' | 'suggested' | 'chosen';
+export type ValueOrigin = 'uploaded' | 'brief' | 'suggested' | 'chosen' | 'website';
 
 export const ORIGIN_LABEL: Record<ValueOrigin, string> = {
   uploaded: 'From your upload',
   brief: 'From your brand profile',
   suggested: 'Suggested — not confirmed',
   chosen: 'Chosen by you',
+  website: 'From your website',
 };
 
 /** Reads the origin off a Core value's recorded provenance and authority. */
@@ -190,7 +191,13 @@ export interface Projection {
   industryLabel?: string;
   styleLabels: string[];
   /** The structured profile, for Brand Strategy's selections and text. */
-  profile: Array<{ path: CoreFieldPath; vocab?: VocabularyName; value: unknown }>;
+  profile: Array<{
+    path: CoreFieldPath;
+    vocab?: VocabularyName;
+    value: unknown;
+    /** Where it came from, in the user's language ("From example.com/about"). */
+    origin?: string;
+  }>;
   /**
    * The business facts, as STORED rather than as labelled.
    *
@@ -198,6 +205,8 @@ export interface Projection {
    * prose fields need their text back to edit it.
    */
   business: { industry?: string; tagline?: string; description?: string };
+  /** Origin line per business fact, when one is known. */
+  businessOrigins?: Partial<Record<'industry' | 'tagline' | 'description', string>>;
 }
 
 const PROFILE_PATHS: Array<{ path: CoreFieldPath; vocab?: VocabularyName }> = [

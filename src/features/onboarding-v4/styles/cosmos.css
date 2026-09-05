@@ -3155,6 +3155,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+[data-onboarding="cosmos"] .about-card-origin {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ds-text-placeholder);
+  letter-spacing: 0.01em;
+}
 
 
 /* Writing your own answer, under the chips. */

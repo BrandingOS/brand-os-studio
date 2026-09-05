@@ -49,6 +49,8 @@ interface ValueCard {
   key: string;
   name: string;
   content: string;
+  /** Where the value came from, in the user's words. Shown only with a value. */
+  origin?: string;
   target: PickerTarget;
 }
 
@@ -156,6 +158,7 @@ export function AboutGroup({
    * meaning lives in the wording.
    */
   const values = new Map(projection?.profile.map((r) => [r.path, r.value]) ?? []);
+  const originOf = (path: CoreFieldPath) => projection?.profile.find((r) => r.path === path)?.origin;
   const textOf = (path: CoreFieldPath) => {
     const v = values.get(path);
     return typeof v === 'string' ? v : '';
@@ -174,6 +177,7 @@ export function AboutGroup({
     key: path,
     name,
     content: textOf(path),
+    origin: originOf(path),
     target: { kind: 'core', path, label: name, text: textOf(path) },
   });
   const choices = (
@@ -185,12 +189,14 @@ export function AboutGroup({
     key: path,
     name,
     content: labelsOf(path, vocab),
+    origin: originOf(path),
     target: { kind: 'core', path, label: name, vocab, selected: idsOf(path), single },
   });
   const fact = (field: 'tagline' | 'description', name: string): ValueCard => ({
     key: `business.${field}`,
     name,
     content: projection?.business?.[field] ?? '',
+    origin: projection?.businessOrigins?.[field],
     target: { kind: 'business', field, label: name, text: projection?.business?.[field] ?? '' },
   });
 
@@ -200,6 +206,7 @@ export function AboutGroup({
       key: 'business.industry',
       name: 'Industry',
       content: projection?.industryLabel ?? '',
+      origin: projection?.businessOrigins?.industry,
       target: {
         kind: 'business',
         field: 'industry',
@@ -278,6 +285,9 @@ export function AboutGroup({
             >
               <span className="about-card-name">{card.name}</span>
               <span className="about-card-content">{card.content}</span>
+              {card.origin && card.content ? (
+                <span className="about-card-origin">{card.origin}</span>
+              ) : null}
             </button>
           ))}
           {sections.map((section) => (
