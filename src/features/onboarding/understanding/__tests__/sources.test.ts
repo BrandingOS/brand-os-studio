@@ -87,3 +87,37 @@ describe('shape', () => {
     });
   });
 });
+
+describe('the website ladder (Gate 1, 2026-09-06)', () => {
+  it('explicit user-authored facts outrank uploads, the website and the brief', () => {
+    for (const below of [RANK.uploaded, RANK.website, RANK.brief, RANK.websiteInferred, RANK.generated]) {
+      expect(mergeCandidates([c(below, 'theirs'), c(RANK.authored, 'mine')])[0].value).toBe('mine');
+    }
+  });
+
+  it('an uploaded asset outranks anything scraped from the website', () => {
+    expect(mergeCandidates([c(RANK.website, 'scraped'), c(RANK.uploaded, 'uploaded')])[0].value).toBe('uploaded');
+  });
+
+  it('a fact found on the website outranks the AI-written brief', () => {
+    expect(mergeCandidates([c(RANK.brief, 'the brief'), c(RANK.website, 'the site')])[0].value).toBe('the site');
+  });
+
+  it('the brief outranks what the model inferred from the website', () => {
+    expect(mergeCandidates([c(RANK.websiteInferred, 'guess'), c(RANK.brief, 'the brief')])[0].value).toBe('the brief');
+  });
+
+  it('a website inference still outranks generated fallback', () => {
+    expect(mergeCandidates([c(RANK.generated, 'filler'), c(RANK.websiteInferred, 'guess')])[0].value).toBe('guess');
+  });
+
+  it('the ladder is strictly ordered and `ai` is the generated tier', () => {
+    expect(RANK.ai).toBe(RANK.generated);
+    expect(RANK.generated).toBeLessThan(RANK.websiteInferred);
+    expect(RANK.websiteInferred).toBeLessThan(RANK.brief);
+    expect(RANK.brief).toBeLessThan(RANK.website);
+    expect(RANK.website).toBeLessThan(RANK.uploaded);
+    expect(RANK.uploaded).toBeLessThan(RANK.authored);
+    expect(RANK.authored).toBeLessThan(RANK.user);
+  });
+});

@@ -173,10 +173,19 @@ export function AboutGroup({
       .map((id) => VOCABULARIES[vocab].find((m) => m.id === id)?.label ?? id)
       .join(' · ');
 
-  const prose = (path: CoreFieldPath, name: string): ValueCard => ({
+  /**
+   * A scalar that MAY be a vocabulary id (audience, positioning are stored as
+   * one string, like industry) renders its label; a sentence renders as is.
+   * A raw id such as `luxury-buyers` must never reach the screen.
+   */
+  const labelledTextOf = (path: CoreFieldPath, vocab: VocabularyName) => {
+    const v = textOf(path);
+    return VOCABULARIES[vocab].find((m) => m.id === v)?.label ?? v;
+  };
+  const prose = (path: CoreFieldPath, name: string, vocab?: VocabularyName): ValueCard => ({
     key: path,
     name,
-    content: textOf(path),
+    content: vocab ? labelledTextOf(path, vocab) : textOf(path),
     origin: originOf(path),
     target: { kind: 'core', path, label: name, text: textOf(path) },
   });
@@ -216,8 +225,8 @@ export function AboutGroup({
       },
     },
     fact('description', 'Products / Services'),
-    prose('strategy.targetAudience', 'Audience'),
-    prose('strategy.positioning', 'Positioning'),
+    prose('strategy.targetAudience', 'Audience', 'audience'),
+    prose('strategy.positioning', 'Positioning', 'positioning'),
     prose('strategy.mission', 'Mission'),
     choices('strategy.personality', 'Personality', 'personality'),
     choices('voice.tone', 'Tone', 'tone', true),

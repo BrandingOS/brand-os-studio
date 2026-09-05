@@ -71,7 +71,7 @@ export async function applyProposals(
    * value must record `user-entered` — the promotion to `confirmed` is a
    * separate act performed by `acceptance.ts`.
    */
-  override?: { actor: Actor; provenance: Provenance },
+  override?: { actor: Actor; provenance?: Provenance },
 ): Promise<ApplyReport> {
   const applied: CoreFieldPath[] = [];
   const failed: Array<{ path: CoreFieldPath; reason: string }> = [];
@@ -221,7 +221,17 @@ export async function applyBusinessFacts(
   if (facts.description !== undefined) change.description = facts.description;
   if (facts.audienceSummary !== undefined) change.audienceSummary = facts.audienceSummary;
   if (facts.links !== undefined) change.links = facts.links;
-  if (facts.website) change.contact = { website: facts.website };
+  // `changeBusinessInfo` merges `contact` one level down, so a phone number
+  // cannot wipe a website written earlier — this only has to say what it knows.
+  if (facts.website || facts.contact) {
+    const address = facts.contact?.address;
+    change.contact = {
+      ...(facts.website ? { website: facts.website } : {}),
+      ...(facts.contact?.email ? { email: facts.contact.email } : {}),
+      ...(facts.contact?.phone ? { phone: facts.contact.phone } : {}),
+      ...(address ? { address: { line1: address } } : {}),
+    };
+  }
   if (!Object.keys(change).length) return [];
 
   try {

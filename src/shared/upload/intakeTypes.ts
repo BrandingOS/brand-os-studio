@@ -99,5 +99,12 @@ export interface OnboardingAsset {
   contentHash?: string;
   /** The failure reason when `uploadStatus === 'error'`, shown on the row. */
   error?: string;
+  /**
+   * Where the item came from when it was not the user's own upload. `website`
+   * marks a logo or link the scan pulled off the brand's site: it renders like
+   * anything else and stores like anything else, and it loses to an uploaded
+   * item wherever the two compete for a slot.
+   */
+  origin?: 'website';
   _file?: File;
 }

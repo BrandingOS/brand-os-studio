@@ -15,8 +15,8 @@ import { BrandDropzone } from '@/features/onboarding-v4/components/BrandDropzone
 import { FooterCTA } from '@/features/onboarding-v4/components/FooterCTA';
 import { useV4Store } from '@/features/onboarding-v4/store/onboardingV4Store';
 import { websiteOf } from '@/features/onboarding/bridge/reviewWriteThrough';
-import { DetectedSiteChip } from './DetectedSiteChip';
-import { detectSiteInText } from './detectSite';
+import { DetectedSiteChip } from '@/features/onboarding/website/DetectedSiteChip';
+import { detectSiteInText } from '@/features/onboarding/website/detectSite';
 import { DESCRIPTIONS, SITE, linkItem, type EntryVariant } from './fixtures';
 
 interface Props {

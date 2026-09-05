@@ -27,6 +27,8 @@ interface Props {
   brandName: string;
   value: string;
   onChange(value: string): void;
+  /** Fires when the user switches between pasting an AI reply and writing it themselves. */
+  onAuthorship?(authorship: 'pasted' | 'written'): void;
   autoFocus?: boolean;
 }
 
@@ -80,8 +82,12 @@ const Check = () => (
   </svg>
 );
 
-export function BriefHandoff({ brandName, value, onChange, autoFocus }: Props) {
-  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+export function BriefHandoff({ brandName, value, onChange, onAuthorship, autoFocus }: Props) {
+  const [mode, setModeState] = useState<'ai' | 'manual'>('ai');
+  const setMode = (next: 'ai' | 'manual') => {
+    setModeState(next);
+    onAuthorship?.(next === 'manual' ? 'written' : 'pasted');
+  };
   /** Set once the prompt has left the app — step ① done, step ② waiting. */
   const [sent, setSent] = useState<null | 'copied' | 'chatgpt' | 'claude'>(null);
   const [copied, setCopied] = useState(false);

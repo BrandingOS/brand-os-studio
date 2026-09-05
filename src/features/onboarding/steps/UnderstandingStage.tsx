@@ -15,6 +15,10 @@
  *    understanding pass is started immediately and awaited; the beat only
  *    governs how long this stays visible once that has resolved. Work that
  *    takes four seconds is shown for four seconds.
+ *  - **The animation never delays completion.** When the work finishes before
+ *    the pacing has shown every stage, the rest run out at a quick beat and the
+ *    moment ends. Eight stages at the readable pace would be six seconds; a
+ *    two-second scan is shown for about two.
  *
  * No percentage, no progress bar, no sparkles.
  */
@@ -40,6 +44,16 @@ export interface UnderstandingStageProps {
  */
 const STAGE_MS = 760;
 
+/**
+ * The cadence once the work has FINISHED and stages are still queued.
+ *
+ * The animation explains progress; it is never the critical path. When the
+ * real work outruns the pacing, whatever has not been shown yet is shown at
+ * this quicker beat and the moment ends — the user is never kept waiting so
+ * that a sequence can complete at its leisurely pace.
+ */
+const FAST_MS = 160;
+
 export function UnderstandingStage({ brandName, stages, work, onDone }: UnderstandingStageProps) {
   const [index, setIndex] = useState(0);
   const [active, setActive] = useState<number[]>([]);
@@ -58,28 +72,37 @@ export function UnderstandingStage({ brandName, stages, work, onDone }: Understa
     });
 
     // Walk the stages at a readable pace, lighting each node as its stage's
-    // own work reports in.
-    stages.forEach((stage, i) => {
-      timers.push(
-        window.setTimeout(() => {
-          if (cancelled) return;
-          setIndex(i);
-          void Promise.resolve(stage.run()).then((finding) => {
-            if (cancelled) return;
-            setActive((prev) => (prev.includes(stage.node) ? prev : [...prev, stage.node]));
-            if (finding) setFindings((prev) => [...prev, finding]);
-          });
-        }, i * STAGE_MS),
-      );
+    // own work reports in. `shown` is what fast-forward consults.
+    const shown = new Set<number>();
+    const labelTimers: number[] = [];
+    const show = (i: number) => {
+      if (cancelled || shown.has(i)) return;
+      shown.add(i);
+      const stage = stages[i];
+      setIndex(i);
+      void Promise.resolve(stage.run()).then((finding) => {
+        if (cancelled) return;
+        setActive((prev) => (prev.includes(stage.node) ? prev : [...prev, stage.node]));
+        if (finding) setFindings((prev) => [...prev, finding]);
+      });
+    };
+    stages.forEach((_, i) => {
+      const t = window.setTimeout(() => show(i), i * STAGE_MS);
+      labelTimers.push(t);
+      timers.push(t);
     });
 
     void running.then(() => {
       if (cancelled) return;
       const elapsed = Date.now() - startedAt;
-      const sequence = stages.length * STAGE_MS;
-      // Never shorter than one clean beat; never longer than the real work
-      // plus the sequence still playing.
-      const wait = Math.max(MINIMUM_BEAT_MS - elapsed, sequence - elapsed, 0);
+      // The work is done. Whatever the pacing has not reached is shown now at
+      // the quick beat, then the moment ends — never held for the sequence.
+      labelTimers.forEach((t) => window.clearTimeout(t));
+      const pending = stages.map((_, i) => i).filter((i) => !shown.has(i));
+      pending.forEach((i, k) => timers.push(window.setTimeout(() => show(i), k * FAST_MS)));
+      const settle = pending.length ? pending.length * FAST_MS + 240 : 0;
+      // Never shorter than one clean beat; never longer than the quick run-out.
+      const wait = Math.max(MINIMUM_BEAT_MS - elapsed, settle, 0);
       timers.push(
         window.setTimeout(() => {
           if (cancelled || finished.current) return;

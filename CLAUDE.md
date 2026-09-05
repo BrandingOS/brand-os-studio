@@ -1778,6 +1778,40 @@ Rules that bind:
   an artboard that scaled to fit; the last needs a real layout engine, which is
   why it is a browser test).
 
+## Website Brand Import — the Brand Scan (2026-09-06)
+
+**Onboarding reads the brand's website.** A URL comes from the dropzone pill or
+is detected in the description (`features/onboarding/website/detectSite.ts`;
+the pill wins, a detected address is a dismissable chip, social hosts are never
+the website). On Continue, `SetUpScreen.runUnderstanding` runs the scan
+CONCURRENTLY with the user's own artwork work and feeds everything into the
+ONE understanding pass. There is no second profile, logo, colour, font,
+progress, persistence or precedence system.
+
+| layer | where | rule |
+|---|---|---|
+| deterministic scan | `supabase/functions/scan-website` → `_shared/scanWebsite.ts`, `websiteEvidence.ts`, `crawlPlan.ts`, `safeFetch.ts` | homepage first, then ≤4 key pages + ≤3 stylesheets + manifest + ≤6 logo bytes, all concurrent, 15s budget; streams NDJSON `opened · signals · identity · pages · done`; returns compact `WebsiteEvidence`, never HTML; **free, rate-limited** 10/h · 40/day per user |
+| SSRF policy | `_shared/safeFetch.ts` | http/https + standard ports only; DNS resolved before EVERY connection and every A/AAAA must be public (v4, v6, mapped, NAT64, 6to4, metadata, `*.local`/`localhost`); redirects by hand, ≤3, re-validated per hop, no https→http, key pages may not leave the origin; content-type allowlists; body caps enforced while streaming. **`fetch-url-preview` is dead code with a weaker guard — never reuse it.** |
+| candidates | `website/fromWebsite.ts` → `understanding/interpret.ts` | extracted facts rank `website` (`sources.ts` ladder: user > authored > uploaded > website > brief > websiteInferred > generated) with provenance `imported` |
+| scraped material | `website/scrapedAssets.ts` | logo bytes → real `File`s, socials → link items, both `origin: 'website'`, appended AFTER uploads so the classifier's first-come rules give uploads precedence; colours read from scraped artwork rank `website` too |
+| AI | `website/digest.ts` · `routing.ts` · `enrich.ts` | ONE call via `anthropic-proxy`, Haiku default; Sonnet only for multilingual / ambiguous-name / contradictory signals, or ONE retry after a malformed Haiku reply; two calls max; thin evidence narrows the ask (summary + tone, generated rank); under 40 words no call. Copy travels inside `<website_content>` as untrusted data; an `extracted` claim must quote words inside that block or is downgraded to `inferred` |
+| persistence | `bridge/v4Bridge.ts` `understand()` | confirmed paths (`understanding/decided.ts`) are passed as `decided` — the write path would otherwise overwrite and demote them; website proposals are written by the `website-scan` agent at `suggested`; a summary (counts, codes, page names, timings — never copy) goes on the marker via `withWebsiteScan` |
+| progress | `understanding/stages.ts` + `steps/UnderstandingStage.tsx` | with a website the plan IS the eight Gate 2 stages, each resolved by a real event (`createStageSignals`); the animation fast-forwards when the work finishes early and never delays completion |
+| review | `project()` origins, `AboutGroup`, `ScanNotice.tsx` | "From your website" / "From example.com/about" / "Read from your website"; audience and positioning render vocabulary labels, never ids; partial / failed / extracted-only notices with Try again |
+
+Products / Services persist to `businessInfo.description` because Setup's card
+already reads and writes exactly that field. Client and server share one
+`WebsiteEvidence` type — `website/evidence.ts` mirrors the server's and
+`__tests__/evidenceContract.test.ts` fails the type check on drift. The Gate 2
+prototype lives at `/_dev/website-import` (DEV-gated by the load-bearing
+ternary) on fixtures and imports the production chip, detector and notice.
+Plan: `docs/superpowers/plans/2026-09-06-website-brand-import.md`.
+
+Deploy note: `scan-website` is NEW — add it to the runbook's deploy list; it
+needs no secrets. Measured on the local edge runtime against live sites:
+763 ms (brandingos.ai, JS-rendered, no copy) and 1.07 s (astro.build, 4 pages,
+13 requests, 678 KB).
+
 ## Undo / redo — `src/shared/history/` (2026-08-19)
 
 **Do not add a tenth undo stack.** There were nine — a Fabric ring buffer, three

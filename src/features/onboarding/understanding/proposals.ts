@@ -14,8 +14,8 @@ import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import type { Provenance } from '@/domain/brand/coreMeta';
 import type { BusinessInfo } from '@/domain/brand/identity';
 
-/** Provenances a machine may claim. `user-entered` is not one of them. */
-export type ProposalProvenance = Extract<Provenance, 'ai-suggested' | 'inferred'>;
+/** Provenances a machine may claim. `user-entered` is not one of them; `imported` is a fact read off an external source such as the brand's website. */
+export type ProposalProvenance = Extract<Provenance, 'ai-suggested' | 'inferred' | 'imported'>;
 
 export interface Proposal {
   /** Closed registry — never a free-form string. */
@@ -58,6 +58,8 @@ export interface BusinessFacts {
    * thrown away with the transient store.
    */
   links?: BusinessInfo['links'];
+  /** Email, phone and postal address, merged into `contact` one level down. */
+  contact?: { email?: string; phone?: string; address?: string };
 }
 
 /**

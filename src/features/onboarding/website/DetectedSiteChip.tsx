@@ -1,14 +1,13 @@
 /**
- * "We'll read northwind.studio" — the one line that tells the user their
- * website can do the work.
+ * "We'll read northwind.studio" — the line that tells the user their website
+ * can do the work.
  *
  * Three faces, one component: an invitation when there is no address, the
- * address we found in the description (dismissable), or the address they
- * added as a link (which wins, with the description's address offered as an
- * alternative rather than silently dropped).
- *
- * DISPOSABLE — Gate 2 only.
+ * address found in the description (dismissable), or the address they added
+ * as a link — which wins, with the description's address offered as an
+ * alternative rather than silently dropped. Approved at Gate 2.
  */
+import './website.css';
 
 interface Props {
   /** The website the dropzone pill holds. Wins over anything detected. */
@@ -32,7 +31,7 @@ function Globe() {
 export function DetectedSiteChip({ pill, detected, onDismiss, onUseDetected }: Props) {
   if (!pill && !detected) {
     return (
-      <div className="wi-site wi-site--invite">
+      <div className="wi-site wi-site--invite" data-testid="site-chip" data-source="none">
         <span className="wi-site-icon"><Globe /></span>
         <div className="wi-site-body">
           <p className="wi-site-line">Have a website? Paste the link below.</p>

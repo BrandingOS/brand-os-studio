@@ -10,7 +10,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { isCoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
-import { interpret } from '../interpret';
+import { interpret, proseRank } from '../interpret';
+import { RANK } from '../sources';
+import { EVIDENCE } from '../../website/__tests__/fromWebsite.test';
 import type { ParsedSection } from '../parseDescription';
 import { groupBySection, sectionFor } from '../proposals';
 import { buildBriefPrompt } from '../../brief/prompt';
@@ -205,5 +207,81 @@ describe('determinism', () => {
     const a = await interpret(input, { parse });
     const b = await interpret(input, { parse });
     expect(a.proposals.map((p) => p.corePath)).toEqual(b.proposals.map((p) => p.corePath));
+  });
+});
+
+describe('who wrote the description decides its rank', () => {
+  it('prose the user wrote themselves ranks as an explicit user-authored fact', () => {
+    expect(proseRank('written')).toBe(RANK.authored);
+  });
+
+  it('a pasted AI reply that is not a brief ranks as generated content', () => {
+    expect(proseRank('pasted')).toBe(RANK.generated);
+    expect(proseRank(undefined)).toBe(RANK.generated);
+  });
+
+  it('written prose records that it came from the user, never as our suggestion', async () => {
+    const out = await interpret(
+      { description: 'We build calm, durable homes.', items: [], authorship: 'written' },
+      { parse: parseOk(sections(['mission', 'Build calm, durable homes.'])) },
+    );
+    const mission = out.proposals.find((p) => p.corePath === 'strategy.mission');
+    expect(mission?.provenance).toBe('inferred');
+    expect(mission?.evidence).toBe('your description');
+  });
+
+  it('a pasted reply keeps reading as a suggestion', async () => {
+    const out = await interpret(
+      { description: 'We build calm, durable homes.', items: [], authorship: 'pasted' },
+      { parse: parseOk(sections(['mission', 'Build calm, durable homes.'])) },
+    );
+    expect(out.proposals.find((p) => p.corePath === 'strategy.mission')?.provenance).toBe('ai-suggested');
+  });
+});
+
+describe('the website inside the understanding pass', () => {
+  it('website facts outrank the pasted brief for the same values', async () => {
+    const out = await interpret({ description: BRIEF, items: [], websiteEvidence: EVIDENCE });
+    expect(out.proposals.find((p) => p.corePath === 'colors.primary')?.value).toEqual({ hex: '#1F3A2E' });
+    expect(out.business.tagline).toBe('Spaces that feel like they were always there.');
+    expect(out.websiteOrigins['business.tagline']).toBe('northwind.studio');
+  });
+
+  it('an uploaded colour still outranks the website', async () => {
+    const out = await interpret({ description: '', items: [color('#C8102E')], websiteEvidence: EVIDENCE });
+    expect(out.proposals.find((p) => p.corePath === 'colors.primary')?.value).toEqual({ hex: '#C8102E' });
+  });
+
+  it('a brief the user wrote themselves keeps its business facts over the site', async () => {
+    const out = await interpret({ description: BRIEF, items: [], websiteEvidence: EVIDENCE, authorship: 'written' });
+    expect(out.business.tagline).not.toBe('Spaces that feel like they were always there.');
+  });
+
+  it('without a scan nothing about the website is proposed', async () => {
+    const out = await interpret({ description: '', items: [] });
+    expect(out.websiteOrigins).toEqual({});
+    expect(out.proposals).toEqual([]);
+  });
+});
+
+describe('colours from scraped artwork', () => {
+  const siteColour = (hex: string): OnboardingAsset => ({ ...color(hex), origin: 'website' });
+
+  it('rank as website evidence, so an uploaded colour still wins', async () => {
+    const out = await interpret({ description: '', items: [siteColour('#111111'), color('#C8102E')] });
+    // Mixed material is the user's: the first swatch is the primary as before.
+    expect(out.proposals.find((p) => p.corePath === 'colors.primary')?.value).toEqual({ hex: '#111111' });
+    const site = await interpret({ description: '', items: [siteColour('#111111')], websiteEvidence: EVIDENCE });
+    expect(site.proposals.find((p) => p.corePath === 'colors.primary')?.provenance).toBe('imported');
+  });
+
+  it('the same hex never lands under two roles', async () => {
+    const out = await interpret({ description: '', items: [siteColour('#1F3A2E'), siteColour('#C8553D')], websiteEvidence: EVIDENCE });
+    const primary = out.proposals.find((p) => p.corePath === 'colors.primary')?.value as { hex: string };
+    const secondary = out.proposals.find((p) => p.corePath === 'colors.secondary')?.value as { hex: string };
+    const neutrals = (out.proposals.find((p) => p.corePath === 'colors.neutrals')?.value as Array<{ hex: string }> | undefined) ?? [];
+    const all = [primary.hex, secondary.hex, ...neutrals.map((n) => n.hex)];
+    expect(new Set(all).size).toBe(all.length);
+    expect(primary.hex).toBe('#1F3A2E');
   });
 });

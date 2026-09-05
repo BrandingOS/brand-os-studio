@@ -110,6 +110,10 @@ export interface DefineAnswers {
   /** Slogan the user typed inline on the review page. Overrides whatever was
    *  parsed out of the description; empty/undefined falls back to the parse. */
   slogan?: string;
+  /** Who wrote the description: the user themselves, or an AI whose reply they pasted. */
+  descriptionAuthorship?: 'pasted' | 'written';
+  /** A website address found in the description that the user asked us NOT to read. */
+  ignoredSite?: string;
 }
 
 export interface FeelPalette {

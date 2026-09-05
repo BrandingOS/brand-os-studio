@@ -13,7 +13,7 @@ import { FooterCTA } from '@/features/onboarding-v4/components/FooterCTA';
 import { UploadsReviewPanel } from '@/features/onboarding-v4/panels/UploadsReviewPanel';
 import { useV4Store } from '@/features/onboarding-v4/store/onboardingV4Store';
 import type { Projection } from '@/features/onboarding/bridge/v4Bridge';
-import { ScanNotice } from './ScanNotice';
+import { ScanNotice, type ScanReport } from '@/features/onboarding/website/ScanNotice';
 import {
   DESCRIPTIONS,
   SITE,
@@ -29,6 +29,15 @@ import {
 } from './fixtures';
 
 const ACTOR = { kind: 'human' as const, userId: 'prototype' };
+
+/** The scan's report, per scenario — the same shape production hands the notice. */
+function reportFor(scenario: Scenario): ScanReport | null {
+  const found = { logo: true, colors: true, fonts: true, socials: true };
+  if (scenario === 'partial') return { host: SITE.host, status: 'partial', missedPages: ['About page'], found };
+  if (scenario === 'unavailable') return { host: SITE.host, status: 'failed', reason: `We couldn't reach ${SITE.host} just now.`, reasonCode: 'dns_failed', missedPages: [], found: { logo: false, colors: false, fonts: false, socials: false } };
+  if (scenario === 'extracted') return { host: SITE.host, status: 'complete', missedPages: [], found, aiSkipped: 'insufficient_credits' };
+  return null;
+}
 
 function seed(scenario: Scenario): Projection {
   const s = useV4Store.getState();
@@ -57,7 +66,7 @@ export function ReviewState({ scenario, onRetry }: Props) {
   return (
     <CosmosShell variant="setup">
       <div className="container">
-        <ScanNotice scenario={scenario} onRetry={onRetry} onAddCredits={() => {}} />
+        {reportFor(scenario) && <ScanNotice report={reportFor(scenario) as ScanReport} onRetry={onRetry} onAddCredits={() => {}} />}
         <UploadsReviewPanel key={scenario} projection={projection} actor={ACTOR} onChanged={() => {}} />
         <FooterCTA label="Open my brand" onClick={() => {}} onBack={() => {}} />
       </div>

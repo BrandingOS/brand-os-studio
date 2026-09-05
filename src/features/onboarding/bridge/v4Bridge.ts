@@ -30,7 +30,10 @@ import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
 import { clearPlaceholders, readOnboardingState, withBrief } from '@/shared/onboarding/onboardingState';
 
 import { buildCreateInput, normalizeUrl } from '../understanding/createBrand';
-import { interpret, type Understanding } from '../understanding/interpret';
+import { interpret, type DescriptionAuthorship, type InterpretInput, type Understanding } from '../understanding/interpret';
+import { confirmedPaths } from '../understanding/decided';
+import { WEBSITE_EVIDENCE } from '../website/fromWebsite';
+import type { SystemActor } from '@/domain/brand/coreMeta';
 import { applyBusinessFacts, applyProposals, sentinelsRetiredBy } from '../understanding/applyProposals';
 import { acceptAll, acceptProposal, editValue } from '../understanding/acceptance';
 import { classifyLogos, type Artworks } from '../understanding/logoClassify';
@@ -51,7 +54,15 @@ export interface UnderstandResult {
   understanding: Understanding;
   /** Named writes that did not land, for honest reporting. Never thrown. */
   notSaved: string[];
+  /** Core paths the user had already confirmed — untouched by this pass. */
+  decided: CoreFieldPath[];
 }
+
+/** The agent every website-derived value is written by. The review's origin label keys on it. */
+export const WEBSITE_SCAN: SystemActor = { kind: 'system', agent: 'website-scan' };
+
+/** What the website pass hands understanding. */
+export type WebsiteInput = Pick<InterpretInput, 'websiteEvidence' | 'websiteInference'>;
 
 /**
  * Creates the brand and records the brief.
@@ -115,14 +126,31 @@ export async function understand(
    * already has the text in hand.
    */
   description?: string,
+  /** Who wrote it — the user in their own words, or an AI whose reply they pasted. */
+  authorship?: DescriptionAuthorship,
+  /** The website scan's evidence and the model's reading of it, when a scan ran. */
+  website?: WebsiteInput,
 ): Promise<UnderstandResult> {
   const text = description?.trim() || readOnboardingState(brand)?.brief;
+  // What the user has already confirmed is read LIVE and never proposed for:
+  // the write path would overwrite it and drop it to provisional. This is
+  // what makes a rescan safe.
+  const decided = confirmedPaths(await repo().getById(brand.id));
   const understanding = await interpret(
-    { description: text, items, website: brand.publicUrl },
+    { description: text, items, website: brand.publicUrl, authorship, decided, ...(website ?? {}) },
     { groupFonts: groupFontFamilies },
   );
 
-  const report = await applyProposals(repo(), brand.id, understanding.proposals);
+  // Website values are written by the website-scan agent so the review can
+  // say "From your website"; everything else by the interpreter, as before.
+  const fromSite = understanding.proposals.filter((p) => p.evidence === WEBSITE_EVIDENCE);
+  const fromRest = understanding.proposals.filter((p) => p.evidence !== WEBSITE_EVIDENCE);
+  const report = await applyProposals(repo(), brand.id, fromRest);
+  if (fromSite.length) {
+    const siteReport = await applyProposals(repo(), brand.id, fromSite, { actor: WEBSITE_SCAN });
+    report.applied.push(...siteReport.applied);
+    report.failed.push(...siteReport.failed);
+  }
   const notSaved = await applyBusinessFacts(repo(), brand.id, understanding.business);
 
   // A real value retires its sentinel, permanently. Read live — the writes
@@ -136,7 +164,7 @@ export async function understand(
   if (report.failed.length) {
     notSaved.push(`${report.failed.length} thing${report.failed.length === 1 ? '' : 's'} we found`);
   }
-  return { understanding, notSaved };
+  return { understanding, notSaved, decided };
 }
 
 /** Resolves a stored vocabulary id back to its label. Falls back to the value. */
@@ -172,6 +200,7 @@ export const ORIGIN_LABEL: Record<ValueOrigin, string> = {
 export function originOf(canonical: CanonicalBrand, path: CoreFieldPath): ValueOrigin {
   const meta = coreValueMeta(canonical.identityMeta, path);
   if (meta.provenance === 'user-entered') return 'chosen';
+  if (meta.setBy === WEBSITE_SCAN.agent) return 'website';
   if (meta.provenance === 'inferred') return 'uploaded';
   return 'brief';
 }
@@ -220,6 +249,23 @@ const PROFILE_PATHS: Array<{ path: CoreFieldPath; vocab?: VocabularyName }> = [
   { path: 'strategy.positioning' },
 ];
 
+/** "northwind.studio/about" → "From northwind.studio/about"; an already-phrased origin stays as it is. */
+function originLine(origin: string): string {
+  return /^(from|read from|suggested from)\b/i.test(origin) ? origin : `From ${origin}`;
+}
+
+/**
+ * The origin line under a strategy value. Website values name their page when
+ * the marker knows it; otherwise the value's provenance decides the wording.
+ */
+function originLineFor(canonical: CanonicalBrand, path: CoreFieldPath, websiteOrigins: Record<string, string>): string | undefined {
+  const meta = coreValueMeta(canonical.identityMeta, path);
+  if (meta.provenance === 'user-entered') return ORIGIN_LABEL.chosen;
+  if (meta.setBy !== WEBSITE_SCAN.agent) return undefined;
+  if (websiteOrigins[path]) return originLine(websiteOrigins[path]);
+  return meta.provenance === 'imported' ? ORIGIN_LABEL.website : meta.provenance === 'inferred' ? 'Read from your website' : 'Suggested from your website';
+}
+
 function read(identity: unknown, path: string): unknown {
   let cursor: unknown = identity;
   for (const seg of path.split('.')) {
@@ -241,6 +287,12 @@ export function project(
   sentinelPaths: readonly string[] = [],
   /** What each picture turned out to be, so identical artwork folds into one. */
   art?: Artworks,
+  /**
+   * Where website values came from, by Core path or `business.<field>` —
+   * the marker's copy, so it survives a reload. Only consulted for values the
+   * website-scan agent wrote.
+   */
+  websiteOrigins: Record<string, string> = {},
 ): Projection {
   const identity = canonical.identity;
   const business = canonical.businessInfo ?? {};
@@ -306,10 +358,16 @@ export function project(
     styleLabels: ((identity?.visualStyle?.descriptors ?? []) as string[]).map(
       (d) => labelOf('style', d) ?? d,
     ),
+    businessOrigins: Object.fromEntries(
+      (['industry', 'tagline', 'description'] as const)
+        .filter((f) => websiteOrigins[`business.${f}`])
+        .map((f) => [f, originLine(websiteOrigins[`business.${f}`])]),
+    ),
     profile: PROFILE_PATHS.map(({ path, vocab }) => ({
       path,
       vocab,
       value: read(identity, path),
+      ...(originLineFor(canonical, path, websiteOrigins) ? { origin: originLineFor(canonical, path, websiteOrigins) } : {}),
     })).filter((r) => {
       const v = r.value;
       if (v === undefined || v === null) return false;

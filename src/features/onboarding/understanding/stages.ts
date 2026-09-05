@@ -45,10 +45,99 @@ export interface StageInput {
   hasText: boolean;
   /** True when that text was the structured brief. */
   hasBrief: boolean;
+  /**
+   * The website being scanned. When set, the plan IS the Brand Scan: the eight
+   * stages approved at Gate 2, which fold the file, logo, colour and type work
+   * into the scan's own steps — the mark has eight nodes and a scan has eight
+   * moments; a ninth would be a lie about the geometry.
+   */
   website?: string;
   items: readonly OnboardingAsset[];
   /** Called when the real understanding pass finishes; supplies the findings. */
   results?: () => Partial<Record<string, Finding | null>>;
+  /**
+   * Event-driven completion: a stage resolves when its key's event fires, not
+   * when a timer reaches it. `planStages` uses it when supplied; the
+   * `results()` snapshot stays the fallback for work that reports at the end.
+   */
+  awaitStage?: (key: string) => Promise<Finding | null>;
+}
+
+/** The scan's stage keys, in order. Index is the ring node. */
+export const WEBSITE_STAGE_KEYS = ['site-opened', 'site-signals', 'site-identity', 'site-pages', 'site-voice', 'site-visual', 'site-profile', 'site-saving'] as const;
+export type WebsiteStageKey = (typeof WEBSITE_STAGE_KEYS)[number];
+
+export function websiteStageLabels(host: string): Record<WebsiteStageKey, string> {
+  return {
+    'site-opened': `Opening ${host}`,
+    'site-signals': 'Reading brand signals',
+    'site-identity': 'Finding your identity',
+    'site-pages': 'Exploring key pages',
+    'site-voice': 'Understanding your voice',
+    'site-visual': 'Analysing visual language',
+    'site-profile': 'Building your brand profile',
+    'site-saving': 'Saving your brand',
+  };
+}
+
+function hostOf(website: string): string {
+  try {
+    return new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`).hostname.replace(/^www\./, '');
+  } catch {
+    return website;
+  }
+}
+
+/**
+ * One deferred per stage key. The screen awaits them; the work resolves them
+ * as its real events arrive; `resolveAll` closes whatever is left when the
+ * work ends, so a stage whose phase failed still ends — with no finding.
+ */
+export interface StageSignals {
+  promiseFor(key: string): Promise<Finding | null>;
+  resolve(key: string, finding: Finding | null): void;
+  resolveAll(): void;
+  resolved(key: string): boolean;
+}
+
+export function createStageSignals(): StageSignals {
+  const waits = new Map<string, { promise: Promise<Finding | null>; resolve: (f: Finding | null) => void; done: boolean }>();
+  // Once the work has ended, a stage nobody had asked about yet is over too.
+  let closed = false;
+  const entry = (key: string) => {
+    let e = waits.get(key);
+    if (!e) {
+      let resolve!: (f: Finding | null) => void;
+      const promise = new Promise<Finding | null>((r) => {
+        resolve = r;
+      });
+      e = { promise, resolve, done: false };
+      waits.set(key, e);
+      if (closed) {
+        e.done = true;
+        e.resolve(null);
+      }
+    }
+    return e;
+  };
+  return {
+    promiseFor: (key) => entry(key).promise,
+    resolve: (key, finding) => {
+      const e = entry(key);
+      if (e.done) return;
+      e.done = true;
+      e.resolve(finding);
+    },
+    resolveAll: () => {
+      closed = true;
+      for (const e of waits.values()) {
+        if (e.done) continue;
+        e.done = true;
+        e.resolve(null);
+      }
+    },
+    resolved: (key) => closed || waits.get(key)?.done === true,
+  };
 }
 
 /**
@@ -60,7 +149,12 @@ export interface StageInput {
 export function planStages(input: StageInput): Stage[] {
   const stages: Stage[] = [];
   const results = input.results ?? (() => ({}));
-  const finding = (key: string) => () => results()[key] ?? null;
+  const finding = (key: string) => (input.awaitStage ? () => input.awaitStage!(key) : () => results()[key] ?? null);
+
+  if (input.website) {
+    const labels = websiteStageLabels(hostOf(input.website));
+    return WEBSITE_STAGE_KEYS.map((key, node) => ({ id: key, label: labels[key], node, run: finding(key) }));
+  }
 
   const images = input.items.filter((a) => a.kind === 'image' && !a.generated);
   const fonts = input.items.filter((a) => a.kind === 'font');
@@ -84,10 +178,6 @@ export function planStages(input: StageInput): Stage[] {
     node: 1,
     run: finding('structure'),
   });
-
-  if (input.website) {
-    stages.push({ id: 'website', label: 'Checking your website', node: 2, run: finding('website') });
-  }
 
   if (files.length) {
     stages.push({ id: 'files', label: 'Organising your brand files', node: 3, run: finding('files') });

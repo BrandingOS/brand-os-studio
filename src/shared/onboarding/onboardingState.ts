@@ -30,6 +30,24 @@ import type { Brand } from '@/shared/types/brand';
 export const ONBOARDING_STEPS = ['setup', 'review'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
+/**
+ * What the website scan did for this brand, kept for resume and honest
+ * reporting. Counts, codes and page names only — never copy, never bytes.
+ */
+export interface WebsiteScanSummary {
+  url: string;
+  status: 'complete' | 'partial' | 'failed';
+  pagesRead: number;
+  /** Non-fatal and fatal problems by code, with the page when there is one. */
+  problems: Array<{ code: string; page?: string }>;
+  /** Where each value came from ("northwind.studio/about"), keyed by Core path or `business.<field>`. */
+  origins?: Record<string, string>;
+  ai?: { tier?: string; reason?: string; calls: number; skipped?: string; ms?: number };
+  timing?: { firstEventMs?: number; scanMs?: number; totalMs?: number };
+  /** ISO timestamp. */
+  at: string;
+}
+
 export interface OnboardingState {
   step: OnboardingStep;
   /** ISO timestamp — when the brand was named. */
@@ -45,6 +63,8 @@ export interface OnboardingState {
    * brief on screen as the product list.
    */
   brief?: string;
+  /** The last website scan, when one ran. */
+  websiteScan?: WebsiteScanSummary;
   /**
    * Core paths that hold a COMPATIBILITY PLACEHOLDER, not a chosen value.
    *
@@ -119,8 +139,21 @@ export function readOnboardingState(brand: Pick<Brand, 'onboarding'> | null | un
     startedAt: typeof o.startedAt === 'string' ? o.startedAt : new Date().toISOString(),
     completedAt: null,
     ...(typeof o.brief === 'string' && o.brief ? { brief: o.brief } : {}),
+    ...(isScanSummary(o.websiteScan) ? { websiteScan: o.websiteScan } : {}),
     ...(placeholders.length ? { placeholders } : {}),
   };
+}
+
+function isScanSummary(v: unknown): v is WebsiteScanSummary {
+  if (!v || typeof v !== 'object') return false;
+  const s = v as Record<string, unknown>;
+  return typeof s.url === 'string' && typeof s.status === 'string' && typeof s.at === 'string' && Array.isArray(s.problems);
+}
+
+/** Records a scan on the marker. Read-modify-write like every marker write. */
+export function withWebsiteScan(current: OnboardingState | null, scan: WebsiteScanSummary): OnboardingState {
+  const base = current ?? startedState();
+  return { ...base, websiteScan: scan };
 }
 
 /** True when the brand is mid-onboarding — the brand list's "Still setting up". */

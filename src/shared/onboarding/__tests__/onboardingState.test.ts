@@ -6,18 +6,7 @@
  * stays openable no matter what is in the column).
  */
 import { describe, it, expect } from 'vitest';
-import {
-  atStep,
-  clearPlaceholders,
-  completedState,
-  isUnfinished,
-  readOnboardingState,
-  resumeStep,
-  startedState,
-  unfinishedLabel,
-  withBrief,
-  type OnboardingState,
-} from '../onboardingState';
+import { atStep, clearPlaceholders, completedState, isUnfinished, readOnboardingState, resumeStep, startedState, type OnboardingState, unfinishedLabel, withBrief, withWebsiteScan } from '../onboardingState';
 
 const inProgress: OnboardingState = {
   step: 'setup',
@@ -185,5 +174,27 @@ describe('marker writes are read-modify-write — the staleness hazard', () => {
   it('the brief survives a step change', () => {
     const withText = withBrief(withSentinels, 'Industry: Retail');
     expect(atStep(withText, 'review').brief).toBe('Industry: Retail');
+  });
+});
+
+describe('the website scan on the marker', () => {
+  const scan = { url: 'https://n.studio', status: 'partial' as const, pagesRead: 3, problems: [{ code: 'http_error', page: 'https://n.studio/about' }], origins: { 'colors.primary': 'n.studio' }, at: '2026-09-06T00:00:00.000Z' };
+
+  it('is kept and read back, counts and codes only', () => {
+    const state = withWebsiteScan(startedState(), scan);
+    const read = readOnboardingState({ onboarding: state });
+    expect(read?.websiteScan).toEqual(scan);
+    expect(JSON.stringify(read)).not.toMatch(/<html|copy/);
+  });
+
+  it('a malformed summary is dropped, never thrown', () => {
+    const read = readOnboardingState({ onboarding: { ...startedState(), websiteScan: { url: 1 } } as never });
+    expect(read?.websiteScan).toBeUndefined();
+  });
+
+  it('recording a scan keeps the brief and the placeholders', () => {
+    const state = withWebsiteScan({ ...startedState(['colors.primary']), brief: 'hello' }, scan);
+    expect(state.brief).toBe('hello');
+    expect(state.placeholders).toEqual(['colors.primary']);
   });
 });

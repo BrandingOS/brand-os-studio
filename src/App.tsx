@@ -71,7 +71,10 @@ const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 // DS v1 component showcase (self-gated on import.meta.env.DEV or ?dev=1).
 const DevDesignSystemPage = lazy(() => import("./pages/_dev/design-system"));
 // Website Brand Import — Gate 2 visual prototype (disposable; fixtures only).
-const DevWebsiteImportPage = lazy(() => import("./pages/_dev/website-import"));
+// The DEV ternary is load-bearing: guarding only the <Route> still emits the chunk.
+const DevWebsiteImportPage = import.meta.env.DEV
+  ? lazy(() => import("./pages/_dev/website-import"))
+  : null;
 // Guideline editor component lab (self-gated on import.meta.env.DEV or ?dev=1).
 const DevGuidelineEditorPage = lazy(() => import("./pages/_dev/guideline-editor"));
 const DevElementsPage = lazy(() => import("./pages/_dev/elements"));
@@ -784,8 +787,10 @@ const App = () => (
           )}
           {/* DS v1 showcase — self-gated (DEV or ?dev=1), never in nav. */}
           <Route path="/_dev/design-system" element={<DevDesignSystemPage />} />
-          {/* Website Brand Import — Gate 2 visual proof on fixtures. Self-gated (DEV or ?dev=1). */}
-          <Route path="/_dev/website-import" element={<DevWebsiteImportPage />} />
+          {/* Website Brand Import — Gate 2 visual proof on fixtures. DEV only, structurally. */}
+          {import.meta.env.DEV && DevWebsiteImportPage && (
+            <Route path="/_dev/website-import" element={<DevWebsiteImportPage />} />
+          )}
           {/* Guideline editor component lab — every editing surface of
               /b/:slug/guideline on one page. Self-gated (DEV or ?dev=1). */}
           <Route path="/_dev/guideline-editor" element={<DevGuidelineEditorPage />} />

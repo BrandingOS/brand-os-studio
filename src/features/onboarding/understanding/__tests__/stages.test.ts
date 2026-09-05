@@ -43,9 +43,29 @@ describe('a stage exists only when its work does', () => {
     expect(l).toContain('Identifying your typography');
   });
 
-  it('a website brings its own stage', () => {
-    const l = labels(planStages({ brandName: 'M', hasText: false, hasBrief: false, website: 'x.co', items: [] }));
-    expect(l).toContain('Checking your website');
+  it('a website makes the plan the eight-stage Brand Scan, and nothing narrates work that never runs', () => {
+    const l = labels(planStages({ brandName: 'M', hasText: false, hasBrief: false, website: 'https://www.x.co', items: [] }));
+    expect(l).toEqual([
+      'Opening x.co', 'Reading brand signals', 'Finding your identity', 'Exploring key pages',
+      'Understanding your voice', 'Analysing visual language', 'Building your brand profile', 'Saving your brand',
+    ]);
+    expect(l).not.toContain('Checking your website');
+  });
+
+  it('a scan stage resolves on its event, not on a timer', async () => {
+    const { createStageSignals } = await import('../stages');
+    const signals = createStageSignals();
+    const stages = planStages({ brandName: 'M', hasText: false, hasBrief: false, website: 'x.co', items: [], awaitStage: signals.promiseFor });
+    let settled = false;
+    const p = Promise.resolve(stages[2].run()).then((f) => { settled = true; return f; });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(settled).toBe(false);
+    signals.resolve('site-identity', { label: 'Logo', value: 'found' });
+    expect(await p).toEqual({ label: 'Logo', value: 'found' });
+    // Ending the work closes every stage still open, with nothing invented.
+    signals.resolveAll();
+    expect(await stages[7].run()).toBeNull();
+    expect(signals.resolved('site-saving')).toBe(true);
   });
 
   it('the copy differs because the WORK differs', () => {

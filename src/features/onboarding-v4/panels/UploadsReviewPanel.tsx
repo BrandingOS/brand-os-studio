@@ -928,9 +928,14 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
   const extractedRef = useRef(false);
   useEffect(() => {
     if (extractedRef.current) return;
-    const images = assets.filter((a) => a.kind === 'image' && a.previewUrl);
+    // Read the store LIVE, not this render's `assets`: the projection effect
+    // above adds the brand's colours in the same commit, and the closure
+    // predates them — so a website's palette was being joined by a fourth
+    // swatch pulled from the logo a moment later (Gate 2 finding).
+    const live = useV4Store.getState().assets;
+    const images = live.filter((a) => a.kind === 'image' && a.previewUrl);
     if (images.length === 0) return;
-    const hasColors = assets.some((a) => a.kind === 'color');
+    const hasColors = live.some((a) => a.kind === 'color');
     if (hasColors) {
       extractedRef.current = true;
       return;

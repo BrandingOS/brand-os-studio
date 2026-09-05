@@ -2,6 +2,9 @@ import { DsInput } from '@/shared/ds';
 import { useV4Store } from '../store/onboardingV4Store';
 import { BrandDropzone } from '../components/BrandDropzone';
 import { BriefHandoff } from '../components/BriefHandoff';
+import { DetectedSiteChip } from '@/features/onboarding/website/DetectedSiteChip';
+import { detectedBesidesPill, hostOf, scanTarget } from '@/features/onboarding/website/detectSite';
+import { genId } from '../utils/assetUpload';
 
 interface Props {
   /**
@@ -24,6 +27,29 @@ interface Props {
 export function SetupPanel({ part, onSubmit }: Props) {
   const define = useV4Store((s) => s.define);
   const update = useV4Store((s) => s.updateDefine);
+  const assets = useV4Store((s) => s.assets);
+  const addAsset = useV4Store((s) => s.addAsset);
+  const removeAsset = useV4Store((s) => s.removeAsset);
+  // Which site the scan will read, and the address it will NOT read because a
+  // link the user added outranks one we spotted in their description.
+  const target = scanTarget(assets, define.description, define.ignoredSite);
+  const besidesPill = detectedBesidesPill(assets, define.description, define.ignoredSite);
+  const useDetected = () => {
+    if (!besidesPill) return;
+    for (const a of assets) {
+      if (a.kind === 'link' && a.sourceUrl && hostOf(a.sourceUrl) === target?.host && target.source === 'pill') removeAsset(a.id);
+    }
+    addAsset({
+      id: genId(),
+      name: besidesPill,
+      sub: 'Link',
+      kind: 'link',
+      previewUrl: null,
+      sourceUrl: `https://${besidesPill}`,
+      uploadStatus: 'done',
+      uploadProgress: 1,
+    });
+  };
 
   if (part === 1) {
     return (
@@ -61,9 +87,17 @@ export function SetupPanel({ part, onSubmit }: Props) {
             brandName={define.name}
             value={define.description}
             onChange={(v) => update({ description: v })}
+            onAuthorship={(descriptionAuthorship) => update({ descriptionAuthorship })}
             autoFocus
           />
         </div>
+
+        <DetectedSiteChip
+          pill={target?.source === 'pill' ? target.host : null}
+          detected={target?.source === 'description' ? target.host : besidesPill}
+          onDismiss={() => update({ ignoredSite: target?.host ?? besidesPill ?? undefined })}
+          onUseDetected={useDetected}
+        />
 
         <div className="field">
           <BrandDropzone />

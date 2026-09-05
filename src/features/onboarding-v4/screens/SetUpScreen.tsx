@@ -40,7 +40,13 @@ import type { Brand } from '@/shared/types/brand';
 import { atStep, placeholderPaths, readOnboardingState, resumeStep } from '@/shared/onboarding/onboardingState';
 import { UnderstandingStage } from '@/features/onboarding/steps/UnderstandingStage';
 import { createFailureMessage } from '@/features/onboarding/understanding/createBrand';
-import { planStages, findingsFrom, type Finding } from '@/features/onboarding/understanding/stages';
+import { planStages, findingsFrom, createStageSignals, type Finding, type StageSignals } from '@/features/onboarding/understanding/stages';
+import { scanTarget, type ScanTarget } from '@/features/onboarding/website/detectSite';
+import { runScan, type ScanRunResult } from '@/features/onboarding/website/scanRun';
+import { defaultScanDeps } from '@/features/onboarding/website/scanClient';
+import { ScanNotice, type ScanReport } from '@/features/onboarding/website/ScanNotice';
+import type { Understanding } from '@/features/onboarding/understanding/interpret';
+import { withWebsiteScan, type WebsiteScanSummary } from '@/shared/onboarding/onboardingState';
 import { groupFontFamilies } from '@/features/onboarding/understanding/fonts';
 import { classifyLogos } from '@/features/onboarding/understanding/logoClassify';
 import { looksLikeBrief } from '@/features/onboarding/brief/parseBrief';
@@ -116,6 +122,15 @@ export function SetUpScreen() {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [processing, setProcessing] = useState(false);
   const [findings, setFindings] = useState<Record<string, Finding | null>>({});
+  /** The website scan's stage signals: each stage ends on its real event. */
+  const signalsRef = useRef<StageSignals | null>(null);
+  /** The site being read this run, decided at Continue (pill wins over the description). */
+  const targetRef = useRef<ScanTarget | null>(null);
+  /** What the scan did, for the notice above the review and the toast on arrival. */
+  const [scanReport, setScanReport] = useState<ScanReport | null>(null);
+  const scanReportRef = useRef<ScanReport | null>(null);
+  /** Where website values came from, keyed by path — the marker's copy after a reload. */
+  const websiteOriginsRef = useRef<Record<string, string>>({});
   const [projection, setProjection] = useState<Projection | null>(null);
   /**
    * What each picture turned out to be, read once during processing and reused.
@@ -242,8 +257,9 @@ export function SetUpScreen() {
     const canonical = await brandRepository().getById(b.id);
     if (!canonical) return;
     const live = useBrandStore.getState().list.find((x) => x.id === b.id) ?? b;
+    const origins = readOnboardingState(live)?.websiteScan?.origins ?? websiteOriginsRef.current;
     setProjection(
-      project(canonical, useV4Store.getState().assets, placeholderPaths(live), artworkRef.current),
+      project(canonical, useV4Store.getState().assets, placeholderPaths(live), artworkRef.current, origins),
     );
   }, []);
 
@@ -344,7 +360,14 @@ export function SetUpScreen() {
       // `socialPlatform` marker: the pill does not set one, so asking for
       // `=== 'website'` found nothing and the address the user typed never
       // became the brand's.
-      const website = websiteOf(useV4Store.getState().assets);
+      // The pill wins; an address found in the description is read only when
+      // there is no pill and the user did not dismiss it. Whichever it is
+      // becomes the brand's website.
+      const store0 = useV4Store.getState();
+      const target = scanTarget(store0.assets, store0.define.description, store0.define.ignoredSite);
+      targetRef.current = target;
+      signalsRef.current = createStageSignals();
+      const website = target?.url ?? websiteOf(store0.assets);
       const created = await createTheBrand(
         createBrand as never,
         updateBrand as never,
@@ -423,40 +446,87 @@ export function SetUpScreen() {
       }
     }
 
+    // Colours read from artwork the scan brought are the website's colours:
+    // they rank as website evidence, below anything the user uploaded.
+    const fromSite = artwork.every((a) => a.origin === 'website');
     found.forEach((hex, i) => {
       store.addAsset({
         id: genId(),
         name: hex,
-        sub: i === 0 ? 'Primary' : 'Extracted',
+        sub: i === 0 ? 'Primary' : fromSite ? 'From your website' : 'Extracted',
         kind: 'color',
         value: hex,
         previewUrl: null,
         uploadStatus: 'done',
         uploadProgress: 1,
+        ...(fromSite ? { origin: 'website' as const } : {}),
       });
     });
   }, []);
 
-  /** The real work the processing screen observes. It observes nothing back. */
+  /**
+   * The real work the processing screen observes. It observes nothing back.
+   *
+   * The website scan and the user's own material run CONCURRENTLY: the site is
+   * fetched while uploads are fingerprinted and their colours read, and
+   * neither waits on the other. Every stage of the moment ends on a real
+   * event from this function; the screen's pacing can only slow the
+   * narration, never the work.
+   */
   const runUnderstanding = useCallback(async () => {
     if (!brand) return;
+    const started = performance.now();
+    const signals = signalsRef.current ?? createStageSignals();
+    signalsRef.current = signals;
+    const target = targetRef.current;
 
     // Fingerprint the artwork first: everything downstream — duplicate folding,
     // slot assignment, the logo count — depends on knowing which pictures are
     // the same picture, and filenames do not say.
-    const images = useV4Store.getState().assets.filter((a) => a.kind === 'image' && a.previewUrl);
-    for (const img of images) {
-      if (artworkRef.current.has(img.id)) continue;
-      artworkRef.current.set(img.id, await readArtwork(img.previewUrl as string));
+    const fingerprint = async () => {
+      const images = useV4Store.getState().assets.filter((a) => a.kind === 'image' && a.previewUrl);
+      for (const img of images) {
+        if (artworkRef.current.has(img.id)) continue;
+        artworkRef.current.set(img.id, await readArtwork(img.previewUrl as string));
+      }
+    };
+    const local = (async () => {
+      await fingerprint();
+      await extractColours();
+    })();
+
+    let scan: ScanRunResult | null = null;
+    if (target) {
+      scan = await runScan(
+        {
+          brandId: brand.id,
+          brandName: brand.name,
+          url: target.url,
+          description: define.description,
+          existing: () => useV4Store.getState().assets,
+          addItem: (item) => useV4Store.getState().addAsset(item),
+          signals,
+          genId,
+        },
+        { scan: defaultScanDeps() },
+      );
+    }
+    await local;
+    // Scraped artwork is fingerprinted exactly like an upload. Its colours are
+    // read only when the user's own logos yielded none — they come first.
+    if (scan?.scraped.logos) {
+      await fingerprint();
+      await extractColours();
     }
 
-    await extractColours();
     const items = useV4Store.getState().assets;
     const { understanding, notSaved } = await understand(
       brand,
       items,
       updateBrand as never,
       define.description,
+      define.descriptionAuthorship,
+      scan?.evidence ? { websiteEvidence: scan.evidence, websiteInference: scan.inference } : undefined,
     );
 
     if (notSaved.length) {
@@ -474,6 +544,9 @@ export function SetUpScreen() {
     const redundant = logos.groups.flatMap((g) => g.variants.map((v) => v.id));
     for (const id of redundant) useV4Store.getState().removeAsset(id);
 
+    const answered = countStrategyAnswers(understanding);
+    signals.resolve('site-profile', target && answered ? { label: 'Profile', value: `${answered} of 11 answered` } : null);
+
     setFindings(
       findingsFrom({
         logoGroups: logos.groups.length,
@@ -485,8 +558,65 @@ export function SetUpScreen() {
       }),
     );
 
+    if (target && scan) {
+      // The marker keeps what the scan did — counts, codes, page names and
+      // timings, never copy — so the review's origin lines survive a reload
+      // and a rescan can say what changed.
+      const live = useBrandStore.getState().list.find((x) => x.id === brand.id) ?? brand;
+      const origins = understanding.websiteOrigins;
+      const summary: WebsiteScanSummary = {
+        url: target.url,
+        status: scan.outcome.status,
+        pagesRead: scan.evidence?.crawl.pagesRead ?? 0,
+        problems: scan.outcome.problems.map((p) => ({ code: p.code, ...(p.page ? { page: p.page } : {}) })),
+        ...(Object.keys(origins).length ? { origins } : {}),
+        ai: {
+          calls: scan.enrichment?.calls ?? 0,
+          ...(scan.enrichment ? { tier: scan.enrichment.routing.tier, reason: scan.enrichment.routing.reason, ms: Math.round(scan.enrichment.ms) } : {}),
+          ...(scan.enrichment?.skipped ? { skipped: scan.enrichment.skipped } : {}),
+        },
+        timing: {
+          ...(scan.timing.firstEventMs !== undefined ? { firstEventMs: Math.round(scan.timing.firstEventMs) } : {}),
+          scanMs: Math.round(scan.timing.scanMs),
+          totalMs: Math.round(performance.now() - started),
+        },
+        at: new Date().toISOString(),
+      };
+      try {
+        await updateBrand(brand.id, { onboarding: withWebsiteScan(readOnboardingState(live), summary) });
+      } catch {
+        /* the values are on the brand; losing the summary costs an origin line, not the work */
+      }
+      websiteOriginsRef.current = origins;
+      scanReportRef.current = scan.report;
+      setScanReport(scan.report);
+      // Telemetry: numbers only. What the site said stays on the brand.
+      console.debug('[website-scan]', {
+        host: scan.report.host,
+        status: summary.status,
+        pages: summary.pagesRead,
+        requests: scan.evidence?.crawl.requests,
+        bytes: scan.evidence?.crawl.bytes,
+        scraped: scan.scraped,
+        ai: summary.ai,
+        timing: summary.timing,
+      });
+    }
+
+    signals.resolve('site-saving', null);
     await refresh(brand);
-  }, [brand, updateBrand, refresh, define.description, extractColours]);
+    signals.resolveAll();
+  }, [brand, updateBrand, refresh, define.description, define.descriptionAuthorship, extractColours]);
+
+  /** Re-runs the scan from the review. Confirmed values are never touched. */
+  const retryScan = useCallback(() => {
+    if (!brand || !targetRef.current) return;
+    signalsRef.current = createStageSignals();
+    scanReportRef.current = null;
+    setScanReport(null);
+    setFindings({});
+    setProcessing(true);
+  }, [brand]);
 
   /**
    * Records that the user is standing on the review.
@@ -573,9 +703,10 @@ export function SetUpScreen() {
       brandName: brand.name,
       hasText: Boolean(define.description?.trim()),
       hasBrief: looksLikeBrief(define.description ?? ''),
-      website: brand.publicUrl,
+      website: targetRef.current?.url,
       items,
       results: () => findings,
+      ...(targetRef.current && signalsRef.current ? { awaitStage: signalsRef.current.promiseFor } : {}),
     });
     return (
       <CosmosShell variant="setup">
@@ -587,6 +718,17 @@ export function SetUpScreen() {
             onDone={() => {
               setProcessing(false);
               busyRef.current = false;
+              const r = scanReportRef.current;
+              if (r?.status === 'failed') {
+                toast.warning(`We couldn't reach ${r.host}`, {
+                  description: 'Your brief and uploads are here. Everything else can wait for the site.',
+                  action: { label: 'Try again', onClick: retryScan },
+                });
+              } else if (r?.status === 'partial' && r.missedPages.length) {
+                toast(`Read ${r.host} — the ${r.missedPages.join(' and ')} didn't load`, {
+                  description: 'Everything else is in.',
+                });
+              }
               // The brand exists now, so the review gets an address that can be
               // refreshed, shared and resumed — and the marker says so, which is
               // what makes "Resume" from the dashboard land back here.
@@ -617,6 +759,9 @@ export function SetUpScreen() {
           <SetupPanel key="name" part={1} onSubmit={() => canAdvance && goNext()} />
         )}
         {setupPanel === 2 && <SetupPanel key="details" part={2} />}
+        {setupPanel === 3 && scanReport && (
+          <ScanNotice report={scanReport} onRetry={retryScan} onAddCredits={() => navigate('/settings?tab=plan')} />
+        )}
         {setupPanel === 3 && (
           <UploadsReviewPanel
             key="uploads"
@@ -638,4 +783,18 @@ export function SetUpScreen() {
       </div>
     </CosmosShell>
   );
+}
+
+
+/** How many of the eleven Brand Strategy answers the pass produced. */
+function countStrategyAnswers(u: Understanding): number {
+  const core = new Set(
+    u.proposals
+      .map((p) => p.corePath)
+      .filter((p) =>
+        ['strategy.summary', 'strategy.targetAudience', 'strategy.positioning', 'strategy.mission', 'strategy.personality', 'voice.tone', 'visualStyle.descriptors', 'strategy.values'].includes(p),
+      ),
+  );
+  const business = ['industry', 'description', 'tagline'].filter((k) => u.business[k as keyof typeof u.business]).length;
+  return core.size + business;
 }

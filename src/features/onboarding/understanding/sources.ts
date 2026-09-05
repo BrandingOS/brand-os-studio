@@ -23,16 +23,35 @@
 import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import type { Proposal, ProposalProvenance } from './proposals';
 
-/** Higher wins. The numbers are ordering only and are never persisted. */
+/**
+ * Higher wins. The numbers are ordering only and are never persisted.
+ *
+ * Extended for the website scan (Gate 1, 2026-09-06). The ladder, top down:
+ *
+ *     user  >  authored  >  uploaded  >  website  >  brief  >  websiteInferred  >  generated
+ *
+ * `authored` is what the user typed THEMSELVES on the profile screen (the
+ * "write it yourself" mode); `brief` is a reply an AI wrote for them and they
+ * pasted. The website beats the AI-written brief because a site is what the
+ * brand actually says; it never beats what the user personally provided.
+ */
 export const RANK = {
-  /** A palette direction, a font pairing, anything we offered. */
+  /** A palette direction, a font pairing, fallback prose, anything we offered. */
+  generated: 0,
+  /**  alias of `generated`, kept for existing call sites. */
   ai: 0,
-  /** A concrete value stated in the structured brief. */
-  brief: 1,
+  /** A conclusion the enrichment model drew from website evidence. */
+  websiteInferred: 1,
+  /** A concrete value stated in the structured (AI-written, pasted) brief. */
+  brief: 2,
+  /** A fact found on the website itself. */
+  website: 3,
   /** Derived from material the user actually supplied. */
-  uploaded: 2,
+  uploaded: 4,
+  /** Prose the user wrote in their own words. */
+  authored: 5,
   /** The user picked it, typed it or dragged it. Never overwritten. */
-  user: 3,
+  user: 6,
 } as const;
 
 export type SourceRank = (typeof RANK)[keyof typeof RANK];

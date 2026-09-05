@@ -1,0 +1,64 @@
+/* Website Brand Import — the site chip and the scan's report. Every colour is a token. */
+
+.wi-site {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -6px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  background: var(--ds-surface);
+  animation: wi-in 260ms var(--ds-ease) both;
+}
+.wi-site--invite { border-style: dashed; background: transparent; }
+.wi-site-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+.wi-site--invite .wi-site-icon { color: var(--ds-text-muted); }
+.wi-site-body { flex: 1 1 auto; min-width: 0; }
+.wi-site-line { margin: 0; font-size: 14px; font-weight: 550; letter-spacing: -0.01em; color: var(--ds-text); }
+.wi-site-line b { font-weight: 650; }
+.wi-site--invite .wi-site-line { font-weight: 500; color: var(--ds-text-secondary); }
+.wi-site-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--ds-text-muted); }
+.wi-site-sub button {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.wi-site-dismiss {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+.wi-site-dismiss:hover { background: var(--ds-surface-hover); color: var(--ds-text); }
+.wi-site-dismiss:focus-visible { outline: 3px solid var(--ds-text); outline-offset: 1px; }
+@keyframes wi-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* The scan's report, above the review. */
+.wi-notice { margin: 0 0 18px; }
+.wi-scan-row { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 10px 0 0; padding: 0; list-style: none; }
+.wi-scan-row li { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ds-text-secondary); }
+.wi-scan-row li[data-ok="false"] { color: var(--ds-text-muted); }
+.wi-scan-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ds-text); }
+.wi-scan-row li[data-ok="false"] .wi-scan-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ds-text-muted); }

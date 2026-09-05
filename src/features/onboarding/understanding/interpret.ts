@@ -24,6 +24,15 @@ import { RANK, mergeCandidates, type Candidate } from './sources';
 import { looksLikeBrief, parseBrief, type ParsedBrief } from '../brief/parseBrief';
 import { normalize, normalizeMany, splitList, storedValue } from '../vocabulary/normalize';
 import { CARDINALITY, VOCABULARIES } from '../vocabulary/vocabularies';
+import { fromWebsite } from '../website/fromWebsite';
+import type { WebsiteEvidence } from '../website/evidence';
+
+export type DescriptionAuthorship = 'pasted' | 'written';
+
+/** The rank free prose lands at, by who wrote it. */
+export function proseRank(authorship: DescriptionAuthorship | undefined): (typeof RANK)[keyof typeof RANK] {
+  return authorship === 'written' ? RANK.authored : RANK.generated;
+}
 
 export interface InterpretInput {
   /** What the user typed or pasted on the profile screen. */
@@ -32,6 +41,20 @@ export interface InterpretInput {
   items: OnboardingAsset[];
   /** Typed on the profile screen. Ranked as user-supplied. */
   website?: string;
+  /** What the scan read off that website, when it ran. Ranked `website`. */
+  websiteEvidence?: WebsiteEvidence;
+  /**
+   * What the enrichment model concluded from that evidence, already validated
+   * and ranked (extracted / inferred / generated). Its business facts fill
+   * only gaps: an inference never replaces a fact.
+   */
+  websiteInference?: { candidates: Candidate[]; business: BusinessFacts; origins: Record<string, string> };
+  /**
+   * Who wrote the description. `written` is the user in their own words and
+   * outranks everything but their explicit choices; `pasted` (the default) is
+   * an AI reply handed over through the brief handoff.
+   */
+  authorship?: DescriptionAuthorship;
   /** Core paths the user has already decided. Never overwritten. */
   decided?: readonly CoreFieldPath[];
 }
@@ -46,6 +69,8 @@ export interface Understanding {
   };
   /** True when the brief route was taken — used to assert no assisted call. */
   usedBrief: boolean;
+  /** Where website values came from, keyed by Core path or `business.<field>`. */
+  websiteOrigins: Record<string, string>;
 }
 
 /** Maps a parsed section key onto its Core path. Closed on purpose. */
@@ -78,7 +103,12 @@ function toVocabulary(path: CoreFieldPath, content: string): unknown {
   return content;
 }
 
-function fromSections(sections: ParsedSection[], rank: (typeof RANK)[keyof typeof RANK], evidence: string): Candidate[] {
+function fromSections(
+  sections: ParsedSection[],
+  rank: (typeof RANK)[keyof typeof RANK],
+  evidence: string,
+  authorship?: DescriptionAuthorship,
+): Candidate[] {
   const out: Candidate[] = [];
   for (const s of sections) {
     const path = SECTION_TO_PATH[s.key];
@@ -91,7 +121,9 @@ function fromSections(sections: ParsedSection[], rank: (typeof RANK)[keyof typeo
       corePath: path,
       value: toVocabulary(path, content),
       rank,
-      provenance: 'ai-suggested',
+      // Their own words, restructured: derived from what they supplied, not a
+      // suggestion of ours. A pasted AI reply stays `ai-suggested`.
+      provenance: authorship === 'written' ? 'inferred' : 'ai-suggested',
       evidence,
     });
   }
@@ -149,18 +181,25 @@ function fromBrief(b: ParsedBrief): Candidate[] {
   return out;
 }
 
-/** Colours the user placed or we extracted, most prominent first. */
+/**
+ * Colours the user placed or we extracted, most prominent first.
+ *
+ * Colours read from artwork the WEBSITE scan brought rank as website
+ * evidence: a scraped logo is the site's material, not the user's upload.
+ */
 function fromColors(items: OnboardingAsset[]): Candidate[] {
-  const hexes = items
-    .filter((a) => a.kind === 'color' && a.value)
-    .map((a) => (a.value ?? '').toUpperCase());
+  const colours = items.filter((a) => a.kind === 'color' && a.value);
+  const hexes = colours.map((a) => (a.value ?? '').toUpperCase());
   if (!hexes.length) return [];
-  const ev = 'your artwork';
+  const fromSite = colours.every((a) => a.origin === 'website');
+  const rank = fromSite ? RANK.website : RANK.uploaded;
+  const provenance = fromSite ? ('imported' as const) : ('inferred' as const);
+  const ev = fromSite ? 'your website' : 'your artwork';
   const out: Candidate[] = [
-    { corePath: 'colors.primary', value: { hex: hexes[0] }, rank: RANK.uploaded, provenance: 'inferred', evidence: ev },
+    { corePath: 'colors.primary', value: { hex: hexes[0] }, rank, provenance, evidence: ev },
   ];
   if (hexes[1]) {
-    out.push({ corePath: 'colors.secondary', value: { hex: hexes[1] }, rank: RANK.uploaded, provenance: 'inferred', evidence: ev });
+    out.push({ corePath: 'colors.secondary', value: { hex: hexes[1] }, rank, provenance, evidence: ev });
   }
   // Everything past the second is neutrals — deliberately NOT an accent. An
   // uploaded palette is just the brand's colours; guessing that the third
@@ -170,10 +209,40 @@ function fromColors(items: OnboardingAsset[]): Candidate[] {
     out.push({
       corePath: 'colors.neutrals',
       value: rest.map((hex) => ({ hex })),
-      rank: RANK.uploaded,
-      provenance: 'inferred',
+      rank,
+      provenance,
       evidence: ev,
     });
+  }
+  return out;
+}
+
+/**
+ * One colour, one role. When the roles were won by different sources — the
+ * logo's pixels took primary, the site's CSS took the rest — the same hex can
+ * land twice. The higher role keeps it.
+ */
+export function dedupeColours(proposals: Proposal[]): Proposal[] {
+  const hexOf = (v: unknown) => (v as { hex?: string } | undefined)?.hex?.toUpperCase();
+  const taken = new Set<string>();
+  const out: Proposal[] = [];
+  for (const path of ['colors.primary', 'colors.secondary', 'colors.accent'] as const) {
+    const h = hexOf(proposals.find((p) => p.corePath === path)?.value);
+    if (h) taken.add(h);
+  }
+  for (const p of proposals) {
+    if (p.corePath === 'colors.secondary' || p.corePath === 'colors.accent') {
+      const h = hexOf(p.value);
+      const primary = hexOf(proposals.find((x) => x.corePath === 'colors.primary')?.value);
+      if (h && h === primary) continue;
+    }
+    if (p.corePath === 'colors.neutrals' && Array.isArray(p.value)) {
+      const kept = (p.value as Array<{ hex: string }>).filter((c) => !taken.has(c.hex.toUpperCase()));
+      if (!kept.length) continue;
+      out.push({ ...p, value: kept });
+      continue;
+    }
+    out.push(p);
   }
   return out;
 }
@@ -225,6 +294,12 @@ export async function interpret(
   candidates.push(...fromColors(input.items));
   if (deps.groupFonts) candidates.push(...fromFonts(deps.groupFonts(input.items)));
 
+  // ── The website: extracted facts, ranked below material, above the brief ──
+  const site = input.websiteEvidence ? fromWebsite(input.websiteEvidence) : null;
+  if (site) candidates.push(...site.candidates);
+  if (input.websiteInference) candidates.push(...input.websiteInference.candidates);
+  const websiteOrigins = { ...(input.websiteInference?.origins ?? {}), ...(site?.origins ?? {}) };
+
   // ── The text, routed by its shape ────────────────────────────────────────
   const text = input.description?.trim() ?? '';
   const usedBrief = looksLikeBrief(text);
@@ -253,7 +328,9 @@ export async function interpret(
     }
   } else if (text) {
     try {
-      candidates.push(...fromSections(await parse(text), RANK.ai, 'your description'));
+      candidates.push(
+        ...fromSections(await parse(text), proseRank(input.authorship), 'your description', input.authorship),
+      );
     } catch {
       // Degrade, never fail (FR-020). The material-derived proposals stand on
       // their own and the user is not shown an error for a tier they never
@@ -261,13 +338,30 @@ export async function interpret(
     }
   }
 
+  // Business facts carry no rank of their own, so precedence is decided here:
+  // the site's facts replace the AI-written brief's, and never the user's own
+  // (a brief the user WROTE is theirs).
+  if (site) {
+    const briefIsTheirs = usedBrief && input.authorship === 'written';
+    for (const [k, v] of Object.entries(site.business) as Array<[keyof BusinessFacts, unknown]>) {
+      if (v === undefined) continue;
+      if (briefIsTheirs && business[k] !== undefined) continue;
+      (business as Record<string, unknown>)[k] = v;
+    }
+  }
+  // An inference fills a gap, never replaces a fact from any source.
+  if (input.websiteInference) {
+    for (const [k, v] of Object.entries(input.websiteInference.business) as Array<[keyof BusinessFacts, unknown]>) {
+      if (v !== undefined && business[k] === undefined) (business as Record<string, unknown>)[k] = v;
+    }
+  }
   if (input.website) business.website = input.website;
 
   // ── A path the user already decided is untouchable ───────────────────────
   const decided = new Set<string>(input.decided ?? []);
   const open = candidates.filter((c) => !decided.has(c.corePath));
 
-  return { proposals: mergeCandidates(open), business, suggestions, usedBrief };
+  return { proposals: dedupeColours(mergeCandidates(open)), business, suggestions, usedBrief, websiteOrigins };
 }
 
 export { VOCAB_PATHS };
