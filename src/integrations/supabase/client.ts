@@ -7,11 +7,25 @@ import type { Database } from './types';
 import { quarantineAuthErrorParams } from './callbackError';
 
 // Exported so direct-fetch Edge Function callers (e.g.
-// `features/editor/ai/applyCommand.ts`) share the same hard-coded URL
-// instead of reaching for `import.meta.env.VITE_SUPABASE_URL`, which is
-// not populated in `.env` and resolves to literal `"undefined"`.
-export const SUPABASE_URL = "https://ciojgoozobzbeglwdxcz.supabase.co";
-export const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpb2pnb296b2J6YmVnbHdkeGN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ4ODgsImV4cCI6MjA5MTMyMDg4OH0.qwfviBXKJh1i2-vyUYtCIdUXMZM5ICBJtBTEmqDYbng";
+// `features/editor/ai/applyCommand.ts`) share the same URL.
+//
+// The production values are the DEFAULT, not the only option: an env var wins when it is
+// actually set to something. The original comment said reaching for
+// `import.meta.env.VITE_SUPABASE_URL` resolved to the literal string "undefined" — true if
+// you read it blindly, which is why this checks first. Without the override there is no
+// way to run the app against a local database, and this branch's migrations only exist
+// there.
+const envUrl = import.meta.env?.VITE_SUPABASE_URL;
+const envKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+const usable = (v: unknown): v is string =>
+  typeof v === 'string' && v.length > 0 && v !== 'undefined';
+
+export const SUPABASE_URL = usable(envUrl)
+  ? envUrl
+  : "https://ciojgoozobzbeglwdxcz.supabase.co";
+export const SUPABASE_PUBLISHABLE_KEY = usable(envKey)
+  ? envKey
+  : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpb2pnb296b2J6YmVnbHdkeGN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ4ODgsImV4cCI6MjA5MTMyMDg4OH0.qwfviBXKJh1i2-vyUYtCIdUXMZM5ICBJtBTEmqDYbng";
 
 // Safe localStorage wrapper that handles quota exceeded errors.
 // When storage is full, it clears non-essential items and retries.
