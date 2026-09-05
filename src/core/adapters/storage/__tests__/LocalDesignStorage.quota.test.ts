@@ -21,8 +21,13 @@ describe('LocalDesignStorage — quota overflow to IndexedDB', () => {
 
   it('falls back to IDB on QuotaExceededError and reads it back', async () => {
     const store = new LocalDesignStorage();
-    const original = Storage.prototype.setItem;
-    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, k: string, v: string) {
+    // Spy on the prototype of whatever `localStorage` IS in this environment. Under
+    // Node 26 the test setup installs an in-memory Storage (Node's own global shadows
+    // jsdom's), so a spy on `Storage.prototype` never sees the write and the body
+    // lands in localStorage untouched.
+    const proto = Object.getPrototypeOf(localStorage) as Storage;
+    const original = proto.setItem;
+    const spy = vi.spyOn(proto, 'setItem').mockImplementation(function (this: Storage, k: string, v: string) {
       if (k.startsWith('brandos:design:') && v.length > 100) {
         throw new DOMException('quota', 'QuotaExceededError');
       }

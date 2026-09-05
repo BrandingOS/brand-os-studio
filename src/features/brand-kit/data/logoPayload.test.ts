@@ -24,6 +24,13 @@ import JSZip from 'jszip';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import type { ZipFolder } from './zipFile';
+// Static, not `await import()` inside each test: `exportEverything` pulls in the
+// whole renderer tree, and its transform (~2.5s alone, longer while the rest of
+// the suite is transforming in parallel) was being charged to the test's 5s
+// budget. `vi.mock` is hoisted above these, so the stubs still apply.
+import { buildLogoFiles } from './logoExport';
+import { addLogosToZip, downloadLogosZip, downloadKitZip } from './kitExport';
+import { writeUnit } from './exportEverything';
 
 /* ─── Bytes without a decoder ─────────────────────────────────────── */
 
@@ -137,9 +144,6 @@ beforeEach(() => {
 describe('the logo payload is the same through every door', () => {
   it('the builder, the card ⬇, the Export Kit and the catalog walk all write one file list', async () => {
     const b = brand();
-    const { buildLogoFiles } = await import('./logoExport');
-    const { addLogosToZip, downloadLogosZip, downloadKitZip } = await import('./kitExport');
-    const { writeUnit } = await import('./exportEverything');
 
     // 0 — what the builder decided.
     const expected = (await buildLogoFiles(b)).files.map((f) => f.path).sort();
@@ -191,7 +195,6 @@ describe('the logo payload is the same through every door', () => {
     const prose =
       'The RAQM wordmark features bold geometric letterforms in a custom grotesque, ' +
       'set tight and locked to a 4-unit baseline grid so the counters stay open at small sizes.';
-    const { buildLogoFiles } = await import('./logoExport');
     const b = brand({
       logos: [
         { id: 'primary', label: prose, variant: 'light', role: 'primary', svg: inlineSvg('#7231FF') },
@@ -207,7 +210,6 @@ describe('the logo payload is the same through every door', () => {
     // verbatim that is an `.svg` pointing at a URL the recipient cannot
     // resolve — and a PNG of it is blank.
     const fetched: string[] = [];
-    const { buildLogoFiles } = await import('./logoExport');
     const b = brand({
       logos: [
         {
@@ -233,7 +235,6 @@ describe('the logo payload is the same through every door', () => {
   it('a ground the brand ruled out is absent from the files as well as the tiles', async () => {
     // The policy and the payload read the same list, so a pairing a guideline
     // has withdrawn cannot survive in the zip.
-    const { buildLogoFiles } = await import('./logoExport');
     const all = (await buildLogoFiles(brand())).files.map((f) => f.path);
     expect(all.some((p) => p.includes('-on-violet'))).toBe(true);
 
