@@ -2642,3 +2642,10 @@ When adding a feature: write tests at every layer that applies. New schema → u
   `git push origin dev && git push origin dev:x` (no force, `x` is an ancestor of `dev`).
 - Commit messages follow a `feat(scope): …` / `fix(scope): …` / `refine(scope): …`
   convention — see `git log --oneline` for recent examples.
+
+## Answer style (owner preference, this project)
+
+Be concise. Short, direct answers — no long explanations, no detail dumps,
+no restating what was just done at length. A few lines is the default; give
+detail only when asked for it or when the task genuinely can't be reported
+in less.
