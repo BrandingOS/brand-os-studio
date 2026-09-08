@@ -24,7 +24,7 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 | R-PLT-07 | Engine is pure TypeScript — no React, no DOM, no Zustand outside `render/` | 3 | unit (import-boundary test) | ☐ |
 | R-PLT-08 | Three.js and encoders lazy-loaded; no other route pulls them | 3 | doc (built-bundle inspection) | ☐ |
 | R-PLT-09 | Does not import `shared/services/export/vectorize/*`; does not touch `EditorWorkspace` | 3 | unit (import-boundary test) | ☐ |
-| R-PLT-10 | Mount/unmount releases GPU, worker and event resources | 3, 12 | browser | ☐ |
+| R-PLT-10 | Mount/unmount releases GPU, worker and event resources | 3, 12 | browser | ◐ Studio disposes contexts, proven to 24 cycles; the React surface is Phase 3 |
 | R-PLT-11 | Multiple isolated editor instances supported | 3 | browser | ☐ |
 | R-PLT-12 | No dependency on an active Brand; Brand mode arrives later via optional adapters | 3 | unit | ☐ |
 | R-PLT-13 | All export filenames come from the `naming/` module | 11 | unit | ☐ |
@@ -33,45 +33,45 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 
 | ID | Requirement | Phase | Verified by | Status |
 |---|---|---|---|---|
-| R-IMP-01 | Closed filled paths | 4 | unit | ☐ |
-| R-IMP-02 | Multiple disconnected components | 4 | unit | ☐ |
-| R-IMP-03 | Compound paths and holes | 4 | unit | ☐ |
-| R-IMP-04 | Nested groups and transforms | 4 | unit | ☐ |
-| R-IMP-05 | Solid colors preserved | 4 | unit | ☐ |
-| R-IMP-06 | Common SVG shapes (`rect`/`circle`/`ellipse`/`line`/`polygon`/`polyline`) → paths | 4 | unit | ☐ |
+| R-IMP-01 | Closed filled paths | 4 | unit | ☑ (P2) |
+| R-IMP-02 | Multiple disconnected components | 4 | unit | ☑ (P2) |
+| R-IMP-03 | Compound paths and holes | 4 | unit | ☑ (P2) |
+| R-IMP-04 | Nested groups and transforms | 4 | unit | ☑ (P2) |
+| R-IMP-05 | Solid colors preserved | 4 | unit | ☑ (P2) |
+| R-IMP-06 | Common SVG shapes (`rect`/`circle`/`ellipse`/`line`/`polygon`/`polyline`) → paths | 4 | unit | ☑ (P2) |
 | R-IMP-07 | Common strokes converted to outlines (joins, caps, self-intersection) | 4 | unit | ☐ |
-| R-IMP-08 | Both fill rules (`nonzero`, `evenodd`) | 4 | unit | ☐ |
-| R-IMP-09 | Diagnostic: live text not converted to paths | 4 | unit + browser | ☐ |
-| R-IMP-10 | Diagnostic: embedded raster images | 4 | unit | ☐ |
-| R-IMP-11 | Diagnostic: unsupported masks, filters, patterns, external assets | 4 | unit | ☐ |
-| R-IMP-12 | Diagnostic: broken or self-intersecting paths | 4 | unit | ☐ |
-| R-IMP-13 | Diagnostic: excessive detail, with a complexity limit and cancellation | 4 | unit + browser | ☐ |
-| R-IMP-14 | Reject/strip unsafe scripts, event handlers, external references | 4 | unit (hostile-input fixtures) | ☐ |
-| R-IMP-15 | Nothing unsupported is dropped silently — every one of the above surfaces to the user | 4 | browser | ☐ |
-| R-IMP-16 | Original source preserved for reset and comparison | 4 | unit + browser | ☐ |
-| R-IMP-17 | Import preview with actionable diagnostics | 4 | browser | ☐ |
-| R-IMP-18 | **`Logomark-3d.svg` yields exactly nine components**, positions and proportions kept | 4 | unit (fixture) | ☐ |
-| R-IMP-19 | Components stay separate by default; nothing is auto-connected | 4, 5 | unit | ☐ |
-| R-IMP-20 | Every component gets a stable identifier | 4 | unit | ☐ |
-| R-IMP-21 | Full-viewBox background rects flagged (not silently skipped) — see reuse decision | 4 | unit | ☐ |
+| R-IMP-08 | Both fill rules (`nonzero`, `evenodd`) | 4 | unit | ☑ (P2) |
+| R-IMP-09 | Diagnostic: live text not converted to paths | 4 | unit + browser | ☑ (P2) |
+| R-IMP-10 | Diagnostic: embedded raster images | 4 | unit | ☑ (P2) |
+| R-IMP-11 | Diagnostic: unsupported masks, filters, patterns, external assets | 4 | unit | ☑ (P2) |
+| R-IMP-12 | Diagnostic: broken or self-intersecting paths | 4 | unit | ☑ (P2) |
+| R-IMP-13 | Diagnostic: excessive detail, with a complexity limit and cancellation | 4 | unit + browser | ☑ (P2) |
+| R-IMP-14 | Reject/strip unsafe scripts, event handlers, external references | 4 | unit (hostile-input fixtures) | ☑ (P2) |
+| R-IMP-15 | Nothing unsupported is dropped silently — every one of the above surfaces to the user | 4 | browser | ◐ importer reports every case; no UI yet (Phase 4) |
+| R-IMP-16 | Original source preserved for reset and comparison | 4 | unit + browser | ☑ (P2) |
+| R-IMP-17 | Import preview with actionable diagnostics | 4 | browser | ◐ diagnostics exist; the preview is Phase 4 |
+| R-IMP-18 | **`Logomark-3d.svg` yields exactly nine components**, positions and proportions kept | 4 | unit (fixture) | ☑ (P2) |
+| R-IMP-19 | Components stay separate by default; nothing is auto-connected | 4, 5 | unit | ☑ (P2) |
+| R-IMP-20 | Every component gets a stable identifier | 4 | unit | ☑ (P2) |
+| R-IMP-21 | Full-viewBox background rects flagged (not silently skipped) — see reuse decision | 4 | unit | ☑ (P2) |
 
 ## C. Geometry — PRD §6
 
 | ID | Requirement | Phase | Verified by | Status |
 |---|---|---|---|---|
-| R-GEO-01 | **Flat**: front/back visibility, orientation, face material, optional min thickness | 5 | unit + browser | ☐ |
-| R-GEO-02 | **Extrude**: depth; front/center/back alignment | 5 | unit | ☐ |
-| R-GEO-03 | **Extrude**: bevel size, depth, profile, segments | 5 | unit + manual | ☐ |
-| R-GEO-04 | **Extrude**: curve quality, front/back caps, separate vs combined components | 5 | unit | ☐ |
-| R-GEO-05 | **Inflate**: real geometry generation, not a large bevel | 2 (proof), 5 | unit + manual | ☐ |
-| R-GEO-06 | **Inflate** controls: fullness, thickness, smoothness, front/back balance, outline preservation, edge softness, surface quality, separate/fused | 5 | unit | ☐ |
-| R-GEO-07 | **Inflate** validated on: rounded, angular, narrow bridges, small gaps, compound paths, outlined wordmarks, multiple separated elements | 2, 5 | unit (fixture matrix) + manual | ☐ |
-| R-GEO-08 | **Revolve**: profile/component selection, X/Y/Z/custom axis, pivot + axis offset | 5 | unit | ☐ |
-| R-GEO-09 | **Revolve**: full/partial sweep angle, radial segments, start/end caps, profile preview | 5 | unit + browser | ☐ |
-| R-GEO-10 | Revolve warns before applying that it may change the silhouette substantially | 5 | browser | ☐ |
-| R-GEO-11 | Grouping, mesh combination and true solid fusion are three distinct operations | 5 | unit | ☐ |
-| R-GEO-12 | Surfaces, normals, intersections and holes validated per operation | 5 | unit | ☐ |
-| R-GEO-13 | All four modes go through one engine contract and report unsupported combinations | 5 | unit | ☐ |
+| R-GEO-01 | **Flat**: front/back visibility, orientation, face material, optional min thickness | 5 | unit + browser | ☑ (P2) |
+| R-GEO-02 | **Extrude**: depth; front/center/back alignment | 5 | unit | ☑ (P2) |
+| R-GEO-03 | **Extrude**: bevel size, depth, profile, segments | 5 | unit + manual | ☑ (P2) |
+| R-GEO-04 | **Extrude**: curve quality, front/back caps, separate vs combined components | 5 | unit | ☑ (P2) |
+| R-GEO-05 | **Inflate**: real geometry generation, not a large bevel | 2 (proof), 5 | unit + manual | ☑ (P2) |
+| R-GEO-06 | **Inflate** controls: fullness, thickness, smoothness, front/back balance, outline preservation, edge softness, surface quality, separate/fused | 5 | unit | ☑ (P2) |
+| R-GEO-07 | **Inflate** validated on: rounded, angular, narrow bridges, small gaps, compound paths, outlined wordmarks, multiple separated elements | 2, 5 | unit (fixture matrix) + manual | ◐ rounded, angular, narrow bridges, hairlines, holes, compound paths tested; outlined wordmarks await stroke support |
+| R-GEO-08 | **Revolve**: profile/component selection, X/Y/Z/custom axis, pivot + axis offset | 5 | unit | ☑ (P2) |
+| R-GEO-09 | **Revolve**: full/partial sweep angle, radial segments, start/end caps, profile preview | 5 | unit + browser | ☑ (P2) |
+| R-GEO-10 | Revolve warns before applying that it may change the silhouette substantially | 5 | browser | ◐ warning is returned by the engine; the UI message is Phase 5 |
+| R-GEO-11 | Grouping, mesh combination and true solid fusion are three distinct operations | 5 | unit | ◐ separate vs fused measured; true solid fusion is Phase 5 |
+| R-GEO-12 | Surfaces, normals, intersections and holes validated per operation | 5 | unit | ☑ (P2) |
+| R-GEO-13 | All four modes go through one engine contract and report unsupported combinations | 5 | unit | ◐ one contract; unsupported combinations reported for Revolve only |
 
 ## D. Modifiers — PRD §7
 
@@ -103,35 +103,35 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 
 | ID | Requirement | Phase | Verified by | Status |
 |---|---|---|---|---|
-| R-MAT-01 | Registry-based — a new material needs no editor change | 7 | unit | ☐ |
-| R-MAT-02 | 24 presets across metals, glass, coatings, natural, effects (PRD §10 list) | 7 | unit (registry count + names) | ☐ |
-| R-MAT-03 | Parameters: base color, metalness, roughness, transmission, IOR, thickness, tint/attenuation, clearcoat, emission, anisotropy, iridescence | 7 | unit | ☐ |
+| R-MAT-01 | Registry-based — a new material needs no editor change | 7 | unit | ☑ (P2) |
+| R-MAT-02 | 24 presets across metals, glass, coatings, natural, effects (PRD §10 list) | 7 | unit (registry count + names) | ☑ (P2) |
+| R-MAT-03 | Parameters: base color, metalness, roughness, transmission, IOR, thickness, tint/attenuation, clearcoat, emission, anisotropy, iridescence | 7 | unit | ☑ (P2) |
 | R-MAT-04 | Texture scale, rotation, position, normal/bump strength | 7 | unit + manual (seams on curves) | ☐ |
 | R-MAT-05 | Controls appear only when relevant to the selected material | 7 | browser | ☐ |
 | R-MAT-06 | Search, filter, favorites, duplicate, save custom, reset to preset | 7 | browser | ☐ |
 | R-MAT-07 | Assign to selected components | 7 | browser | ☐ |
-| R-MAT-08 | Each material declares interactive / final-render / GLB-export behaviour | 7 | unit + doc | ☐ |
-| R-MAT-09 | **Visual benchmark**: clear glass, textured silver, glossy black, satin black | 2 (proof), 7 | manual | ☐ |
-| R-MAT-10 | Changing material preserves geometry and transforms | 7 | unit | ☐ |
+| R-MAT-08 | Each material declares interactive / final-render / GLB-export behaviour | 7 | unit + doc | ☑ (P2) |
+| R-MAT-09 | **Visual benchmark**: clear glass, textured silver, glossy black, satin black | 2 (proof), 7 | manual | ☑ (P2) |
+| R-MAT-10 | Changing material preserves geometry and transforms | 7 | unit | ☑ (P2) |
 
 ## G. Lighting, camera, rendering — PRD §11, §12
 
 | ID | Requirement | Phase | Verified by | Status |
 |---|---|---|---|---|
-| R-LIT-01 | 6 lighting presets (white/black/neutral studio, soft product, dramatic rim, high-contrast) | 8 | browser + manual | ☐ |
+| R-LIT-01 | 6 lighting presets (white/black/neutral studio, soft product, dramatic rim, high-contrast) | 8 | browser + manual | ◐ six presets exist and render; controls are Phase 8 |
 | R-LIT-02 | Environment rotation + intensity | 8 | browser | ☐ |
 | R-LIT-03 | Key light position/size/color/intensity; fill; rim; ground shadow | 8 | browser | ☐ |
 | R-LIT-04 | Background color, transparent background | 8 | browser | ☐ |
-| R-LIT-05 | Reflection environment independent from the visible background | 8 | browser + manual | ☐ |
+| R-LIT-05 | Reflection environment independent from the visible background | 8 | browser + manual | ◐ backdrop is independent of the environment; controls are Phase 8 |
 | R-CAM-01 | Presets: front, three-quarter, side, top, macro, user-defined | 8 | browser | ☐ |
-| R-CAM-02 | Orbit, pan, zoom, FOV, ortho/perspective, target, fit to object, save view | 8 | browser | ☐ |
+| R-CAM-02 | Orbit, pan, zoom, FOV, ortho/perspective, target, fit to object, save view | 8 | browser | ◐ fit-to-object works; orbit/pan/zoom are Phase 8 |
 | R-RND-01 | Interactive preview: fast, adaptive quality, drops while moving, restores when idle | 8 | browser + manual | ☐ |
 | R-RND-02 | Final render: progressive refinement, quality setting, sample progress | 8 | browser | ☐ |
 | R-RND-03 | Time estimate after sufficient progress; pause and cancel | 8 | browser | ☐ |
 | R-RND-04 | Tiled rendering for large outputs | 8, 11 | unit + browser | ☐ |
 | R-RND-05 | Graphics-context-loss recovery, preserving user work | 8, 12 | browser | ☐ |
 | R-RND-06 | Scene changes correctly restart progressive rendering | 8 | unit | ☐ |
-| R-RND-07 | Glass reviewed on white and black backgrounds | 8 | manual | ☐ |
+| R-RND-07 | Glass reviewed on white and black backgrounds | 8 | manual | ◐ reviewed on white and black in the proof |
 | R-RND-08 | **All processing and rendering stay on device — nothing is uploaded, ever** | 3, 12 | unit (no-network guard) + doc | ☐ |
 
 ## H. Animation — PRD §13
@@ -155,8 +155,8 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 | R-EXP-03 | Max long edge ~4096px, subject to browser capability | 11 | unit + doc | ☐ |
 | R-EXP-04 | MP4 where supported; WebM fallback; PNG sequence fallback; transparent PNG sequence | 11 | browser + manual (play it) | ☐ |
 | R-EXP-05 | Transparent MP4 is **not** promised — the UI says so | 11 | browser | ☐ |
-| R-EXP-06 | GLB preserving geometry, separate components, materials, textures, transforms, animation channels | 11 | unit + doc (external validator reimport) | ☐ |
-| R-EXP-07 | GLB material fallbacks documented | 11 | doc | ☐ |
+| R-EXP-06 | GLB preserving geometry, separate components, materials, textures, transforms, animation channels | 11 | unit + doc (external validator reimport) | ☑ (P2) |
+| R-EXP-07 | GLB material fallbacks documented | 11 | doc | ☑ (P2) |
 | R-EXP-08 | Export progress, cancellation, bounded memory, useful errors | 11 | browser | ☐ |
 | R-EXP-09 | No stale or blank frames; correct dimensions, framing, duration | 11 | browser + manual | ☐ |
 | R-EXP-10 | Glass/transparent-PNG limitation explained (refraction depends on surroundings) | 11 | browser | ☐ |
@@ -230,8 +230,8 @@ Extension points must exist in the foundation; the interfaces and algorithms do 
 | Phase | Name | Status |
 |---|---|---|
 | 1 | Foundation: reuse decision + baseline | ☑ complete — `phase-1-reuse-decision.md` |
-| 2 | Geometry & material proof (inflation gate) | ◐ active |
-| 3 | BrandingOS integration | ☐ |
+| 2 | Geometry & material proof (inflation gate) | ☑ complete — `phase-2-geometry-proof.md`, evidence in `proof/` |
+| 3 | BrandingOS integration | ◐ active |
 | 4 | Reliable SVG import | ☐ |
 | 5 | All geometry modes | ☐ |
 | 6 | Modifiers, selection, transforms | ☐ |
