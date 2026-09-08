@@ -22,6 +22,7 @@ export interface PropertiesPanelProps {
   onLightingChange: (id: string) => void;
   onBackgroundToggle: (visible: boolean) => void;
   onViewChange: (view: CameraView) => void;
+  onProjectionChange: (projection: 'orthographic' | 'perspective') => void;
   onReset: () => void;
 }
 
@@ -40,10 +41,15 @@ export function PropertiesPanel({
   onLightingChange,
   onBackgroundToggle,
   onViewChange,
+  onProjectionChange,
   onReset,
 }: PropertiesPanelProps) {
   const { mode } = doc.geometry;
   const view = currentCameraView(doc);
+  // Slider ranges are proportional for the same reason the defaults are: a
+  // depth slider that tops out at 60 is most of the way across a 113-unit logo
+  // and a rounding error on a 4096-unit one.
+  const extent = logoExtent(doc);
 
   return (
     <div className="panel" aria-label="Properties">
@@ -64,7 +70,8 @@ export function PropertiesPanel({
 
         {mode === 'inflate' && (
           <>
-            <DsSlider label="Thickness" value={doc.geometry.inflate.thickness} min={0.5} max={30} step={0.5}
+            <DsSlider label="Thickness" value={doc.geometry.inflate.thickness}
+              min={0} max={round2(extent * 0.3)} step={round2(extent * 0.002)}
               onChange={(v) => onModePatch({ thickness: v })} />
             <DsSlider label="Fullness" value={doc.geometry.inflate.fullness} min={0} max={1} step={0.01}
               onChange={(v) => onModePatch({ fullness: v })} />
@@ -89,7 +96,8 @@ export function PropertiesPanel({
 
         {mode === 'extrude' && (
           <>
-            <DsSlider label="Depth" value={doc.geometry.extrude.depth} min={0} max={60} step={0.5}
+            <DsSlider label="Depth" value={doc.geometry.extrude.depth}
+              min={0} max={round2(extent * 0.6)} step={round2(extent * 0.002)}
               onChange={(v) => onModePatch({ depth: v })} />
             <Field label="Alignment">
               <DsSegmented
@@ -99,9 +107,11 @@ export function PropertiesPanel({
                 aria-label="Depth alignment"
               />
             </Field>
-            <DsSlider label="Bevel size" value={doc.geometry.extrude.bevelSize} min={0} max={12} step={0.25}
+            <DsSlider label="Bevel size" value={doc.geometry.extrude.bevelSize}
+              min={0} max={round2(extent * 0.12)} step={round2(extent * 0.001)}
               onChange={(v) => onModePatch({ bevelSize: v })} />
-            <DsSlider label="Bevel depth" value={doc.geometry.extrude.bevelThickness} min={0} max={12} step={0.25}
+            <DsSlider label="Bevel depth" value={doc.geometry.extrude.bevelThickness}
+              min={0} max={round2(extent * 0.12)} step={round2(extent * 0.001)}
               onChange={(v) => onModePatch({ bevelThickness: v })} />
             <DsSlider label="Bevel profile" value={doc.geometry.extrude.bevelProfile} min={0} max={1} step={0.01}
               onChange={(v) => onModePatch({ bevelProfile: v })} />
@@ -112,7 +122,8 @@ export function PropertiesPanel({
 
         {mode === 'flat' && (
           <>
-            <DsSlider label="Thickness" value={doc.geometry.flat.thickness} min={0} max={4} step={0.05}
+            <DsSlider label="Thickness" value={doc.geometry.flat.thickness}
+              min={0} max={round2(extent * 0.04)} step={round2(extent * 0.0004)}
               onChange={(v) => onModePatch({ thickness: v })} />
             <DsSwitch label="Show front" checked={doc.geometry.flat.showFront}
               onChange={(v) => onModePatch({ showFront: v })} />
@@ -133,7 +144,8 @@ export function PropertiesPanel({
             </Field>
             <DsSlider label="Pivot" value={doc.geometry.revolve.pivot} min={0} max={1} step={0.01}
               onChange={(v) => onModePatch({ pivot: v })} />
-            <DsSlider label="Axis offset" value={doc.geometry.revolve.offset} min={-60} max={60} step={0.5}
+            <DsSlider label="Axis offset" value={doc.geometry.revolve.offset}
+              min={-round2(extent)} max={round2(extent)} step={round2(extent * 0.004)}
               onChange={(v) => onModePatch({ offset: v })} />
             <DsSlider label="Sweep" value={doc.geometry.revolve.sweep} min={0.1} max={Math.PI * 2} step={0.01}
               format={(v) => `${Math.round((v * 180) / Math.PI)}°`}
@@ -166,6 +178,17 @@ export function PropertiesPanel({
           onChange={(v) => onViewChange(v as CameraView)}
           aria-label="Camera view"
         />
+        <Field label="Projection">
+          <DsSegmented
+            options={[
+              { value: 'orthographic', label: 'Normal' },
+              { value: 'perspective', label: 'Perspective' },
+            ]}
+            value={doc.camera.projection}
+            onChange={(v) => onProjectionChange(v as 'orthographic' | 'perspective')}
+            aria-label="Projection"
+          />
+        </Field>
       </Group>
 
       <Group title="Lighting">
@@ -182,6 +205,32 @@ export function PropertiesPanel({
       </Group>
     </div>
   );
+}
+
+/** The logo's longest side, in its own units. */
+function logoExtent(doc: Studio3dDocument): number {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of doc.components) {
+    for (const ring of c.rings) {
+      for (let i = 0; i < ring.length; i += 2) {
+        if (ring[i] < minX) minX = ring[i];
+        if (ring[i] > maxX) maxX = ring[i];
+        if (ring[i + 1] < minY) minY = ring[i + 1];
+        if (ring[i + 1] > maxY) maxY = ring[i + 1];
+      }
+    }
+  }
+  const extent = Math.max(maxX - minX, maxY - minY);
+  return Number.isFinite(extent) && extent > 0 ? extent : 100;
+}
+
+/** Two significant figures — a slider step of 0.226 helps nobody. */
+function round2(v: number): number {
+  if (!(v > 0)) return v;
+  // Via toPrecision, not by multiplying back up: 39 * 0.1 is
+  // 3.9000000000000004, and a slider whose step is that is a slider that shows
+  // it.
+  return Number.parseFloat(v.toPrecision(2));
 }
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {

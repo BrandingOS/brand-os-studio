@@ -109,3 +109,93 @@ picture**. Three habits came out of it:
 Evidence: `docs/logo-3d/proof/`. New tests: `engine/__tests__/solidity.test.ts`
 (15), `components/__tests__/warnings.test.ts` (5), plus camera-view and
 "what the user sees first" cases in the existing suites.
+
+---
+
+# Second pass — what I found by looking rather than asking
+
+The owner reported "still issues". Rather than ask them to enumerate, I rendered
+a **visual sweep**: every mode, across its settings range, front / three-quarter
+/ side, at the product's own defaults
+(`__tests__/visualSweep.browser.test.tsx`, screenshots in `proof/sweep-*.png`).
+Two defects fell straight out of it, and one of them was in every single frame.
+
+## 5. Perspective was distorting the mark — in every mode
+
+**What the sweep showed.** In the three-quarter views of both Inflate and
+Extrude, the right-hand discs rendered **visibly larger** than the left-hand
+ones, and each disc was seen at its own slightly different angle. The nine dots
+of the mark are identical by construction; nothing about the render should make
+them differ.
+
+**Cause.** A perspective camera framed to fill the viewport sits close: at a 28°
+field of view the camera ends up about 5 units from a 2-unit object, so the near
+edge is ~48% larger than the far edge. That is textbook perspective and
+completely wrong for this job. A logo is a flat document, and every design tool
+displays a document orthographically for exactly this reason.
+
+It is also the real content of the original "looks stretched, not 3D" report —
+fixing the default *angle* helped, but the distortion was the projection, not
+the angle.
+
+**Fix.** `Studio` now supports both cameras, and **orthographic is the default**.
+`frame()` handles both: for orthographic the frustum does the framing and the
+distance only has to clear the object. Perspective stays one click away under a
+**Projection** control (Normal · Perspective), and when chosen it uses a 20°
+lens — a short telephoto — so that picking it flatters the object instead of
+bending it.
+
+**The test that encodes it.** `blobAreas()` flood-fills the framebuffer and
+returns the area of every separate drawn shape. Nine identical dots must occupy
+nine identical areas: the suite requires `max/min < 1.06`. Perspective moved it
+by nearly fifty percent, so this is not a threshold tuned to today's output — it
+is the difference between "the logo reads as itself" and not.
+
+## 6. Every default was in absolute artwork units
+
+**Found while checking the side profiles**, not reported — but it would have
+been the very next thing to go wrong.
+
+`DEFAULT_INFLATE.thickness` was `6`. The supplied fixture has a 113-unit
+viewBox, so that is 5% of the logo and looks right. The same logo exported from
+Illustrator at 1024 units would have opened at 0.6% — visually flat — and the
+reasonable conclusion would have been that the tool was broken, not that a
+slider needed hunting for. Extrude's depth, and every slider *range* in the
+panel, had the same problem: a depth slider topping out at 60 crosses half a
+113-unit logo and is a rounding error on a 4096-unit one.
+
+**Fix.** `defaultGeometryFor(components)` resolves thickness and depth as a
+fraction of the logo's longest side, once, at document creation — so the stored
+values stay real numbers in the artwork's own units and remain editable as such.
+The panel derives its slider ranges and steps the same way. Both round through
+`toPrecision(2)`, because `39 * 0.1` is `3.9000000000000004` and a slider whose
+step is that is a slider that shows it.
+
+Pinned by a test that scales the fixture ten times and requires the resulting
+geometry to be **proportionally identical** — same relief-to-width ratio at any
+scale.
+
+## Two of my own tests were measuring the wrong thing
+
+Both surfaced once the projection changed, and both were mine:
+
+- *"extrude produces a solid with a visible wall"* counted distinct colours in a
+  front-on orthographic view of a cylinder — which shows only its flat cap, and
+  is legitimately one flat colour. It proves the wall now by looking at it from
+  three-quarters.
+- *"clear glass on white and on black"* used the same colour-bucket count on a
+  near-black scene, where 5-bit quantisation collapses it. It uses luma *range*
+  now, which survives quantisation. The assertion that actually matters — that
+  the two frames differ by more than 20 mean luma, i.e. that transmission is
+  working — was passing throughout.
+
+## Where this leaves the tool
+
+Verified: 186 unit + 50 browser tests in the feature; full suite **4148
+passing**, typecheck clean, lint 0 errors, build green.
+
+Still missing, and still owed to later phases: stroke outlining (Phase 4),
+per-component selection and materials (Phase 6), camera orbit and progressive
+rendering (Phase 8), persistence and undo (Phase 9), animation (Phase 10), and
+the export UI (Phase 11 — the GLB exporter works and is tested, but nothing in
+the interface calls it).

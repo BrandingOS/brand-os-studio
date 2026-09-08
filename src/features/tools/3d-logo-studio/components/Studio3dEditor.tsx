@@ -25,7 +25,8 @@ import type { MeshData } from '../engine/types';
 import { EMPTY_MESH } from '../engine/types';
 import {
   createDocument, setGeometryMode, setModeOptions, setDefaultMaterial, setLighting,
-  resetToSource, setCameraView, type CameraView, type GeometryMode, type Studio3dDocument,
+  resetToSource, setCameraView, setCamera, type CameraView, type GeometryMode,
+  type Studio3dDocument,
 } from '../engine/document';
 import { buildMesh } from '../engine/buildMesh';
 import type { RevolveWarning } from '../engine/modes/revolve';
@@ -185,6 +186,7 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
           onLightingChange={(id) => setDoc((d) => (d ? setLighting(d, { presetId: id }) : d))}
           onBackgroundToggle={(v) => setDoc((d) => (d ? setLighting(d, { showBackground: v }) : d))}
           onViewChange={(view: CameraView) => setDoc((d) => (d ? setCameraView(d, view) : d))}
+          onProjectionChange={(projection) => setDoc((d) => (d ? setCamera(d, { projection }) : d))}
           onReset={() => setDoc((d) => (d ? resetToSource(d) : d))}
         />
       </div>

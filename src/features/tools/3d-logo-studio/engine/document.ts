@@ -20,6 +20,7 @@
  */
 
 import type { Component } from './types';
+import { boundsOf } from './geom/polygon';
 import { DEFAULT_INFLATE, type InflateOptions } from './modes/inflate';
 import { DEFAULT_EXTRUDE, DEFAULT_FLAT, type ExtrudeOptions, type FlatOptions } from './modes/extrude';
 import { DEFAULT_REVOLVE, type RevolveOptions } from './modes/revolve';
@@ -146,6 +147,48 @@ export const DEFAULT_GEOMETRY: GeometrySettings = {
 };
 
 /**
+ * Depths and thicknesses, as a fraction of the logo's longest side.
+ *
+ * Every distance the generators take is in the artwork's own units, and those
+ * units are whatever the file was drawn in. A fixed default of "6" is 5% of a
+ * 113-unit viewBox and 0.6% of a 1024-unit one — so the same logo exported at a
+ * different size would open looking almost flat, and the user would reasonably
+ * conclude the tool was broken rather than that they had to go hunting for a
+ * slider.
+ *
+ * Resolved once, when the document is created, so the numbers the panel shows
+ * are real values in the artwork's units and stay editable as such.
+ */
+const DEFAULT_PROPORTIONS = {
+  /** Peak half-thickness of an inflated surface. */
+  inflateThickness: 0.055,
+  /** Front-to-back depth of an extrusion. */
+  extrudeDepth: 0.07,
+} as const;
+
+/** The default settings for a particular piece of artwork. */
+export function defaultGeometryFor(components: readonly Component[]): GeometrySettings {
+  const bounds = boundsOf(components);
+  const extent = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+  if (!Number.isFinite(extent) || extent <= 0) return DEFAULT_GEOMETRY;
+  return {
+    ...DEFAULT_GEOMETRY,
+    inflate: { ...DEFAULT_INFLATE, thickness: round(extent * DEFAULT_PROPORTIONS.inflateThickness) },
+    extrude: { ...DEFAULT_EXTRUDE, depth: round(extent * DEFAULT_PROPORTIONS.extrudeDepth) },
+  };
+}
+
+/** Two significant figures, so the sliders open on a number a person would
+ *  have typed rather than 6.214999999999999. */
+function round(v: number): number {
+  if (!(v > 0)) return v;
+  // Via toPrecision, not by multiplying back up: 39 * 0.1 is
+  // 3.9000000000000004, and a slider whose step is that is a slider that shows
+  // it.
+  return Number.parseFloat(v.toPrecision(2));
+}
+
+/**
  * Straight on, and on a longer lens than a default 3D scene would use.
  *
  * The first version opened at a three-quarter angle with a 35° field of view.
@@ -156,15 +199,23 @@ export const DEFAULT_GEOMETRY: GeometrySettings = {
  * the outer parts into visible perspective distortion: on the nine-dot mark the
  * corner discs came out as ellipses, which reads as "stretched", not as depth.
  *
- * So the default is front-on at 28°. Depth is then shown by the lighting and
- * the silhouette rather than by skewing the artwork, and the view presets are
- * one click away for anyone who wants the angle.
+ * So the default is front-on and **orthographic**. Under perspective the parts
+ * of a logo nearest the camera render larger than the parts further away — on
+ * the nine-dot mark the right-hand discs came out visibly bigger than the
+ * left-hand ones — and the eye reads that as the artwork being distorted,
+ * because it is. Every design tool shows a document orthographically for the
+ * same reason. Depth is then carried by the lighting and the silhouette rather
+ * than by skewing the artwork.
+ *
+ * Perspective remains one click away, on a long lens, for anyone who wants it.
  */
 export const DEFAULT_CAMERA: CameraState = {
   position: [0, 0, 4],
   target: [0, 0, 0],
-  fov: 28,
-  projection: 'perspective',
+  // Only consulted under perspective; long, so choosing perspective flatters
+  // the object rather than bending it.
+  fov: 20,
+  projection: 'orthographic',
 };
 
 /** Named directions the camera can be sent to. The distance is not stored:
@@ -233,7 +284,7 @@ export function createDocument(input: CreateDocumentInput): Studio3dDocument {
     source: { svg: input.svg, fileName: input.fileName, importedAt: now },
     components: input.components,
     componentState: {},
-    geometry: DEFAULT_GEOMETRY,
+    geometry: defaultGeometryFor(input.components),
     modifiers: [],
     transform: IDENTITY_TRANSFORM,
     materials: { defaultId: 'satin-black', byComponent: {} },

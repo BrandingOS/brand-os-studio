@@ -78,6 +78,50 @@ async function readyCanvas(host: HTMLElement): Promise<HTMLCanvasElement> {
  * corner, which is background in every correctly framed render — so the first
  * version of this helper reported "nothing drawn" for a perfectly good picture.
  */
+/**
+ * Connected-component areas of everything drawn that is not the background.
+ *
+ * A flood fill rather than a bounding box, because the question is how big each
+ * separate piece of the logo came out — which is the only way to see the
+ * distortion perspective introduces across a flat mark.
+ */
+function blobAreas(canvas: HTMLCanvasElement): number[] {
+  const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext;
+  const w = canvas.width;
+  const h = canvas.height;
+  const buf = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  const bg = [buf[0], buf[1], buf[2]];
+  const ink = new Uint8Array(w * h);
+  for (let i = 0, p = 0; i < buf.length; i += 4, p++) {
+    const diff = Math.abs(buf[i] - bg[0]) + Math.abs(buf[i + 1] - bg[1]) + Math.abs(buf[i + 2] - bg[2]);
+    ink[p] = diff > 40 ? 1 : 0;
+  }
+  const seen = new Uint8Array(w * h);
+  const areas: number[] = [];
+  const stack: number[] = [];
+  for (let start = 0; start < ink.length; start++) {
+    if (!ink[start] || seen[start]) continue;
+    let area = 0;
+    stack.length = 0;
+    stack.push(start);
+    seen[start] = 1;
+    while (stack.length) {
+      const p = stack.pop()!;
+      area++;
+      const x = p % w;
+      const y = (p / w) | 0;
+      if (x > 0 && ink[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; stack.push(p - 1); }
+      if (x < w - 1 && ink[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; stack.push(p + 1); }
+      if (y > 0 && ink[p - w] && !seen[p - w]) { seen[p - w] = 1; stack.push(p - w); }
+      if (y < h - 1 && ink[p + w] && !seen[p + w]) { seen[p + w] = 1; stack.push(p + w); }
+    }
+    // Ignore antialiasing crumbs.
+    if (area > 200) areas.push(area);
+  }
+  return areas;
+}
+
 function drewSomething(canvas: HTMLCanvasElement): boolean {
   const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext | null;
   if (!gl) return false;
@@ -250,6 +294,34 @@ describe('what the user sees first', () => {
     const pivot = screen.getByRole('slider', { name: /pivot/i }) as HTMLInputElement;
     fireEvent.change(pivot, { target: { value: '0.5' } });
     await waitFor(() => expect(screen.getAllByText(/cross the axis/i).length).toBe(1), { timeout: 15_000 });
+  });
+
+  it('the nine identical dots render at identical sizes', async () => {
+    // The invariant that encodes "the logo still reads as itself". Under
+    // perspective the near discs came out visibly larger than the far ones and
+    // each was seen at its own angle; orthographic makes that measurable — nine
+    // identical shapes must occupy nine identical areas.
+    const { host } = mount(<Studio3dEditor initialDocument={doc()} />);
+    const canvas = await readyCanvas(host);
+    await waitFor(() => expect(drewSomething(canvas)).toBe(true), { timeout: 15_000 });
+
+    const areas = blobAreas(canvas);
+    expect(areas).toHaveLength(9);
+    const min = Math.min(...areas);
+    const max = Math.max(...areas);
+    // Tessellation and antialiasing move this by a percent or two; perspective
+    // moved it by nearly fifty.
+    expect(max / min).toBeLessThan(1.06);
+  });
+
+  it('perspective is available, and does what it says', async () => {
+    const { host } = mount(<Studio3dEditor initialDocument={doc()} />);
+    const canvas = await readyCanvas(host);
+    await waitFor(() => expect(drewSomething(canvas)).toBe(true), { timeout: 15_000 });
+    fireEvent.click(screen.getByRole('radio', { name: 'Perspective' }));
+    // Deliberately loose: this only has to prove the control reaches the
+    // renderer, not that perspective is flattering.
+    await waitFor(() => expect(blobAreas(canvas).length).toBeGreaterThan(0), { timeout: 15_000 });
   });
 
   it('the view control moves the camera', async () => {

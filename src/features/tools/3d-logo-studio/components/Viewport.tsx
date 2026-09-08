@@ -130,8 +130,10 @@ export function Viewport({ doc, mesh, busy, onReady }: ViewportProps) {
     object.rotation.set(...doc.transform.rotation);
     object.scale.set(...doc.transform.scale);
 
+    // Projection first: it swaps the camera object, so anything set before it
+    // would be set on the one being thrown away.
+    studio.setProjection(doc.camera.projection, doc.camera.fov);
     studio.camera.position.set(...doc.camera.position);
-    studio.camera.fov = doc.camera.fov;
     studio.frame(1.3);
     studio.render();
 

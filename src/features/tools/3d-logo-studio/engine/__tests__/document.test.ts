@@ -7,7 +7,8 @@ import {
   DOCUMENT_SCHEMA_VERSION, type Studio3dDocument,
 } from '../document';
 import { buildMesh } from '../buildMesh';
-import { DEFAULT_CAMERA, CAMERA_VIEWS, setCameraView, currentCameraView } from '../document';
+import { DEFAULT_CAMERA, CAMERA_VIEWS, setCameraView, currentCameraView, defaultGeometryFor } from '../document';
+import { inflate } from '../modes/inflate';
 
 const circle = (cx: number, cy: number, r: number, n = 48): Ring => {
   const p: number[] = [];
@@ -147,7 +148,7 @@ describe('lighting, camera and transform', () => {
   it('patch rather than replace', () => {
     const d = setLighting(setCamera(make(), { fov: 50 }), { showBackground: false });
     expect(d.camera.fov).toBe(50);
-    expect(d.camera.projection).toBe('perspective');
+    expect(d.camera.projection).toBe('orthographic');
     expect(d.lighting.showBackground).toBe(false);
     expect(d.lighting.presetId).toBe('white-studio');
   });
@@ -259,8 +260,23 @@ describe('camera views', () => {
     expect(currentCameraView(make())).toBe('front');
   });
 
-  it('uses a long enough lens to keep the edges from distorting', () => {
-    expect(DEFAULT_CAMERA.fov).toBeLessThanOrEqual(30);
+  it('shows the logo without perspective by default', () => {
+    // Under perspective the near parts of a flat logo render larger than the
+    // far ones — on the nine-dot mark the right-hand discs came out visibly
+    // bigger than the left. Design tools show documents orthographically.
+    expect(DEFAULT_CAMERA.projection).toBe('orthographic');
+  });
+
+  it('keeps a long lens for when perspective is chosen', () => {
+    expect(DEFAULT_CAMERA.fov).toBeLessThanOrEqual(22);
+  });
+
+  it('switching projection changes nothing else about the camera', () => {
+    const before = make();
+    const after = setCamera(before, { projection: 'perspective' });
+    expect(after.camera.position).toEqual(before.camera.position);
+    expect(after.camera.fov).toBe(before.camera.fov);
+    expect(after.camera.projection).toBe('perspective');
   });
 
   it('each preset points somewhere different, and reports itself back', () => {
@@ -280,5 +296,54 @@ describe('camera views', () => {
   it('an arbitrary camera position matches no preset', () => {
     const d = setCamera(make(), { position: [1, 2, 3] });
     expect(currentCameraView(d)).toBeNull();
+  });
+});
+
+
+describe('defaults follow the size the artwork was drawn at', () => {
+  const scaled = (factor: number): Component[] => comps.map((c) => ({
+    ...c,
+    rings: c.rings.map((r) => Float64Array.from(Array.from(r, (v) => v * factor))),
+  }));
+
+  it('a logo drawn ten times larger gets ten times the thickness', () => {
+    // Every distance the generators take is in the artwork's own units. A fixed
+    // default is 5% of a 113-unit viewBox and 0.6% of a 1024-unit one, so the
+    // same logo exported at a different size would open looking flat.
+    const small = defaultGeometryFor(comps);
+    const large = defaultGeometryFor(scaled(10));
+    expect(large.inflate.thickness / small.inflate.thickness).toBeCloseTo(10, 1);
+    expect(large.extrude.depth / small.extrude.depth).toBeCloseTo(10, 1);
+  });
+
+  it('the resulting shape is proportionally identical at any scale', () => {
+    const relief = (factor: number) => {
+      const g = defaultGeometryFor(scaled(factor));
+      const m = inflate(scaled(factor), g.inflate);
+      let lo = Infinity, hi = -Infinity, wide = 0;
+      for (let i = 0; i < m.positions.length; i += 3) {
+        lo = Math.min(lo, m.positions[i + 2]);
+        hi = Math.max(hi, m.positions[i + 2]);
+        wide = Math.max(wide, Math.abs(m.positions[i]));
+      }
+      return (hi - lo) / wide;
+    };
+    expect(relief(10)).toBeCloseTo(relief(1), 2);
+  });
+
+  it('rounds to something a person would have typed', () => {
+    const g = defaultGeometryFor(comps);
+    expect(String(g.inflate.thickness)).toMatch(/^\d+(\.\d)?$/);
+  });
+
+  it('survives artwork with no extent at all', () => {
+    expect(() => defaultGeometryFor([])).not.toThrow();
+    expect(defaultGeometryFor([]).inflate.thickness).toBeGreaterThan(0);
+  });
+
+  it('a created document carries the scaled defaults', () => {
+    const big = createDocument({ svg: '', fileName: 'big.svg', components: scaled(10) });
+    const small = createDocument({ svg: '', fileName: 'small.svg', components: comps });
+    expect(big.geometry.inflate.thickness).toBeGreaterThan(small.geometry.inflate.thickness * 5);
   });
 });

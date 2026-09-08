@@ -21,6 +21,22 @@ import type { LightingPreset } from '../materials/lighting';
 
 export { LIGHTING_PRESETS, type LightingPreset } from '../materials/lighting';
 
+/**
+ * The lens used when perspective is chosen.
+ *
+ * Long — the equivalent of a short telephoto. A wide lens on an object filling
+ * the frame is what turns a ring of identical discs into discs of visibly
+ * different sizes; product photographers step back and zoom in for exactly this
+ * reason.
+ */
+export const PERSPECTIVE_FOV = 20;
+
+function makeCamera(projection: Projection, aspect: number, fov = PERSPECTIVE_FOV) {
+  return projection === 'orthographic'
+    ? new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100)
+    : new THREE.PerspectiveCamera(fov, aspect, 0.01, 100);
+}
+
 export interface StudioOptions {
   canvas: HTMLCanvasElement;
   /** Mutable: `resize` updates these in place rather than rebuilding. */
@@ -32,10 +48,27 @@ export interface StudioOptions {
   antialias?: boolean;
 }
 
+export type Projection = 'orthographic' | 'perspective';
+
 export class Studio {
   readonly scene = new THREE.Scene();
-  readonly camera: THREE.PerspectiveCamera;
+  /**
+   * Orthographic by default.
+   *
+   * A logo is flat artwork, and under perspective the parts of it nearest the
+   * camera render larger than the parts further away — on the nine-dot mark the
+   * right-hand discs came out visibly bigger than the left-hand ones, and each
+   * disc was seen at a slightly different angle. The eye reads that as the
+   * artwork being distorted, because it is. Every design tool shows a document
+   * orthographically for the same reason.
+   *
+   * Perspective stays available as a deliberate choice, and on a long lens
+   * (see `PERSPECTIVE_FOV`) so that choosing it flatters the object rather than
+   * bending it.
+   */
+  camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
   readonly renderer: THREE.WebGLRenderer;
+  private projection: Projection = 'orthographic';
   private readonly pmrem: THREE.PMREMGenerator;
   private environment: THREE.Texture | null = null;
   private readonly disposables: { dispose(): void }[] = [];
@@ -55,7 +88,7 @@ export class Studio {
     this.renderer.toneMappingExposure = 1;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    this.camera = new THREE.PerspectiveCamera(35, options.width / options.height, 0.01, 100);
+    this.camera = makeCamera('orthographic', options.width / options.height);
     this.camera.position.set(0, 0, 6);
 
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -77,7 +110,26 @@ export class Studio {
     this.options.height = height;
     if (pixelRatio) this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
+    if (this.camera instanceof THREE.PerspectiveCamera) this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * Switch projection, keeping where the camera is looking from.
+   *
+   * The two camera types cannot share one object, so this swaps it and carries
+   * the position across — changing projection must not also move the view, or
+   * the control reads as "randomise everything".
+   */
+  setProjection(projection: Projection, fov = PERSPECTIVE_FOV): void {
+    if (projection === this.projection && (projection === 'orthographic' ||
+        (this.camera as THREE.PerspectiveCamera).fov === fov)) {
+      return;
+    }
+    const previous = this.camera.position.clone();
+    this.projection = projection;
+    this.camera = makeCamera(projection, this.options.width / this.options.height, fov);
+    this.camera.position.copy(previous);
     this.camera.updateProjectionMatrix();
   }
 
@@ -185,20 +237,38 @@ export class Studio {
     box.getSize(size);
     box.getCenter(centre);
     const radius = Math.max(size.x, size.y, size.z) / 2 || 1;
-    const fov = (this.camera.fov * Math.PI) / 180;
-    // Fit against the *narrower* of the two view angles, or a wide logo in a
-    // tall viewport is framed on height and runs off the sides.
-    const horizontalFov = 2 * Math.atan(Math.tan(fov / 2) * this.camera.aspect);
-    const distance = Math.max(
-      radius / Math.sin(Math.min(fov, horizontalFov) / 2),
-      radius * 1.2,
-    ) * margin;
+    const aspect = this.options.width / Math.max(1, this.options.height);
+
     const dir = this.camera.position.clone().sub(centre);
     if (dir.lengthSq() < 1e-9) dir.set(0, 0, 1);
     dir.normalize();
-    this.camera.position.copy(centre).add(dir.multiplyScalar(distance));
-    this.camera.near = Math.max(distance / 100, 0.001);
-    this.camera.far = distance * 10;
+
+    if (this.camera instanceof THREE.OrthographicCamera) {
+      // Distance changes nothing about the size of an orthographic image, so it
+      // is chosen only to clear the object; the frustum does the framing.
+      const distance = radius * 4;
+      const half = radius * margin;
+      this.camera.left = aspect >= 1 ? -half * aspect : -half;
+      this.camera.right = aspect >= 1 ? half * aspect : half;
+      this.camera.top = aspect >= 1 ? half : half / aspect;
+      this.camera.bottom = aspect >= 1 ? -half : -half / aspect;
+      this.camera.near = 0.01;
+      this.camera.far = distance * 10;
+      this.camera.position.copy(centre).add(dir.multiplyScalar(distance));
+    } else {
+      const fov = (this.camera.fov * Math.PI) / 180;
+      this.camera.aspect = aspect;
+      // Fit against the *narrower* of the two view angles, or a wide logo in a
+      // tall viewport is framed on height and runs off the sides.
+      const horizontalFov = 2 * Math.atan(Math.tan(fov / 2) * aspect);
+      const distance = Math.max(
+        radius / Math.sin(Math.min(fov, horizontalFov) / 2),
+        radius * 1.2,
+      ) * margin;
+      this.camera.position.copy(centre).add(dir.multiplyScalar(distance));
+      this.camera.near = Math.max(distance / 100, 0.001);
+      this.camera.far = distance * 10;
+    }
     this.camera.lookAt(centre);
     this.camera.updateProjectionMatrix();
   }
