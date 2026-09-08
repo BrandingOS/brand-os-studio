@@ -1,0 +1,196 @@
+/*
+ * 3D Logo Studio — feature-local layout.
+ *
+ * Only what no other surface has: the editor frame, the viewport stage and the
+ * import affordance. Panels, rails, buttons and controls come from
+ * `workspace.css` and `@/shared/ds`; every colour, radius, spacing and duration
+ * here is a `--ds-*` token, so a theme switch reaches this page like any other.
+ *
+ * The arrangement follows the Guideline builder and Bento: an application shell
+ * above 1100px, one scrolling page below it.
+ */
+
+[data-workspace]:has(> .l3d-shell) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+[data-workspace]:has(> .l3d-shell) .l3d-shell {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+[data-workspace] .l3d-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 20px 20px;
+  gap: 14px;
+}
+
+[data-workspace] .l3d-work {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  /*
+   * Both minmax(0, …) are load-bearing. A grid track's default floor is
+   * min-content, which lets the viewport widen its own column past the screen —
+   * and the renderer picks its scale from clientWidth/clientHeight, so a
+   * container sized by its content measures the content and the canvas can
+   * never shrink to fit.
+   */
+  grid-template-columns: 68px minmax(0, 1fr) minmax(280px, 320px);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 16px;
+}
+
+[data-workspace] .l3d-shell .panel {
+  position: static;
+  top: auto;
+  height: 100%;
+  max-height: none;
+  overflow-y: auto;
+}
+
+/* ---- the stage ---------------------------------------------------------- */
+
+[data-workspace] .l3d-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-surface-subtle);
+  overflow: hidden;
+}
+
+[data-workspace] .l3d-stage canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+[data-workspace] .l3d-stage-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-6);
+  text-align: center;
+  color: var(--ds-text-muted);
+}
+
+[data-workspace] .l3d-stage-meta {
+  position: absolute;
+  left: var(--ds-space-3);
+  bottom: var(--ds-space-3);
+  display: flex;
+  gap: var(--ds-space-2);
+  align-items: center;
+  font-size: 11px;
+  color: var(--ds-text-muted);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  padding: 4px 10px;
+  pointer-events: none;
+}
+
+/* ---- import ------------------------------------------------------------- */
+
+[data-workspace] .l3d-import {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-4);
+  max-width: 460px;
+}
+
+[data-workspace] .l3d-import .ds-dropzone {
+  width: 100%;
+  cursor: pointer;
+}
+
+[data-workspace] .l3d-import.is-over .ds-dropzone {
+  border-color: var(--ds-text);
+  background: var(--ds-surface-hover);
+}
+
+/* ---- panel groups ------------------------------------------------------- */
+
+[data-workspace] .l3d-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-hairline);
+}
+[data-workspace] .l3d-group:last-child {
+  border-bottom: 0;
+}
+
+[data-workspace] .l3d-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+}
+
+[data-workspace] .l3d-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+[data-workspace] .l3d-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+[data-workspace] .l3d-field-label {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+
+[data-workspace] .l3d-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+}
+
+/* ---- below the app-shell breakpoint ------------------------------------- */
+
+@media (max-width: 1100px) {
+  [data-workspace]:has(> .l3d-shell) {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  [data-workspace] .l3d-shell {
+    height: auto;
+    display: block;
+  }
+  [data-workspace] .l3d-work {
+    display: block;
+  }
+  [data-workspace] .l3d-work > * + * {
+    margin-top: 16px;
+  }
+  [data-workspace] .l3d-shell .panel {
+    height: auto;
+    overflow: visible;
+  }
+  /* The canvas has no content height of its own, so below the app shell the
+     stage needs a ratio or it collapses to nothing. */
+  [data-workspace] .l3d-stage {
+    aspect-ratio: 4 / 3;
+  }
+}

@@ -11,7 +11,7 @@
  * so it can be imported from anywhere (router, SEO meta, server-side
  * sitemaps) without pulling component code into the bundle.
  */
-import { Type, Wand2, Palette, Shirt } from 'lucide-react';
+import { Type, Wand2, Palette, Shirt, Box } from 'lucide-react';
 import type { ToolMeta, ToolSlug } from './types';
 
 export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
@@ -111,6 +111,34 @@ export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
       ],
     },
     Icon: Shirt,
+  },
+  '3d-logo-studio': {
+    slug: '3d-logo-studio',
+    name: '3D Logo Studio',
+    tagline: 'Turn your SVG logo into a 3D object you can light, texture and export.',
+    description:
+      'Upload an SVG and get a real 3D model of your logo: inflate it into soft ' +
+      'rounded shapes, extrude it with bevels, or revolve it into something new. ' +
+      'Studio lighting, 24 materials from chrome to clear glass, and export as an ' +
+      'image, an animation, or a GLB you can open anywhere. Everything runs in your ' +
+      'browser — your logo is never uploaded.',
+    seo: {
+      title: '3D Logo Maker — Turn your SVG logo into 3D, free — BrandingOS',
+      description:
+        'Free browser-based 3D logo generator. Upload an SVG, inflate or extrude it, ' +
+        'apply glass, chrome and gold materials, and export PNG, video or GLB.',
+      keywords: [
+        '3d logo maker',
+        'svg to 3d',
+        'logo 3d generator',
+        'inflate logo',
+        'extrude svg',
+        '3d logo online',
+        'glb logo export',
+        'puffy 3d logo',
+      ],
+    },
+    Icon: Box,
   },
 };
 

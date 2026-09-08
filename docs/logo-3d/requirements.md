@@ -15,19 +15,19 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 
 | ID | Requirement | Phase | Verified by | Status |
 |---|---|---|---|---|
-| R-PLT-01 | Feature lives at `src/features/tools/3d-logo-studio/` with the PRD §16 subfolders | 3 | unit (import-boundary test) | ☐ |
-| R-PLT-02 | Route `/tools/3d-logo-studio` registered; works with no Brand and no auth | 3 | browser | ☐ |
+| R-PLT-01 | Feature lives at `src/features/tools/3d-logo-studio/` with the PRD §16 subfolders | 3 | unit (import-boundary test) | ☑ (P3) |
+| R-PLT-02 | Route `/tools/3d-logo-studio` registered; works with no Brand and no auth | 3 | browser | ☑ (P3) |
 | R-PLT-03 | Entry in `tools/core/toolRegistry.ts`; appears in the `/tools` directory | 12 | unit + browser | ☐ |
-| R-PLT-04 | Entry in `dev-product-map/registry.ts` (its `registry.test.ts` fails without one) | 3 | unit (existing suite) | ☐ |
-| R-PLT-05 | Uses the existing tool shell + canonical DS (`@/shared/ds`); no shadcn, no bare hex | 3 | unit (migration-style guard) + manual | ☐ |
+| R-PLT-04 | Entry in `dev-product-map/registry.ts` (its `registry.test.ts` fails without one) | 3 | unit (existing suite) | ☑ (P3) |
+| R-PLT-05 | Uses the existing tool shell + canonical DS (`@/shared/ds`); no shadcn, no bare hex | 3 | unit (migration-style guard) + manual | ☑ (P3) |
 | R-PLT-06 | Uses the shared undo/redo registry (`@/shared/history` `useUndoScope`) | 6 | unit + browser | ☐ |
-| R-PLT-07 | Engine is pure TypeScript — no React, no DOM, no Zustand outside `render/` | 3 | unit (import-boundary test) | ☐ |
-| R-PLT-08 | Three.js and encoders lazy-loaded; no other route pulls them | 3 | doc (built-bundle inspection) | ☐ |
-| R-PLT-09 | Does not import `shared/services/export/vectorize/*`; does not touch `EditorWorkspace` | 3 | unit (import-boundary test) | ☐ |
-| R-PLT-10 | Mount/unmount releases GPU, worker and event resources | 3, 12 | browser | ◐ Studio disposes contexts, proven to 24 cycles; the React surface is Phase 3 |
-| R-PLT-11 | Multiple isolated editor instances supported | 3 | browser | ☐ |
-| R-PLT-12 | No dependency on an active Brand; Brand mode arrives later via optional adapters | 3 | unit | ☐ |
-| R-PLT-13 | All export filenames come from the `naming/` module | 11 | unit | ☐ |
+| R-PLT-07 | Engine is pure TypeScript — no React, no DOM, no Zustand outside `render/` | 3 | unit (import-boundary test) | ☑ (P3) |
+| R-PLT-08 | Three.js and encoders lazy-loaded; no other route pulls them | 3 | doc (built-bundle inspection) | ☑ (P3) |
+| R-PLT-09 | Does not import `shared/services/export/vectorize/*`; does not touch `EditorWorkspace` | 3 | unit (import-boundary test) | ☑ (P3) |
+| R-PLT-10 | Mount/unmount releases GPU, worker and event resources | 3, 12 | browser | ☑ (P3) — pinned by 20 mount/unmount cycles then a real render |
+| R-PLT-11 | Multiple isolated editor instances supported | 3 | browser | ☑ (P3) |
+| R-PLT-12 | No dependency on an active Brand; Brand mode arrives later via optional adapters | 3 | unit | ☑ (P3) |
+| R-PLT-13 | All export filenames come from the `naming/` module | 11 | unit | ☑ (P3) |
 
 ## B. SVG import — PRD §4 (first release), §5
 
@@ -71,7 +71,7 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 | R-GEO-10 | Revolve warns before applying that it may change the silhouette substantially | 5 | browser | ◐ warning is returned by the engine; the UI message is Phase 5 |
 | R-GEO-11 | Grouping, mesh combination and true solid fusion are three distinct operations | 5 | unit | ◐ separate vs fused measured; true solid fusion is Phase 5 |
 | R-GEO-12 | Surfaces, normals, intersections and holes validated per operation | 5 | unit | ☑ (P2) |
-| R-GEO-13 | All four modes go through one engine contract and report unsupported combinations | 5 | unit | ◐ one contract; unsupported combinations reported for Revolve only |
+| R-GEO-13 | All four modes go through one engine contract and report unsupported combinations | 5 | unit | ◐ one contract via buildMesh; unsupported combinations reported for Revolve only |
 
 ## D. Modifiers — PRD §7
 
@@ -181,7 +181,7 @@ WebGL) · `manual` (owner visual review) · `doc` (recorded evidence, no automat
 | ID | Requirement | Phase | Verified by | Status |
 |---|---|---|---|---|
 | R-BRW-01 | Current + previous stable Chrome, Edge, Firefox, Safari; current mobile Safari and Android Chrome | 12 | manual | ☐ |
-| R-BRW-02 | Capability detection before expensive work | 3, 12 | unit + browser | ☐ |
+| R-BRW-02 | Capability detection before expensive work | 3, 12 | unit + browser | ☑ (P3) |
 | R-BRW-03 | Output fallbacks offered per capability | 11, 12 | unit | ☐ |
 | R-BRW-04 | Lower preview quality on weaker devices | 8, 12 | browser | ☐ |
 | R-BRW-05 | Unsupported configurations explained | 12 | browser | ☐ |
@@ -231,8 +231,8 @@ Extension points must exist in the foundation; the interfaces and algorithms do 
 |---|---|---|
 | 1 | Foundation: reuse decision + baseline | ☑ complete — `phase-1-reuse-decision.md` |
 | 2 | Geometry & material proof (inflation gate) | ☑ complete — `phase-2-geometry-proof.md`, evidence in `proof/` |
-| 3 | BrandingOS integration | ◐ active |
-| 4 | Reliable SVG import | ☐ |
+| 3 | BrandingOS integration | ☑ complete — `phase-3-integration.md` |
+| 4 | Reliable SVG import | ◐ active |
 | 5 | All geometry modes | ☐ |
 | 6 | Modifiers, selection, transforms | ☐ |
 | 7 | Material library | ☐ |

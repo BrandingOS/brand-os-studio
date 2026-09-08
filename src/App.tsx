@@ -160,6 +160,7 @@ const InAppTypescalePage = lazy(() => import('./pages/dashboard/brand/[slug]/too
 const StandaloneMockupStudioPage = lazy(
   () => import('./features/mockup-studio/modes/standalone/StandaloneMockupStudioPage'),
 );
+const PublicStudio3dPage = lazy(() => import('./pages/tools/3d-logo-studio'));
 const BrandMockupStudioPage = lazy(
   () => import('./features/mockup-studio/modes/brand-aware/BrandMockupStudioPage'),
 );
@@ -658,6 +659,7 @@ const App = () => (
           <Route path="/tools/ui-color-system" element={<PublicUiColorSystemPage />} />
           <Route path="/tools/typescale" element={<PublicTypescalePage />} />
           <Route path="/tools/mockup-studio" element={<StandaloneMockupStudioPage />} />
+          <Route path="/tools/3d-logo-studio" element={<PublicStudio3dPage />} />
           <Route path="/claim" element={<ClaimPage />} />
 
           {/* In-app variants of the public Tools above are mounted in
