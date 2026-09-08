@@ -17,10 +17,10 @@
  */
 
 import type { Component, MeshData } from '../types';
-import { boundsOf, componentBounds, resampleRing, ringArea } from '../geom/polygon';
+import { boundsOf, componentBounds, resampleRing } from '../geom/polygon';
 import { SegmentIndex } from '../geom/segmentIndex';
 import { MeshBuilder } from '../geom/meshBuilder';
-import { triangulateComponent } from '../geom/triangulate';
+import { triangulateComponent, canonicalRings } from '../geom/triangulate';
 import { sampleSurface } from '../geom/surfaceSample';
 import { inflateProfile } from './inflate';
 
@@ -81,7 +81,13 @@ export function extrude(components: readonly Component[], options: Partial<Extru
       Math.min(cb.maxX - cb.minX, cb.maxY - cb.minY) / (4 + clamp01(opt.curveQuality) * 60),
       1e-4,
     );
-    const dense = rings.map((r) => resampleRing(r, maxSegment));
+    const resampled = rings.map((r) => resampleRing(r, maxSegment));
+    // Canonical orientation, once, for both the caps and the wall. Letting each
+    // of them read the source's own winding is how they came to disagree.
+    const { outer, holes } = canonicalRings({ ...component, rings: resampled });
+    // Order does not matter to the wall — the winding carries the meaning.
+    const dense = [...outer, ...holes];
+    if (dense.length === 0) continue;
     const denseComponent: Component = { ...component, rings: dense };
 
     // Where the wall stops and the bevel takes over. With no bevel they are the
@@ -163,7 +169,6 @@ export function extrude(components: readonly Component[], options: Partial<Extru
       for (const ring of dense) {
         const n = ring.length / 2;
         if (n < 3) continue;
-        const ccw = ringArea(ring) > 0;
         const first = builder.vertexCount;
         for (let i = 0; i < n; i++) {
           const x = ring[i * 2];
@@ -175,16 +180,14 @@ export function extrude(components: readonly Component[], options: Partial<Extru
         for (let i = 0; i < n; i++) {
           const a = first + i * 2;
           const b = first + ((i + 1) % n) * 2;
-          // A hole winds the opposite way to its outline, and its wall has to
-          // face inwards — flipping with the winding is what makes the inside
-          // of a counter shade correctly instead of going black.
-          if (ccw) {
-            builder.triangle(a, a + 1, b);
-            builder.triangle(b, a + 1, b + 1);
-          } else {
-            builder.triangle(a, b, a + 1);
-            builder.triangle(b, b + 1, a + 1);
-          }
+          // One formula for outlines and holes alike. A hole's wall has to face
+          // inwards, and it does so automatically: the canonical orientation
+          // already winds holes opposite to outlines, so walking both the same
+          // way produces opposite facings. Branching on "is this a hole" here as
+          // well flips it a second time and cancels out — which is precisely
+          // the bug that made a holed extrusion enclose the wrong volume.
+          builder.triangle(a, b, a + 1);
+          builder.triangle(b, b + 1, a + 1);
         }
       }
     }

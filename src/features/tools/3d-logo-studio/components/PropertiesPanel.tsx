@@ -9,7 +9,8 @@
  */
 import { DsSegmented, DsSelect, DsSlider, DsSwitch, DsButton } from '@/shared/ds';
 
-import type { GeometryMode, Studio3dDocument } from '../engine/document';
+import type { CameraView, GeometryMode, Studio3dDocument } from '../engine/document';
+import { currentCameraView } from '../engine/document';
 import { MATERIAL_PRESETS } from '../materials/presets';
 import { LIGHTING_PRESETS } from '../materials/lighting';
 
@@ -20,6 +21,7 @@ export interface PropertiesPanelProps {
   onMaterialChange: (id: string) => void;
   onLightingChange: (id: string) => void;
   onBackgroundToggle: (visible: boolean) => void;
+  onViewChange: (view: CameraView) => void;
   onReset: () => void;
 }
 
@@ -37,9 +39,11 @@ export function PropertiesPanel({
   onMaterialChange,
   onLightingChange,
   onBackgroundToggle,
+  onViewChange,
   onReset,
 }: PropertiesPanelProps) {
   const { mode } = doc.geometry;
+  const view = currentCameraView(doc);
 
   return (
     <div className="panel" aria-label="Properties">
@@ -147,6 +151,20 @@ export function PropertiesPanel({
           options={MATERIAL_PRESETS.map((m) => ({ value: m.id, label: m.name }))}
           value={doc.materials.defaultId}
           onChange={onMaterialChange}
+        />
+      </Group>
+
+      <Group title="View">
+        <DsSegmented
+          options={[
+            { value: 'front', label: 'Front' },
+            { value: 'three-quarter', label: '3/4' },
+            { value: 'side', label: 'Side' },
+            { value: 'top', label: 'Top' },
+          ]}
+          value={view ?? 'front'}
+          onChange={(v) => onViewChange(v as CameraView)}
+          aria-label="Camera view"
         />
       </Group>
 

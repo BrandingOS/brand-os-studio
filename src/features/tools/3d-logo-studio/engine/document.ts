@@ -145,12 +145,61 @@ export const DEFAULT_GEOMETRY: GeometrySettings = {
   revolve: DEFAULT_REVOLVE,
 };
 
+/**
+ * Straight on, and on a longer lens than a default 3D scene would use.
+ *
+ * The first version opened at a three-quarter angle with a 35° field of view.
+ * Two things were wrong with that. A logo is a flat piece of artwork and the
+ * first thing anyone wants to see is that it still reads as itself — an angled
+ * opening shot asks them to accept a reinterpretation before they have seen the
+ * thing they uploaded. And a wide lens on an object that fills the frame throws
+ * the outer parts into visible perspective distortion: on the nine-dot mark the
+ * corner discs came out as ellipses, which reads as "stretched", not as depth.
+ *
+ * So the default is front-on at 28°. Depth is then shown by the lighting and
+ * the silhouette rather than by skewing the artwork, and the view presets are
+ * one click away for anyone who wants the angle.
+ */
 export const DEFAULT_CAMERA: CameraState = {
-  position: [1.1, 1.0, 3.2],
+  position: [0, 0, 4],
   target: [0, 0, 0],
-  fov: 35,
+  fov: 28,
   projection: 'perspective',
 };
+
+/** Named directions the camera can be sent to. The distance is not stored:
+ *  the studio frames the object, so a preset is a direction and nothing more. */
+export const CAMERA_VIEWS = {
+  front: [0, 0, 1],
+  'three-quarter': [0.55, 0.45, 1],
+  side: [1, 0, 0.12],
+  top: [0, 1, 0.12],
+} as const satisfies Record<string, readonly [number, number, number]>;
+
+export type CameraView = keyof typeof CAMERA_VIEWS;
+
+/** Point the camera along a named direction, keeping its distance and lens. */
+export function setCameraView(doc: Studio3dDocument, view: CameraView): Studio3dDocument {
+  const dir = CAMERA_VIEWS[view];
+  const length = Math.hypot(...doc.camera.position) || 4;
+  const norm = Math.hypot(...dir) || 1;
+  return setCamera(doc, {
+    position: [(dir[0] / norm) * length, (dir[1] / norm) * length, (dir[2] / norm) * length],
+  });
+}
+
+/** Which preset the camera is currently pointing along, if any. */
+export function currentCameraView(doc: Studio3dDocument): CameraView | null {
+  const [x, y, z] = doc.camera.position;
+  const length = Math.hypot(x, y, z);
+  if (!(length > 0)) return null;
+  for (const [name, dir] of Object.entries(CAMERA_VIEWS) as [CameraView, readonly number[]][]) {
+    const norm = Math.hypot(dir[0], dir[1], dir[2]);
+    const dot = (x * dir[0] + y * dir[1] + z * dir[2]) / (length * norm);
+    if (dot > 0.9999) return name;
+  }
+  return null;
+}
 
 export const DEFAULT_ANIMATION: AnimationState = {
   preset: 'static',

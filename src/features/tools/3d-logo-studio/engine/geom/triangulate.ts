@@ -8,11 +8,39 @@
  * which means the outer/hole split has to be resolved first — `classifyRings`
  * does that from the fill rule rather than from winding, so an Illustrator
  * export whose holes wind the same way as their outline still works.
+ *
+ * **Rings are re-oriented to a canonical direction first**, and that is
+ * load-bearing rather than tidiness. Earcut emits triangles wound the same way
+ * as the ring it was given, so without this the winding of the caps is decided
+ * by whichever direction the artist's vector editor happened to draw in. The
+ * extrusion wall, meanwhile, was choosing its own winding independently — so
+ * the two could and did disagree, producing a solid whose faces pointed inward.
+ * On screen that looks like the caps have vanished and you are seeing through
+ * into the shell.
+ *
+ * Canonical is: outer rings counter-clockwise, holes clockwise, measured in the
+ * artwork's own Y-down frame. Every consumer reads `CANONICAL_OUTER_CCW`
+ * instead of inspecting the source.
  */
+
+/** Outer rings are made counter-clockwise; holes take the opposite direction. */
+export const CANONICAL_OUTER_CCW = true;
+
+/**
+ * A component whose rings have been split and re-oriented canonically.
+ * `outer` and `holes` are disjoint and together cover every usable ring.
+ */
+export function canonicalRings(component: Component): { outer: Ring[]; holes: Ring[] } {
+  const { outer, holes } = classifyRings(component);
+  return {
+    outer: outer.map((r) => orientRing(r, CANONICAL_OUTER_CCW)),
+    holes: holes.map((r) => orientRing(r, !CANONICAL_OUTER_CCW)),
+  };
+}
 
 import earcut from 'earcut';
 import type { Component, Ring } from '../types';
-import { classifyRings, pointInRings, probeJustInside } from './polygon';
+import { classifyRings, orientRing, pointInRings, probeJustInside } from './polygon';
 
 export interface CapTriangulation {
   /** Flat `[x0, y0, x1, y1, …]` — the vertices the indices refer to. */
@@ -30,7 +58,7 @@ export interface CapTriangulation {
  * the first outline punches holes through the wrong shape.
  */
 export function triangulateComponent(component: Component): CapTriangulation {
-  const { outer, holes } = classifyRings(component);
+  const { outer, holes } = canonicalRings(component);
   if (outer.length === 0) return { coords: new Float64Array(0), indices: new Uint32Array(0) };
 
   const coords: number[] = [];

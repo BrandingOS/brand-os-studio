@@ -25,9 +25,10 @@ import type { MeshData } from '../engine/types';
 import { EMPTY_MESH } from '../engine/types';
 import {
   createDocument, setGeometryMode, setModeOptions, setDefaultMaterial, setLighting,
-  resetToSource, type GeometryMode, type Studio3dDocument,
+  resetToSource, setCameraView, type CameraView, type GeometryMode, type Studio3dDocument,
 } from '../engine/document';
 import { buildMesh } from '../engine/buildMesh';
+import type { RevolveWarning } from '../engine/modes/revolve';
 import type { ImportResult } from '../render/svgImport';
 import { ImportPanel, DiagnosticBanner } from './ImportPanel';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -38,6 +39,28 @@ const Viewport = lazy(() => import('./Viewport'));
 export interface Studio3dEditorProps {
   /** Preloaded document — the tests use it, and Brand mode will later. */
   initialDocument?: Studio3dDocument;
+}
+
+/**
+ * Collapse per-component warnings into one line per kind, naming how many
+ * components each affects.
+ */
+export function summariseWarnings(warnings: readonly RevolveWarning[]): string[] {
+  const counts = new Map<RevolveWarning['code'], number>();
+  for (const w of warnings) counts.set(w.code, (counts.get(w.code) ?? 0) + 1);
+  const out: string[] = [];
+  for (const [code, n] of counts) {
+    const parts = n === 1 ? 'One part' : `${n} parts`;
+    if (code === 'profile-crosses-axis') {
+      out.push(
+        `${parts} of this logo cross the axis, so the sweep folds through itself. ` +
+        'Move the pivot or the axis offset so the shape sits to one side of it.',
+      );
+    } else {
+      out.push(`${parts} had no usable profile and ${n === 1 ? 'was' : 'were'} skipped.`);
+    }
+  }
+  return out;
 }
 
 export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
@@ -70,13 +93,11 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
         const result = buildMesh(doc);
         if (!aliveRef.current || version !== versionRef.current) return;
         setMesh(result.mesh);
-        setWarnings(
-          result.warnings.map((w) =>
-            w.code === 'profile-crosses-axis'
-              ? 'The profile crosses its own axis, so the sweep folds through itself. Move the pivot or the axis offset to avoid it.'
-              : 'A component had no usable profile and was skipped.',
-          ),
-        );
+        // One message per *kind*, not one per component. A warning is about a
+        // setting, and a nine-part logo raised the identical sentence nine
+        // times — a wall of banners that pushed the artwork off the screen and
+        // said nothing the first one had not.
+        setWarnings(summariseWarnings(result.warnings));
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'The geometry could not be built.');
@@ -163,6 +184,7 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
           onMaterialChange={(id) => setDoc((d) => (d ? setDefaultMaterial(d, id) : d))}
           onLightingChange={(id) => setDoc((d) => (d ? setLighting(d, { presetId: id }) : d))}
           onBackgroundToggle={(v) => setDoc((d) => (d ? setLighting(d, { showBackground: v }) : d))}
+          onViewChange={(view: CameraView) => setDoc((d) => (d ? setCameraView(d, view) : d))}
           onReset={() => setDoc((d) => (d ? resetToSource(d) : d))}
         />
       </div>

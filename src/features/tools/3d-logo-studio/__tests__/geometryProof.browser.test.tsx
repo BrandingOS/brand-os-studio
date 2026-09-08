@@ -22,6 +22,7 @@ import { Studio, buildMaterial, LIGHTING_PRESETS } from '../render/studio';
 import { getMaterial, MATERIAL_PRESETS, BENCHMARK_MATERIALS } from '../materials/presets';
 import { exportGlb } from '../export/glb';
 import type { Component, MeshData } from '../engine/types';
+import { DEFAULT_CAMERA } from '../engine/document';
 
 const FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
 <svg id="Layer_2" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 113 113">
@@ -67,8 +68,11 @@ function show(
   studio.setLighting(LIGHTING_PRESETS.find((l) => l.id === lightingId)!);
   if (backdrop) studio.setBackdrop(backdrop[0], backdrop[1]);
   studio.setObject(geometry, buildMaterial(preset));
-  studio.camera.position.set(1.1, 1.0, 3.2);
-  studio.frame(1.3);
+  // The product's own defaults: front-on, 28mm-equivalent. The proof has to
+  // show what a user actually opens to, not a flattering angle.
+  studio.camera.fov = DEFAULT_CAMERA.fov;
+  studio.camera.position.set(...DEFAULT_CAMERA.position);
+  studio.frame(1.25);
   studio.render();
   return { studio, canvas };
 }
@@ -136,7 +140,7 @@ describe('Phase 2 — the fixture renders in every geometry mode', () => {
 
   it('extrude produces a solid with a visible wall', async () => {
     const mesh = extrude(components, { depth: 12, alignment: 'center', curveQuality: 0.6 });
-    const { canvas } = show(mesh, 'polished-chrome');
+    const { canvas } = show(mesh, 'polished-chrome', 'white-studio');
     expect(analyse(canvas).distinctColors).toBeGreaterThan(40);
     await page.screenshot({ path: 'phase2-extrude-chrome.png' });
   });
@@ -155,6 +159,26 @@ describe('Phase 2 — the fixture renders in every geometry mode', () => {
     // The bevel changes how much light the edges catch; the frames must differ.
     expect(Math.abs(a.meanLuma - b.meanLuma)).toBeGreaterThan(0.1);
     await page.screenshot({ path: 'phase2-extrude-bevelled.png' });
+  });
+
+  it('extrude seen from three-quarters is a closed solid, not an open shell', async () => {
+    const mesh = extrude(components, { depth: 14, alignment: 'center', curveQuality: 0.6 });
+    const { studio, canvas } = show(mesh, 'satin-black');
+    studio.camera.position.set(2.2, 1.8, 4);
+    studio.frame(1.25);
+    studio.render();
+    expect(analyse(canvas).distinctColors).toBeGreaterThan(40);
+    await page.screenshot({ path: 'phase2-extrude-three-quarter.png' });
+  });
+
+  it('inflate seen from three-quarters', async () => {
+    const mesh = inflate(components, { thickness: 7, fullness: 0.6, edgeSoftness: 0.3, quality: 0.6 });
+    const { studio, canvas } = show(mesh, 'glossy-black');
+    studio.camera.position.set(2.0, 1.7, 4);
+    studio.frame(1.25);
+    studio.render();
+    expect(analyse(canvas).distinctColors).toBeGreaterThan(40);
+    await page.screenshot({ path: 'phase2-inflate-three-quarter.png' });
   });
 
   it('flat renders as a surface', async () => {

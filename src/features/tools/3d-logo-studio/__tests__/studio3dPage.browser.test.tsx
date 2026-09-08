@@ -196,6 +196,80 @@ describe('the controls reach the geometry', () => {
   });
 });
 
+describe('what the user sees first', () => {
+  it('opens front-on, so the logo still reads as itself', async () => {
+    const { host } = mount(<Studio3dEditor initialDocument={doc()} />);
+    await readyCanvas(host);
+    expect(screen.getByRole('radio', { name: 'Front' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('the nine dots come out round, not stretched into ellipses', async () => {
+    // The complaint that started this: an angled default view with a wide lens
+    // turned the outer discs into ellipses, which reads as stretching rather
+    // than depth.
+    const { host } = mount(<Studio3dEditor initialDocument={doc()} />);
+    const canvas = await readyCanvas(host);
+    await waitFor(() => expect(drewSomething(canvas)).toBe(true), { timeout: 15_000 });
+
+    const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext;
+    const w = canvas.width, h = canvas.height;
+    const buf = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    // The mark is nine identical discs in a ring, so whatever the object
+    // occupies must be as wide as it is tall. Perspective on an angled view
+    // broke that by more than 10%.
+    let minX = w, maxX = -1, minY = h, maxY = -1;
+    const bg = [buf[0], buf[1], buf[2]];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (Math.abs(buf[i] - bg[0]) + Math.abs(buf[i + 1] - bg[1]) + Math.abs(buf[i + 2] - bg[2]) > 24) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    const width = maxX - minX;
+    const height = maxY - minY;
+    expect(width).toBeGreaterThan(50);
+    expect(width / height).toBeGreaterThan(0.93);
+    expect(width / height).toBeLessThan(1.07);
+  });
+
+  it('a nine-part revolve raises one warning, not nine', async () => {
+    // The first version pushed the artwork off the screen behind a stack of
+    // nine identical banners.
+    mount(<Studio3dEditor initialDocument={doc()} />);
+    await waitFor(() => expect(screen.getByText(/9 components/)).toBeTruthy(), { timeout: 15_000 });
+    fireEvent.click(screen.getByRole('radio', { name: 'Revolve' }));
+    await screen.findByText('Sweep');
+    // the default axis sits at the logo's edge, so nothing crosses it at all
+    await waitFor(() => expect(screen.queryAllByText(/cross the axis/i)).toHaveLength(0), { timeout: 15_000 });
+
+    // drag the pivot into the middle and exactly one banner appears
+    const pivot = screen.getByRole('slider', { name: /pivot/i }) as HTMLInputElement;
+    fireEvent.change(pivot, { target: { value: '0.5' } });
+    await waitFor(() => expect(screen.getAllByText(/cross the axis/i).length).toBe(1), { timeout: 15_000 });
+  });
+
+  it('the view control moves the camera', async () => {
+    const { host } = mount(<Studio3dEditor initialDocument={doc()} />);
+    const canvas = await readyCanvas(host);
+    await waitFor(() => expect(drewSomething(canvas)).toBe(true), { timeout: 15_000 });
+    const frame = () => {
+      const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext;
+      const buf = new Uint8Array(200 * 200 * 4);
+      gl.readPixels((canvas.width - 200) / 2, (canvas.height - 200) / 2, 200, 200, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i += 4) sum += buf[i];
+      return sum;
+    };
+    const before = frame();
+    fireEvent.click(screen.getByRole('radio', { name: '3/4' }));
+    await waitFor(() => expect(frame()).not.toBe(before), { timeout: 15_000 });
+  });
+});
+
 describe('it leaves nothing behind', () => {
   it('unmounting removes the canvas', async () => {
     const { unmount, host } = mount(<Studio3dEditor initialDocument={doc()} />);

@@ -26,8 +26,16 @@ export type RevolveAxis = 'x' | 'y' | { angle: number };
 
 export interface RevolveOptions {
   axis: RevolveAxis;
-  /** Where the axis sits, as a fraction of the component's bounds across it.
-   *  0.5 is the middle; 0 is the near edge. */
+  /**
+   * Where the axis sits, as a fraction of the *whole logo's* extent across it.
+   * 0 is the near edge, 1 the far edge, 0.5 the middle.
+   *
+   * Whole logo, not per component, and that is the difference between a lathe
+   * and nine unrelated tureens: every component sweeps about one shared axis, so
+   * a multi-part mark revolves into a single coherent form. Measuring per
+   * component also made the default straddle every one of them at once, which
+   * is how a nine-part logo produced nine identical warnings.
+   */
   pivot: number;
   /** Extra offset along the axis normal, in logo units — moves the lathe off
    *  the shape entirely to produce a ring rather than a solid. */
@@ -42,7 +50,10 @@ export interface RevolveOptions {
 
 export const DEFAULT_REVOLVE: RevolveOptions = {
   axis: 'y',
-  pivot: 0.5,
+  // At the edge rather than the middle: a profile straddling its own axis folds
+  // through itself, and a default that does that to every component is a
+  // default that greets the user with a wall of warnings.
+  pivot: 0,
   offset: 0,
   sweep: Math.PI * 2,
   segments: 64,
@@ -75,8 +86,29 @@ export function revolve(components: readonly Component[], options: Partial<Revol
   // Direction along the axis, and the perpendicular the radius is measured on.
   const ax = Math.cos(angle);
   const ay = Math.sin(angle);
-  const nx = -ay;
-  const ny = ax;
+  // The perpendicular is taken so that `pivot` grows along +X for a Y axis:
+  // dragging the slider right moves the axis right. The opposite sign is
+  // geometrically equivalent — the sweep is symmetric about the axis — but it
+  // made pivot 0 mean the far edge, which is not what a slider labelled
+  // "Pivot" should do.
+  const nx = ay;
+  const ny = -ax;
+
+  // One axis for the whole logo, measured across the overall bounds, so every
+  // component sweeps about the same line and the parts stay in relation to each
+  // other.
+  const overallCorners: [number, number][] = [
+    [overall.minX, overall.minY], [overall.maxX, overall.minY],
+    [overall.maxX, overall.maxY], [overall.minX, overall.maxY],
+  ];
+  let pMin = Infinity;
+  let pMax = -Infinity;
+  for (const [x, y] of overallCorners) {
+    const p = x * nx + y * ny;
+    if (p < pMin) pMin = p;
+    if (p > pMax) pMax = p;
+  }
+  const pivotP = pMin + (pMax - pMin) * opt.pivot + opt.offset;
 
   for (const component of components) {
     const rings = component.rings.filter((r) => r.length >= 6);
@@ -90,20 +122,6 @@ export function revolve(components: readonly Component[], options: Partial<Revol
       Math.min(cb.maxX - cb.minX, cb.maxY - cb.minY) / (4 + clamp01(opt.curveQuality) * 60),
       1e-4,
     );
-
-    // The axis passes through a point chosen along the component's extent in the
-    // perpendicular direction, so `pivot` reads the same whatever the angle.
-    const corners: [number, number][] = [
-      [cb.minX, cb.minY], [cb.maxX, cb.minY], [cb.maxX, cb.maxY], [cb.minX, cb.maxY],
-    ];
-    let pMin = Infinity;
-    let pMax = -Infinity;
-    for (const [x, y] of corners) {
-      const p = x * nx + y * ny;
-      if (p < pMin) pMin = p;
-      if (p > pMax) pMax = p;
-    }
-    const pivotP = pMin + (pMax - pMin) * opt.pivot + opt.offset;
 
     builder.beginComponent(component.id);
     let crossed = false;

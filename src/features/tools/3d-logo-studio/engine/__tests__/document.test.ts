@@ -7,6 +7,7 @@ import {
   DOCUMENT_SCHEMA_VERSION, type Studio3dDocument,
 } from '../document';
 import { buildMesh } from '../buildMesh';
+import { DEFAULT_CAMERA, CAMERA_VIEWS, setCameraView, currentCameraView } from '../document';
 
 const circle = (cx: number, cy: number, r: number, n = 48): Ring => {
   const p: number[] = [];
@@ -198,10 +199,39 @@ describe('buildMesh', () => {
   });
 
   it('surfaces revolve warnings rather than swallowing them', () => {
-    // pivot in the middle makes the profile straddle its own axis
-    let d = setGeometryMode(make(), 'revolve');
+    // One component, axis through its middle, so the profile really does
+    // straddle it. With the shared whole-logo axis a mid pivot on a two-part
+    // mark falls in the gap between the parts and crosses neither.
+    const single = createDocument({ svg: '', fileName: 'one.svg', components: [comps[0]] });
+    let d = setGeometryMode(single, 'revolve');
     d = setModeOptions(d, 'revolve', { pivot: 0.5, offset: 0 });
     expect(buildMesh(d).warnings.map((w) => w.code)).toContain('profile-crosses-axis');
+  });
+
+  it('the default revolve does not warn about a multi-part logo', () => {
+    // The axis sits at the edge of the whole logo, so nothing straddles it —
+    // the old per-component default warned once for every single component.
+    const d = setGeometryMode(make(), 'revolve');
+    expect(buildMesh(d).warnings).toEqual([]);
+  });
+
+  it('every component sweeps about the same axis', () => {
+    // Two discs, one axis: the further one must sweep a bigger radius. Measured
+    // per component they would produce two identical tori instead.
+    const d = setGeometryMode(make(), 'revolve');
+    const { mesh } = buildMesh(d);
+    const span = (id: string) => {
+      const g = mesh.groups.find((x) => x.componentId === id)!;
+      let lo = Infinity, hi = -Infinity;
+      for (let t = g.start; t < g.start + g.count; t++) {
+        const z = mesh.positions[mesh.indices[t] * 3 + 2];
+        lo = Math.min(lo, z); hi = Math.max(hi, z);
+      }
+      return hi - lo;
+    };
+    // 'a' sits at x=20, 'b' at x=60, and the axis is at the logo's left edge —
+    // so 'b' sweeps the bigger radius.
+    expect(span('b')).toBeGreaterThan(span('a') * 1.5);
   });
 
   it(`honours the mode's own options`, () => {
@@ -214,5 +244,41 @@ describe('buildMesh', () => {
       return hi - lo;
     };
     expect(zSpan(deep)).toBeGreaterThan(zSpan(shallow) * 5);
+  });
+});
+
+
+describe('camera views', () => {
+  it('opens straight on, not at an angle', () => {
+    // A logo is flat artwork; the first thing anyone wants is to see that it
+    // still reads as itself. An angled opening shot also throws the outer parts
+    // into perspective distortion, which reads as stretching rather than depth.
+    expect(DEFAULT_CAMERA.position[0]).toBe(0);
+    expect(DEFAULT_CAMERA.position[1]).toBe(0);
+    expect(DEFAULT_CAMERA.position[2]).toBeGreaterThan(0);
+    expect(currentCameraView(make())).toBe('front');
+  });
+
+  it('uses a long enough lens to keep the edges from distorting', () => {
+    expect(DEFAULT_CAMERA.fov).toBeLessThanOrEqual(30);
+  });
+
+  it('each preset points somewhere different, and reports itself back', () => {
+    for (const view of Object.keys(CAMERA_VIEWS) as (keyof typeof CAMERA_VIEWS)[]) {
+      const d = setCameraView(make(), view);
+      expect(currentCameraView(d), view).toBe(view);
+    }
+  });
+
+  it('changing view keeps the distance and the lens', () => {
+    const before = make();
+    const after = setCameraView(before, 'three-quarter');
+    expect(Math.hypot(...after.camera.position)).toBeCloseTo(Math.hypot(...before.camera.position), 6);
+    expect(after.camera.fov).toBe(before.camera.fov);
+  });
+
+  it('an arbitrary camera position matches no preset', () => {
+    const d = setCamera(make(), { position: [1, 2, 3] });
+    expect(currentCameraView(d)).toBeNull();
   });
 });
