@@ -199,3 +199,47 @@ per-component selection and materials (Phase 6), camera orbit and progressive
 rendering (Phase 8), persistence and undo (Phase 9), animation (Phase 10), and
 the export UI (Phase 11 — the GLB exporter works and is tested, but nothing in
 the interface calls it).
+
+---
+
+# Sphere — a fifth shape
+
+**Asked for:** *"add circle shape! I can't do it as circle!"*
+
+They were right that it could not be done. Inflate's `thickness` is one absolute
+number for the whole logo, and a full sphere needs the peak height to equal
+*that part's own radius* — so getting a ball out of Inflate meant knowing and
+typing the exact radius of every component, and a logo whose parts differ in
+size could not be made round at all: one number is either right for the big
+piece or right for the small one.
+
+**Sphere is the same generator measuring something different.** `InflateOptions`
+gained a `scale`: `absolute` climbs to `thickness` (unchanged, still the right
+physical model — a thin stroke stays proportionally flatter than a fat blob),
+and `round` measures each component and climbs to its own deepest point, scaled
+by `roundness`.
+
+**It is exact, not an approximation.** For a disc of radius R, a point `d` from
+the boundary sits at radius `r = R - d` from the centre, and a sphere's height
+there is `√(R² - r²)`. Substituting `t = d/R` gives `R·√(1 - (1-t)²)` — which is
+the superellipse at n = 2, i.e. `fullness: 0.5`. A true hemisphere was already a
+member of the profile family; Sphere just selects it and supplies the right
+reach.
+
+So the test is not "does it look round". It is **a circle at full roundness must
+enclose (4/3)πR³**, measured with the divergence theorem, at four radii from 3
+to 250 — without ever being told the radius. A 40-unit square becomes a pill
+that climbs to its inradius of 20 and holds *more* than a ball of that radius; a
+6-unit-wide bar swells to 3 and no further, because that is all it can be.
+
+**One real improvement came out of it.** `reach` was the deepest *sample*, and a
+hex grid rarely lands on the true centre — it undershot the inradius by about 3%
+at moderate quality. Invisible under an absolute thickness, and wrong for a mode
+whose whole promise is reaching exactly the shape's own radius. The sampler now
+hill-climbs the distance field to find the apex and adds it as a vertex, which
+also gives the dome a real apex instead of a slightly flattened top. Hill-climb
+rather than solve: the true answer is a point on the medial axis, expensive and
+fragile to compute, while the field is smooth and single-peaked near its maximum.
+
+Evidence: `proof/sweep-sphere-{front,34,side,chrome}.png` — the side view is the
+one that matters, and the profiles are circles.

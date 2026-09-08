@@ -21,7 +21,7 @@
 
 import type { Component } from './types';
 import { boundsOf } from './geom/polygon';
-import { DEFAULT_INFLATE, type InflateOptions } from './modes/inflate';
+import { DEFAULT_INFLATE, DEFAULT_SPHERE, type InflateOptions } from './modes/inflate';
 import { DEFAULT_EXTRUDE, DEFAULT_FLAT, type ExtrudeOptions, type FlatOptions } from './modes/extrude';
 import { DEFAULT_REVOLVE, type RevolveOptions } from './modes/revolve';
 
@@ -32,7 +32,7 @@ export const DOCUMENT_SCHEMA_VERSION = 1;
 /** Identifies which build produced a document, for diagnosing a bad archive. */
 export const ENGINE_VERSION = '0.2.0';
 
-export type GeometryMode = 'flat' | 'extrude' | 'inflate' | 'revolve';
+export type GeometryMode = 'flat' | 'extrude' | 'inflate' | 'sphere' | 'revolve';
 
 /**
  * Settings for all four modes are kept at once, not swapped out.
@@ -46,6 +46,8 @@ export interface GeometrySettings {
   flat: FlatOptions;
   extrude: ExtrudeOptions;
   inflate: InflateOptions;
+  /** Inflate's machinery with a per-component reach — see `InflateOptions.scale`. */
+  sphere: InflateOptions;
   revolve: RevolveOptions;
 }
 
@@ -143,6 +145,7 @@ export const DEFAULT_GEOMETRY: GeometrySettings = {
   flat: DEFAULT_FLAT,
   extrude: DEFAULT_EXTRUDE,
   inflate: DEFAULT_INFLATE,
+  sphere: DEFAULT_SPHERE,
   revolve: DEFAULT_REVOLVE,
 };
 

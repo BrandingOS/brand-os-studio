@@ -30,6 +30,7 @@ const MODES: { value: GeometryMode; label: string }[] = [
   { value: 'flat', label: 'Flat' },
   { value: 'extrude', label: 'Extrude' },
   { value: 'inflate', label: 'Inflate' },
+  { value: 'sphere', label: 'Sphere' },
   { value: 'revolve', label: 'Revolve' },
 ];
 
@@ -87,6 +88,27 @@ export function PropertiesPanel({
               <DsSegmented
                 options={[{ value: 'separate', label: 'Separate' }, { value: 'fused', label: 'Fused' }]}
                 value={doc.geometry.inflate.mode}
+                onChange={(v) => onModePatch({ mode: v })}
+                aria-label="Component handling"
+              />
+            </Field>
+          </>
+        )}
+
+        {mode === 'sphere' && (
+          <>
+            <DsSlider label="Roundness" value={doc.geometry.sphere.roundness} min={0} max={1.5} step={0.01}
+              onChange={(v) => onModePatch({ roundness: v })} />
+            <DsSlider label="Front / back balance" value={doc.geometry.sphere.balance} min={0} max={1} step={0.01}
+              onChange={(v) => onModePatch({ balance: v })} />
+            <DsSlider label="Fullness" value={doc.geometry.sphere.fullness} min={0} max={1} step={0.01}
+              onChange={(v) => onModePatch({ fullness: v })} />
+            <DsSlider label="Surface quality" value={doc.geometry.sphere.quality} min={0} max={1} step={0.05}
+              onChange={(v) => onModePatch({ quality: v })} />
+            <Field label="Components">
+              <DsSegmented
+                options={[{ value: 'separate', label: 'Separate' }, { value: 'fused', label: 'Fused' }]}
+                value={doc.geometry.sphere.mode}
                 onChange={(v) => onModePatch({ mode: v })}
                 aria-label="Component handling"
               />

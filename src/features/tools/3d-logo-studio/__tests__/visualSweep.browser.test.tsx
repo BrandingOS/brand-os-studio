@@ -11,7 +11,7 @@ import { describe, it, beforeAll, afterEach, expect } from 'vitest';
 import { page } from '@vitest/browser/context';
 
 import { importSvg } from '../render/svgImport';
-import { inflate } from '../engine/modes/inflate';
+import { inflate, DEFAULT_SPHERE } from '../engine/modes/inflate';
 import { extrude, flat } from '../engine/modes/extrude';
 import { revolve } from '../engine/modes/revolve';
 import { toBufferGeometry, normalizeToUnitSize } from '../render/geometry';
@@ -88,6 +88,23 @@ describe('visual sweep', () => {
   it('inflate, side on', async () => {
     shot(inflate(components, {}), 'satin-black', 'side');
     await page.screenshot({ path: 'sweep-inflate-side.png' });
+  });
+
+  it('sphere — a circle really is a ball', async () => {
+    shot(inflate(components, DEFAULT_SPHERE), 'satin-black');
+    await page.screenshot({ path: 'sweep-sphere-front.png' });
+  });
+  it('sphere, three-quarter', async () => {
+    shot(inflate(components, DEFAULT_SPHERE), 'satin-black', 'three-quarter');
+    await page.screenshot({ path: 'sweep-sphere-34.png' });
+  });
+  it('sphere, side on — the profile should be a circle', async () => {
+    shot(inflate(components, DEFAULT_SPHERE), 'satin-black', 'side');
+    await page.screenshot({ path: 'sweep-sphere-side.png' });
+  });
+  it('sphere in chrome', async () => {
+    shot(inflate(components, DEFAULT_SPHERE), 'polished-chrome', 'three-quarter');
+    await page.screenshot({ path: 'sweep-sphere-chrome.png' });
   });
 
   it('extrude at its default settings', async () => {

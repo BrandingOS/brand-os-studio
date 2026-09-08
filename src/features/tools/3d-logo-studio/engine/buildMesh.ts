@@ -41,6 +41,10 @@ export function buildMesh(doc: Studio3dDocument): BuildResult {
 
   if (mode === 'inflate') {
     mesh = inflate(components, doc.geometry.inflate);
+  } else if (mode === 'sphere') {
+    // The same generator: Sphere is Inflate measuring each component against
+    // itself rather than against one shared thickness.
+    mesh = inflate(components, doc.geometry.sphere);
   } else if (mode === 'extrude') {
     mesh = extrude(components, doc.geometry.extrude);
   } else if (mode === 'flat') {

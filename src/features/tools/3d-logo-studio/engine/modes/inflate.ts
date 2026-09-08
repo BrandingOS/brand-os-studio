@@ -73,6 +73,24 @@ export interface InflateOptions {
    * neighbours influence each other's height and the set reads as one object.
    */
   mode: 'separate' | 'fused';
+  /**
+   * What decides how far the surface climbs.
+   *
+   * `absolute` uses `thickness`, in the artwork's own units: one number for the
+   * whole logo, so a thin stroke stays proportionally flatter than a fat blob.
+   * That is the right physical model, and it is the wrong one for "make this
+   * round" — a full sphere needs the peak to equal *that part's own* radius, so
+   * getting one out of an absolute thickness means knowing and typing the
+   * radius of every component.
+   *
+   * `round` measures each component and climbs to its own deepest point, scaled
+   * by `roundness`. At roundness 1 with fullness 0.5 the profile is exactly
+   * `sqrt(R² - r²)` — a true hemisphere — so a circle becomes a sphere and a
+   * rounded-rectangle becomes a proper pill, whatever size each one is.
+   */
+  scale: 'absolute' | 'round';
+  /** Only read when `scale` is `round`. 1 is as round as the shape can be. */
+  roundness: number;
 }
 
 export const DEFAULT_INFLATE: InflateOptions = {
@@ -84,6 +102,25 @@ export const DEFAULT_INFLATE: InflateOptions = {
   outlinePreservation: 1,
   quality: 0.5,
   mode: 'separate',
+  scale: 'absolute',
+  roundness: 1,
+};
+
+/**
+ * Fully round: every component swells to its own maximum.
+ *
+ * `fullness: 0.5` is the circular member of the profile family and
+ * `edgeSoftness: 0` keeps the rim on the plane, which together make the surface
+ * a true hemisphere rather than merely a round-ish dome.
+ */
+export const DEFAULT_SPHERE: InflateOptions = {
+  ...DEFAULT_INFLATE,
+  scale: 'round',
+  roundness: 1,
+  fullness: 0.5,
+  edgeSoftness: 0,
+  smoothness: 0,
+  quality: 0.6,
 };
 
 /**
@@ -129,8 +166,8 @@ export function inflate(components: readonly Component[], options: Partial<Infla
   // thickness makes the control absolute and the result physical — anything at
   // least as wide as it is thick rounds over fully, anything thinner stays
   // proportionally flatter, which is what an inflated object does.
-  const full = Math.max(opt.thickness, 1e-6);
   const balance = clamp01(opt.balance);
+  const roundness = Math.max(0, opt.roundness);
 
   for (const component of components) {
     const sample = sampleSurface(component, {
@@ -144,10 +181,26 @@ export function inflate(components: readonly Component[], options: Partial<Infla
 
     const { xs, ys, distance, boundaryCount, triangles } = sample;
     const n = xs.length;
+
+    // `absolute` climbs to a fixed thickness wherever the shape is wide enough
+    // to reach it. `round` measures this component and climbs to its own
+    // deepest point, so each part becomes as round as its own size allows.
+    let reach: number;
+    let peak: number;
+    if (opt.scale === 'round') {
+      let deepest = 0;
+      for (let i = 0; i < n; i++) if (distance[i] > deepest) deepest = distance[i];
+      reach = Math.max(deepest, 1e-6);
+      peak = reach * roundness;
+    } else {
+      reach = Math.max(opt.thickness, 1e-6);
+      peak = opt.thickness;
+    }
+
     const front = new Float64Array(n);
     const back = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      const h = inflateProfile(Math.min(1, distance[i] / full), opt.fullness, opt.edgeSoftness) * opt.thickness;
+      const h = inflateProfile(Math.min(1, distance[i] / reach), opt.fullness, opt.edgeSoftness) * peak;
       front[i] = h * balance * 2;
       back[i] = -h * (1 - balance) * 2;
     }

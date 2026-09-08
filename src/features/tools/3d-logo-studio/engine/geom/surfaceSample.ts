@@ -165,6 +165,44 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
     spacing /= 2;
   }
   if (xs.length < 3) return EMPTY;
+
+  // The apex: the point furthest from the boundary.
+  //
+  // A hex grid rarely lands on it, so the deepest *sample* undershoots the true
+  // inradius — measurably, by around 3% at moderate quality. That is invisible
+  // for an absolute thickness and wrong for Sphere mode, whose whole promise is
+  // that a circle reaches exactly its own radius. It also gives the dome a real
+  // apex vertex instead of a slightly flattened top.
+  //
+  // Hill-climbing on the distance field rather than solving for it: the true
+  // answer is a point on the medial axis, which is expensive and fragile to
+  // compute, while the field is smooth and single-peaked near its maximum.
+  {
+    let bestX = 0;
+    let bestY = 0;
+    let bestD = -1;
+    for (let i = boundaryCount; i < xs.length; i++) {
+      const d = index.distance(xs[i], ys[i]);
+      if (d > bestD) { bestD = d; bestX = xs[i]; bestY = ys[i]; }
+    }
+    if (bestD > 0) {
+      let step = spacing;
+      for (let pass = 0; pass < 24 && step > spacing * 1e-4; pass++) {
+        let moved = false;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) {
+          const nx2 = bestX + dx * step;
+          const ny2 = bestY + dy * step;
+          if (!inside(nx2, ny2)) continue;
+          const d = index.distance(nx2, ny2);
+          if (d > bestD) { bestD = d; bestX = nx2; bestY = ny2; moved = true; }
+        }
+        if (!moved) step /= 2;
+      }
+      xs.push(bestX);
+      ys.push(bestY);
+    }
+  }
+
   const hasInterior = xs.length > boundaryCount;
 
   const coords = new Float64Array(xs.length * 2);
