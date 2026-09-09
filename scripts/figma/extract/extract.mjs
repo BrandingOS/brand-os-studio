@@ -44,20 +44,21 @@ const COLLECTOR = collectorSrc.slice(
   collectorSrc.lastIndexOf('`;'),
 );
 
-const PROPS = [
-  'display', 'position', 'flex-direction', 'flex-wrap', 'gap', 'row-gap', 'column-gap',
-  'justify-content', 'align-items', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis', 'order',
-  'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
-  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-  'background-color', 'color', 'opacity', 'overflow',
-  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
-  'border-top-color', 'border-radius',
-  'border-top-left-radius', 'border-top-right-radius',
-  'border-bottom-right-radius', 'border-bottom-left-radius',
-  'box-shadow', 'font-family', 'font-size', 'font-weight',
-  'line-height', 'letter-spacing', 'text-align', 'direction', 'text-transform',
-  'transform', 'visibility',
-];
+/**
+ * The properties to read, taken FROM `raw.ts` rather than restated here.
+ *
+ * This driver carried its own copy, exactly as the pattern driver did, and the
+ * copy silently outranked the typed list — so `margin-left` reached the pattern
+ * pipeline and never reached this one. Two lists is one too many; there is now
+ * one, and `collectedProps.test.ts` fails if a second appears in either driver.
+ */
+const rawSrc = fs.readFileSync(path.resolve('scripts/figma/extract/raw.ts'), 'utf8');
+const propsBody = rawSrc.slice(rawSrc.indexOf('export const COLLECTED_PROPS = ['));
+// eslint-disable-next-line no-eval
+const PROPS = eval(propsBody.slice(propsBody.indexOf('['), propsBody.indexOf('] as const;') + 1));
+if (!Array.isArray(PROPS) || !PROPS.includes('display')) {
+  throw new Error('could not read COLLECTED_PROPS from scripts/figma/extract/raw.ts');
+}
 
 const url = `http://localhost:${PORT}/_dev/figma?theme=${THEME}&dir=${DIR}` +
   (COMPONENT ? `&component=${COMPONENT}` : '');

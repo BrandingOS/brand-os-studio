@@ -11,15 +11,20 @@ import { COLLECTED_PROPS } from './raw';
  * there was no error anywhere to say why.
  */
 describe('COLLECTED_PROPS is one list', () => {
-  const driver = fs.readFileSync(
-    path.resolve('scripts/figma/extract/extract-patterns.mjs'), 'utf8',
-  );
+  // BOTH drivers. The first version of this test checked only the pattern
+  // driver, so the component driver kept its own copy for another five days —
+  // which is how `margin-left` reached one pipeline and not the other. A guard
+  // that covers one of two call sites is a guard that reports success while the
+  // bug it was written for is still live.
+  const drivers = ['extract-patterns.mjs', 'extract.mjs'].map((f) => ({
+    file: f,
+    src: fs.readFileSync(path.resolve('scripts/figma/extract', f), 'utf8'),
+  }));
 
-  it('is the only place the property list is written', () => {
-    // A second array literal starting with 'display' in the driver is the copy
-    // that outranked this file once already.
-    expect(driver).not.toMatch(/const PROPS = \[\s*'display'/);
-    expect(driver).toContain("rawSrc.indexOf('export const COLLECTED_PROPS = [')");
+  it.each(drivers.map((d) => d.file))('%s writes no second property list', (file) => {
+    const { src } = drivers.find((d) => d.file === file)!;
+    expect(src).not.toMatch(/const PROPS = \[\s*'display'/);
+    expect(src).toContain("rawSrc.indexOf('export const COLLECTED_PROPS = [')");
   });
 
   it('parses out of raw.ts the way the driver parses it', () => {

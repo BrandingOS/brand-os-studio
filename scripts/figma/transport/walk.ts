@@ -583,8 +583,20 @@ async function runPlan(plan) {
       // itself: an axis-less variant's sid IS the set's sid, with no suffix.
       // Testing that rather than a variants[] the plan does not send means a
       // multi-variant set that only found one component still fails loudly.
-      if (loose.length === 1
-        && loose[0].getSharedPluginData('brandingos', 'sid') === set.sid) {
+      /**
+       * ONE variant is not a set — whatever its sid says.
+       *
+       * This used to require the lone component's sid to equal the set's, which
+       * held only while a single-cell component produced a bare sid. Once the
+       * capture began folding its pseudo-state in, `DsDropZone` arrived as
+       * `ds/dropzone[state=default]`, the guard missed, and `combineAsVariants`
+       * was handed one component named "default" — a name carrying no
+       * `prop=value` pair, which makes a COMPONENT_SET that reports
+       * "component set has existing errors" from every property read.
+       *
+       * The count is the honest test: a set of one is a component.
+       */
+      if (loose.length === 1) {
         const only = loose[0];
         only.name = set.name;
         only.x = 0;
