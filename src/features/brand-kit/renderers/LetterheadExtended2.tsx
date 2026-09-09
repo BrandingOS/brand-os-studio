@@ -18,10 +18,12 @@ import { LetterheadExtendedRenderer } from './LetterheadExtended';
  *
  * All 100 ids (`letterhead-ext-31` … `letterhead-ext-130`) are archived in
  * `renderers/curation/letterhead.ts`, so nothing reaches this renderer from
- * the kit, the picker, an export or the editor. The ids are never reused —
- * a customization saved against one of them stays readable, and this module
+ * the kit, the picker, an export or the editor. That is also the measured
+ * reason they stayed archived when the ten wave-1 ids came back: each of
+ * them draws a design the kit already offers. The ids are never reused — a
+ * customization saved against one of them stays readable, and this module
  * still answers if a dev Archive toggle asks, by drawing the kept design at
- * the same position in the curated twenty.
+ * the same position in the curated thirty.
  *
  * The module survives because `renderers/index.tsx` and
  * `data/legacy-mapping.ts` import it, and neither is this family's to edit.
@@ -32,8 +34,14 @@ interface Props {
   content?: LetterContent & { picks?: TemplateDesignPicks };
 }
 
-/** How many curated designs `LetterheadExtended` offers. */
-const KEPT_DESIGNS = 20;
+/**
+ * How many curated designs `LetterheadExtended` offers.
+ *
+ * Twenty until 2026-09-09, when `letterhead-ext-21` … `-ext-30` were
+ * re-authored and un-archived. It must track that array's length: it is
+ * what folds a stale wave-2 reference onto a design that really exists.
+ */
+const KEPT_DESIGNS = 30;
 
 export function LetterheadExtended2Renderer({ brand, templateIndex, content }: Props) {
   return (

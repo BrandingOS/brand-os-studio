@@ -1,5 +1,5 @@
 /**
- * Letterhead — twenty designs, and every one of them is the same letter.
+ * Letterhead — thirty designs, and every one of them is the same letter.
  *
  * The family shipped 130 variants. What they were, measured rather than
  * reviewed: 128 of them declared exactly ONE of the letter kind's eight
@@ -19,6 +19,12 @@
  * an addressee and a body; a design that binds seven of the eight is a
  * design where one thing the customer typed silently does not appear on
  * the page they are about to print.
+ *
+ * Twenty of the thirty since the first curation pass; thirty since
+ * 2026-09-09, when `ext-21` … `ext-30` were re-authored and un-archived.
+ * The bar those ten were held to is this file unchanged apart from its
+ * counts — a restored design that could not pass it would not be a
+ * restored design.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
@@ -43,10 +49,10 @@ const LABEL = 'Letterhead';
 /** The eight fields the `letter` panel offers. */
 const LETTER_PATHS = fieldPathsForFamily('letterhead');
 
-const KEPT_IDS = Array.from({ length: 20 }, (_, i) => `letterhead-ext-${i + 1}`);
+const KEPT_IDS = Array.from({ length: 30 }, (_, i) => `letterhead-ext-${i + 1}`);
 
 describe('letterhead — curation', () => {
-  it('shows twenty designs, not a hundred and thirty', () => {
+  it('shows thirty designs, not a hundred and thirty', () => {
     const shown = variantsForCard(SECTION, LABEL, mockBrand);
     expect(shown.map((t) => t.id)).toEqual(KEPT_IDS);
   });
@@ -55,7 +61,8 @@ describe('letterhead — curation', () => {
     // A template id is a persistence key: `brandos:brand-kit:state` and
     // the saved Quick Edits are filed under it. An id that stops
     // resolving is somebody's saved work stopping resolving with it, so
-    // all 130 stay in the template list and 110 are simply not offered.
+    // all 130 stay in the template list and the 100 of wave 2 are simply
+    // not offered.
     const allIds = [
       ...LETTERHEAD_EXTENDED.map((t) => `letterhead-${t.idSuffix}`),
       ...LETTERHEAD_EXTENDED_2.map((t) => `letterhead-${t.idSuffix}`),
@@ -83,7 +90,7 @@ describe('letterhead — curation', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('features three of the twenty, none of them a generator’s output', () => {
+  it('features three of the thirty, none of them a generator’s output', () => {
     const featured = DEFAULT_FEATURED_IDS_BY_LABEL[LABEL] ?? [];
     expect(featured).toHaveLength(3);
     for (const id of featured) {
@@ -116,8 +123,8 @@ describe('letterhead — binding', () => {
 
   it('leaves no design unbound', () => {
     const results = renderAllVariants(SECTION, LABEL);
-    expect(results).toHaveLength(20);
-    expect(boundVariantCount(results)).toBe(20);
+    expect(results).toHaveLength(30);
+    expect(boundVariantCount(results)).toBe(30);
   });
 
   it('declares nothing it cannot edit', () => {

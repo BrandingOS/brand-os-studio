@@ -7,7 +7,7 @@
  * tinted well, the brand's own colour printed on its own panel — and only
  * a browser with the real stylesheets loaded can see them.
  *
- * The budget is ZERO, for the featured three and for all twenty. A
+ * The budget is ZERO, for the featured three and for all thirty. A
  * letterhead is a document that gets PRINTED: there is no zoom, no
  * hover-to-reveal and no dark-mode escape hatch, and a contact line
  * nobody can make out is a contact line that has cost its owner a reply.
@@ -20,6 +20,11 @@
  * the masthead ranged its sender name RIGHT, which is exactly where the
  * diagonal cuts the band shortest, so a long name really could sit off
  * the colour. The band now CONTAINS its own type. See the renderer.
+ *
+ * Twenty designs until 2026-09-09, thirty since: `ext-21` … `ext-30` were
+ * re-authored and un-archived. The budget did not move for them, which is
+ * the point — a restored design is held to the bar the kept ones cleared,
+ * not to a raised one.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
@@ -52,8 +57,8 @@ function mountAt260(node: React.ReactNode) {
 }
 
 describe('contrast sweep — letterheads', () => {
-  it('has twenty designs and three featured ones to measure', () => {
-    expect(all).toHaveLength(20);
+  it('has thirty designs and three featured ones to measure', () => {
+    expect(all).toHaveLength(30);
     expect(featured).toHaveLength(3);
   });
 
@@ -108,7 +113,7 @@ describe('contrast sweep — letterheads', () => {
     assertReadable(host, { maxViolations: BUDGET, label: 'the featured letterheads' });
   });
 
-  // The picker offers all twenty. A design nobody featured is still a
+  // The picker offers all thirty. A design nobody featured is still a
   // design a customer can choose, and then print two hundred of.
   for (const brand of SEED_BRANDS.slice(0, 2)) {
     it(`reads for every kept design, not only the featured three — ${brand.name}`, () => {
