@@ -387,7 +387,12 @@ export const TILE_MIN_PX: Record<TileDensity, number> = {
   glyph: 140,
   swatch: 180,
   mark: 260,
-  document: 340,
+  // 320, measured rather than guessed: the drilldown's content column is
+  // ~1045px on a 1440px window, and 340 tips it from three columns to two
+  // — a pair of 512px-wide letterheads, which is a magazine spread rather
+  // than a library. 320 holds three there and gives four on a wide screen,
+  // which is what a floor is for.
+  document: 320,
 };
 
 /** Families whose material is smaller than a document. Everything not
