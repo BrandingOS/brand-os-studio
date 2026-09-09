@@ -350,3 +350,52 @@ describe('the custom-size sheet, opened from inside a card', () => {
     }
   });
 });
+
+/**
+ * A TILE'S CUSTOM SIZE, WHICH CLOSED ITSELF INSTEAD OF DOWNLOADING.
+ *
+ * `TileActions` closes its menu on any `mousedown` outside its own
+ * subtree. Once the sheet moved to `<body>` it became "outside", so the
+ * press landed as a mousedown that unmounted the sheet BEFORE the button's
+ * own click could run: the dialog vanished, nothing downloaded, and there
+ * was no error to see. Measured on the Logos drilldown — the row waited
+ * four minutes for a file that was never going to come.
+ */
+describe("a tile's custom-size sheet", () => {
+  it('downloads instead of dismissing itself', async () => {
+    const { render, fireEvent, cleanup } = await import('@testing-library/react');
+    const { TileActions } = await import('../components/TileActions');
+    const chosen: unknown[] = [];
+    render(
+      <TileActions
+        name="Primary · Original"
+        downloadOptions={[{ format: 'custom', label: 'Custom size…', chip: 'PNG' }]}
+        onDownload={(choice) => chosen.push(choice)}
+      />,
+    );
+    try {
+      fireEvent.click(document.querySelector('[aria-label^="Download"]')!);
+      fireEvent.click(document.querySelector('[role="menuitem"]')!);
+      const button = await vi.waitFor(() => {
+        const found = Array.from(document.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === 'Download PNG',
+        );
+        expect(found, 'the sheet never opened').toBeTruthy();
+        return found!;
+      });
+      // The press, as a browser delivers it: mousedown, then click. The
+      // mousedown is the half that used to close the sheet.
+      fireEvent.mouseDown(button);
+      expect(
+        document.body.contains(button),
+        'the sheet closed itself on mousedown',
+      ).toBe(true);
+      fireEvent.click(button);
+      expect(chosen).toEqual([
+        { format: 'custom', size: { width: 1024, height: undefined, padding: 0, background: 'transparent', trim: true } },
+      ]);
+    } finally {
+      cleanup();
+    }
+  });
+});

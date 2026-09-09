@@ -15,6 +15,29 @@ import type { DownloadFormat, DownloadOption, CustomSize } from '../data/exportF
 
 export type DownloadChoice = { format: DownloadFormat; size?: CustomSize };
 
+/**
+ * The marker on the custom-size sheet's host, and the question every
+ * outside-click closer has to ask.
+ *
+ * The sheet renders on `<body>` (see below), so to a surface that closes
+ * its menu on "a mousedown outside my subtree" the sheet IS outside. That
+ * closed the menu on `mousedown` — before the button's own `click` ever
+ * ran — so pressing Download in a tile's custom-size sheet dismissed the
+ * sheet and downloaded nothing, silently: no file, no error, no toast.
+ */
+export const DOWNLOAD_SHEET_ATTR = 'data-bk-download-sheet';
+
+/** Is this event target inside a custom-size sheet? */
+export function isInsideDownloadSheet(target: EventTarget | null): boolean {
+  return target instanceof Node
+    ? Boolean(
+        (target instanceof Element ? target : target.parentElement)?.closest(
+          `[${DOWNLOAD_SHEET_ATTR}]`,
+        ),
+      )
+    : false;
+}
+
 export function DownloadMenu({
   options,
   onChoose,
@@ -55,6 +78,7 @@ export function DownloadMenu({
   );
   useEffect(() => {
     if (!host) return undefined;
+    host.setAttribute(DOWNLOAD_SHEET_ATTR, '');
     const theme = scope.current?.closest<HTMLElement>('[data-theme]')?.dataset.theme;
     if (theme) host.dataset.theme = theme;
     document.body.appendChild(host);
