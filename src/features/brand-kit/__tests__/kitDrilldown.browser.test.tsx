@@ -178,14 +178,14 @@ describe('a tile carries its own actions', () => {
       fireEvent.click(first.querySelector('button[aria-label^="Edit "]')!);
       await settle();
 
-      // The asset editor is a DsModal with the family's own title…
-      const modal = document.querySelector('.ds-modal') as HTMLElement | null;
-      expect(modal).toBeTruthy();
+      // The asset editor is a DOCKED PANEL with the family's own title…
+      const panel = document.querySelector('.bk-dock-panel') as HTMLElement | null;
+      expect(panel).toBeTruthy();
       // …and it asks for something. An empty panel is the defect.
       expect(
-        modal!.querySelectorAll('input, select, button[role="combobox"], .ds-select').length,
+        panel!.querySelectorAll('input, select, button[role="combobox"], .ds-select').length,
       ).toBeGreaterThan(0);
-      // The legacy full-screen card editor must not be what opened.
+      // The template-content editor must not be what opened.
       expect(document.querySelector('.bk-editor')).toBeNull();
     },
   );
