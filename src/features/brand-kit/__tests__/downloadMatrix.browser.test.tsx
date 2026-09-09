@@ -399,3 +399,59 @@ describe("a tile's custom-size sheet", () => {
     }
   });
 });
+
+/**
+ * A TILE MENU THAT THE NEXT TILE PAINTS OVER.
+ *
+ * Every variant card carries `will-change: opacity` for the drilldown's
+ * wave reveal, and that creates a STACKING CONTEXT — so `.bk-tile-actions`'
+ * `z-index: 3` orders the menu only INSIDE its own card, and the next tile
+ * in the grid, plain and later in the DOM, paints over whatever overhangs
+ * it. Measured on the Colours wall: every row of an open menu answered
+ * `elementFromPoint` with a neighbouring tile's label. Not one of the five
+ * could be clicked, and the tiles that happened to work were the ones with
+ * no later sibling underneath — which is why it looked like a Colours bug.
+ *
+ * The rule is asserted rather than the symptom: a card with focus inside
+ * has to out-rank its siblings. Reproducing the symptom needs a real grid
+ * at a real width, which is what the harness in `.audit/downloads/` does.
+ */
+describe('a tile whose menu is open', () => {
+  it('out-ranks the tiles that come after it', async () => {
+    const { render, cleanup } = await import('@testing-library/react');
+    const { container } = render(
+      <div data-workspace="">
+        <figure className="bk-variant-card" style={{ willChange: 'opacity' }}>
+          <button type="button" data-testid="opener" />
+        </figure>
+        <figure className="bk-variant-card" data-testid="next" style={{ willChange: 'opacity' }} />
+        <figure className="bk-card" data-testid="card">
+          <button type="button" data-testid="card-opener" />
+        </figure>
+        <figure className="bk-card" data-testid="next-card" />
+      </div>,
+    );
+    try {
+      const z = (el: Element | null) => getComputedStyle(el!).zIndex;
+      const rank = (el: Element | null) => (z(el) === 'auto' ? 0 : Number(z(el)));
+      // Nothing moves while no menu is open — a grid where every tile is
+      // raised is a grid where none of them is.
+      expect(rank(container.querySelector('.bk-variant-card'))).toBe(0);
+
+      container.querySelector<HTMLElement>('[data-testid="opener"]')!.focus();
+      expect(
+        rank(container.querySelector('.bk-variant-card')),
+        'the tile with focus inside must out-rank the next one',
+      ).toBeGreaterThan(rank(container.querySelector('[data-testid="next"]')));
+
+      // Same rule, same reason, one level up — `.bk-card` carries the same
+      // `will-change: opacity` for the page's own wave reveal.
+      container.querySelector<HTMLElement>('[data-testid="card-opener"]')!.focus();
+      expect(rank(container.querySelector('[data-testid="card"]'))).toBeGreaterThan(
+        rank(container.querySelector('[data-testid="next-card"]')),
+      );
+    } finally {
+      cleanup();
+    }
+  });
+});

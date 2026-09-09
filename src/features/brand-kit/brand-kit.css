@@ -83,6 +83,15 @@
   z-index: 2;
   pointer-events: none;
 }
+/* Same rule, same reason, one level up: `.bk-card` also carries
+   `will-change: opacity` for the page's wave reveal, so a card's own
+   download menu is ordered only within that card. */
+[data-workspace] .bk-card:hover,
+[data-workspace] .bk-card:focus-within,
+[data-workspace] .bk-card.is-ctx-active {
+  position: relative;
+  z-index: 4;
+}
 [data-workspace] .bk-card:hover .bk-card-actions,
 [data-workspace] .bk-card:focus-within .bk-card-actions,
 [data-workspace] .bk-card.is-ctx-active .bk-card-actions {
@@ -3397,6 +3406,21 @@
 }
 /* Focus-within as well as hover: the actions have to be reachable with
    Tab, and a control you can focus but cannot see is worse than none. */
+/* THE CARD WITH THE OPEN MENU PAINTS ABOVE ITS NEIGHBOURS.
+   Every variant card carries `will-change: opacity` for the drilldown's
+   wave reveal, and `will-change` on opacity CREATES A STACKING CONTEXT —
+   so `.bk-tile-actions`' own `z-index: 3` only orders it INSIDE its card,
+   and the next tile in the grid, plain and later in the DOM, paints over
+   the menu that overhangs it. Measured on the Colours wall: every row of
+   an open tile menu answered `elementFromPoint` with a neighbouring
+   tile's label, so not one of the five could be clicked. The tiles that
+   happened to work were the ones with no later sibling underneath.
+   Ordering the card itself is the fix; nothing here changes while no
+   menu is open. */
+[data-workspace] .bk-variant-card:hover,
+[data-workspace] .bk-variant-card:focus-within {
+  z-index: 4;
+}
 [data-workspace] .bk-variant-card:hover .bk-tile-actions,
 [data-workspace] .bk-variant-card:focus-within .bk-tile-actions,
 [data-workspace] .bk-tile-actions:focus-within {
