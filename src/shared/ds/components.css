@@ -229,6 +229,17 @@
   font-family: var(--ds-font);
   text-align: left;
 }
+.ds-select-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.ds-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .ds-select-option:hover {
   background: var(--ds-surface-hover);
 }

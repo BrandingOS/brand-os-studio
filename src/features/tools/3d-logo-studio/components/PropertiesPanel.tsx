@@ -12,6 +12,7 @@ import { DsSegmented, DsSelect, DsSlider, DsSwitch, DsButton } from '@/shared/ds
 import type { CameraView, GeometryMode, Studio3dDocument } from '../engine/document';
 import { currentCameraView } from '../engine/document';
 import { MATERIAL_PRESETS } from '../materials/presets';
+import { materialOptions } from './MaterialSwatch';
 import { LIGHTING_PRESETS } from '../materials/lighting';
 
 export interface PropertiesPanelProps {
@@ -182,9 +183,10 @@ export function PropertiesPanel({
 
       <Group title="Material">
         <DsSelect
-          options={MATERIAL_PRESETS.map((m) => ({ value: m.id, label: m.name }))}
+          options={materialOptions(MATERIAL_PRESETS)}
           value={doc.materials.defaultId}
           onChange={onMaterialChange}
+          aria-label="Material"
         />
       </Group>
 
@@ -196,7 +198,7 @@ export function PropertiesPanel({
             { value: 'side', label: 'Side' },
             { value: 'top', label: 'Top' },
           ]}
-          value={view ?? 'front'}
+          value={view ?? ''}
           onChange={(v) => onViewChange(v as CameraView)}
           aria-label="Camera view"
         />

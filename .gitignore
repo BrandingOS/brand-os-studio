@@ -56,4 +56,7 @@ landingpage/dist-dev/
 # The curated set lives in docs/logo-3d/proof/.
 src/features/tools/3d-logo-studio/__tests__/phase2-*.png
 src/features/tools/3d-logo-studio/__tests__/sweep-*.png
+src/features/tools/3d-logo-studio/__tests__/ref-*.png
+src/features/tools/3d-logo-studio/__tests__/diag-*.png
+src/features/tools/3d-logo-studio/__tests__/swatches-*.png
 src/features/tools/3d-logo-studio/__tests__/__screenshots__/

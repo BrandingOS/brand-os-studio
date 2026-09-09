@@ -77,7 +77,10 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
   // discarded instead of painting an older shape over a newer one.
   const versionRef = useRef(0);
   const aliveRef = useRef(true);
-  useEffect(() => () => { aliveRef.current = false; }, []);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!doc) {
@@ -108,7 +111,10 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
       }
     }, 0);
     return () => window.clearTimeout(handle);
-  }, [doc]);
+    // Only modeling inputs rebuild geometry. A camera gesture or material change
+    // must not run triangulation again on the main thread.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc?.source, doc?.geometry, doc?.components, doc?.componentState, doc?.modifiers]);
 
   const handleFile = useCallback(async (file: File) => {
     setImporting(true);
@@ -173,7 +179,8 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
             </div>
           }
         >
-          <Viewport doc={doc} mesh={mesh} busy={busy} />
+          <Viewport doc={doc} mesh={mesh} busy={busy}
+            onCameraChange={(camera) => setDoc((d) => d ? setCamera(d, camera) : d)} />
         </Suspense>
 
         <PropertiesPanel
@@ -186,7 +193,7 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
           onLightingChange={(id) => setDoc((d) => (d ? setLighting(d, { presetId: id }) : d))}
           onBackgroundToggle={(v) => setDoc((d) => (d ? setLighting(d, { showBackground: v }) : d))}
           onViewChange={(view: CameraView) => setDoc((d) => (d ? setCameraView(d, view) : d))}
-          onProjectionChange={(projection) => setDoc((d) => (d ? setCamera(d, { projection }) : d))}
+          onProjectionChange={(projection) => setDoc((d) => (d ? setCamera(d, { projection, zoom: undefined, frustumHeight: undefined }) : d))}
           onReset={() => setDoc((d) => (d ? resetToSource(d) : d))}
         />
       </div>

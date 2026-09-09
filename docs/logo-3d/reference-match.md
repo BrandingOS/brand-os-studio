@@ -138,3 +138,57 @@ tested.
   a scheduled piece of work with a named library, not an unknown.
 
 Evidence: `proof/ref-*.png`, rendered through the product at its own defaults.
+
+---
+
+## Material swatches in the picker (2026-09-09)
+
+The material dropdown listed names only. It now carries a **rendered sphere** per
+material, on the closed control and on every option.
+
+**Why rendered rather than a colour chip.** Polished chrome, brushed aluminium
+and textured silver are all "a light grey metal" by their colour values; what
+separates them is entirely how they reflect and how their grain runs. A chip
+cannot show that, so a chip would have made the user open all three. The swatches
+go through the same `Studio`, the same materials and the same environment as the
+viewport, which also means a material can never look one way in the picker and
+another on the model. All twenty-four are drawn in one pass on one offscreen
+canvas and cached for the tab — it is the WebGL context that is worth being
+careful with, and this takes exactly one and gives it straight back.
+
+**`DsSelect` gained an optional `icon` per option.** A leading visual in a select
+option is an ordinary select capability, not a product concept, so it belongs in
+the DS rather than in a forked listbox — the alternative was rebuilding the
+outside-click handling and keyboard behaviour around a private copy.
+
+Three things this turned up:
+
+- **Glass rendered as a blank circle.** Transmission refracts what is *behind*
+  the surface, and behind it was a transparent background. Transmissive presets
+  now get a high-contrast gradient card to bend; a gentle one close to the
+  glass's own tone gave a featureless pale disc that could have been ceramic.
+- **The swatch was a square wherever the editor was not also mounted**, because
+  the circular crop lives in the feature stylesheet and the component was relying
+  on a neighbour to import it. It imports its own styles now.
+- **A flat chip still renders first**, derived from the material's parameters,
+  and is replaced when the sphere arrives. On a machine without WebGL that chip
+  is what stays — a picker that is less informative, rather than one that is
+  blank.
+
+Tests: `__tests__/materialSwatch.browser.test.tsx` (9), including that the three
+grey metals produce three *different* pictures, that no swatch is blank, and that
+gold reads warmer than copper is red.
+
+### Two pre-existing browser failures, checked rather than assumed
+
+The full browser suite has two failures. Both were verified against a worktree at
+`876f7950` — the commit before any of this feature existed:
+
+- `_dev/toolbar-editor.browser.test.tsx` → *"Unable to find a label with the text
+  of: Expand chart"* — **fails at the baseline too**. `ChartToolbar` uses a raw
+  `aria-label` and no DS select, so the `DsSelect` change cannot reach it.
+- `brand-kit/renderers/presentations.export.browser.test.tsx` → a 15s timeout in
+  the full parallel run; **passes in isolation**. A load flake in a heavy
+  rasterisation test, not a regression.
+
+Neither is caused by this work, and neither is fixed by it.

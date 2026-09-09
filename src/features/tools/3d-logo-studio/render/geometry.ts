@@ -20,14 +20,14 @@ export interface BuiltGeometry {
 
 export function toBufferGeometry(mesh: MeshData): BuiltGeometry {
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
+  geometry.setAttribute('position', new THREE.BufferAttribute(mesh.positions.slice(), 3));
   if (mesh.normals.length === mesh.positions.length) {
-    geometry.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(mesh.normals.slice(), 3));
   }
   if (mesh.uvs.length === (mesh.positions.length / 3) * 2) {
-    geometry.setAttribute('uv', new THREE.BufferAttribute(mesh.uvs, 2));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(mesh.uvs.slice(), 2));
   }
-  geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+  geometry.setIndex(new THREE.BufferAttribute(mesh.indices.slice(), 1));
 
   const componentOrder: string[] = [];
   mesh.groups.forEach((g, i) => {
@@ -61,23 +61,25 @@ export function normalizeToUnitSize(geometry: THREE.BufferGeometry, targetSize =
   const scale = targetSize / largest;
   geometry.translate(-centre.x, -centre.y, -centre.z);
   geometry.scale(scale, scale, scale);
-  // SVG's Y axis points down and every 3D convention here points it up. Flipping
-  // on the geometry rather than the object keeps the model upright in an
-  // exported GLB too, where a parent's negative scale is a well-known way to
-  // make other applications' normals come out inside-out.
+  // Generators intentionally emit negative signed volume in SVG's Y-down
+  // frame. Reflecting Y already turns that into positive volume. Reversing
+  // indices a second time made every rendered surface face inward.
   geometry.scale(1, -1, 1);
-  // A negative scale on one axis reverses every triangle's winding, so the
-  // faces have to be turned back or the whole model renders inside-out. Doing
-  // it here rather than leaving it to the caller is deliberate: the two
-  // operations are one step, and separating them is a bug waiting to be
-  // reintroduced.
-  flipWinding(geometry);
+  const normal = geometry.getAttribute('normal');
+  if (normal) {
+    // Reflection changes cross-product handedness; the normal matrix alone
+    // cannot account for that sign. Preserve smoothing and negate once.
+    for (let i = 0; i < normal.count; i++) {
+      normal.setXYZ(i, -normal.getX(i), -normal.getY(i), -normal.getZ(i));
+    }
+    normal.needsUpdate = true;
+  }
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return scale;
 }
 
-/** Reverse triangle winding (and the Y component of the normals with it). */
+/** Reverse winding after reflection. BufferGeometry.scale already transformed normals. */
 export function flipWinding(geometry: THREE.BufferGeometry): void {
   const index = geometry.getIndex();
   if (!index) return;
@@ -88,10 +90,4 @@ export function flipWinding(geometry: THREE.BufferGeometry): void {
     a[i + 2] = t;
   }
   index.needsUpdate = true;
-  const normal = geometry.getAttribute('normal');
-  if (normal) {
-    const n = normal.array as Float32Array;
-    for (let i = 1; i < n.length; i += 3) n[i] = -n[i];
-    normal.needsUpdate = true;
-  }
 }

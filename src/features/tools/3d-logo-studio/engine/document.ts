@@ -91,6 +91,9 @@ export interface Modifier {
 }
 
 export interface CameraState {
+  /** Optional for documents made before interactive navigation. */
+  zoom?: number;
+  frustumHeight?: number;
   position: [number, number, number];
   target: [number, number, number];
   fov: number;
@@ -239,12 +242,13 @@ export function setCameraView(doc: Studio3dDocument, view: CameraView): Studio3d
   const norm = Math.hypot(...dir) || 1;
   return setCamera(doc, {
     position: [(dir[0] / norm) * length, (dir[1] / norm) * length, (dir[2] / norm) * length],
+    target: [0, 0, 0], zoom: undefined, frustumHeight: undefined,
   });
 }
 
 /** Which preset the camera is currently pointing along, if any. */
 export function currentCameraView(doc: Studio3dDocument): CameraView | null {
-  const [x, y, z] = doc.camera.position;
+  const [x, y, z] = doc.camera.position.map((v, i) => v - doc.camera.target[i]);
   const length = Math.hypot(x, y, z);
   if (!(length > 0)) return null;
   for (const [name, dir] of Object.entries(CAMERA_VIEWS) as [CameraView, readonly number[]][]) {

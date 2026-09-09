@@ -10,6 +10,15 @@ import { CheckIcon, ChevronDownIcon } from './icons';
 export interface DsSelectOption {
   value: string;
   label: string;
+  /**
+   * An optional leading visual — a swatch, a colour chip, an icon.
+   *
+   * Generic on purpose: a select whose options carry a small preview is an
+   * ordinary select, not a special one, and the alternative is every consumer
+   * that needs one rebuilding the listbox, the outside-click handling and the
+   * keyboard behaviour around it.
+   */
+  icon?: React.ReactNode;
 }
 
 export interface DsSelectProps {
@@ -59,8 +68,9 @@ export function DsSelect({
         aria-label={ariaLabel}
         onClick={() => setOpen((v) => !v)}
       >
-        <span style={{ color: selected ? undefined : 'var(--ds-text-placeholder)' }}>
-          {selected?.label ?? placeholder}
+        <span className="ds-select-value" style={{ color: selected ? undefined : 'var(--ds-text-placeholder)' }}>
+          {selected?.icon}
+          <span className="ds-select-label">{selected?.label ?? placeholder}</span>
         </span>
         <ChevronDownIcon size={13} />
       </button>
@@ -82,7 +92,10 @@ export function DsSelect({
                   setOpen(false);
                 }}
               >
-                {option.label}
+                <span className="ds-select-value">
+                  {option.icon}
+                  <span className="ds-select-label">{option.label}</span>
+                </span>
                 {isSelected && <CheckIcon size={12} />}
               </button>
             );
