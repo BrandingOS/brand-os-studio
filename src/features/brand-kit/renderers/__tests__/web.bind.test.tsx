@@ -11,9 +11,12 @@
  * Two things are measured here, and the second is the one a screenshot
  * cannot see.
  *
- *   1. Curation — twelve designs per card, each with a designer's name
- *      and its own tags, and every culled id still RESERVED so a saved
- *      customization filed under it still resolves.
+ *   1. Curation — every design a card offers has a designer's name and
+ *      its own tags, the ids run in order with no hole in them, and any
+ *      id still archived is the TAIL of the list, so a saved
+ *      customization filed under one still resolves. The counts are read
+ *      from each family's own name map: a family that restores a design
+ *      changes its renderer, and nothing here.
  *   2. Binding — every kept design declares every field its panel offers.
  *      All-or-nothing, because a hero that binds the headline and not the
  *      subhead is a design where half the customer's edits vanish.
@@ -104,17 +107,20 @@ const FAMILIES = [
 describe.each(FAMILIES)('$label — curation', (family) => {
   const keptIds = Object.keys(family.names);
 
-  it('shows twelve designs, not thirty', () => {
+  it('shows exactly the designs it owns', () => {
     const shown = variantsForCard(SECTION, family.label, mockBrand);
     expect(shown.map((t) => t.id)).toEqual(keptIds);
-    expect(shown).toHaveLength(12);
   });
 
-  it('reserves every culled id rather than renumbering', () => {
+  it('reserves every id rather than renumbering', () => {
+    // The counts are DERIVED from the family's own name map rather than
+    // written down here, so restoring a design into a family is one edit
+    // in that family's renderer — and an id that is still archived is
+    // still proven to be the tail of the list, never a hole in it.
     const allIds = family.all.map((t) => `${family.prefix}-${t.idSuffix}`);
     expect(allIds).toHaveLength(30);
-    expect(allIds.slice(0, 12)).toEqual(keptIds);
-    expect(allIds.slice(12)).toEqual(family.archivedIds);
+    expect(allIds.slice(0, keptIds.length)).toEqual(keptIds);
+    expect(allIds.slice(keptIds.length)).toEqual(family.archivedIds);
     for (const id of family.archivedIds) expect(isArchived(id)).toBe(true);
     for (const id of keptIds) expect(isArchived(id)).toBe(false);
   });
@@ -151,7 +157,11 @@ describe('the stats row', () => {
 
   it.each(heroFamilies)('$label prints no stat nobody supplied', (family) => {
     const results = renderAllVariants(SECTION, family.label, undefined, { mock: mockBrand });
-    expect(results).toHaveLength(12);
+    // Derived from the family's own name map, like every other count in
+    // this file: the eighteen heroes restored on 2026-09-09 had to be
+    // swept for invented stats too, and a hard-coded twelve would have
+    // said "pass" while measuring the first twelve of thirty.
+    expect(results).toHaveLength(Object.keys(family.names).length);
     for (const r of results) {
       const invented = r.paths.filter((p) => p.startsWith('stats.'));
       expect(invented, `${r.template.id} invented ${invented.join(', ')}`).toEqual([]);

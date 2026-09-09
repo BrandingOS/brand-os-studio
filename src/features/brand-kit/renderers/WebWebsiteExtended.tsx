@@ -14,7 +14,7 @@ import {
 import { typePx } from './typeFloor';
 
 /**
- * Website — twelve hero layouts over the `webHero` content model.
+ * Website — thirty hero layouts over the `webHero` content model.
  *
  * What this family used to be: thirty browser mockups whose address bar
  * always read `brand.com`, whose hero said "make it last." in a serif
@@ -456,7 +456,53 @@ export function BrowserWindow({
   );
 }
 
-/* ── The twelve ───────────────────────────────────────────────────── */
+/**
+ * The same links, worn as outlined pills.
+ *
+ * A second reading of `nav`, not a second field: the paths are still
+ * `nav.0`…`nav.n`, so a link edited in the panel lands here exactly as it
+ * lands in the plain row.
+ */
+export function NavPills({
+  brand,
+  c,
+  color,
+  border,
+  size = 5.5,
+}: {
+  brand: Brand;
+  c: WebHeroContent;
+  color: string;
+  border: string;
+  size?: number;
+}) {
+  return (
+    <div className="flex flex-wrap items-center" style={{ gap: 4 }}>
+      {c.nav.map((label, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center min-w-0"
+          style={{ border: `1px solid ${border}`, borderRadius: 999, padding: '1px 6px' }}
+        >
+          <Bind
+            path={`nav.${i}`}
+            value={label}
+            fit="clamp"
+            style={{
+              color,
+              fontFamily: fontStack(brand, 'body'),
+              fontSize: typePx(size),
+              fontWeight: 500,
+              lineHeight: 1.2,
+            }}
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ── The thirty ──────────────────────────────────────────────────── */
 
 export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: WebHeroProps) {
   const c = heroContent(brand, content);
@@ -576,9 +622,12 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
           <Mark brand={brand} ground={inverted.bg} height={10} />
           <Nav brand={brand} c={c} color={inverted.text} />
         </div>
-        <div className="flex-1 flex flex-col justify-center gap-2">
+        <div className="flex-1 min-h-0 flex flex-col justify-center gap-2">
           <Eyebrow brand={brand} c={c} color={accentOn(inverted)} />
-          <Headline brand={brand} c={c} color={inverted.text} size={18} lines={3} />
+          {/* Two lines, not three: at 18px a third line pushed the two
+              buttons 11.5px below the page's own bottom edge, on both seed
+              brands. The scale is the design; the third line was not. */}
+          <Headline brand={brand} c={c} color={inverted.text} size={18} lines={2} />
           <div style={{ maxWidth: '72%' }}>
             <Subhead brand={brand} c={c} color={invMuted} lines={2} />
           </div>
@@ -773,6 +822,446 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
         </div>
       </div>
     ),
+    // 13 — Reverse Split. The dark half carries the navigation.
+    (
+      <div className="w-full h-full flex">
+        <div
+          className="w-[42%] h-full flex flex-col justify-between"
+          style={{ backgroundColor: inverted.bg, padding: 10 }}
+        >
+          <Mark brand={brand} ground={inverted.bg} height={11} />
+          <Nav brand={brand} c={c} color={inverted.text} vertical gap={4} size={5.5} />
+          <Url brand={brand} c={c} color={invMuted} size={5.5} />
+        </div>
+        <div
+          className="flex-1 h-full flex flex-col justify-center min-w-0"
+          style={{ backgroundColor: page.bg, padding: 11, gap: 4 }}
+        >
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+          <Headline brand={brand} c={c} color={page.text} size={14} lines={3} />
+          <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={2} />
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+          <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+        </div>
+      </div>
+    ),
+    // 14 — Float Card. The hero lifted off the page it sits on.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: subtle.bg, padding: 9, gap: 6 }}>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <Mark brand={brand} ground={subtle.bg} height={10} />
+          <Nav brand={brand} c={c} color={subtle.text} size={5.5} gap={7} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col items-center justify-center text-center"
+          style={{
+            backgroundColor: page.bg,
+            borderRadius: 6,
+            border: `1px solid ${ruleOn(page)}`,
+            padding: 9,
+            gap: 3,
+          }}
+        >
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+          <div className="w-full">
+            <Headline brand={brand} c={c} color={page.text} size={12} lines={3} align="center" />
+          </div>
+          <div style={{ maxWidth: '86%' }}>
+            <Subhead brand={brand} c={c} color={pageMuted} size={5.5} lines={2} align="center" />
+          </div>
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} center />
+          <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} align="center" />
+        </div>
+      </div>
+    ),
+    // 15 — Marquee. The eyebrow runs the width of the brand's own strip.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg }}>
+        <div
+          className="flex items-center gap-3 shrink-0"
+          style={{ backgroundColor: brandT.bg, padding: '5px 11px' }}
+        >
+          <Mark brand={brand} ground={brandT.bg} height={9} />
+          <div className="flex-1 min-w-0">
+            <Eyebrow brand={brand} c={c} color={brandT.text} size={5.5} />
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col justify-center min-h-0" style={{ padding: '0 11px', gap: 4 }}>
+          <Headline brand={brand} c={c} color={page.text} size={16} lines={2} />
+          <div style={{ maxWidth: '82%' }}>
+            <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
+          </div>
+        </div>
+        <div
+          className="flex items-end justify-between gap-2 shrink-0"
+          style={{ padding: 11, borderTop: `1px solid ${ruleOn(page)}` }}
+        >
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+          <div className="flex flex-col items-end" style={{ gap: 4 }}>
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+            <Nav brand={brand} c={c} color={pageMuted} size={5} gap={6} />
+          </div>
+        </div>
+      </div>
+    ),
+    // 16 — Deep Field. Dark, and centred on one line.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: inverted.bg, padding: 11 }}>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <Mark brand={brand} ground={inverted.bg} height={10} />
+          <Nav brand={brand} c={c} color={inverted.text} size={5.5} gap={7} />
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center min-h-0" style={{ gap: 3 }}>
+          <Eyebrow brand={brand} c={c} color={accentOn(inverted)} size={5.5} />
+          <div className="w-full">
+            <Headline brand={brand} c={c} color={inverted.text} size={13} lines={3} align="center" />
+          </div>
+          <div style={{ maxWidth: '80%' }}>
+            <Subhead brand={brand} c={c} color={invMuted} size={6} lines={2} align="center" />
+          </div>
+          <Ctas brand={brand} c={c} fill={page.bg} ghost={inverted.text} size={5.5} center />
+        </div>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <Url brand={brand} c={c} color={invMuted} size={5.5} />
+          <Stats brand={brand} c={c} color={inverted.text} mutedColor={invMuted} size={10} />
+        </div>
+      </div>
+    ),
+    // 17 — Right Rail. The rail changes sides, and changes tone with it.
+    (
+      <div className="w-full h-full flex">
+        <div
+          className="flex-1 h-full flex flex-col justify-center min-w-0"
+          style={{ backgroundColor: page.bg, padding: 11, gap: 4 }}
+        >
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+          <Headline brand={brand} c={c} color={page.text} size={14} lines={3} />
+          <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={2} />
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+        </div>
+        <div
+          className="w-[26%] h-full flex flex-col justify-between"
+          style={{ backgroundColor: subtle.bg, padding: 9, borderLeft: `1px solid ${ruleOn(subtle)}` }}
+        >
+          <Mark brand={brand} ground={subtle.bg} height={10} />
+          <Nav brand={brand} c={c} color={subtle.text} vertical gap={4} size={5.5} />
+          <Stats brand={brand} c={c} color={subtle.text} mutedColor={mutedOn(subtle)} size={10} />
+        </div>
+      </div>
+    ),
+    // 18 — Foot Band. Everything leans on the colour at the bottom.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg }}>
+        <div className="flex items-center justify-between gap-2 shrink-0" style={{ padding: '9px 11px 0' }}>
+          <Mark brand={brand} ground={page.bg} height={10} />
+          <Nav brand={brand} c={c} color={page.text} size={5.5} gap={7} />
+        </div>
+        <div className="flex-1 flex flex-col justify-center min-h-0" style={{ padding: '0 11px', gap: 4 }}>
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} />
+          <Headline brand={brand} c={c} color={page.text} size={16} lines={2} />
+          <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
+        </div>
+        <div
+          className="flex items-center justify-between gap-3 shrink-0"
+          style={{ backgroundColor: brandT.bg, padding: '9px 11px' }}
+        >
+          <Ctas brand={brand} c={c} fill={page.bg} ghost={brandT.text} size={5.5} />
+          <div className="flex flex-col items-end" style={{ gap: 3 }}>
+            <Stats brand={brand} c={c} color={brandT.text} mutedColor={brandMuted} size={10} />
+            <Url brand={brand} c={c} color={brandT.text} size={5.5} />
+          </div>
+        </div>
+      </div>
+    ),
+    // 19 — Pill Row. The site's links, worn as pills under the promise.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg, padding: 11, gap: 5 }}>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <Mark brand={brand} ground={page.bg} height={10} />
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+        </div>
+        <div className="flex-1 flex flex-col justify-center min-h-0" style={{ gap: 4 }}>
+          <Headline brand={brand} c={c} color={page.text} size={15} lines={2} />
+          <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={2} />
+          <NavPills brand={brand} c={c} color={page.text} border={ruleOn(page)} />
+        </div>
+        <div className="flex items-end justify-between gap-2 shrink-0">
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+          <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+        </div>
+      </div>
+    ),
+    // 20 — Framed Lede. The opening paragraph, boxed like a standfirst.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: subtle.bg, padding: 11, gap: 5 }}>
+        <div
+          className="flex items-center justify-between gap-2 pb-1.5 shrink-0"
+          style={{ borderBottom: `1px solid ${ruleOn(subtle)}` }}
+        >
+          <Mark brand={brand} ground={subtle.bg} height={10} />
+          <Nav brand={brand} c={c} color={subtle.text} size={5.5} gap={7} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col justify-center"
+          style={{ border: `1px solid ${ruleOn(subtle)}`, padding: 7, gap: 3 }}
+        >
+          <Eyebrow brand={brand} c={c} color={accentOn(subtle)} size={5.5} />
+          <Headline brand={brand} c={c} color={subtle.text} size={13} lines={2} />
+          <Subhead brand={brand} c={c} color={mutedOn(subtle)} size={5.5} lines={2} />
+        </div>
+        <div className="flex items-end justify-between gap-2 shrink-0">
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={subtle.text} size={5.5} />
+          <Stats brand={brand} c={c} color={subtle.text} mutedColor={mutedOn(subtle)} size={10} />
+        </div>
+      </div>
+    ),
+    // 21 — Stack Bands. Colour, paper, tint: the page in three strata.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg }}>
+        <div
+          className="flex items-center justify-between gap-2 shrink-0"
+          style={{ backgroundColor: brandT.bg, padding: '7px 11px' }}
+        >
+          <Mark brand={brand} ground={brandT.bg} height={10} />
+          <Nav brand={brand} c={c} color={brandT.text} size={5.5} gap={7} />
+        </div>
+        <div className="flex-1 flex flex-col justify-center min-h-0" style={{ padding: '0 11px', gap: 3 }}>
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+          <Headline brand={brand} c={c} color={page.text} size={15} lines={2} />
+          <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={2} />
+        </div>
+        <div
+          className="flex items-center justify-between gap-3 shrink-0"
+          style={{ backgroundColor: subtle.bg, padding: '8px 11px', borderTop: `1px solid ${ruleOn(subtle)}` }}
+        >
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={subtle.text} size={5.5} />
+          <Stats brand={brand} c={c} color={subtle.text} mutedColor={mutedOn(subtle)} size={10} />
+        </div>
+      </div>
+    ),
+    // 22 — Left Rule. One colour stripe holds the whole page upright.
+    (
+      <div className="w-full h-full flex" style={{ backgroundColor: page.bg }}>
+        <div className="shrink-0" style={{ width: 7, backgroundColor: brandT.bg }} />
+        <div className="flex-1 min-w-0 flex flex-col" style={{ padding: 11 }}>
+          <div className="flex items-center justify-between gap-2 shrink-0">
+            <Mark brand={brand} ground={page.bg} height={10} />
+            <Nav brand={brand} c={c} color={page.text} size={5.5} gap={7} />
+          </div>
+          <div className="flex-1 flex flex-col justify-center min-h-0" style={{ gap: 4 }}>
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} />
+            <Headline brand={brand} c={c} color={page.text} size={16} lines={2} />
+            <Subhead brand={brand} c={c} color={pageMuted} lines={2} />
+          </div>
+          <div className="flex items-end justify-between gap-2 shrink-0">
+            <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+          </div>
+        </div>
+      </div>
+    ),
+    // 23 — Quiet Top. Almost no chrome, so the headline is the site.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg, padding: 11 }}>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <Url brand={brand} c={c} color={pageMuted} size={5} />
+          <Nav brand={brand} c={c} color={pageMuted} size={5} gap={6} />
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center min-h-0" style={{ gap: 3 }}>
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+          <div className="w-full">
+            <Headline brand={brand} c={c} color={page.text} size={15} lines={3} align="center" />
+          </div>
+          <div style={{ maxWidth: '74%' }}>
+            <Subhead brand={brand} c={c} color={pageMuted} size={5.5} lines={2} align="center" />
+          </div>
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} center />
+        </div>
+        <div className="flex items-end justify-between gap-2 shrink-0">
+          <Mark brand={brand} ground={page.bg} height={10} />
+          <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+        </div>
+      </div>
+    ),
+    // 24 — Colour Column. The brand's field carries the headline itself.
+    (
+      <div className="w-full h-full flex">
+        <div
+          className="flex-1 h-full flex flex-col justify-between min-w-0"
+          style={{ backgroundColor: page.bg, padding: 11 }}
+        >
+          <Mark brand={brand} ground={page.bg} height={10} />
+          <div className="flex flex-col" style={{ gap: 3 }}>
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+            <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={3} />
+          </div>
+          <div className="flex items-end justify-between gap-2">
+            <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+          </div>
+        </div>
+        <div
+          className="w-[46%] h-full flex flex-col justify-between"
+          style={{ backgroundColor: brandT.bg, padding: 11 }}
+        >
+          <Nav brand={brand} c={c} color={brandT.text} vertical gap={3} size={5.5} />
+          <Headline brand={brand} c={c} color={brandT.text} size={13} lines={3} />
+        </div>
+      </div>
+    ),
+    // 25 — Cell Grid. Four cells, each holding one part of the pitch.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: subtle.bg, padding: 8, gap: 6 }}>
+        <div className="flex items-center justify-between gap-2 shrink-0" style={{ padding: '0 2px' }}>
+          <Mark brand={brand} ground={subtle.bg} height={10} />
+          <Nav brand={brand} c={c} color={subtle.text} size={5.5} gap={6} />
+        </div>
+        <div className="flex-1 min-h-0 flex" style={{ gap: 6 }}>
+          <div
+            className="flex-1 min-w-0 flex flex-col justify-between"
+            style={{ backgroundColor: page.bg, borderRadius: 4, padding: 8 }}
+          >
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+            <Headline brand={brand} c={c} color={page.text} size={13} lines={3} />
+          </div>
+          <div className="w-[42%] flex flex-col" style={{ gap: 6 }}>
+            <div
+              className="flex-1 min-h-0 flex flex-col justify-center"
+              style={{ backgroundColor: page.bg, borderRadius: 4, padding: 8, gap: 3 }}
+            >
+              <Subhead brand={brand} c={c} color={pageMuted} size={5.5} lines={3} />
+              <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+            </div>
+            <div
+              className="flex items-center shrink-0"
+              style={{ backgroundColor: brandT.bg, borderRadius: 4, padding: 8 }}
+            >
+              <Ctas brand={brand} c={c} fill={page.bg} ghost={brandT.text} size={5.5} />
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+    // 26 — Inset Frame. A rule drawn round the page, as a poster is.
+    (
+      <div className="w-full h-full" style={{ backgroundColor: page.bg, padding: 8 }}>
+        <div
+          className="w-full h-full flex flex-col"
+          style={{ border: `1px solid ${brandT.bg}`, padding: 9 }}
+        >
+          <div className="flex items-center justify-between gap-2 shrink-0">
+            <Mark brand={brand} ground={page.bg} height={9} />
+            <Nav brand={brand} c={c} color={page.text} size={5} gap={6} />
+          </div>
+          <div className="flex-1 flex flex-col justify-center min-h-0" style={{ gap: 3 }}>
+            <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+            <Headline brand={brand} c={c} color={page.text} size={15} lines={2} />
+            <Subhead brand={brand} c={c} color={pageMuted} size={5.5} lines={2} />
+          </div>
+          <div className="flex items-end justify-between gap-2 shrink-0">
+            <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+          </div>
+        </div>
+      </div>
+    ),
+    // 27 — Base Nav. The links sit at the foot, under a hairline.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: page.bg, padding: 11 }}>
+        <div className="flex items-start justify-between gap-2 shrink-0">
+          <Mark brand={brand} ground={page.bg} height={11} />
+          <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+        </div>
+        <div className="flex-1 flex flex-col justify-center min-h-0" style={{ gap: 3, maxWidth: '86%' }}>
+          <Eyebrow brand={brand} c={c} color={accentOn(page)} size={5.5} />
+          <Headline brand={brand} c={c} color={page.text} size={15} lines={2} />
+          <Subhead brand={brand} c={c} color={pageMuted} size={6} lines={2} />
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+        </div>
+        <div
+          className="flex items-center justify-between gap-2 pt-1.5 shrink-0"
+          style={{ borderTop: `1px solid ${ruleOn(page)}` }}
+        >
+          <Nav brand={brand} c={c} color={pageMuted} size={5.5} gap={7} />
+          <Url brand={brand} c={c} color={pageMuted} size={5.5} />
+        </div>
+      </div>
+    ),
+    // 28 — Tint Wash. A tinted ground, and the eyebrow wears the colour.
+    (
+      <div className="w-full h-full flex flex-col" style={{ backgroundColor: subtle.bg, padding: 11, gap: 4 }}>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <Mark brand={brand} ground={subtle.bg} height={10} />
+          <Nav brand={brand} c={c} color={subtle.text} size={5.5} gap={7} />
+        </div>
+        <div className="flex-1 flex flex-col justify-center min-h-0" style={{ gap: 4 }}>
+          <span
+            className="inline-flex items-center self-start"
+            style={{ backgroundColor: brandT.bg, borderRadius: 3, padding: '2px 6px' }}
+          >
+            <Eyebrow brand={brand} c={c} color={brandT.text} size={5.5} />
+          </span>
+          <Headline brand={brand} c={c} color={subtle.text} size={14} lines={2} />
+          <div style={{ height: 1, backgroundColor: ruleOn(subtle) }} />
+          <Subhead brand={brand} c={c} color={mutedOn(subtle)} size={6} lines={2} />
+        </div>
+        <div className="flex items-end justify-between gap-2 shrink-0">
+          <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={subtle.text} size={5.5} />
+          <Stats brand={brand} c={c} color={subtle.text} mutedColor={mutedOn(subtle)} size={10} />
+        </div>
+      </div>
+    ),
+    // 29 — Half Page. Colour above the fold, paper below it.
+    (
+      <div className="w-full h-full flex flex-col">
+        <div
+          className="flex-1 min-h-0 flex flex-col justify-center"
+          style={{ backgroundColor: brandT.bg, padding: 9, gap: 3 }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <Mark brand={brand} ground={brandT.bg} height={10} />
+            <Eyebrow brand={brand} c={c} color={brandMuted} size={5.5} />
+          </div>
+          <Headline brand={brand} c={c} color={brandT.text} size={13} lines={2} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col justify-center"
+          style={{ backgroundColor: page.bg, padding: 9, gap: 3 }}
+        >
+          <Nav brand={brand} c={c} color={page.text} size={5.5} gap={7} />
+          <Subhead brand={brand} c={c} color={pageMuted} size={5.5} lines={2} />
+          <div className="flex items-end justify-between gap-2">
+            <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+            <Stats brand={brand} c={c} color={page.text} mutedColor={pageMuted} size={10} />
+          </div>
+        </div>
+      </div>
+    ),
+    // 30 — Corner Card. The action sits in a card cut into the colour.
+    (
+      <div className="w-full h-full" style={{ backgroundColor: brandT.bg, padding: 10 }}>
+        <div className="w-full h-full flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <Mark brand={brand} ground={brandT.bg} height={11} />
+            <Nav brand={brand} c={c} color={brandT.text} size={5} gap={5} />
+          </div>
+          <div className="flex flex-col" style={{ gap: 3, width: '64%' }}>
+            <Eyebrow brand={brand} c={c} color={brandMuted} size={5.5} />
+            <Headline brand={brand} c={c} color={brandT.text} size={14} lines={2} />
+          </div>
+          <div className="flex items-end justify-between gap-2">
+            <Stats brand={brand} c={c} color={brandT.text} mutedColor={brandMuted} size={10} />
+            <div
+              className="flex flex-col"
+              style={{ backgroundColor: page.bg, borderRadius: 5, padding: 8, gap: 3, width: '56%' }}
+            >
+              <Subhead brand={brand} c={c} color={pageMuted} size={5.5} lines={2} />
+              <Ctas brand={brand} c={c} fill={brandT.bg} onFill={brandT.text} ghost={page.text} size={5.5} />
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
   ];
 
   return (
@@ -783,11 +1272,15 @@ export function WebWebsiteExtendedRenderer({ brand, templateIndex, content }: We
 }
 
 /**
- * Twelve kept designs, in `ext-1`…`ext-12`.
+ * Thirty designs, in `ext-1`…`ext-30`.
  *
- * The array stays thirty long because a template id is a persistence key:
- * `ext-13`…`ext-30` keep their slots and are hidden by `curation/web.ts`
- * rather than deleted or renumbered.
+ * A template id is a persistence key, so `ext-13`…`ext-30` were held
+ * empty rather than renumbered while they were archived — and the
+ * eighteen restored on 2026-09-09 went back into those exact slots, so a
+ * customization saved under `website-ext-21` before the cull still opens
+ * the design at index 21. The archived list below DERIVES from this
+ * array's length, which is now zero entries long: nothing in this family
+ * is hidden any more.
  */
 const KEPT_NAMES = [
   'Centre Stage',
@@ -802,6 +1295,24 @@ const KEPT_NAMES = [
   'Wide Type',
   'Column Grid',
   'Corner Mark',
+  'Reverse Split',
+  'Float Card',
+  'Marquee',
+  'Deep Field',
+  'Right Rail',
+  'Foot Band',
+  'Pill Row',
+  'Framed Lede',
+  'Stack Bands',
+  'Left Rule',
+  'Quiet Top',
+  'Colour Column',
+  'Cell Grid',
+  'Inset Frame',
+  'Base Nav',
+  'Tint Wash',
+  'Half Page',
+  'Corner Card',
 ] as const;
 
 export const WEB_WEBSITE_EXTENDED = Array.from({ length: 30 }, (_, i) => ({
@@ -812,8 +1323,9 @@ export const WEB_WEBSITE_EXTENDED = Array.from({ length: 30 }, (_, i) => ({
 
 /**
  * Curation, declared where the designs are. See the Favicon renderer’s
- * note: names and tags live beside the artwork, `curation/web.ts` reads
- * them, and `ext-13`…`ext-30` stay reserved rather than renumbered.
+ * note: names and tags live beside the artwork and `curation/web.ts`
+ * reads them, so restoring a design is one edit in this file — the name
+ * map, the tag map and the archived list all follow `KEPT_NAMES`.
  */
 export const WEBSITE_NAMES: Record<string, string> = Object.fromEntries(
   KEPT_NAMES.map((name, i) => [`website-ext-${i + 1}`, name]),
@@ -832,6 +1344,24 @@ export const WEBSITE_TAGS: Record<string, string[]> = {
   'website-ext-10': ['Studio', 'Typographic', 'Minimal'],
   'website-ext-11': ['Publishing', 'Grid', 'Light'],
   'website-ext-12': ['Agency', 'Asymmetric', 'Modern'],
+  'website-ext-13': ['Agency', 'Split', 'Dark'],
+  'website-ext-14': ['SaaS', 'Card', 'Light'],
+  'website-ext-15': ['Retail', 'Bold', 'Brand colour'],
+  'website-ext-16': ['Tech', 'Dark', 'Centred'],
+  'website-ext-17': ['Product', 'App-like', 'Minimal'],
+  'website-ext-18': ['Studio', 'Bold', 'Brand colour'],
+  'website-ext-19': ['SaaS', 'Modern', 'Light'],
+  'website-ext-20': ['Publishing', 'Editorial', 'Minimal'],
+  'website-ext-21': ['Agency', 'Grid', 'Brand colour'],
+  'website-ext-22': ['Consultancy', 'Minimal', 'Light'],
+  'website-ext-23': ['Studio', 'Typographic', 'Centred'],
+  'website-ext-24': ['Retail', 'Split', 'Brand colour'],
+  'website-ext-25': ['Product', 'Grid', 'Modern'],
+  'website-ext-26': ['Publishing', 'Editorial', 'Light'],
+  'website-ext-27': ['Studio', 'Asymmetric', 'Minimal'],
+  'website-ext-28': ['Consultancy', 'Light', 'Modern'],
+  'website-ext-29': ['Startup', 'Bold', 'Brand colour'],
+  'website-ext-30': ['Agency', 'Asymmetric', 'Card'],
 };
 
 export const WEBSITE_ARCHIVED_IDS: string[] = Array.from(

@@ -33,9 +33,14 @@ afterEach(cleanup);
  *
  * They are pre-existing, they are the same on both brands, and each one
  * is a real defect: the Cover family's tagline runs past the bottom of
- * the banner and over its own "Learn more" link, the Website and Landing
- * heroes hang their two buttons below the fold, and `invoices-ext-5`
+ * the banner and over its own "Learn more" link, and `invoices-ext-5`
  * (Stamped Due) prints the due date across the word "Due".
+ *
+ * Website and Landing Page started at 1 apiece — `website-ext-5` hung its
+ * two buttons 11.5px below the page, and `landing-ext-4` pushed its whole
+ * footer off by 11.9px, both because a flex item's automatic minimum is
+ * its own content and three lines of display type refuse to shrink. Both
+ * are fixed (`min-h-0`, two lines), so both cards are at zero.
  *
  * **The numbers may only ever go DOWN.** A design restored into one of
  * these families adds nothing to its card's count — that is the bar the
@@ -52,9 +57,9 @@ const LAYOUT_BUDGET: Record<string, number> = {
   Post: 0,
   Story: 0,
   Favicon: 0,
-  Website: 1,
+  Website: 0,
   'Email Signature': 0,
-  'Landing Page': 1,
+  'Landing Page': 0,
 };
 
 /** The families whose artwork carries a customer's own words. */
