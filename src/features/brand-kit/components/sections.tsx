@@ -17,6 +17,7 @@ import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
 import { DeliverableCard } from './DeliverableCard';
 import { CardCover } from './CardCover';
+import { featuredTemplates } from '../data/cardPresentation';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -563,10 +564,21 @@ export function CardGrid({
               onEditAction={
                 onEditCard
                   ? (it) => {
-                      // Preselect the first variant so the editor opens
-                      // with a live preview instead of the cover image.
+                      // THE PENCIL EDITS THE VARIANT THE CARD IS SHOWING.
+                      // It used to open `templates[0]` — the library's first,
+                      // which for every curated family is not what the cover
+                      // draws. Harmless while the editor covered the page;
+                      // now that it is DOCKED and the card repaints from the
+                      // draft beside it, editing one variant while looking at
+                      // another is the whole feature failing silently.
                       const target = targetFor(it);
-                      onEditCard({ ...target, template: target.templates?.[0] });
+                      const shown =
+                        featuredTemplates(
+                          it.storageLabel,
+                          target.templates ?? [],
+                          featuredIdsByLabel,
+                        )[0] ?? target.templates?.[0];
+                      onEditCard({ ...target, template: shown });
                     }
                   : undefined
               }
