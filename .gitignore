@@ -52,5 +52,7 @@ supabase/.branches/
 # the landing built for the dev server (vite.config.ts landingPageDevPlugin)
 landingpage/dist-dev/
 
-# Local audit artifacts (screenshots taken while reviewing a change)
-.audit/
+# Local audit artifacts (screenshots taken while reviewing a change).
+# Anchored to the repo root ON PURPOSE: `.audit/` unanchored would also
+# swallow `src/**/__tests__/.audit/`, which tests WRITE and the repo tracks.
+/.audit/
