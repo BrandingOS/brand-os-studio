@@ -171,6 +171,7 @@ describe('the picker', () => {
       onViewChange={noop}
       onProjectionChange={noop}
       onRenderChange={noop}
+      onAnimationChange={noop}
       onReset={noop}
     />
   );

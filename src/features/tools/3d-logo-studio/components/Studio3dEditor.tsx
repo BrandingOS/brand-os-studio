@@ -25,8 +25,9 @@ import type { MeshData } from '../engine/types';
 import { EMPTY_MESH } from '../engine/types';
 import {
   createDocument, setGeometryMode, setModeOptions, setDefaultMaterial, setLighting,
-  resetToSource, setCameraView, setCamera, setRender, type CameraView, type GeometryMode,
-  type RenderState, type Studio3dDocument,
+  resetToSource, setCameraView, setCamera, setRender, setAnimation,
+  type AnimationState, type CameraView, type GeometryMode, type RenderState,
+  type Studio3dDocument,
 } from '../engine/document';
 import { buildMesh } from '../engine/buildMesh';
 import type { RevolveWarning } from '../engine/modes/revolve';
@@ -202,6 +203,8 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
             if (patch.mode) setHighQualityUnavailable(null);
             setDoc((d) => (d ? setRender(d, patch) : d));
           }}
+          onAnimationChange={(patch: Partial<AnimationState>) =>
+            setDoc((d) => (d ? setAnimation(d, patch) : d))}
           highQualityUnavailable={highQualityUnavailable}
           onReset={() => setDoc((d) => (d ? resetToSource(d) : d))}
         />

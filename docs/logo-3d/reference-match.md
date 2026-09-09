@@ -282,3 +282,56 @@ The reference's glass close-ups show pronounced chromatic fringing that our
 dispersion produces more subtly, and its silver has a photographed micro-texture
 finer than the procedural grain. Both are tuning against the frames rather than
 missing capability, and belong with Phase 7's material work.
+
+---
+
+## Automatic rotation (2026-09-09)
+
+A **Motion** control: None · Turntable · Spin · Camera orbit · Float · Oscillate
+· Pulse · Wobble, with speed, seconds-per-turn, axis and direction.
+
+**The evaluator is a pure function of the timestamp, and that is the design.**
+Nothing accumulates — there is no "advance by delta", no stored angle, no
+dependence on how often it is called. It is what the PRD asks for twice
+(*"evaluate animation at explicit timeline timestamps"*, *"preview and export
+evaluate the same scene at the same timestamps, regardless of rendering speed"*),
+and it is the only way a rendered video cannot drift from what the user watched:
+a preview at sixty frames a second and an export writing one frame every four
+seconds ask the same question and get the same answer. `animationTimeline()`
+already returns the exact frame times an export will use, so Phase 10 has its
+foundation rather than a spinning viewport to reverse-engineer.
+
+**The pose is a delta, never written into the project.** Spinning a logo the user
+has deliberately tilted keeps the tilt, and stopping leaves it exactly where they
+put it — pinned by a browser test that fingerprints the resting frame, spins,
+stops, and requires the pixels back. Persisting the rotation would also restart
+the path tracer sixty times a second.
+
+Details worth keeping:
+
+- **A spin is deliberately un-eased.** Easing the phase of something that never
+  returns to rest makes it speed up and slow down once per turn, which reads as a
+  stutter. `ease` shapes the presets that *do* come back, and is applied to the
+  phase rather than the output so the motion passes through the same poses and
+  only the timing changes.
+- **Turntable ignores the axis control** and is always upright. That is the
+  difference between it and Spin, and the reason both exist.
+- **Negative time wraps correctly.** `%` returns a negative remainder, which
+  would put a discontinuity at every cycle boundary of a *reversed* animation —
+  tested by walking six seconds of a reversed float and requiring no jump.
+- **Camera orbit moves the viewer, not the object**, and is measured from the
+  resting camera each frame rather than compounded, so stopping restores the view.
+- **It holds still under `prefers-reduced-motion`**, which the PRD requires
+  ("no mandatory automatic rotation"), and **while a high-quality render runs** —
+  a path trace accumulates samples of one fixed frame, so a moving subject
+  averages to a smear and every frame would restart the render.
+
+Tests: `engine/__tests__/animation.test.ts` (29 — determinism, periodicity, loop
+continuity, speed scaling, amplitude bounds, timeline exactness) and
+`__tests__/motion.browser.test.tsx` (7 — it moves, speed changes how far,
+stopping restores the frame, and it yields to a traced render).
+
+One test bug found and worth recording: the first version captured its "at rest"
+frame the moment the canvas was ready, which is *before* the geometry has been
+built and drawn — so it compared an empty background against a rendered logo and
+reported a failure of everything. It now waits for the picture to settle.

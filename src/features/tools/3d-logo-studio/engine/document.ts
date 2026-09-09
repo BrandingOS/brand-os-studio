@@ -384,6 +384,10 @@ export function setRender(doc: Studio3dDocument, patch: Partial<RenderState>): S
   return touch(doc, { render: { ...doc.render, ...patch } });
 }
 
+export function setAnimation(doc: Studio3dDocument, patch: Partial<AnimationState>): Studio3dDocument {
+  return touch(doc, { animation: { ...doc.animation, ...patch } });
+}
+
 export function setTransform(doc: Studio3dDocument, patch: Partial<Transform>): Studio3dDocument {
   return touch(doc, { transform: { ...doc.transform, ...patch } });
 }

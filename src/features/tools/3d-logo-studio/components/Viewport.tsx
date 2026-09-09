@@ -9,6 +9,7 @@ import { toBufferGeometry, normalizeToUnitSize } from '../render/geometry';
 import { Studio, buildMaterial, LIGHTING_PRESETS } from '../render/studio';
 import { getMaterial } from '../materials/presets';
 import type { PathTraceHandle, PathTraceProgress } from '../render/pathTracer';
+import { evaluateAnimation, isAnimated } from '../engine/animation';
 
 export interface ViewportProps {
   doc: Studio3dDocument;
@@ -162,6 +163,99 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
     object.scale.set(...doc.transform.scale);
     studioRef.current?.render();
   }, [mesh, doc.transform, ready]);
+
+  /**
+   * The animation loop.
+   *
+   * It applies a *delta* on top of the user's own transform and never writes
+   * back to the document: a spin the user can stop must leave the logo exactly
+   * where they had put it, and a rotation persisted into the project would also
+   * restart the path tracer sixty times a second.
+   *
+   * Held still while a traced render is running, for the same reason a
+   * photographer does not move the subject during a long exposure — the tracer
+   * accumulates samples of one fixed frame, and a moving object averages a
+   * smear. High quality is a still.
+   */
+  useEffect(() => {
+    const object = objectRef.current;
+    const studio = studioRef.current;
+    if (!object || !studio) return;
+
+    const reduced = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const running = isAnimated(doc.animation) && doc.render.mode !== 'high' && !reduced;
+
+    // Whether it runs or not, put the object back where the base transform says.
+    const rest = () => {
+      object.position.set(...doc.transform.position);
+      object.rotation.set(...doc.transform.rotation);
+      object.scale.set(...doc.transform.scale);
+    };
+    if (!running) {
+      rest();
+      studio.render();
+      return;
+    }
+
+    let frame = 0;
+    const started = performance.now();
+    // Where the camera sits at rest, captured once so an orbit is measured from
+    // a fixed origin rather than compounding on itself.
+    const restCamera: [number, number, number] = [
+      studio.camera.position.x, studio.camera.position.y, studio.camera.position.z,
+    ];
+    const tick = () => {
+      // Absolute elapsed time, not a running total: the evaluator is a pure
+      // function of the timestamp, and feeding it deltas would be the one way to
+      // make the preview drift from an export of the same animation.
+      const pose = evaluateAnimation(doc.animation, (performance.now() - started) / 1000);
+      object.position.set(
+        doc.transform.position[0] + pose.position[0],
+        doc.transform.position[1] + pose.position[1],
+        doc.transform.position[2] + pose.position[2],
+      );
+      object.rotation.set(
+        doc.transform.rotation[0] + pose.rotation[0],
+        doc.transform.rotation[1] + pose.rotation[1],
+        doc.transform.rotation[2] + pose.rotation[2],
+      );
+      object.scale.set(
+        doc.transform.scale[0] * pose.scale,
+        doc.transform.scale[1] * pose.scale,
+        doc.transform.scale[2] * pose.scale,
+      );
+      if (pose.cameraOrbit !== 0) {
+        // Swung around the controls' target, keeping distance and height. The
+        // angle is applied fresh from the resting position each frame rather
+        // than added to the camera, so it stays a pure function of the
+        // timestamp like everything else — and so stopping puts the camera back
+        // exactly where the user left it.
+        const controls = controlsRef.current;
+        const cx = controls ? controls.target.x : 0;
+        const cz = controls ? controls.target.z : 0;
+        const radius = Math.hypot(restCamera[0] - cx, restCamera[2] - cz);
+        if (radius > 0) {
+          const base = Math.atan2(restCamera[2] - cz, restCamera[0] - cx);
+          studio.camera.position.x = cx + Math.cos(base + pose.cameraOrbit) * radius;
+          studio.camera.position.z = cz + Math.sin(base + pose.cameraOrbit) * radius;
+          if (controls) studio.camera.lookAt(controls.target);
+        }
+      }
+      studio.render();
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      rest();
+      studio.camera.position.set(restCamera[0], restCamera[1], restCamera[2]);
+      if (controlsRef.current) studio.camera.lookAt(controlsRef.current.target);
+      studio.render();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc.animation, doc.transform, doc.render.mode, mesh, ready, size.width, size.height]);
 
   useEffect(() => {
     const studio = studioRef.current, controls = controlsRef.current, object = objectRef.current;

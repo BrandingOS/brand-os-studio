@@ -10,7 +10,9 @@
 import { DsSegmented, DsSelect, DsSlider, DsSwitch, DsButton } from '@/shared/ds';
 
 import { DsBanner } from '@/shared/ds';
-import type { CameraView, GeometryMode, RenderState, Studio3dDocument } from '../engine/document';
+import type {
+  AnimationState, CameraView, GeometryMode, RenderState, Studio3dDocument,
+} from '../engine/document';
 import { currentCameraView } from '../engine/document';
 import { MATERIAL_PRESETS } from '../materials/presets';
 import { materialOptions } from './MaterialSwatch';
@@ -26,6 +28,7 @@ export interface PropertiesPanelProps {
   onViewChange: (view: CameraView) => void;
   onProjectionChange: (projection: 'orthographic' | 'perspective') => void;
   onRenderChange: (patch: Partial<RenderState>) => void;
+  onAnimationChange: (patch: Partial<AnimationState>) => void;
   /** Set when a traced render was asked for and cannot run on this device. */
   highQualityUnavailable?: string | null;
   onReset: () => void;
@@ -49,6 +52,7 @@ export function PropertiesPanel({
   onViewChange,
   onProjectionChange,
   onRenderChange,
+  onAnimationChange,
   highQualityUnavailable,
   onReset,
 }: PropertiesPanelProps) {
@@ -228,6 +232,52 @@ export function PropertiesPanel({
           onChange={onLightingChange}
         />
         <DsSwitch label="Show background" checked={doc.lighting.showBackground} onChange={onBackgroundToggle} />
+      </Group>
+
+      <Group title="Motion">
+        <DsSelect
+          options={[
+            { value: 'static', label: 'None' },
+            { value: 'turntable', label: 'Turntable' },
+            { value: 'spin', label: 'Spin' },
+            { value: 'orbit', label: 'Camera orbit' },
+            { value: 'float', label: 'Float' },
+            { value: 'oscillate', label: 'Oscillate' },
+            { value: 'pulse', label: 'Pulse' },
+            { value: 'wobble', label: 'Wobble' },
+          ]}
+          value={doc.animation.preset}
+          onChange={(v) => onAnimationChange({ preset: v as AnimationState['preset'] })}
+          aria-label="Motion"
+        />
+        {doc.animation.preset !== 'static' && (
+          <>
+            <DsSlider label="Speed" value={doc.animation.speed} min={0} max={4} step={0.05}
+              format={(v) => `${v.toFixed(2)}x`}
+              onChange={(v) => onAnimationChange({ speed: v })} />
+            <DsSlider label="Seconds per turn" value={doc.animation.durationSeconds} min={1} max={30} step={0.5}
+              format={(v) => `${v}s`}
+              onChange={(v) => onAnimationChange({ durationSeconds: v })} />
+            {doc.animation.preset === 'spin' && (
+              <Field label="Axis">
+                <DsSegmented
+                  options={[{ value: 'y', label: 'Y' }, { value: 'x', label: 'X' }, { value: 'z', label: 'Z' }]}
+                  value={doc.animation.axis}
+                  onChange={(v) => onAnimationChange({ axis: v as AnimationState['axis'] })}
+                  aria-label="Rotation axis"
+                />
+              </Field>
+            )}
+            <DsSwitch label="Reverse" checked={doc.animation.reverse}
+              onChange={(v) => onAnimationChange({ reverse: v })} />
+            {doc.render.mode === 'high' && (
+              <p className="l3d-note">
+                Held still while a high-quality render runs — it accumulates samples of one
+                fixed frame, and a moving subject averages to a smear.
+              </p>
+            )}
+          </>
+        )}
       </Group>
 
       <Group title="Render">
