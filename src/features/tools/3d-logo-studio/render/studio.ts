@@ -15,7 +15,8 @@
  */
 
 import * as THREE from 'three';
-import { buildEnvironmentTexture, type EnvironmentRecipe, SOFT_STUDIO, DARK_STUDIO, BRIGHT_STUDIO } from './environment';
+import { buildEnvironmentTexture, withLightSource, type EnvironmentRecipe, SOFT_STUDIO, DARK_STUDIO, BRIGHT_STUDIO } from './environment';
+import { lightDirection, type LightSource } from '../materials/lighting';
 import type { MaterialParams, MaterialPreset } from '../materials/types';
 import type { LightingPreset } from '../materials/lighting';
 
@@ -87,7 +88,7 @@ export class Studio {
   private projection: Projection = 'orthographic';
   private readonly pmrem: THREE.PMREMGenerator;
   private environment: THREE.Texture | null = null;
-  private environmentRecipe: EnvironmentRecipe | null = null;
+  private environmentKey: string | null = null;
   /**
    * The environment before prefiltering.
    *
@@ -159,15 +160,22 @@ export class Studio {
     this.camera.updateProjectionMatrix();
   }
 
-  setLighting(preset: LightingPreset, showBackground = true): void {
+  setLighting(preset: LightingPreset, showBackground = true, source?: LightSource | null): void {
     for (const child of [...this.scene.children]) {
       if (child instanceof THREE.Light) this.scene.remove(child);
     }
     const add = (l: THREE.Light) => { this.scene.add(l); this.disposables.push(l as unknown as { dispose(): void }); };
     add(new THREE.AmbientLight(0xffffff, preset.ambient));
-    const key = new THREE.DirectionalLight(new THREE.Color(preset.key.color), preset.key.intensity);
-    key.position.set(...preset.key.position);
-    add(key);
+    // The key follows the same four numbers the softbox does, so the shaded
+    // highlight and the reflected source cannot end up in different places.
+    const keyLight = new THREE.DirectionalLight(
+      new THREE.Color(preset.key.color),
+      source ? preset.key.intensity * (source.intensity / 1.5) : preset.key.intensity,
+    );
+    const direction = source ? lightDirection(source) : null;
+    if (direction) keyLight.position.set(direction[0] * 8, direction[1] * 8, direction[2] * 8);
+    else keyLight.position.set(...preset.key.position);
+    add(keyLight);
     const fill = new THREE.DirectionalLight(new THREE.Color(preset.fill.color), preset.fill.intensity);
     fill.position.set(...preset.fill.position);
     add(fill);
@@ -177,14 +185,19 @@ export class Studio {
 
     // Rebuilt when the recipe changes, because what the metal reflects is most
     // of what the lighting preset *is*.
-    const recipe = ENVIRONMENTS[preset.id] ?? SOFT_STUDIO;
-    if (this.environment === null || this.environmentRecipe !== recipe) {
+    const base = ENVIRONMENTS[preset.id] ?? SOFT_STUDIO;
+    const recipe = withLightSource(base, source);
+    // Compared by value, not identity: `withLightSource` builds a new object
+    // every call, so an identity check would rebuild the environment — and the
+    // PMREM prefilter with it — on every render.
+    const key = JSON.stringify(recipe);
+    if (this.environment === null || this.environmentKey !== key) {
+      this.environmentKey = key;
       this.environment?.dispose();
       this.environmentSource?.dispose();
-      const source = buildEnvironmentTexture(recipe, 1024);
-      this.environment = this.pmrem.fromEquirectangular(source).texture;
-      this.environmentSource = source;
-      this.environmentRecipe = recipe;
+      const raw = buildEnvironmentTexture(recipe, 1024);
+      this.environment = this.pmrem.fromEquirectangular(raw).texture;
+      this.environmentSource = raw;
     }
     this.scene.environment = this.environment;
     this.scene.environmentIntensity = preset.environmentIntensity;

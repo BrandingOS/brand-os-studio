@@ -68,3 +68,52 @@ export const LIGHTING_PRESETS: LightingPreset[] = [
     ambient: 0.2,
   },
 ];
+
+/**
+ * Where the key light is, and how big and bright.
+ *
+ * Deliberately expressed as a *position on the surrounding sphere* rather than
+ * as a 3D vector, because it has to drive two different things at once: the
+ * softbox painted into the environment map, and the directional light the
+ * rasterizer shades with. A traced render is lit **only** by the environment —
+ * the directional lights do not exist to it — so a control that moved just the
+ * light would appear to do nothing the moment the user switched to high
+ * quality. Both are derived from these four numbers.
+ */
+export interface LightSource {
+  /** Around the object, 0..1. 0.5 is behind the camera, lighting the front. */
+  azimuth: number;
+  /** Top to bottom, 0..1. 0 is directly overhead. */
+  elevation: number;
+  /** Angular size, 0..1. Large is soft and wraps; small is hard and specular. */
+  size: number;
+  intensity: number;
+}
+
+export const DEFAULT_LIGHT_SOURCE: LightSource = {
+  azimuth: 0.5,
+  elevation: 0.16,
+  size: 0.4,
+  intensity: 1.5,
+};
+
+/**
+ * The key light's direction in world space.
+ *
+ * Shared by the softbox and the directional light so the two cannot disagree
+ * about where the light is — which would show as a highlight in one place and a
+ * shadow from another.
+ */
+export function lightDirection(source: LightSource): [number, number, number] {
+  // Derived from three's own `equirectUv`, which is the only authority here:
+  //   u = atan2(z, x) / 2π + 0.5      so +Z (the camera's side) is u = 0.75
+  //   v = asin(y) / π + 0.5           so v = 1 is up
+  // The azimuth control is defined with 0.5 facing the camera, so it maps to
+  // u = 1.25 - azimuth, and the angle back out is (0.75 - azimuth) · 2π.
+  // Elevation is defined with 0 overhead, which is y = +1.
+  const theta = (0.75 - source.azimuth) * Math.PI * 2;
+  const elevation = Math.max(0, Math.min(1, source.elevation));
+  const y = Math.cos(elevation * Math.PI);
+  const ring = Math.sin(elevation * Math.PI);
+  return [ring * Math.cos(theta), y, ring * Math.sin(theta)];
+}

@@ -26,6 +26,7 @@ import { EMPTY_MESH } from '../engine/types';
 import {
   createDocument, setGeometryMode, setModeOptions, setDefaultMaterial, setLighting,
   resetToSource, setCameraView, setCamera, setRender, setAnimation,
+  setLightSource, resetLightSource,
   type AnimationState, type CameraView, type GeometryMode, type RenderState,
   type Studio3dDocument,
 } from '../engine/document';
@@ -182,7 +183,8 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
           }
         >
           <Viewport doc={doc} mesh={mesh} busy={busy}
-            onCameraChange={(camera) => setDoc((d) => d ? setCamera(d, camera) : d)} />
+            onCameraChange={(camera) => setDoc((d) => d ? setCamera(d, camera) : d)}
+            onHighQualityUnavailable={setHighQualityUnavailable} />
         </Suspense>
 
         <PropertiesPanel
@@ -205,6 +207,8 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
           }}
           onAnimationChange={(patch: Partial<AnimationState>) =>
             setDoc((d) => (d ? setAnimation(d, patch) : d))}
+          onLightSourceChange={(patch) => setDoc((d) => (d ? setLightSource(d, patch) : d))}
+          onLightSourceReset={() => setDoc((d) => (d ? resetLightSource(d) : d))}
           highQualityUnavailable={highQualityUnavailable}
           onReset={() => setDoc((d) => (d ? resetToSource(d) : d))}
         />

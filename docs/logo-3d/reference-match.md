@@ -335,3 +335,83 @@ One test bug found and worth recording: the first version captured its "at rest"
 frame the moment the canvas was ready, which is *before* the geometry has been
 built and drawn — so it compared an empty background against a rendered logo and
 reported a failure of everything. It now waits for the picture to settle.
+
+---
+
+## "High quality does nothing" — it didn't (2026-09-09)
+
+The owner was right, and the cause is worth recording because it is the same
+mistake three times over.
+
+**The path-trace effect was never in the committed `Viewport.tsx`** — not even in
+`cb12ab14`, the commit whose message describes wiring it in. The patch that added
+it matched anchors from an older version of the file, which had been rewritten in
+the meantime by the concurrent camera-navigation work, and `str.replace` fails
+*silently* when its anchor is absent. Type-checking passed, because the code
+being added was self-contained and nothing referenced it. And the path-tracing
+tests called `startPathTrace` **directly** rather than through the editor, so they
+passed over a hole where the feature should have been.
+
+Three habits come out of it, and they are now practice rather than intention:
+
+1. **Verify every patch landed.** `grep -c` for the thing just inserted, in the
+   same command that inserts it.
+2. **Test the wiring, not only the unit.** `highQualityLive.browser.test.tsx`
+   mounts the real editor, clicks the real control, and reads the canvas.
+3. **A silent no-op is a failure.** An anchored replace that matches nothing has
+   to be an error, not a shrug.
+
+### And a second bug it was hiding
+
+With the effect restored, High quality *still* would have looked broken:
+`controls.addEventListener('change', draw)` calls `studio.render()` — the
+**rasterized** frame — on every frame of an orbit or a zoom, painting straight
+over the accumulated picture. Both renderers write to the same canvas, and the
+raster was winning.
+
+The fix is also the answer to *"I need it high quality even with zooming"*: while
+the camera is moving, the trace is cancelled and the fast rasterized frame is
+shown; when the gesture ends, tracing restarts from the new view. That is
+precisely the PRD's *"reduced quality while the camera is moving, automatic
+restoration when interaction stops"*. Navigation does not write to the document
+until the gesture ends, so the restart is driven by an explicit epoch rather than
+by a document change that may never come.
+
+## Controlling the light (2026-09-09)
+
+Four controls — **Direction**, **Height**, **Softness**, **Brightness** — plus a
+Reset that hands the light back to the preset.
+
+**They move the light in both renderers, and that is the whole design.** A traced
+render is lit *only* by the environment; the rasterizer's directional lights do
+not exist to it. A control wired to the light alone would have appeared to do
+nothing the moment the user switched to high quality — the exact bug just fixed.
+So the softbox in the environment map and the `DirectionalLight` are both derived
+from the same four numbers.
+
+### Which found that the environment map was upside down
+
+Writing the test that the two agree turned up something worse than a disagreement.
+Three samples an equirectangular map as
+
+```
+u = atan2(dir.z, dir.x) / 2π + 0.5     →  +Z, the camera's side, is u = 0.75
+v = asin(dir.y) / π + 0.5              →  v = 1 is UP
+```
+
+The painter put the sky at **v = 0**. So every environment since it was written
+has been vertically inverted — the bright sky under the object and the dark floor
+above it — and the azimuth was ninety degrees out on top of that. Measured on a
+glossy sphere, moving the light slid the highlight one way in the preview and the
+*other* way in a traced render. After the fix the same measurement moves 0.40 →
+0.65 rasterized and 0.50 → 0.67 traced: same direction, and an order of magnitude
+larger.
+
+`render/__tests__/environmentMapping.test.ts` reproduces `equirectUv` from
+Three.js's own shader and asserts the sky is above the floor, that a light placed
+overhead really is overhead, and that the brightest point of the map is where
+`lightDirection` says the light is — for four azimuths. If Three.js ever changes
+that mapping, these fail rather than the pictures quietly going wrong.
+
+The proof images were re-rendered afterwards; the difference in `traced-silver.png`
+is the whole point.

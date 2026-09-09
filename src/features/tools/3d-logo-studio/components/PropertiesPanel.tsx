@@ -13,6 +13,7 @@ import { DsBanner } from '@/shared/ds';
 import type {
   AnimationState, CameraView, GeometryMode, RenderState, Studio3dDocument,
 } from '../engine/document';
+import { DEFAULT_LIGHT_SOURCE, type LightSource } from '../materials/lighting';
 import { currentCameraView } from '../engine/document';
 import { MATERIAL_PRESETS } from '../materials/presets';
 import { materialOptions } from './MaterialSwatch';
@@ -29,6 +30,8 @@ export interface PropertiesPanelProps {
   onProjectionChange: (projection: 'orthographic' | 'perspective') => void;
   onRenderChange: (patch: Partial<RenderState>) => void;
   onAnimationChange: (patch: Partial<AnimationState>) => void;
+  onLightSourceChange: (patch: Partial<LightSource>) => void;
+  onLightSourceReset: () => void;
   /** Set when a traced render was asked for and cannot run on this device. */
   highQualityUnavailable?: string | null;
   onReset: () => void;
@@ -53,11 +56,16 @@ export function PropertiesPanel({
   onProjectionChange,
   onRenderChange,
   onAnimationChange,
+  onLightSourceChange,
+  onLightSourceReset,
   highQualityUnavailable,
   onReset,
 }: PropertiesPanelProps) {
   const { mode } = doc.geometry;
   const view = currentCameraView(doc);
+  // The preset's own key light until the user touches it, so the sliders open
+  // where the light actually is rather than at some neutral default.
+  const light: LightSource = doc.lighting.source ?? DEFAULT_LIGHT_SOURCE;
   // Slider ranges are proportional for the same reason the defaults are: a
   // depth slider that tops out at 60 is most of the way across a 113-unit logo
   // and a rounding error on a 4096-unit one.
@@ -232,6 +240,23 @@ export function PropertiesPanel({
           onChange={onLightingChange}
         />
         <DsSwitch label="Show background" checked={doc.lighting.showBackground} onChange={onBackgroundToggle} />
+
+        <div className="l3d-group-head" style={{ marginTop: 4 }}>
+          <span className="l3d-field-label">Light source</span>
+          {doc.lighting.source && (
+            <DsButton tone="tertiary" size="sm" onClick={onLightSourceReset}>Reset</DsButton>
+          )}
+        </div>
+        <DsSlider label="Direction" value={light.azimuth} min={0} max={1} step={0.01}
+          format={(v) => `${Math.round((v - 0.5) * 360)}°`}
+          onChange={(v) => onLightSourceChange({ azimuth: v })} />
+        <DsSlider label="Height" value={light.elevation} min={0.02} max={0.98} step={0.01}
+          format={(v) => (v < 0.34 ? 'high' : v < 0.66 ? 'level' : 'low')}
+          onChange={(v) => onLightSourceChange({ elevation: v })} />
+        <DsSlider label="Softness" value={light.size} min={0.06} max={0.8} step={0.01}
+          onChange={(v) => onLightSourceChange({ size: v })} />
+        <DsSlider label="Brightness" value={light.intensity} min={0} max={5} step={0.05}
+          onChange={(v) => onLightSourceChange({ intensity: v })} />
       </Group>
 
       <Group title="Motion">

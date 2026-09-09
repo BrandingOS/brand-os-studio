@@ -17,6 +17,8 @@ export interface ViewportProps {
   busy?: boolean;
   onReady?: (studio: Studio) => void;
   onCameraChange?: (camera: CameraState) => void;
+  /** Raised when a traced render cannot run here, so the panel can say why. */
+  onHighQualityUnavailable?: (reason: string) => void;
 }
 
 function release(material: Material) {
@@ -25,7 +27,9 @@ function release(material: Material) {
   material.dispose();
 }
 
-export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportProps) {
+export function Viewport({
+  doc, mesh, busy, onReady, onCameraChange, onHighQualityUnavailable,
+}: ViewportProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const studioRef = useRef<Studio | null>(null);
@@ -33,10 +37,24 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
   const objectRef = useRef<Mesh | null>(null);
   const cameraKey = useRef('');
   const framedSource = useRef<object | null>(null);
-  const callbacks = useRef({ onReady, onCameraChange });
-  callbacks.current = { onReady, onCameraChange };
+  const callbacks = useRef({ onReady, onCameraChange, onHighQualityUnavailable });
+  callbacks.current = { onReady, onCameraChange, onHighQualityUnavailable };
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [ready, setReady] = useState(0);
+  const [trace, setTrace] = useState<PathTraceProgress | null>(null);
+  const traceRef = useRef<PathTraceHandle | null>(null);
+  /**
+   * Bumped whenever a traced render should start over.
+   *
+   * Navigation does not change the document until the gesture ends, so a zoom
+   * or an orbit needs its own signal — without one the view moves and the
+   * accumulated picture stays behind, describing where the camera used to be.
+   */
+  const [traceEpoch, setTraceEpoch] = useState(0);
+  /** Read by the OrbitControls handlers, which are bound once and would
+   *  otherwise close over the mode as it was at mount. */
+  const highRef = useRef(false);
+  highRef.current = doc.render.mode === 'high';
 
   useLayoutEffect(() => {
     const host = hostRef.current!;
@@ -79,8 +97,29 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
     controls.minDistance = 0.1;
     controls.maxDistance = 50;
     controls.listenToKeyEvents(canvas);
-    const draw = () => studio.render();
-    const end = () => publishRef.current();
+    /**
+     * A rasterized frame, drawn while the user is moving the camera.
+     *
+     * In high quality this also *stops* the trace. Both renderers write to the
+     * same canvas, and this handler fires on every frame of an orbit or a zoom —
+     * so without the cancel it paints the rasterized image over the accumulated
+     * one continuously, and "High quality" appears to do nothing at all. That is
+     * exactly what it did.
+     *
+     * Falling back to the raster while the camera is in motion is also the right
+     * behaviour rather than a concession: it is the PRD's "reduced quality while
+     * the camera is moving, restored when interaction stops".
+     */
+    const draw = () => {
+      if (highRef.current) traceRef.current?.cancel();
+      studio.render();
+    };
+    const end = () => {
+      publishRef.current();
+      // Re-trace from the new view. Publishing may not change the document at
+      // all — a click that moved nothing — so the restart cannot rely on it.
+      if (highRef.current) setTraceEpoch(n => n + 1);
+    };
     const focus = () => canvas.focus({ preventScroll: true });
     controls.addEventListener('change', draw);
     controls.addEventListener('end', end);
@@ -149,7 +188,7 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
     const studio = studioRef.current;
     if (!studio) return;
     const lighting = LIGHTING_PRESETS.find(l => l.id === doc.lighting.presetId) ?? LIGHTING_PRESETS[0];
-    studio.setLighting(lighting, doc.lighting.showBackground);
+    studio.setLighting(lighting, doc.lighting.showBackground, doc.lighting.source);
     if (doc.lighting.backdrop) studio.setBackdrop(...doc.lighting.backdrop);
     else studio.clearBackdrop();
     studio.render();
@@ -286,6 +325,58 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
     framedSource.current = doc.source;
   }, [doc.camera, doc.source, mesh, ready, size]);
 
+  /**
+   * The traced render.
+   *
+   * Torn down and restarted whenever anything it depends on changes, because a
+   * path trace *accumulates*: continuing after the geometry, the materials, the
+   * lighting or the camera moved would average two different pictures together.
+   * That is why the dependency list is the whole document — every setting is in
+   * the frame.
+   */
+  useEffect(() => {
+    traceRef.current?.cancel();
+    traceRef.current = null;
+    setTrace(null);
+
+    const studio = studioRef.current;
+    if (!studio) return;
+    if (doc.render.mode !== 'high' || mesh.indices.length === 0) {
+      // Back to the rasterized picture, which every other effect here owns.
+      studio.render();
+      return;
+    }
+
+    let disposed = false;
+    let handle: PathTraceHandle | null = null;
+    void (async () => {
+      const { startPathTrace, pathTracingSupport } = await import('../render/pathTracer');
+      if (disposed) return;
+      const support = pathTracingSupport(studio.renderer);
+      if (!support.supported) {
+        callbacks.current.onHighQualityUnavailable?.(
+          support.reason ?? 'A traced render is not available on this device.');
+        return;
+      }
+      handle = await startPathTrace(studio.renderer, studio.scene, studio.camera, {
+        targetSamples: doc.render.targetSamples,
+        renderScale: doc.render.renderScale,
+        environment: studio.rawEnvironment,
+        onProgress: p => { if (!disposed) setTrace(p); },
+      });
+      if (disposed) { handle.dispose(); return; }
+      traceRef.current = handle;
+      await handle.done;
+    })();
+
+    return () => {
+      disposed = true;
+      handle?.dispose();
+      traceRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, mesh, ready, size.width, size.height, traceEpoch]);
+
   const fit = () => {
     const studio = studioRef.current, controls = controlsRef.current, object = objectRef.current;
     if (!studio || !controls || !object) return;
@@ -297,6 +388,7 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
     controls.update();
     studio.render();
     publishRef.current();
+    if (highRef.current) setTraceEpoch(n => n + 1);
   };
 
   return <div className="l3d-stage" ref={hostRef}>
@@ -312,6 +404,13 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
     </>}
     {busy && <div className="l3d-stage-status" role="status" aria-live="polite">
       <LoadingPill label="Rebuilding geometry…" />
+    </div>}
+    {trace && trace.fraction < 1 && <div className="l3d-trace" role="status" aria-live="polite">
+      <div className="l3d-trace-bar"><span style={{ width: `${Math.round(trace.fraction * 100)}%` }} /></div>
+      <span className="l3d-trace-text">
+        Rendering · {Math.round(trace.samples)} of {trace.targetSamples} samples
+        {trace.remainingMs !== null && ` · about ${formatRemaining(trace.remainingMs)} left`}
+      </span>
     </div>}
   </div>;
 }

@@ -23,9 +23,15 @@
 import * as THREE from 'three';
 
 export interface SoftBox {
-  /** Horizontal position, 0..1 around the sphere. 0.5 faces the camera. */
+  /**
+   * Horizontal position, 0..1 around the sphere, in the texture's own
+   * coordinates. Three samples an equirectangular map as
+   * `u = atan2(z, x) / 2π + 0.5`, so **u = 0.75 is +Z — the camera's side** and
+   * u = 0.5 is +X, the right. Use `azimuthToU` rather than guessing.
+   */
   u: number;
-  /** Vertical position, 0 at the top pole, 1 at the bottom. */
+  /** Vertical position, authored with **0 at the top**. The painter flips it,
+   *  because the texture's own v runs the other way. */
   v: number;
   /** Angular size, as a fraction of the map. Large is soft. */
   size: number;
@@ -42,6 +48,45 @@ export interface EnvironmentRecipe {
   boxes: SoftBox[];
 }
 
+/**
+ * Replace a recipe's key light with the user's.
+ *
+ * The first softbox is the key by convention — every recipe here lists it
+ * first — and the fills are left alone: a control that moved every source at
+ * once would not be a light, it would be a preset.
+ */
+export function withLightSource(recipe: EnvironmentRecipe, source: {
+  azimuth: number; elevation: number; size: number; intensity: number;
+} | null | undefined): EnvironmentRecipe {
+  if (!source) return recipe;
+  const [key, ...rest] = recipe.boxes;
+  return {
+    ...recipe,
+    boxes: [
+      {
+        u: azimuthToU(source.azimuth),
+        v: source.elevation,
+        size: Math.max(0.04, source.size),
+        intensity: Math.max(0, source.intensity),
+        color: key?.color ?? '#ffffff',
+      },
+      ...rest,
+    ],
+  };
+}
+
+/**
+ * Azimuth (0.5 = facing the camera) to the texture's own u.
+ *
+ * The one place the mapping is written down. `equirectUv` puts +Z — the camera's
+ * side — at u = 0.75, so an azimuth control that meant anything intuitive had to
+ * be converted rather than passed straight through, which is how the reflected
+ * source and the shaded highlight ended up on opposite sides of the object.
+ */
+export function azimuthToU(azimuth: number): number {
+  return ((1.25 - azimuth) % 1 + 1) % 1;
+}
+
 /** A broad overhead source with a soft fill — the default product studio. */
 export const SOFT_STUDIO: EnvironmentRecipe = {
   top: 0.78,
@@ -49,9 +94,9 @@ export const SOFT_STUDIO: EnvironmentRecipe = {
   bottom: 0.09,
   tint: '#ffffff',
   boxes: [
-    { u: 0.5, v: 0.15, size: 0.4, intensity: 1.5, color: '#ffffff' },
-    { u: 0.12, v: 0.44, size: 0.32, intensity: 0.55, color: '#eef2ff' },
-    { u: 0.86, v: 0.48, size: 0.28, intensity: 0.4, color: '#fff6ec' },
+    { u: 0.75, v: 0.15, size: 0.4, intensity: 1.5, color: '#ffffff' },
+    { u: 0.37, v: 0.44, size: 0.32, intensity: 0.55, color: '#eef2ff' },
+    { u: 0.11, v: 0.48, size: 0.28, intensity: 0.4, color: '#fff6ec' },
   ],
 };
 
@@ -62,8 +107,8 @@ export const DARK_STUDIO: EnvironmentRecipe = {
   bottom: 0.02,
   tint: '#ffffff',
   boxes: [
-    { u: 0.5, v: 0.2, size: 0.2, intensity: 4.5, color: '#ffffff' },
-    { u: 0.08, v: 0.55, size: 0.16, intensity: 1.6, color: '#cfe0ff' },
+    { u: 0.75, v: 0.2, size: 0.2, intensity: 4.5, color: '#ffffff' },
+    { u: 0.33, v: 0.55, size: 0.16, intensity: 1.6, color: '#cfe0ff' },
   ],
 };
 
@@ -74,8 +119,8 @@ export const BRIGHT_STUDIO: EnvironmentRecipe = {
   bottom: 0.6,
   tint: '#ffffff',
   boxes: [
-    { u: 0.5, v: 0.14, size: 0.5, intensity: 2.2, color: '#ffffff' },
-    { u: 0.25, v: 0.62, size: 0.4, intensity: 1.1, color: '#ffffff' },
+    { u: 0.75, v: 0.14, size: 0.5, intensity: 2.2, color: '#ffffff' },
+    { u: 0.5, v: 0.62, size: 0.4, intensity: 1.1, color: '#ffffff' },
   ],
 };
 
@@ -94,12 +139,18 @@ export function buildEnvironmentTexture(recipe: EnvironmentRecipe, width = 512):
   const boxes = recipe.boxes.map((b) => ({ ...b, rgb: new THREE.Color(b.color) }));
 
   for (let y = 0; y < height; y++) {
-    const v = y / (height - 1);
-    // Two linear ramps rather than one, so the horizon can sit where a real
-    // studio's does instead of halfway up.
-    const base = v < 0.5
-      ? recipe.top + (recipe.horizon - recipe.top) * (v / 0.5)
-      : recipe.horizon + (recipe.bottom - recipe.horizon) * ((v - 0.5) / 0.5);
+    const texV = y / (height - 1);
+    // Three samples this map as `v = asin(dir.y) / π + 0.5`, so **v = 1 is up
+    // and v = 0 is down**. Painting the sky at v = 0 puts it under the object
+    // and the floor over it — which is what this did until it was measured
+    // against the shader, and it is why a light placed overhead lit from below.
+    const height01 = (Math.sin((texV - 0.5) * Math.PI) + 1) / 2;
+    const base = height01 > 0.5
+      ? recipe.horizon + (recipe.top - recipe.horizon) * ((height01 - 0.5) / 0.5)
+      : recipe.bottom + (recipe.horizon - recipe.bottom) * (height01 / 0.5);
+    // Horizontal compression towards the poles: an unscaled distance turns a
+    // round source into a wide smear near the top of the map.
+    const ring = Math.max(0.15, Math.cos((texV - 0.5) * Math.PI));
 
     for (let x = 0; x < width; x++) {
       const u = x / width;
@@ -108,15 +159,12 @@ export function buildEnvironmentTexture(recipe: EnvironmentRecipe, width = 512):
       let b = base * tint.b;
 
       for (const box of boxes) {
-        // Wrap in u, because the map joins at the seam and a source near it
+        // Wrapped in u, because the map joins at the seam and a source near it
         // would otherwise be cut in half.
         let du = Math.abs(u - box.u);
         if (du > 0.5) du = 1 - du;
-        // Scaled by sin(latitude): near the poles the map is stretched, and an
-        // unscaled distance makes a round source into a wide smear.
-        const lat = v * Math.PI;
-        du *= Math.max(0.15, Math.sin(lat));
-        const dv = Math.abs(v - box.v);
+        du *= ring;
+        const dv = Math.abs(texV - (1 - box.v));
         const d = Math.hypot(du * 2, dv) / box.size;
         if (d >= 1) continue;
         // Smootherstep falloff: a linear edge on a softbox shows as a visible

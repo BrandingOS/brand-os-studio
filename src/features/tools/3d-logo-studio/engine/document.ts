@@ -21,6 +21,7 @@
 
 import type { Component } from './types';
 import { boundsOf } from './geom/polygon';
+import { DEFAULT_LIGHT_SOURCE, type LightSource } from '../materials/lighting';
 import { DEFAULT_INFLATE, DEFAULT_SPHERE, type InflateOptions } from './modes/inflate';
 import { DEFAULT_EXTRUDE, DEFAULT_FLAT, type ExtrudeOptions, type FlatOptions } from './modes/extrude';
 import { DEFAULT_REVOLVE, type RevolveOptions } from './modes/revolve';
@@ -162,6 +163,13 @@ export interface Studio3dDocument {
     presetId: string;
     showBackground: boolean;
     backdrop: [string, string] | null;
+    /**
+     * Where the key light is. `null` means the preset's own.
+     *
+     * Kept here rather than in the renderer because it is a property of the
+     * project: a saved logo has to reopen lit the way the user left it.
+     */
+    source: LightSource | null;
   };
   camera: CameraState;
   render: RenderState;
@@ -320,7 +328,7 @@ export function createDocument(input: CreateDocumentInput): Studio3dDocument {
     modifiers: [],
     transform: IDENTITY_TRANSFORM,
     materials: { defaultId: 'satin-black', byComponent: {} },
-    lighting: { presetId: 'white-studio', showBackground: true, backdrop: null },
+    lighting: { presetId: 'white-studio', showBackground: true, backdrop: null, source: null },
     camera: DEFAULT_CAMERA,
     render: DEFAULT_RENDER,
     animation: DEFAULT_ANIMATION,
@@ -382,6 +390,18 @@ export function setCamera(doc: Studio3dDocument, patch: Partial<CameraState>): S
 
 export function setRender(doc: Studio3dDocument, patch: Partial<RenderState>): Studio3dDocument {
   return touch(doc, { render: { ...doc.render, ...patch } });
+}
+
+/** Patch the key light, adopting the preset's defaults on first touch. */
+export function setLightSource(doc: Studio3dDocument, patch: Partial<LightSource>): Studio3dDocument {
+  const current = doc.lighting.source ?? DEFAULT_LIGHT_SOURCE;
+  return touch(doc, { lighting: { ...doc.lighting, source: { ...current, ...patch } } });
+}
+
+/** Hand the key light back to the lighting preset. */
+export function resetLightSource(doc: Studio3dDocument): Studio3dDocument {
+  if (doc.lighting.source === null) return doc;
+  return touch(doc, { lighting: { ...doc.lighting, source: null } });
 }
 
 export function setAnimation(doc: Studio3dDocument, patch: Partial<AnimationState>): Studio3dDocument {

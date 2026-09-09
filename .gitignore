@@ -61,4 +61,5 @@ src/features/tools/3d-logo-studio/__tests__/diag-*.png
 src/features/tools/3d-logo-studio/__tests__/swatches-*.png
 src/features/tools/3d-logo-studio/__tests__/traced-*.png
 src/features/tools/3d-logo-studio/__tests__/spike-*.png
+src/features/tools/3d-logo-studio/__tests__/live-*.png
 src/features/tools/3d-logo-studio/__tests__/__screenshots__/
