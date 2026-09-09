@@ -44,7 +44,7 @@ import { slugify, triggerBlobDownload } from './colorPaletteExport';
 import { zipAdd, type ZipFolder } from './zipFile';
 import { buildKitReadmeFile, type KitManifestSkip } from '../exporters/readme';
 import type { ExportFile } from '../exporters/types';
-import type { DownloadFormat, DownloadOption } from './exportFormats';
+import { DOCUMENT_DOWNLOAD_OPTIONS, type DownloadFormat, type DownloadOption } from './exportFormats';
 
 /* ─── Markdown ────────────────────────────────────────────────────── */
 
@@ -1029,13 +1029,13 @@ export async function downloadStrategyBundle(
  * It is the only row that needs the DOM, and the only one a caller
  * outside the view cannot produce.
  */
-export const STRATEGY_DOWNLOAD_OPTIONS: DownloadOption[] = [
-  { format: 'md', label: 'For web', chip: 'MD' },
-  { format: 'pdf', label: 'For print', chip: 'PDF' },
-  { format: 'json', label: 'As data', chip: 'JSON', secondary: true },
-  { format: 'png', label: 'Flattened', chip: 'PNG', secondary: true },
-  { format: 'zip', label: 'Everything', chip: 'ZIP', secondary: true },
-];
+export const STRATEGY_DOWNLOAD_OPTIONS: DownloadOption[] = DOCUMENT_DOWNLOAD_OPTIONS.map(
+  // Defined once, in `exportFormats`, because the Strategy CARD's menu and
+  // the Strategy VIEW's own button are the same five rows and used not to
+  // be: the card drew the generic raster menu and its "For web (PNG)" row
+  // handed over a zip of markdown.
+  (option) => ({ ...option }),
+);
 
 /**
  * One row of that menu, carried out.

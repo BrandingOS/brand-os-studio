@@ -11,7 +11,7 @@ import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
 import { getEntryFor, type KitEntry } from '../catalog/catalog';
 import { downloadOptionsFor } from '../data/exportFormats';
-import { photosUnavailableReason } from '../data/photoExport';
+import { entryUnavailableReason } from '../data/exportAvailability';
 import { usePhotoSources } from '../data/usePhotoSources';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
@@ -329,6 +329,12 @@ type CardProps = {
   downloadUnavailable?: string;
 };
 
+/** Why this card's Download cannot run — nothing when it can. */
+function cardUnavailableReason(item: GridItem, brand?: MockBrand): string | undefined {
+  const entry = getEntryFor(item.sectionKey, item.storageLabel);
+  return entry ? entryUnavailableReason(entry, brand) : undefined;
+}
+
 function BrandKitCard({
   item,
   onEdit,
@@ -576,12 +582,11 @@ export function CardGrid({
               onOpenMenu={openMenu}
               // A card whose material does not exist offers a menu that
               // says so rather than five rows that quietly do nothing
-              // (QA Q13/Q14). Photos is the only such family today.
-              downloadUnavailable={
-                item.sectionKey === 'brand-assets' && item.storageLabel === 'Photos'
-                  ? photosUnavailableReason(brand)
-                  : undefined
-              }
+              // (QA Q13/Q14). Every family that is assembled out of files
+              // the brand OWNS can be empty, not only Photos — an Icons
+              // card with no icon set answered all five rows with
+              // "Nothing to export".
+              downloadUnavailable={cardUnavailableReason(item, brand)}
               cover={
                 brand ? (
                   <CardCover

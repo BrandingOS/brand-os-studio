@@ -246,6 +246,7 @@ export async function addFontsToZip(
   folder: ZipFolder,
   brand: MockBrand,
   signal?: AbortSignal,
+  opts?: { lean?: boolean },
 ): Promise<{ added: number; skipped: ExportSkip[] }> {
   const skipped: ExportSkip[] = [];
   if (brand.fonts.length === 0) return { added: 0, skipped };
@@ -260,7 +261,7 @@ export async function addFontsToZip(
     // exporter could only guess, and the guess is what made the kit's old
     // manifest claim four weights over a folder holding Regular.
     brand.fonts.map((f) => ({ name: f.family, files: f.files, weights: f.weights })),
-    { signal, lean: true },
+    { signal, lean: opts?.lean ?? true },
   );
   for (const name of result.missing) {
     skipped.push({
