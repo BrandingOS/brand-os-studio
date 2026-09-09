@@ -381,8 +381,20 @@ async function runPlan(plan) {
       // in `place()` alongside the FIXED sizing mode, because a resize before
       // the node is parented is overwritten by auto-layout.
       if (spec.ov && spec.ov.fill) {
-        try { node.fills = [paint(spec.ov.fill)]; }
-        catch (e) { report.errors.push('fill on ' + spec.sid + ': ' + e); }
+        /**
+         * TRANSPARENT is the absence of a fill, not a colour.
+         *
+         * `hexToRgb` cannot parse the keyword and falls back to {0,0,0}, and
+         * `alphaOf` finds no rgba() to read an alpha from and answers 1 — so an
+         * occurrence that is see-through was painted OPAQUE BLACK. The ordinary
+         * style path never hits this because `toIR` drops a transparent
+         * background before it becomes a fill at all; only the override path
+         * carries the keyword through, which is why it survived until a screen
+         * whose default state IS transparent was built.
+         */
+        try {
+          node.fills = spec.ov.fill.v === 'transparent' ? [] : [paint(spec.ov.fill)];
+        } catch (e) { report.errors.push('fill on ' + spec.sid + ': ' + e); }
       }
       stamp(node, spec.sid);
       return node;

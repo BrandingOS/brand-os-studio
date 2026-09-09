@@ -11,23 +11,26 @@ work it describes.
 | Page | Direct | Deep | Instances | Detached | State |
 |---|---|---|---|---|---|
 | 00 — Cover & Usage | 0 | — | — | — | empty |
-| 01 — Foundations | 1 | 314 | 0 | — | tokens board |
-| 02 — Icons | 8 | 65 | 7 | 0 | 7 icon components |
-| 03 — Components | 60 | 380 | 0 | — | 15 sets + 5 components + 40 labels |
-| **04 — Patterns & Navigation** | **14** | **387** | **10** | **0** | **complete** |
-| **10 — Setup** | **1** | **876** | **133** | **0** | **the pilot screen, built** |
-| 11 — Brand Kit | 0 | — | — | — | not started |
-| 12 — Brand Kit Editors | 0 | — | — | — | not started |
-| 13 — Design | 0 | — | — | — | not started |
+| 01 — Foundations | 1 | 314 | 0 | — | tokens board; 31 bound swatches = 31 variables |
+| 02 — Icons | 8 | 65 | 7 | 0 | 7 icon components + specimen |
+| **03 — Components** | **20** | **409** | 0 | — | **15 sets + 5 components, 91 variants** |
+| **04 — Patterns & Navigation** | **19** | **512** | **10** | **0** | **14 sets/components + 5 new** |
+| **10 — Setup** | **1** | **876** | **133** | **0** | **built from components** |
+| **11 — Brand Kit** | **1** | **1539** | **82** | **0** | **built from components** |
+| 12 — Brand Kit Editors | 0 | — | — | — | not started — see below |
+| **13 — Design** | **1** | **212** | **32** | **0** | **built from components** |
 | 90 — Component State Matrix | 0 | — | — | — | not started |
 | 91 — Responsive & RTL Tests | 0 | — | — | — | not started |
-| 98 — Visual Parity | 1 | 721 | — | — | the labelled reference capture |
+| 98 — Visual Parity | 1 | 722 | — | — | the labelled reference capture |
 | 99 — QA, Losses & Generation Report | 0 | — | — | — | not started |
+
+**Every screen: 0 detached, 0 unresolved.** Token binding by page —
+03: 206 bound / 60 literal · 04: 103/135 · 10: 182/234 · 11: 151/314 · 13: 97/15.
 
 **Variables:** `BrandingOS` — Light + Dark, 31 colour variables ·
 `Shape & Space` — 1 mode, 15 floats.
 **Styles:** 4 text, 4 effect, 0 paint.
-**Installed walker:** 21,576 bytes, matching `scripts/figma/.plans/_walker.meta.json`.
+**Installed walker:** 22,706 bytes, matching `scripts/figma/.plans/_walker.meta.json`.
 
 ---
 
@@ -147,3 +150,42 @@ What now reads correctly and did not before:
 | The "Add logo variant" tile has no dashed outline | Drawn by CSS on an `<svg class="logo-tile-dash"><rect></rect></svg>` that carries no geometry of its own. |
 
 The full 18-item gate result is in `SETUP-PILOT-GATE.md`.
+
+---
+
+## Pages 11 and 13 — screens built from the library
+
+Both are assembled the way Setup is: the chrome is INSTANCED from the same
+`pattern/workspace-topbar` the other screens use, and each screen contributes
+only the repeated units that are genuinely its own.
+
+| | Brand Kit (11) | Design (13) |
+|---|---|---|
+| size | 1440 × 4537 | 1440 × 1921 |
+| instances | 82 | 32 |
+| detached | 0 | 0 |
+| its own patterns | `bk-card` (37, 3 cover variants), `bk-nav-row` (38, active/default) | `design-template-card` (12), `design-cat-chip` (12, active/default), `design-chip` (6) |
+| reused from the library | `workspace-topbar`, `segmented-nav`, `section-add` | `workspace-topbar`, `segmented-nav` |
+
+**What is deliberately NOT a component on these screens.** The Brand Kit rail
+holds 38 rows in 5 groups and its five grids hold 6, 8, 8, 5 and 10 cards; those
+counts are data, so the containers stay frames and only the repeated unit is a
+component. Same rule as `colors-group` on Setup.
+
+### Known limits, measured
+
+| Limit | Detail |
+|---|---|
+| One cover per variant | The 6 `art` cards draw six different artworks (a logo, a swatch pair, a type specimen, an icon, a pull quote, an empty note) and the 8 `stage` cards render eight different deliverables. Each group shares the one cover its variant was measured from. Carrying them all needs an INSTANCE_SWAP property, not a variant. |
+| Bitmaps do not travel | An `<img>` reaches Figma as a sized frame with no picture, so the card marks and the 12 template thumbnails are empty. `generate_figma_design` can supply real `imageHash` values; nothing else in this pipeline can. |
+| Text overrides are positional | An occurrence carries every string inside it, the component exposes only the slots it has, and overrides are applied in document order — so a card whose cover has its own words gave the leading string to the caption slot. Four captions were corrected by hand after the build; the general fix is to match an override to the component's declared ROLE instead of to its position. |
+
+## Page 12 — Brand Kit Editors, not started and why
+
+The card editor is an OVERLAY reached by right-clicking a card and choosing
+Edit. It has no route of its own, and the extractor navigates to a URL — it
+cannot drive the UI into a state first. Capturing it needs one new affordance on
+a screen definition: a list of actions to perform before measuring. That is a
+small, contained addition and it would also unlock the other Setup states the
+pilot gate still lists as missing, which is the argument for doing it as its own
+piece of work rather than smuggling it into a screen build.

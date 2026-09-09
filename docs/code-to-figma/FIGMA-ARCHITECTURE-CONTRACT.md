@@ -181,6 +181,8 @@ setting the same-named field produces something that looks plausible and is wron
 | `text-transform` | `textCase` | Eyebrows lost their capitals |
 | `color(srgb …)` | parse it | Unparsed it fell back to black and painted a black border |
 | a form control's value | read `value \|\| placeholder` | Every input was empty |
+| `position: absolute; inset: 0` | give it the MEASURED size | The insets stretch it without naming a width, so `deriveSizing` reads it as hugging — true of the CSS and fatal in Figma, where nothing stretches a positioned child. The brand-kit card's full-bleed cover came out as a 24px black square in the corner of all 37 cards. |
+| `transparent` | an EMPTY fill array | Only the override path carries the keyword (the ordinary path drops a transparent background before it becomes a fill), and `hexToRgb` cannot parse it — so 48 see-through nodes were painted OPAQUE BLACK. |
 - **[LIMIT]** An INSTANCE may override its own `fills` and its own SIZE without
   detaching, and some patterns need both: a colour swatch's colour and its width
   ARE the content. Those overrides are carried only where they DIFFER from the

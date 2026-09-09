@@ -73,7 +73,22 @@ const body = src.slice(src.indexOf(symbol + ': readonly FxPattern[] = ['));
 // eval died on a stray `] as const;`.
 const json = body.slice(body.indexOf('['), body.indexOf('] as const;') + 1);
 // eslint-disable-next-line no-eval -- a literal array from a file in this repo.
-const PATTERNS = eval(json).filter((p) => !ONLY || p.key === ONLY);
+/**
+ * `--only` takes a COMMA-SEPARATED list, not one key.
+ *
+ * Adding patterns to a page that already has some is the ordinary case, and
+ * rebuilding the whole page to add five would orphan every instance the screens
+ * hold of the other fourteen — a Figma instance whose main component is deleted
+ * and recreated does not re-bind. Selecting the new ones is what makes an
+ * additive build possible.
+ */
+const ONLY_KEYS = ONLY ? ONLY.split(',').map((k) => k.trim()).filter(Boolean) : [];
+const PATTERNS = eval(json).filter((p) => !ONLY_KEYS.length || ONLY_KEYS.includes(p.key));
+if (ONLY_KEYS.length && PATTERNS.length !== ONLY_KEYS.length) {
+  const found = PATTERNS.map((p) => p.key);
+  throw new Error('--only named ' + ONLY_KEYS.length + ' keys but matched '
+    + PATTERNS.length + ': missing ' + ONLY_KEYS.filter((k) => !found.includes(k)).join(', '));
+}
 
 /**
  * A SCREEN references patterns, so it needs their variant rules — but they live

@@ -160,6 +160,46 @@ export const FX_SCREENS: readonly FxPattern[] = [
     exclude: ['.upload-modal-backdrop', '.preview-backdrop'],
     because: 'The pilot screen. Setup is what the whole architecture is being proved against.',
   },
+  {
+    key: 'Brand Kit — Desktop 1440 — Light',
+    sid: 'screen/brand-kit-desktop-light',
+    route: '/b/brandingos/brand-kit',
+    selector: '[data-workspace]',
+    at: [0],
+    frame: true,
+    page: '11',
+    contains: {
+      // The chrome is the SAME chrome. A second workspace top bar built from
+      // this route would be a duplicate of a component that already exists and
+      // already matches — the whole point of a library.
+      '[data-workspace] > header': 'pattern/workspace-topbar',
+      '.section-add': 'pattern/section-add',
+      // The repeated units this screen contributes. `.panel` and `.bk-grid` are
+      // deliberately NOT here: the rail holds 38 rows in 5 groups and the five
+      // grids hold 6, 8, 8, 5 and 10 cards, so their child count is data and a
+      // component cannot vary it.
+      '.bk-card': 'pattern/bk-card',
+      '.panel-item': 'pattern/bk-nav-row',
+    },
+    exclude: ['.upload-modal-backdrop', '.preview-backdrop'],
+    because: 'The kit is the product\'s centre of gravity — 37 deliverable cards over one rail.',
+  },
+  {
+    key: 'Design — Desktop 1440 — Light',
+    sid: 'screen/design-desktop-light',
+    route: '/b/brandingos/design',
+    selector: '[data-workspace]',
+    at: [0],
+    frame: true,
+    page: '13',
+    contains: {
+      '[data-workspace] > header': 'pattern/workspace-topbar',
+      '.dh-tpl': 'pattern/design-template-card',
+      '.dh-cat-chip': 'pattern/design-cat-chip',
+      '.dh-chip': 'pattern/design-chip',
+    },
+    because: 'The launchpad: one hero, twelve template cards, two chip families.',
+  },
 ] as const;
 
 export const FX_PATTERNS: readonly FxPattern[] = [
@@ -396,5 +436,103 @@ export const FX_PATTERNS: readonly FxPattern[] = [
     selector: '.preview-card',
     at: [0],
     because: '3 occurrences; the upload preview unit.',
+  },
+
+  // --- brand kit ------------------------------------------------------------
+  {
+    key: 'bk-card',
+    sid: 'pattern/bk-card',
+    route: '/b/brandingos/brand-kit',
+    selector: '.bk-card',
+    // All 37 are 335 x 238 and all carry the bare class `bk-card`; what differs
+    // is what the COVER draws. 23 have no cover art at all, 8 render a scaled
+    // stage, and 6 draw one-off artwork (a logo, a swatch pair, a type
+    // specimen, an icon, a pull quote, an empty note).
+    at: [14, 6, 0],
+    axes: [{ cover: 'none' }, { cover: 'stage' }, { cover: 'art' }],
+    variantBy: {
+      cover: {
+        when: [
+          { selector: '.bk-cover-stage', value: 'stage' },
+          { selector: '.bk-cover-art', value: 'art' },
+        ],
+        else: 'none',
+      },
+    },
+    roles: {
+      '.bk-card-label': 'label',
+      '.bk-card-cover': 'cover',
+      '.bk-card-actions': 'actions',
+    },
+    because:
+      '37 occurrences at ONE size — the most repeated unit in the product after '
+      + 'the icon tile. Known limit: the six one-off cover artworks all resolve to '
+      + 'the `art` variant and therefore share one cover; carrying six different '
+      + 'drawings needs an INSTANCE_SWAP property, not a variant.',
+  },
+  {
+    key: 'bk-nav-row',
+    sid: 'pattern/bk-nav-row',
+    route: '/b/brandingos/brand-kit',
+    selector: '.panel-item',
+    at: [0, 1],
+    axes: [{ state: 'active' }, { state: 'default' }],
+    variantBy: {
+      state: { when: [{ selector: '.is-active', value: 'active' }], else: 'default' },
+    },
+    roles: {
+      '.panel-item-thumb': 'thumb',
+      '.panel-item-name': 'name',
+      '.status-chip': 'status',
+    },
+    because:
+      '38 occurrences. Deliberately NOT `pattern/rail-row`, though both are '
+      + '`.panel-item` from workspace.css: Setup\'s row reports how complete a brand '
+      + 'SECTION is and carries a name, a subtitle and a completion check; this one '
+      + 'reports the lifecycle status of a DELIVERABLE and carries a name and a '
+      + 'status chip. Same box, different content model — shared markup is not '
+      + 'shared meaning.',
+  },
+
+  // --- design launchpad -----------------------------------------------------
+  {
+    key: 'design-template-card',
+    sid: 'pattern/design-template-card',
+    route: '/b/brandingos/design',
+    selector: '.dh-tpl',
+    at: [0],
+    roles: {
+      '.dh-tpl-thumb': 'thumb',
+      '.dh-tpl-name': 'name',
+      '.dh-tpl-mood': 'mood',
+    },
+    because:
+      '12 occurrences sharing one class. Three heights (270, 326, 172) because the '
+      + 'thumbnail carries the template\'s own aspect ratio as an inline style, which '
+      + 'no selector can read — so this is ONE component and the height travels as a '
+      + 'per-instance size override.',
+  },
+  {
+    key: 'design-cat-chip',
+    sid: 'pattern/design-cat-chip',
+    route: '/b/brandingos/design',
+    selector: '.dh-cat-chip',
+    at: [0, 1],
+    axes: [{ state: 'active' }, { state: 'default' }],
+    variantBy: {
+      state: {
+        when: [{ selector: '.dh-cat-chip--active', value: 'active' }],
+        else: 'default',
+      },
+    },
+    because: '12 occurrences; the category filter row, one of which is always selected.',
+  },
+  {
+    key: 'design-chip',
+    sid: 'pattern/design-chip',
+    route: '/b/brandingos/design',
+    selector: '.dh-chip',
+    at: [0],
+    because: '6 occurrences; the prompt suggestions under the hero.',
   },
 ] as const;

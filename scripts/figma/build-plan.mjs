@@ -206,9 +206,26 @@ function compact(node, isRoot = false) {
    * since a fill child then collapses with it. What a designer must see is the
    * thing as it ships, at the width it was measured at.
    */
-  const fixW = isText ? wrapped : (isRoot || node.sizing?.width === 'fixed');
-  const fixH = isText ? false : node.sizing?.height === 'fixed';
-  const needsSize = leaf || absolute || fixW || fixH;
+  /**
+   * A POSITIONED node that hugs on both axes was stretched by its insets.
+   *
+   * `position: absolute; inset: 0` gives a node its parent's whole box without
+   * ever naming a width or a height, so `deriveSizing` reads it as hugging —
+   * true of the CSS and fatal in Figma, where nothing stretches a positioned
+   * child and it collapses to its content. The brand-kit card's cover art is
+   * exactly that: a full-bleed charcoal ground that came out as a 24px black
+   * square in the corner of every card.
+   *
+   * Narrow on purpose. A positioned node that DOES declare an intent — `fill`
+   * on either axis, or a fixed length — already says what it wants and is left
+   * alone, which is why the Setup screen's positioned section headers are
+   * unaffected.
+   */
+  const stretched = !isText && !!node.pos
+    && node.sizing?.width === 'hug' && node.sizing?.height === 'hug';
+  const fixW = isText ? wrapped : (isRoot || stretched || node.sizing?.width === 'fixed');
+  const fixH = isText ? false : (stretched || node.sizing?.height === 'fixed');
+  const needsSize = leaf || absolute || stretched || fixW || fixH;
   if (node.sizing?.width === 'fill' || node.sizing?.height === 'fill'
       || node.sizing?.minW || node.sizing?.maxW || needsSize) {
     out.sizing = {};
