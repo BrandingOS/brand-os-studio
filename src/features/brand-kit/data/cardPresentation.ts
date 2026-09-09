@@ -10,12 +10,18 @@
  */
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 
-/** Curated 3-tile defaults for cards that have a designed picker
- *  pattern. Anything not listed here falls back to the first 3
- *  templates returned by `variantsForCard` (in template order). The
- *  user-facing UX: each drilldown shows three featured tiles, plus a
- *  "+" button that opens the picker modal to browse the full library
- *  and append more tiles for the session. */
+/** The design a card's COVER paints, per family.
+ *
+ *  This is no longer a browsing decision. The drilldown shows the whole
+ *  library — every design the family has, filtered by search and chips —
+ *  and "featured" survives only as the answer to "which one of these is
+ *  the face of the card, and the default a download ships". A tile's ⋯
+ *  menu offers `Set as cover`, which writes the user's own answer over
+ *  the curated one below.
+ *
+ *  The lists still hold three ids rather than one: the FIRST is the
+ *  cover, and the rest are what an export ships for the card. Anything
+ *  not listed here falls back to template order. */
 export const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
   // `business-cards-ext-113` ("Wave 2 · 95") used to sit here: a generated
   // design that printed "VP" over the bound job title, featured on the
@@ -215,10 +221,16 @@ export const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
   ],
 };
 
-/** Set of card labels that get the "3 featured + picker" pattern.
- *  Brand-asset cards (Logos / Colors / Fonts / Icons / Photos / About)
- *  are intentionally excluded — they're driven by real Setup data,
- *  not template variants. */
+/** Card labels that have a curated featured list to promote INTO.
+ *
+ *  It used to decide what the drilldown showed — three designs here,
+ *  twenty-seven behind a modal — and it decides nothing of the sort any
+ *  more: every family shows its whole library. What is left is narrow
+ *  and true: these are the cards whose cover is chosen from a template
+ *  library, so these are the cards where a tile can offer `Set as
+ *  cover`. Brand-asset cards (Logos / Colors / Fonts / Icons / Photos /
+ *  About) are excluded because they are driven by real Setup data and
+ *  their cover is composed, not picked. */
 export const PICKER_LABELS: ReadonlySet<string> = new Set<string>([
   // Stationery
   'Business Card',
@@ -253,10 +265,11 @@ export const PICKER_LABELS: ReadonlySet<string> = new Set<string>([
   'Rotate',
 ]);
 
-/** Per-label width-over-height ratio for the picker modal tiles.
- *  Falls back to 1.6 (the common business-card / landscape default).
- *  Keep this aligned with each card's natural orientation so the
- *  picker grid reads at a glance. */
+/** Per-label width-over-height ratio a design is drawn at — on the
+ *  card, on a drilldown tile and in an export alike. Falls back to 1.6
+ *  (the common business-card / landscape default). Keep this aligned
+ *  with each card's natural orientation so a wall of them reads at a
+ *  glance. */
 export const PICKER_ASPECT_BY_LABEL: Record<string, number> = {
   'Business Card': 1.6,
   Letterhead: 1 / 1.414,
@@ -343,4 +356,63 @@ const GENERATED_NAME = /^Wave \d+ · \d+$/;
 
 export function isGeneratedName(name: string | null | undefined): boolean {
   return typeof name === 'string' && GENERATED_NAME.test(name.trim());
+}
+
+/* ── Tile density ─────────────────────────────────────────────────
+ *
+ * How wide a tile has to be before the thing inside it is legible.
+ *
+ * The drilldown used to be a fixed wall of 260px-minimum cells, which
+ * is one answer to four different questions. Twenty-eight icons got a
+ * 335×209 cell to show a 48px glyph — a page of mostly empty boxes you
+ * scroll for a minute — while a letterhead got the same cell and had to
+ * shrink a whole A4 page into it.
+ *
+ * So the grid is keyed to the MATERIAL, not to a column count. Four
+ * steps, each named after what it has to hold:
+ *
+ *   glyph     one symbol, no text                    (Icons)
+ *   swatch    a colour, its name and its hex         (Colors)
+ *   mark      a logo, a typeface, a square format    (Logos, Typography…)
+ *   document  a printed or screen page               (stationery, decks…)
+ *
+ * `swatch` exists because a colour tile is not a glyph: the renderer
+ * paints the colour's NAME at 22px inside the tile, and at 140px wide
+ * that name wraps into the hex under it.
+ */
+export type TileDensity = 'glyph' | 'swatch' | 'mark' | 'document';
+
+/** Minimum tile width per density — the `minmax()` floor of the grid. */
+export const TILE_MIN_PX: Record<TileDensity, number> = {
+  glyph: 140,
+  swatch: 180,
+  mark: 260,
+  document: 340,
+};
+
+/** Families whose material is smaller than a document. Everything not
+ *  named here is a document, which is the honest default: most of the
+ *  kit is the brand printed or rendered onto a page. */
+const DENSITY_BY_LABEL: Record<string, TileDensity> = {
+  Icons: 'glyph',
+  Colors: 'swatch',
+  Logos: 'mark',
+  Fonts: 'mark',
+  // Square formats. A favicon is a 16px mark and a profile picture is a
+  // circle; at document width they are a wall of whitespace.
+  Favicon: 'mark',
+  Profile: 'mark',
+  'Logo Reveal': 'mark',
+  'Slide In': 'mark',
+  Fade: 'mark',
+  Rotate: 'mark',
+};
+
+export function densityForLabel(label: string): TileDensity {
+  return DENSITY_BY_LABEL[label] ?? 'document';
+}
+
+/** The `minmax()` floor a family's grid should use, in px. */
+export function tileMinWidth(label: string): number {
+  return TILE_MIN_PX[densityForLabel(label)];
 }

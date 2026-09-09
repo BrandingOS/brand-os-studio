@@ -3,14 +3,22 @@ import type { Brand } from '@/shared/types/brand';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
-import { KitFilterRow, KitFilterEmpty, useKitFilter } from './KitFilterRow';
+import { KitFilterRow, KitFilterEmpty, useKitFilter } from '../components/KitFilterRow';
+import './templatePicker.css';
 
 /**
- * Browse-and-add picker for template variants (business cards,
- * letterheads, …). The drilldown shows a curated showcase by
- * default; this modal opens via the drilldown's "+" button and
- * lists every variant the showcase doesn't already include.
- * Picking one calls `onPick` so the parent appends it to the set.
+ * FROZEN — the Brand Kit's old browse-and-add picker.
+ *
+ * The canonical Brand Kit (`/b/:slug/brand-kit`) no longer has one. It
+ * showed three designs and hid the other twenty-seven behind a "+" that
+ * opened this modal over the page, which is both halves of a defect: the
+ * library was invisible, and the only way to see it covered the thing you
+ * were comparing it against. The drilldown IS the library now.
+ *
+ * It survives here because `/b/:slug/brand-kit-next` — the owner-preserved
+ * lifecycle page — still uses it, directly and through `ReviewOverlay`.
+ * That page is not to be broken, so the component was moved rather than
+ * deleted, with its stylesheet beside it. Nothing new should import it.
  */
 export type TemplatePickerModalProps = {
   open: boolean;
@@ -56,13 +64,8 @@ export function TemplatePickerModal({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open, onClose]);
 
-  /**
-   * The picker IS the library — the drilldown shows three featured
-   * designs and everything else is in here, which is why the search and
-   * the chips matter more on this surface than on that one. Hooks run
-   * before the early return: a picker that is closed still has to obey
-   * the rules of hooks.
-   */
+  /* Hooks run before the early return: a picker that is closed still has
+     to obey the rules of hooks. */
   const offered = useMemo(() => {
     const excluded = new Set(excludedIds);
     return templates.filter((t) => !excluded.has(t.id));

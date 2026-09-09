@@ -4,7 +4,7 @@
  * A library you can only scroll is a pile. Twenty-four business cards with
  * no way to say "the dark ones" is a slower way to find nothing.
  *
- * Two rules the row exists to keep:
+ * Three rules the row exists to keep:
  *
  *   1. **The words are the curation's, never invented here.** Every chip is
  *      a tag some designer really filed a design under
@@ -15,12 +15,21 @@
  *      that each hide two of the three things on screen. That is a worse
  *      index than reading the names, so a tag earns a chip only when it
  *      groups something.
+ *   3. **THE ROW IS ALWAYS THERE.** It used to disappear on any family
+ *      with fewer than six designs and no shared tag, so the control that
+ *      finds a design was present on some cards and absent on others — and
+ *      a control that vanishes is a control nobody learns. A family with
+ *      nothing to sift gets the row INERT: same place, same shape, plainly
+ *      unavailable, saying how many designs there are instead of implying
+ *      there is a search you have forgotten how to open.
+ *
+ * The `All` chip is the row's zero state made visible. It carries the
+ * family's TRUE total — every design on the wall, not the count after a
+ * filter — so the row always states the size of the library it sits over,
+ * and pressing it is the one gesture that returns the whole of it.
  *
  * It lives here, feature-local, rather than in `shared/ds`: the tags come
  * from the kit's own curation and the empty state speaks about designs.
- * Two consumers wanted the same thing for the same reason — the drilldown
- * (the designs a card is showing) and the picker (every design the family
- * has) — which is why it is one component and not two copies.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DsChip, DsInput } from '@/shared/ds';
@@ -108,36 +117,57 @@ export type KitFilterRowProps = {
 };
 
 export function KitFilterRow({ filter, total, noun, className }: KitFilterRowProps) {
-  if (!filter.filterable) return null;
+  const inert = !filter.filterable;
+  const showingAll = filter.query.trim() === '' && filter.activeTags.length === 0;
   return (
-    <div className={['bk-drilldown-filter', className ?? ''].filter(Boolean).join(' ')}>
+    <div
+      className={['bk-drilldown-filter', inert ? 'is-inert' : '', className ?? '']
+        .filter(Boolean)
+        .join(' ')}
+      data-inert={inert ? 'true' : undefined}
+    >
       <DsInput
         pill
         type="search"
         className="bk-drilldown-search"
         value={filter.query}
+        disabled={inert}
         onChange={(e) => filter.setQuery(e.target.value)}
-        placeholder={`Search ${total} ${noun.toLowerCase()} designs`}
+        placeholder={
+          inert
+            ? `${total} ${noun.toLowerCase()} ${total === 1 ? 'design' : 'designs'}`
+            : `Search ${total} ${noun.toLowerCase()} designs`
+        }
         aria-label={`Search ${noun}`}
       />
-      {filter.chips.length > 0 && (
-        <div className="bk-drilldown-chips" role="group" aria-label="Filter by tag">
-          {filter.chips.map(([tag, count]) => {
-            const on = filter.activeTags.includes(tag);
-            return (
-              <DsChip
-                key={tag}
-                active={on}
-                aria-pressed={on}
-                onClick={() => filter.toggleTag(tag)}
-              >
-                {tag}
-                <span className="bk-chip-count">{count}</span>
-              </DsChip>
-            );
-          })}
-        </div>
-      )}
+      <div className="bk-drilldown-chips" role="group" aria-label="Filter by tag">
+        {/* The wall's own size, and the way back to all of it. */}
+        <DsChip
+          data-facet="all"
+          active={showingAll}
+          aria-pressed={showingAll}
+          disabled={inert}
+          onClick={filter.clear}
+        >
+          All
+          <span className="bk-chip-count">{total}</span>
+        </DsChip>
+        {filter.chips.map(([tag, count]) => {
+          const on = filter.activeTags.includes(tag);
+          return (
+            <DsChip
+              key={tag}
+              data-facet={tag}
+              active={on}
+              aria-pressed={on}
+              onClick={() => filter.toggleTag(tag)}
+            >
+              {tag}
+              <span className="bk-chip-count">{count}</span>
+            </DsChip>
+          );
+        })}
+      </div>
     </div>
   );
 }

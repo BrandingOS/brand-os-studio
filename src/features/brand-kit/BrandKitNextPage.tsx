@@ -29,7 +29,7 @@ import {
   type EditorTarget,
 } from './components/BrandKitCardEditor';
 import { IconPickerModal } from './components/IconPickerModal';
-import { TemplatePickerModal } from './components/TemplatePickerModal';
+import { TemplatePickerModal } from './legacy/TemplatePickerModal';
 import { variantsForCard } from './data/legacy-mapping';
 import { suggestIconsForBrand } from './data/suggestIcons';
 import {

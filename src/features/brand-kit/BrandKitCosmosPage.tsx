@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -21,7 +22,11 @@ import { container as serviceContainer } from '@/core/container/ServiceContainer
 import { SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { createTemplateInstanceDocument } from '@/features/editor/renderers/template-instance/createDocument';
-import { defaultContentFor, contentKindForTemplateType } from '@/features/brandkit/content';
+import {
+  defaultContentFor,
+  contentKindForTemplateType,
+  type DeliverableContent,
+} from '@/features/brandkit/content';
 import { ensureMasterDesign, instanceFromMaster } from './kit/masterTemplates';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
@@ -67,8 +72,8 @@ import { IconsEditor } from './components/assets/IconsEditor';
 import { LogosEditor } from './components/assets/LogosEditor';
 import { PhotosEditor } from './components/assets/PhotosEditor';
 import { StrategyEditor } from './components/assets/StrategyEditor';
-import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { TileActions, type TileMenuAction } from './components/TileActions';
+import { useNearViewport } from './components/useNearViewport';
 import {
   KitFilterRow,
   KitFilterEmpty,
@@ -88,10 +93,11 @@ import { triggerBlobDownload } from './data/colorPaletteExport';
 import { contentForTemplate, loadBrandCustomizations } from './data/savedContent';
 import {
   DEFAULT_FEATURED_IDS_BY_LABEL,
-  PICKER_ASPECT_BY_LABEL,
   PICKER_LABELS,
   aspectForLabel,
+  densityForLabel,
   featuredTemplates,
+  tileMinWidth,
 } from './data/cardPresentation';
 import {
   cardCustomizationKey,
@@ -260,20 +266,17 @@ export function BrandKitCosmosPage({
     [customizationBrandId, savedRevision],
   );
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  // Which template-picker is open (by card label), or null when none.
-  // A single state replaces the per-label `*PickerOpen` flags.
-  const [pickerLabel, setPickerLabel] = useState<string | null>(null);
-  // Featured variant IDs per card label. Initialized from the curated
-  // defaults (Stationery only); other labels resolve at render time
-  // by taking the first 3 templates from the live drilldown target.
-  // Picker appends per-label; persists for the session only.
+  // Which design is each card's FACE, per label. Not a browsing
+  // decision any more — the drilldown shows the family's whole library
+  // — this is the cover the overview card paints and the design a
+  // card-level download ships. A tile's ⋯ → "Set as cover" writes it.
   const [featuredIdsByLabel, setFeaturedIdsByLabel] = useState<
     Record<string, string[]>
   >({ ...DEFAULT_FEATURED_IDS_BY_LABEL });
-  // Hydrate picker-added variants (persisted per brand + card label) so
-  // a "+"-added variant survives navigation and refresh. Saved lists
-  // win over the curated defaults for their label; brands without saves
-  // render the defaults unchanged.
+  // Hydrate the user's own covers (persisted per brand + card label) so
+  // a chosen cover survives navigation and refresh. Saved lists win over
+  // the curated defaults for their label; brands without saves render
+  // the defaults unchanged.
   useEffect(() => {
     const saved = loadFeaturedVariants(customizationBrandId);
     if (Object.keys(saved).length > 0) {
@@ -646,7 +649,7 @@ export function BrandKitCosmosPage({
         const blob = await snapshotTemplatePng(
           renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
           260,
-          PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6,
+          aspectForLabel(t.label),
         );
         if (!blob) throw new Error('Rasterization produced no image');
         triggerBlobDownload(
@@ -715,8 +718,8 @@ export function BrandKitCosmosPage({
         saveFeaturedVariants(customizationBrandId, label, next);
         return { ...prev, [label]: next };
       });
-      toast.success('Set as featured', {
-        description: 'It is now this card’s cover and its default download.',
+      toast.success('Set as cover', {
+        description: 'It is now this card’s face and its default download.',
       });
     },
     [customizationBrandId],
@@ -1518,19 +1521,6 @@ export function BrandKitCosmosPage({
                     onSetGlobalIconWeight={handleSetGlobalIconWeight}
                     iconTintOverride={iconTintOverride}
                     onSetGlobalIconTint={setIconTintOverride}
-                    featuredIds={
-                      PICKER_LABELS.has(drilldownTarget.label)
-                        ? featuredIdsByLabel[drilldownTarget.label] ??
-                          (drilldownTarget.templates ?? [])
-                            .slice(0, 3)
-                            .map((t) => t.id)
-                        : undefined
-                    }
-                    onAddVariants={
-                      PICKER_LABELS.has(drilldownTarget.label)
-                        ? () => setPickerLabel(drilldownTarget.label)
-                        : undefined
-                    }
                     onAddColor={handleAddColor}
                     onDownload={async (choice) => {
                       /*
@@ -1744,38 +1734,6 @@ export function BrandKitCosmosPage({
           onPick={handleAddIcon}
           onClose={() => setIconPickerOpen(false)}
         />
-        <TemplatePickerModal
-          open={pickerLabel !== null}
-          title={pickerLabel ? `Add ${pickerLabel.toLowerCase()} variant` : ''}
-          noun={pickerLabel ?? 'variant'}
-          tileAspect={pickerLabel ? PICKER_ASPECT_BY_LABEL[pickerLabel] ?? 1.6 : 1.6}
-          templates={
-            pickerLabel && drilldownTarget?.label === pickerLabel
-              ? drilldownTarget.templates ?? []
-              : []
-          }
-          excludedIds={
-            pickerLabel
-              ? featuredIdsByLabel[pickerLabel] ??
-                (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id)
-              : []
-          }
-          sourceBrand={sourceBrand}
-          mockBrand={effectiveBrand}
-          onPick={(tpl) => {
-            if (!pickerLabel) return;
-            setFeaturedIdsByLabel((prev) => {
-              const current =
-                prev[pickerLabel] ??
-                (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id);
-              if (current.includes(tpl.id)) return prev;
-              const next = [...current, tpl.id];
-              saveFeaturedVariants(customizationBrandId, pickerLabel, next);
-              return { ...prev, [pickerLabel]: next };
-            });
-          }}
-          onClose={() => setPickerLabel(null)}
-        />
       </WorkspaceShell>
     </KitDockProvider>
   );
@@ -1816,16 +1774,6 @@ type DrilldownProps = {
   /** Pass a hex to set the global tint, or null to clear it and
    *  fall back to the per-tile default. */
   onSetGlobalIconTint?: (hex: string | null) => void;
-  /** Curated variant IDs for the current drilldown's card. When
-   *  defined, the grid renders only these tiles in this order — the
-   *  rest of the library is reachable via the "+" picker. Undefined
-   *  means render all of `target.templates` (used for cards with no
-   *  designed picker pattern, e.g. Brand Assets). */
-  featuredIds?: string[];
-  /** Opens the per-card variants picker (more variants from the
-   *  library). When defined alongside `featuredIds`, the drilldown
-   *  shows a "+" in its header. */
-  onAddVariants?: () => void;
   /** Optional — when provided, the Colors drilldown shows a "+"
    *  button that pops the inline HSV color picker (Setup parity). */
   onAddColor?: (group: 'core' | 'accent', hex: string) => void;
@@ -1846,8 +1794,8 @@ type DrilldownProps = {
   onDownloadVariant?: (template: BrandKitTemplate, choice: DownloadChoice) => void;
   /** The five download words this card can honour. */
   downloadOptions?: DownloadOption[];
-  /** Promote a variant to the card's face. Only offered where the card
-   *  really has a featured list to promote into. */
+  /** Promote a design to the card's face on the overview. Only offered
+   *  where the card really has a cover list to promote into. */
   onSetFeatured?: (template: BrandKitTemplate) => void;
 };
 
@@ -1867,6 +1815,64 @@ type DrilldownProps = {
  * uses, just framed in our cosmos shell. Cards with no legacy
  * counterpart fall back to the shared cover image.
  */
+/**
+ * How many tiles paint before the observer has said anything.
+ *
+ * The rest wait for an IntersectionObserver (`useNearViewport`), the same
+ * deferral the overview's 37 covers use — with thirty designs on a wall,
+ * mounting thirty React renderers in one frame is the cost of opening a
+ * card.
+ *
+ * Four, not "the first screenful": the number has to hold for a narrow
+ * window as well as a wide one, and at 414px a document family is ONE
+ * column of 590px-tall tiles — a screenful there is one tile, and twelve
+ * is eleven invoices nobody asked for. Four is the first row at document
+ * density on a laptop and a small overshoot on a phone. The point of it
+ * is not to cover the fold (the observer does that, within a frame) but
+ * to make sure the tile the user pressed a card to see is never an empty
+ * box, not even for one frame.
+ */
+const EAGER_TILES = 4;
+
+/**
+ * A tile's live artwork — mounted when it is worth mounting, and NOT
+ * re-rendered because something else on the page moved.
+ *
+ * Both halves are needed and they answer different costs. The observer
+ * answers the FIRST paint: thirty renderers in one frame is what opening
+ * a card would otherwise cost. `memo` answers every frame after it — the
+ * drilldown holds six pieces of state (a tile menu, the download menu, the
+ * weight and colour popovers, the theme, the filter query), and without
+ * this each of them re-ran every renderer on the wall. Opening a context
+ * menu on each of twenty-two invoices in turn took the browser down.
+ *
+ * The memo holds because `content` is `undefined` for any design nobody
+ * has edited (`contentForTemplate` returns undefined with no saved
+ * record), which is nearly all of them; an edited design gets a new
+ * content object and repaints, which is exactly what the docked editor
+ * needs.
+ */
+const VariantArtwork = memo(function VariantArtwork({
+  template,
+  sourceBrand,
+  mockBrand,
+  content,
+  eager,
+}: {
+  template: BrandKitTemplate;
+  sourceBrand: Brand;
+  mockBrand?: MockBrand;
+  content?: DeliverableContent;
+  eager: boolean;
+}) {
+  const [ref, near] = useNearViewport<HTMLSpanElement>(eager);
+  return (
+    <span ref={ref} className="bk-variant-tile-render" aria-hidden>
+      {near ? renderTemplateDesign(template, sourceBrand, mockBrand, content) : null}
+    </span>
+  );
+});
+
 function BrandKitDrilldown({
   target,
   entry,
@@ -1879,8 +1885,6 @@ function BrandKitDrilldown({
   onSetGlobalIconWeight,
   iconTintOverride,
   onSetGlobalIconTint,
-  featuredIds,
-  onAddVariants,
   onAddColor,
   onDownload,
   onUseTemplate,
@@ -1953,21 +1957,22 @@ function BrandKitDrilldown({
       // Icons drilldown uses.
       return variantsForCard(target.sectionKey, target.label, mockBrand);
     }
-    if (featuredIds) {
-      // Filter the full library down to the curated/picked IDs in
-      // their stored order. Drives the "3 featured + picker" pattern
-      // for Stationery, Social, Web, Brand Guides, Presentations,
-      // Animations.
-      const all = target.templates ?? [];
-      return featuredIds
-        .map((id) => all.find((t) => t.id === id))
-        .filter((t): t is typeof all[number] => Boolean(t));
-    }
+    /*
+     * EVERY DESIGN THE FAMILY HAS.
+     *
+     * This used to filter the library down to three curated ids and put
+     * the other twenty-seven behind a "+" that opened a modal over the
+     * page. Ninety-four designs were on the machine and six were on the
+     * screen. A library is not a library if you have to know it is there.
+     *
+     * The wall is the library now; `featuredTemplates` still exists, and
+     * still means something — but only "which of these is the card's
+     * face", which is a question about the OVERVIEW, not about browsing.
+     */
     return target.templates ?? [];
   }, [
     isIcons,
     isColors,
-    featuredIds,
     mockBrand,
     target.sectionKey,
     target.label,
@@ -2017,7 +2022,7 @@ function BrandKitDrilldown({
       }
       if (onSetFeatured) {
         out.push({
-          label: 'Set as featured',
+          label: 'Set as cover',
           onSelect: () => onSetFeatured(tpl),
           separated: out.length > 0,
         });
@@ -2234,28 +2239,6 @@ function BrandKitDrilldown({
               </svg>
             </button>
           )}
-          {onAddVariants && (
-            <button
-              type="button"
-              className="section-add"
-              onClick={onAddVariants}
-              aria-label={`Browse more ${target.label.toLowerCase()} variants`}
-              title="More variants"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-          )}
           {isColors && onAddColor && (
             <div className="bk-drilldown-color">
               <button
@@ -2440,7 +2423,12 @@ function BrandKitDrilldown({
           )}
         </div>
       </div>
-      {!composed && hasTemplates && (
+      {/* THE ROW IS PART OF THE PAGE, NOT OF THE FAMILY. Present on every
+          wall of designs, inert where there is nothing to sift — a
+          control that appears on some cards and not on others is a
+          control nobody learns is there. Composed views (Strategy, the
+          two systems, the Brand Board) have no wall to sift. */}
+      {!composed && (
         <KitFilterRow
           filter={filter}
           total={templates.length}
@@ -2450,20 +2438,23 @@ function BrandKitDrilldown({
       {composed ?? (
       <div
         className="bk-drilldown-grid"
+        data-density={densityForLabel(target.label)}
         style={
-          isIcons
-            ? ({
-                ...(iconTintOverride ? { '--bk-icon-tint': iconTintOverride } : {}),
-                ...(iconBgFlip ? { '--bk-icon-bg': iconBgFlip } : {}),
-              } as CSSProperties)
-            : undefined
+          {
+            // The grid is keyed to the MATERIAL. A 48px glyph and an A4
+            // letterhead are not the same cell; `auto-fill` then decides
+            // the column count from the width it is actually given.
+            '--bk-tile-min': `${tileMinWidth(target.label)}px`,
+            ...(isIcons && iconTintOverride ? { '--bk-icon-tint': iconTintOverride } : {}),
+            ...(isIcons && iconBgFlip ? { '--bk-icon-bg': iconBgFlip } : {}),
+          } as CSSProperties
         }
       >
         {hasTemplates ? (
           visible.length === 0 ? (
             <KitFilterEmpty onClear={filter.clear} />
           ) : (
-          visible.map((tpl) => (
+          visible.map((tpl, i) => (
             <figure key={tpl.id} className="bk-variant-card" data-template-id={tpl.id}>
               <button
                 type="button"
@@ -2474,16 +2465,17 @@ function BrandKitDrilldown({
                 aria-label={`Open ${tpl.name}`}
               >
                 {sourceBrand ? (
-                  <span className="bk-variant-tile-render" aria-hidden>
-                    {renderTemplateDesign(
-                      tpl,
-                      sourceBrand,
-                      mockBrand,
+                  <VariantArtwork
+                    template={tpl}
+                    sourceBrand={sourceBrand}
+                    mockBrand={mockBrand}
+                    content={
                       savedContent && mockBrand
                         ? contentForTemplate(savedContent, tpl, mockBrand)
-                        : undefined,
-                    )}
-                  </span>
+                        : undefined
+                    }
+                    eager={i < EAGER_TILES}
+                  />
                 ) : (
                   <span
                     className="bk-variant-tile-cover"

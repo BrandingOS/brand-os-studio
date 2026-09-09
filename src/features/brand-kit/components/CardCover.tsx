@@ -45,6 +45,7 @@ import { contentForTemplate } from '../data/savedContent';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
 import { markPhotoSourceBroken, realPhotos } from '../data/photoExport';
+import { useNearViewport } from './useNearViewport';
 
 /** The width every kit renderer is authored against. */
 const CANONICAL_WIDTH = 260;
@@ -59,46 +60,6 @@ const CANONICAL_WIDTH = 260;
  * rotation is still off-square: four different pictures, all of them whole.
  */
 const MOTION_COVER_AT = 0.88;
-
-/* ── Lazy mount ───────────────────────────────────────────────────── */
-
-/**
- * True once the element has been near the viewport.
- *
- * One-way: a cover that has been seen stays mounted, because unmounting it
- * on scroll-out would re-run the renderer every time the user scrolled back
- * — the opposite of the saving this exists for. `rootMargin` gives a screen
- * of lead time so a cover is painted before it is looked at.
- *
- * The page scrolls the WINDOW (the drilldown header is `position: sticky`
- * against it), so the default root is the right root here.
- */
-function useNearViewport<T extends HTMLElement>(): [React.RefObject<T>, boolean] {
-  const ref = useRef<T>(null);
-  const [near, setNear] = useState(typeof IntersectionObserver === 'undefined');
-
-  useEffect(() => {
-    if (near) return;
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') {
-      setNear(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setNear(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '400px 0px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [near]);
-
-  return [ref, near];
-}
 
 /* ── The scaled stage ─────────────────────────────────────────────── */
 

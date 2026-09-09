@@ -8,7 +8,7 @@ import { DELIVERABLES, getDeliverableByKey } from '../kit/registry';
 import { renderKitPreview, templateForVariant } from '../kit/preview';
 import { variantsForCard } from '../data/legacy-mapping';
 import type { GenerationContext } from '../kit/generation';
-import { TemplatePickerModal } from './TemplatePickerModal';
+import { TemplatePickerModal } from '../legacy/TemplatePickerModal';
 
 /**
  * Review queue — the moment of ownership. Every generated deliverable
