@@ -46,45 +46,11 @@ import { variantsForCard, variantsForCardUncurated } from '../../data/legacy-map
 import { isArchived } from '../curation';
 import { renderCosmosTemplate } from '../index';
 import { SWEEP_BRAND } from './bindSweep';
+import { ALL_CARDS } from './cards';
+import { DEFAULT_FEATURED_IDS_BY_LABEL } from '../../data/cardPresentation';
+import { DELIVERABLES } from '../../kit/registry';
 
 afterEach(cleanup);
-
-/** Every card the kit offers, as `resolveLegacyCard` keys them. */
-export const ALL_CARDS: Array<[string, string]> = [
-  ['stationery', 'Business Card'],
-  ['stationery', 'Letterhead'],
-  ['stationery', 'Envelope'],
-  ['stationery', 'Invoice'],
-  ['social', 'Profile'],
-  ['social', 'Cover'],
-  ['social', 'Post'],
-  ['social', 'Story'],
-  ['web', 'Favicon'],
-  ['web', 'Website'],
-  ['web', 'Email Signature'],
-  ['web', 'Landing Page'],
-  ['brand-guides', 'Logo Guide'],
-  ['brand-guides', 'Color Guide'],
-  ['brand-guides', 'Typography Guide'],
-  ['brand-guides', 'Voice Guide'],
-  ['brand-guides', 'Imagery Guide'],
-  ['presentations', 'Pitch Deck'],
-  ['presentations', 'Business Plan'],
-  ['presentations', 'Proposal'],
-  ['presentations', 'Case Studies'],
-  ['animations', 'Logo Reveal'],
-  ['animations', 'Slide In'],
-  ['animations', 'Fade'],
-  ['animations', 'Rotate'],
-  ['mockups', 'Signage'],
-  ['mockups', 'Apparel'],
-  ['mockups', 'Mug'],
-  ['mockups', 'Tote'],
-  ['mockups', 'Sticker'],
-  ['mockups', 'Business Card Stack'],
-  ['mockups', 'Device Screen'],
-  ['mockups', 'Billboard'],
-];
 
 /**
  * A legacy id — `business-cards-7`, `invoices-3` — as opposed to a
@@ -179,5 +145,29 @@ describe('archived designs', () => {
             '',
           ].join('\n'),
     ).toBe(0);
+  });
+
+  /**
+   * A featured id names the design a customer sees FIRST — on the card,
+   * and in the kit the generator seeds. Three of them named archived
+   * generator output for months (`business-cards-ext-113`, the design
+   * that printed "VP" over the bound job title, plus two letterheads and
+   * an envelope from wave 2), and nothing said so: `featuredTemplates`
+   * silently drops an id it cannot resolve, so the card promised three
+   * tiles and showed two.
+   */
+  it('never features an archived design', () => {
+    const offenders: string[] = [];
+    for (const [label, ids] of Object.entries(DEFAULT_FEATURED_IDS_BY_LABEL)) {
+      for (const id of ids ?? []) {
+        if (isArchived(id)) offenders.push(`cardPresentation ${label}: ${id}`);
+      }
+    }
+    for (const def of DELIVERABLES) {
+      for (const id of def.featuredIds ?? []) {
+        if (isArchived(id)) offenders.push(`registry ${def.label}: ${id}`);
+      }
+    }
+    expect(offenders, offenders.join('\n')).toEqual([]);
   });
 });
