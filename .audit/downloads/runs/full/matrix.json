@@ -1,0 +1,2914 @@
+[
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logos",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-logos.zip · 16 files · 694030 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logos",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-logos.zip · 10 files · 313405 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logos",
+    "row": "Vector (SVG)",
+    "verdict": "ok — raqm-logos.zip · 3 files · 2988 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logos",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-logos.zip · 16 files · 403889 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logos",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-logos.zip · 16 files · 471969 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Colors",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-colors.zip · 8 files · 300084 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Colors",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-colors.zip · 8 files · 194998 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Colors",
+    "row": "Vector (SVG)",
+    "verdict": "ok — raqm-colors.zip · 16 files · 41454 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Colors",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-colors.zip · 8 files · 168382 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Colors",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-colors.zip · 8 files · 503691 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Typography",
+    "row": "For web (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Typography",
+    "row": "For print (PDF)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Typography",
+    "row": "Font files (TTF)",
+    "verdict": "ok — raqm-typography.zip · 9 files · 233664 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Typography",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Typography",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Icons",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-icons.zip · 56 files · 164774 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Icons",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-icons.zip · 56 files · 358071 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Icons",
+    "row": "Vector (SVG)",
+    "verdict": "ok — raqm-icons.zip · 29 files · 102670 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Icons",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-icons.zip · 56 files · 171696 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Icons",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-icons.zip · 56 files · 22425293 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Photos",
+    "row": "For web (PNG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Photos",
+    "row": "For print (PDF)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Photos",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Photos",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Photos",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "For web (MD)",
+    "verdict": "ok — raqm-strategy.md · 1 file · 1381 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-strategy.pdf · 1 file · 85910 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "As data (JSON)",
+    "verdict": "ok — raqm-strategy.json · 1 file · 3549 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "Flattened (PNG)",
+    "verdict": "ok — raqm-strategy.png · 1 file · 282368 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "Everything (ZIP)",
+    "verdict": "ok — raqm-strategy.zip · 4 files · 92021 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-business-card.png · 1 file · 52877 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-business-card.pdf · 1 file · 42107 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-business-card.jpg · 1 file · 38489 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-business-card-1024px.png · 1 file · 64830 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-letterhead.png · 1 file · 89103 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-letterhead.pdf · 1 file · 55797 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-letterhead.jpg · 1 file · 56185 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-letterhead-1024px.png · 1 file · 121642 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-invoice.png · 1 file · 158498 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-invoice.pdf · 1 file · 112989 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-invoice.jpg · 1 file · 103404 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-invoice-1024px.png · 1 file · 212769 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-email-signature.png · 1 file · 52382 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-email-signature.pdf · 1 file · 37402 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "Signature (HTML)",
+    "verdict": "ok — raqm-email-signature.zip · 2 files · 50591 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-email-signature.jpg · 1 file · 37748 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-email-signature-1024px.png · 1 file · 68475 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-envelope.png · 1 file · 36994 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-envelope.pdf · 1 file · 26441 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-envelope.jpg · 1 file · 26350 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-envelope-1024px.png · 1 file · 45834 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-favicon.png · 1 file · 44280 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-favicon.pdf · 1 file · 28400 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "Favicon set (ICO)",
+    "verdict": "ok — raqm-favicon.zip · 8 files · 16935 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-favicon.jpg · 1 file · 27347 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-favicon-1024px.png · 1 file · 50697 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Website",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-website.png · 1 file · 80676 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Website",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-website.pdf · 1 file · 60617 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Website",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Website",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-website.jpg · 1 file · 89965 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Website",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-website-1024px.png · 1 file · 111406 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-landing-page.png · 1 file · 86595 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-landing-page.pdf · 1 file · 66027 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-landing-page.jpg · 1 file · 77730 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-landing-page-1024px.png · 1 file · 126236 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Signage",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-signage.png · 1 file · 45338 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Signage",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-signage.pdf · 1 file · 25828 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Signage",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Signage",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-signage.jpg · 1 file · 26140 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Signage",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-signage-1024px.png · 1 file · 59795 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-apparel.png · 1 file · 134913 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-apparel.pdf · 1 file · 69610 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-apparel.jpg · 1 file · 37039 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-apparel-1024px.png · 1 file · 178014 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Mug",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-mug.png · 1 file · 174539 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Mug",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-mug.pdf · 1 file · 89325 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Mug",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Mug",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-mug.jpg · 1 file · 33011 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Mug",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-mug-1024px.png · 1 file · 199296 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Tote",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-tote.png · 1 file · 185212 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Tote",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-tote.pdf · 1 file · 101457 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Tote",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Tote",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-tote.jpg · 1 file · 34430 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Tote",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-tote-1024px.png · 1 file · 204929 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-sticker.png · 1 file · 107552 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-sticker.pdf · 1 file · 58180 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-sticker.jpg · 1 file · 45898 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-sticker-1024px.png · 1 file · 145567 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-business-card-stack.png · 1 file · 76967 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-business-card-stack.pdf · 1 file · 44136 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-business-card-stack.jpg · 1 file · 33006 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-business-card-stack-1024px.png · 1 file · 100940 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-device-screen.png · 1 file · 72574 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-device-screen.pdf · 1 file · 39079 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-device-screen.jpg · 1 file · 32279 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-device-screen-1024px.png · 1 file · 100823 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-billboard.png · 1 file · 61906 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-billboard.pdf · 1 file · 35110 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-billboard.jpg · 1 file · 36904 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-billboard-1024px.png · 1 file · 83138 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-social-media-system.png · 1 file · 458778 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-social-media-system.pdf · 1 file · 331686 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-social-media-system.jpg · 1 file · 320653 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-social-media-system-1024px.png · 1 file · 196031 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Profile",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-profile.png · 1 file · 44374 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Profile",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-profile.pdf · 1 file · 25215 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Profile",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — raqm-profile.zip · 3 files · 78641 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Profile",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-profile.jpg · 1 file · 28188 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Profile",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-profile-1024px.png · 1 file · 51697 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Cover",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-cover.png · 1 file · 53055 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Cover",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-cover.pdf · 1 file · 38059 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Cover",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — raqm-cover.zip · 6 files · 848162 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Cover",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-cover.jpg · 1 file · 45763 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Cover",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-cover-1024px.png · 1 file · 68541 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Post",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-post.png · 1 file · 71449 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Post",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-post.pdf · 1 file · 47739 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Post",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — raqm-instagram-post-1080x1080.png · 1 file · 109616 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Post",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-post.jpg · 1 file · 62025 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Post",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-post-1024px.png · 1 file · 91668 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Story",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-story.png · 1 file · 97499 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Story",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-story.pdf · 1 file · 57056 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Story",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — raqm-instagram-story-1080x1920.png · 1 file · 146527 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Story",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-story.jpg · 1 file · 75212 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Story",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-story-1024px.png · 1 file · 120565 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-presentation-system.png · 1 file · 460202 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-presentation-system.pdf · 1 file · 338735 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — raqm-presentation-system.pptx · 1 file · 187648 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-presentation-system.jpg · 1 file · 371699 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-presentation-system-1024px.png · 1 file · 208144 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-brand-board.png · 1 file · 150672 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-brand-board.pdf · 1 file · 130518 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-brand-board.jpg · 1 file · 116296 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-brand-board-1024px.png · 1 file · 104278 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-pitch-deck.png · 1 file · 29986 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-pitch-deck.pdf · 1 file · 20644 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — raqm-pitch-deck.pptx · 1 file · 187648 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-pitch-deck.jpg · 1 file · 27675 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-pitch-deck-1024px.png · 1 file · 35207 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-business-plan.png · 1 file · 31553 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-business-plan.pdf · 1 file · 20714 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — raqm-business-plan.pptx · 1 file · 187693 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-business-plan.jpg · 1 file · 17973 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-business-plan-1024px.png · 1 file · 38178 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-proposal.png · 1 file · 31351 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-proposal.pdf · 1 file · 22151 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — raqm-proposal.pptx · 1 file · 187593 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-proposal.jpg · 1 file · 20011 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-proposal-1024px.png · 1 file · 37131 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-case-studies.png · 1 file · 32662 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-case-studies.pdf · 1 file · 23001 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — raqm-case-studies.pptx · 1 file · 187351 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-case-studies.jpg · 1 file · 19887 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-case-studies-1024px.png · 1 file · 38732 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-logo-reveal.png · 1 file · 106541 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-logo-reveal.pdf · 1 file · 70572 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-logo-reveal.jpg · 1 file · 83155 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-logo-reveal-1024px.png · 1 file · 18035 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-slide-in.png · 1 file · 118111 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-slide-in.pdf · 1 file · 70346 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-slide-in.jpg · 1 file · 77022 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-slide-in-1024px.png · 1 file · 19415 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Fade",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-fade.png · 1 file · 128720 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Fade",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-fade.pdf · 1 file · 81891 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Fade",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Fade",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-fade.jpg · 1 file · 75896 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Fade",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-fade-1024px.png · 1 file · 20301 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-rotate.png · 1 file · 140576 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-rotate.pdf · 1 file · 85824 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-rotate.jpg · 1 file · 69155 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-rotate-1024px.png · 1 file · 19005 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-primary--original.png · 1 file · 24587 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-primary--original.pdf · 1 file · 17031 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "Vector (SVG)",
+    "verdict": "ok — raqm-primary--original.svg · 1 file · 1465 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-primary--original.jpg · 1 file · 21922 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-primary--original-1024px.png · 1 file · 28017 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-iris.png · 1 file · 70158 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-iris.pdf · 1 file · 55821 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "Vector (SVG)",
+    "verdict": "ok — raqm-iris.svg · 1 file · 1465 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-iris.jpg · 1 file · 62422 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-iris-1024px.png · 1 file · 95823 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "For web (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "For print (PDF)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "Font files (TTF)",
+    "verdict": "ok — raqm-typography--inter.zip · 9 files · 233664 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "For web (PNG)",
+    "verdict": "ok — raqm-chart-line-up.png · 1 file · 36034 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "For print (PDF)",
+    "verdict": "ok — raqm-chart-line-up.pdf · 1 file · 24451 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "Vector (SVG)",
+    "verdict": "ok — raqm-chart-line-up.svg · 1 file · 1465 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — raqm-chart-line-up.jpg · 1 file · 26953 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — raqm-chart-line-up-1024px.png · 1 file · 45694 B"
+  },
+  {
+    "brand": "raqm",
+    "surface": "tile",
+    "item": "Photos",
+    "row": "—",
+    "verdict": "n/a — this brand has nothing in this family, so the wall has no tiles"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logos",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-logos.zip · 13 files · 1138491 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logos",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-logos.zip · 7 files · 501357 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logos",
+    "row": "Vector (SVG)",
+    "verdict": "ok — skam-logos.zip · 3 files · 9212 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logos",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-logos.zip · 13 files · 583473 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logos",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-logos.zip · 13 files · 1506723 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Colors",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-colors.zip · 5 files · 177386 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Colors",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-colors.zip · 5 files · 109852 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Colors",
+    "row": "Vector (SVG)",
+    "verdict": "ok — skam-colors.zip · 10 files · 25824 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Colors",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-colors.zip · 5 files · 93217 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Colors",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-colors.zip · 5 files · 265832 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Typography",
+    "row": "For web (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Typography",
+    "row": "For print (PDF)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Typography",
+    "row": "Font files (TTF)",
+    "verdict": "ok — skam-typography.zip · 7 files · 42431 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Typography",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Typography",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Icons",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-icons.zip · 60 files · 200749 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Icons",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-icons.zip · 60 files · 405789 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Icons",
+    "row": "Vector (SVG)",
+    "verdict": "ok — skam-icons.zip · 31 files · 107924 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Icons",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-icons.zip · 60 files · 194162 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Icons",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-icons.zip · 60 files · 27576935 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Photos",
+    "row": "For web (PNG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Photos",
+    "row": "For print (PDF)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Photos",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Photos",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Photos",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "For web (MD)",
+    "verdict": "ok — skam-strategy.md · 1 file · 1359 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-strategy.pdf · 1 file · 94099 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "As data (JSON)",
+    "verdict": "ok — skam-strategy.json · 1 file · 3484 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "Flattened (PNG)",
+    "verdict": "ok — skam-strategy.png · 1 file · 287844 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Strategy",
+    "row": "Everything (ZIP)",
+    "verdict": "ok — skam-strategy.zip · 4 files · 100077 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-business-card.png · 1 file · 55687 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-business-card.pdf · 1 file · 43283 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-business-card.jpg · 1 file · 33848 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-business-card-1024px.png · 1 file · 65475 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-letterhead.png · 1 file · 94476 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-letterhead.pdf · 1 file · 59339 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-letterhead.jpg · 1 file · 59482 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Letterhead",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-letterhead-1024px.png · 1 file · 116153 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-invoice.png · 1 file · 153572 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-invoice.pdf · 1 file · 110248 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-invoice.jpg · 1 file · 103915 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Invoice",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-invoice-1024px.png · 1 file · 194398 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-email-signature.png · 1 file · 56538 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-email-signature.pdf · 1 file · 40833 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "Signature (HTML)",
+    "verdict": "ok — skam-email-signature.zip · 2 files · 104270 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-email-signature.jpg · 1 file · 36881 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Email Signature",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-email-signature-1024px.png · 1 file · 70737 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-envelope.png · 1 file · 39341 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-envelope.pdf · 1 file · 27749 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-envelope.jpg · 1 file · 26660 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Envelope",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-envelope-1024px.png · 1 file · 45456 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-favicon.png · 1 file · 55688 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-favicon.pdf · 1 file · 37661 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "Favicon set (ICO)",
+    "verdict": "ok — skam-favicon.zip · 8 files · 23538 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-favicon.jpg · 1 file · 31536 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Favicon",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-favicon-1024px.png · 1 file · 62478 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Website",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-website.png · 1 file · 89110 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Website",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-website.pdf · 1 file · 66424 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Website",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Website",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-website.jpg · 1 file · 76005 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Website",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-website-1024px.png · 1 file · 113453 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-landing-page.png · 1 file · 89758 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-landing-page.pdf · 1 file · 67216 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-landing-page.jpg · 1 file · 73215 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Landing Page",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-landing-page-1024px.png · 1 file · 119652 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Signage",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-signage.png · 1 file · 46645 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Signage",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-signage.pdf · 1 file · 26543 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Signage",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Signage",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-signage.jpg · 1 file · 23557 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Signage",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-signage-1024px.png · 1 file · 60582 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-apparel.png · 1 file · 135403 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-apparel.pdf · 1 file · 69438 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-apparel.jpg · 1 file · 34290 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Apparel",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-apparel-1024px.png · 1 file · 176530 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Mug",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-mug.png · 1 file · 179975 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Mug",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-mug.pdf · 1 file · 90394 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Mug",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Mug",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-mug.jpg · 1 file · 30927 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Mug",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-mug-1024px.png · 1 file · 203221 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Tote",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-tote.png · 1 file · 187637 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Tote",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-tote.pdf · 1 file · 101482 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Tote",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Tote",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-tote.jpg · 1 file · 32186 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Tote",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-tote-1024px.png · 1 file · 205530 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-sticker.png · 1 file · 110527 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-sticker.pdf · 1 file · 58850 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-sticker.jpg · 1 file · 40099 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Sticker",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-sticker-1024px.png · 1 file · 146605 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-business-card-stack.png · 1 file · 76481 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-business-card-stack.pdf · 1 file · 42122 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-business-card-stack.jpg · 1 file · 27617 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Card Stack",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-business-card-stack-1024px.png · 1 file · 97281 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-device-screen.png · 1 file · 77781 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-device-screen.pdf · 1 file · 42723 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-device-screen.jpg · 1 file · 30546 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Device Screen",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-device-screen-1024px.png · 1 file · 105170 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-billboard.png · 1 file · 65980 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-billboard.pdf · 1 file · 38465 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-billboard.jpg · 1 file · 34634 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Billboard",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-billboard-1024px.png · 1 file · 87060 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-social-media-system.png · 1 file · 456580 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-social-media-system.pdf · 1 file · 330094 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-social-media-system.jpg · 1 file · 303344 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Social Media System",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-social-media-system-1024px.png · 1 file · 190417 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Profile",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-profile.png · 1 file · 62134 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Profile",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-profile.pdf · 1 file · 38744 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Profile",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — skam-profile.zip · 3 files · 107867 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Profile",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-profile.jpg · 1 file · 32728 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Profile",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-profile-1024px.png · 1 file · 70839 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Cover",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-cover.png · 1 file · 60965 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Cover",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-cover.pdf · 1 file · 44035 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Cover",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — skam-cover.zip · 6 files · 886133 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Cover",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-cover.jpg · 1 file · 39755 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Cover",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-cover-1024px.png · 1 file · 73944 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Post",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-post.png · 1 file · 80593 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Post",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-post.pdf · 1 file · 54909 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Post",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — skam-instagram-post-1080x1080.png · 1 file · 119077 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Post",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-post.jpg · 1 file · 57689 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Post",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-post-1024px.png · 1 file · 100580 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Story",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-story.png · 1 file · 110860 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Story",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-story.pdf · 1 file · 66875 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Story",
+    "row": "Platform sizes (PNG)",
+    "verdict": "ok — skam-instagram-story-1080x1920.png · 1 file · 159487 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Story",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-story.jpg · 1 file · 72411 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Story",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-story-1024px.png · 1 file · 133664 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-presentation-system.png · 1 file · 467065 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-presentation-system.pdf · 1 file · 345702 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — skam-presentation-system.pptx · 1 file · 268897 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-presentation-system.jpg · 1 file · 367673 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Presentation System",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-presentation-system-1024px.png · 1 file · 205419 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-brand-board.png · 1 file · 167627 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-brand-board.pdf · 1 file · 142308 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-brand-board.jpg · 1 file · 120279 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Brand Board",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-brand-board-1024px.png · 1 file · 113246 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-pitch-deck.png · 1 file · 34322 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-pitch-deck.pdf · 1 file · 24186 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — skam-pitch-deck.pptx · 1 file · 268897 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-pitch-deck.jpg · 1 file · 25471 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Pitch Deck",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-pitch-deck-1024px.png · 1 file · 39113 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-business-plan.png · 1 file · 33499 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-business-plan.pdf · 1 file · 21685 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — skam-business-plan.pptx · 1 file · 268942 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-business-plan.jpg · 1 file · 16826 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Business Plan",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-business-plan-1024px.png · 1 file · 39534 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-proposal.png · 1 file · 33073 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-proposal.pdf · 1 file · 23207 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — skam-proposal.pptx · 1 file · 268964 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-proposal.jpg · 1 file · 19533 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Proposal",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-proposal-1024px.png · 1 file · 38848 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-case-studies.png · 1 file · 34422 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-case-studies.pdf · 1 file · 24133 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "Editable deck (PPTX)",
+    "verdict": "ok — skam-case-studies.pptx · 1 file · 268720 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-case-studies.jpg · 1 file · 19243 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Case Studies",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-case-studies-1024px.png · 1 file · 40304 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-logo-reveal.png · 1 file · 112391 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-logo-reveal.pdf · 1 file · 72095 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-logo-reveal.jpg · 1 file · 77137 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Logo Reveal",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-logo-reveal-1024px.png · 1 file · 17533 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-slide-in.png · 1 file · 128463 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-slide-in.pdf · 1 file · 73738 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-slide-in.jpg · 1 file · 70836 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Slide In",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-slide-in-1024px.png · 1 file · 19081 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Fade",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-fade.png · 1 file · 146764 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Fade",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-fade.pdf · 1 file · 88821 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Fade",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Fade",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-fade.jpg · 1 file · 69238 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Fade",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-fade-1024px.png · 1 file · 20020 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-rotate.png · 1 file · 157304 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-rotate.pdf · 1 file · 97546 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This design is drawn in the browser — it has no vector to export"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-rotate.jpg · 1 file · 72107 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "card",
+    "item": "Rotate",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-rotate-1024px.png · 1 file · 21160 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-primary--original.png · 1 file · 40986 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-primary--original.pdf · 1 file · 26535 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "Vector (SVG)",
+    "verdict": "ok — skam-primary--original.svg · 1 file · 1465 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-primary--original.jpg · 1 file · 21510 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Logos",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-primary--original-1024px.png · 1 file · 47032 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-rose.png · 1 file · 72118 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-rose.pdf · 1 file · 55618 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "Vector (SVG)",
+    "verdict": "ok — skam-rose.svg · 1 file · 1465 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-rose.jpg · 1 file · 54339 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Colors",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-rose-1024px.png · 1 file · 96496 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "For web (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "For print (PDF)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "Font files (TTF)",
+    "verdict": "ok — skam-typography--gt-super.zip · 7 files · 42431 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Typography",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — Typography is delivered as font files — there is no artwork here to rasterize"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "For web (PNG)",
+    "verdict": "ok — skam-play.png · 1 file · 40998 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "For print (PDF)",
+    "verdict": "ok — skam-play.pdf · 1 file · 28076 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "Vector (SVG)",
+    "verdict": "ok — skam-play.svg · 1 file · 1465 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "Flattened (JPG)",
+    "verdict": "ok — skam-play.jpg · 1 file · 28473 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Icons",
+    "row": "Custom size… (PNG)",
+    "verdict": "ok — skam-play-1024px.png · 1 file · 49987 B"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Photos",
+    "row": "For web (PNG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Photos",
+    "row": "For print (PDF)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Photos",
+    "row": "Vector (SVG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Photos",
+    "row": "Flattened (JPG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  },
+  {
+    "brand": "skam",
+    "surface": "tile",
+    "item": "Photos",
+    "row": "Custom size… (PNG)",
+    "verdict": "disabled — This brand has no photography yet — add photos in Setup and this exports them"
+  }
+]

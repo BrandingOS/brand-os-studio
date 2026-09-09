@@ -58,7 +58,7 @@ import {
   PRINT_PAGE_MM,
   type DownloadOption,
 } from './data/exportFormats';
-import { photosUnavailableReason } from './data/photoExport';
+import { entryUnavailableReason } from './data/exportAvailability';
 import { IconPickerModal } from './components/IconPickerModal';
 import { ColorsEditor } from './components/assets/ColorsEditor';
 import { TypographyEditor } from './components/assets/TypographyEditor';
@@ -83,13 +83,7 @@ import {
   withIconWeight,
 } from './data/iconWeights';
 import { contrastRatio } from './data/recolorLogo';
-import {
-  buildAllColorsZip,
-  triggerBlobDownload,
-  type PaletteColor,
-} from './data/colorPaletteExport';
-import { downloadIconsBundle, type IconExportEntry } from './data/iconExport';
-import { downloadFontsBundle } from './data/fontExport';
+import { triggerBlobDownload } from './data/colorPaletteExport';
 import { contentForTemplate, loadBrandCustomizations } from './data/savedContent';
 import {
   DEFAULT_FEATURED_IDS_BY_LABEL,
@@ -105,16 +99,8 @@ import {
   saveCardCustomization,
   saveFeaturedVariants,
 } from './data/cardCustomizations';
-import {
-  snapshotElementPng,
-  snapshotTemplatePng,
-  withOffscreenMounts,
-} from './data/templateSnapshot';
-import {
-  downloadLogosZip,
-  paletteOf,
-  slugifyName,
-} from './data/kitExport';
+import { snapshotElementPng, snapshotTemplatePng } from './data/templateSnapshot';
+import { slugifyName } from './data/kitExport';
 import {
   downloadEntry,
   downloadEverything,
@@ -463,56 +449,25 @@ export function BrandKitCosmosPage({
     [brand.icons, suggestedIcons],
   );
 
-  // Real card downloads (KIT-03). Brand-asset cards route to their
-  // dedicated bundle builders; template cards rasterize their first
-  // featured variant offscreen and download the PNG.
-  // One colors export at a time — the bundle takes a moment even in
-  // vector form, and a second click used to silently queue a duplicate
-  // multi-minute job with zero feedback.
-  const colorsExportBusyRef = useRef(false);
-  const runColorsExport = useCallback(async (palette: PaletteColor[], brandName: string) => {
-    if (colorsExportBusyRef.current) {
-      toast('Colors export already running…', { id: 'bk-colors-export' });
-      return;
-    }
-    colorsExportBusyRef.current = true;
-    toast.loading(`Preparing colors bundle… 0/${palette.length}`, { id: 'bk-colors-export' });
-    try {
-      const blob = await buildAllColorsZip(palette, brandName, (done, total, name) => {
-        toast.loading(`Preparing colors bundle… ${done}/${total}`, {
-          id: 'bk-colors-export',
-          description: name,
-        });
-      });
-      triggerBlobDownload(blob, `${slugifyName(brandName)}-colors.zip`);
-      const mb = blob.size / (1024 * 1024);
-      toast.success('Colors bundle downloaded', {
-        id: 'bk-colors-export',
-        description: `${palette.length} colors · ${mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(blob.size / 1024))} KB`}`,
-      });
-    } catch (err) {
-      toast.error('Colors export failed', {
-        id: 'bk-colors-export',
-        description: err instanceof Error ? err.message : 'Unknown error',
-      });
-    } finally {
-      colorsExportBusyRef.current = false;
-    }
-  }, []);
-
   /**
    * Download one card — or, when `templateId` is given, ONE VARIANT of it.
    *
-   * A tile's ⬇ has to download the design under the cursor, not the card's
-   * first featured one (`.audit/OURS.md` D53). Rather than a second export
-   * path, the variant is expressed as a one-entry featured list: the shared
-   * writer already ships "the variants the card SHOWS", so narrowing that
-   * list to a single id makes the bundle exactly this design, through the
-   * same code the card, the group and Export Kit all use.
+   * ONE PATH. Every card, every tile, every group header and the Export
+   * Kit reach `downloadEntry`, so what a format row means is decided in
+   * one place and cannot be decided differently in another.
    *
-   * Brand-asset cards are the exception, and deliberately: Logos, Colors,
-   * Fonts, Icons and Photos export as BUNDLES of the brand's own files, not
-   * as rasterised template variants. A tile there rasterises itself.
+   * This function used to hold four bespoke arms — Logos, Colors, Fonts,
+   * Icons — that called their own bundle builders and never read `choice`
+   * at all. Measured: the Logos card's *Vector (SVG)* and *For web (PNG)*
+   * rows both handed over the same 439 774-byte archive of fifteen PNGs
+   * and no SVG, and the Typography card answered all five of its rows
+   * with the same folder of `.ttf` files. Deleting them is the fix; the
+   * walker already honoured the format for every other family.
+   *
+   * A brand-asset TILE is still its own artifact — one logo on one ground,
+   * one swatch, one glyph — so it rasterises itself rather than exporting
+   * its whole family. It honours the format now too, which it also used to
+   * ignore: every row on a tile produced a PNG.
    */
   const handleDownloadCard = useCallback(
     async (
@@ -525,11 +480,21 @@ export function BrandKitCosmosPage({
       const one = templateId
         ? (t.templates ?? []).find((tpl) => tpl.id === templateId)
         : undefined;
+      const entry = getEntryFor(t.sectionKey, t.label);
+      const label = t.displayLabel ?? t.label;
+      // A tile can answer the five picture rows out of its own drawing.
+      // Anything else — the font files, the strategy record — belongs to
+      // the FAMILY, so it falls through to the shared writer.
+      const tileFormat =
+        choice.format === 'png' ||
+        choice.format === 'jpg' ||
+        choice.format === 'pdf' ||
+        choice.format === 'custom' ||
+        choice.format === 'svg';
       try {
-        if (templateId && t.sectionKey === 'brand-assets') {
-          // A brand-asset tile is its own artifact — rasterise THIS tile.
+        if (templateId && t.sectionKey === 'brand-assets' && tileFormat) {
           if (!one || !sourceBrand) {
-            toast(`Nothing to export for ${t.displayLabel ?? t.label} yet`);
+            toast(`Nothing to export for ${label} yet`);
             return;
           }
           // …unless the tile is an EMPTY STATE. The Photos card renders
@@ -537,176 +502,114 @@ export function BrandKitCosmosPage({
           // shipped a picture of an error message under the missing
           // photograph's own name — `skam-grain-texture-overlay.png` was a
           // white card reading "No photos yet" (QA Q14).
-          if (t.label === 'Photos') {
-            const reason = photosUnavailableReason(b);
-            if (reason) {
-              toast(`Nothing to export for ${one.name}`, { description: reason });
+          const missing = entry ? entryUnavailableReason(entry, b) : undefined;
+          if (missing) {
+            toast(`Nothing to export for ${one.name}`, { description: missing });
+            return;
+          }
+          const file = `${slug}-${slugifyName(one.name)}`;
+          if (choice.format === 'svg') {
+            // The vector of a tile is the tile's own drawing, read off the
+            // tile. A Flaticon glyph is a font and a recoloured logo is a
+            // CSS mask — neither has one, and saying so beats handing over
+            // a PNG with `.svg` on the end.
+            const svg = document
+              .querySelector<HTMLElement>(
+                `.bk-stage-layer--page2 [data-template-id="${templateId}"]`,
+              )
+              ?.querySelector('svg');
+            if (!svg) {
+              toast(`${one.name} has no vector artwork`, {
+                description:
+                  'This design is drawn as a font glyph or a mask — download the PNG instead.',
+              });
               return;
             }
+            triggerBlobDownload(
+              new Blob([svg.outerHTML], { type: 'image/svg+xml' }),
+              `${file}.svg`,
+            );
+            return;
           }
-          const blob = await snapshotTemplatePng(
+          const png = await snapshotTemplatePng(
             renderTemplateDesign(one, sourceBrand, b),
             260,
             aspectForLabel(t.label),
           );
-          if (!blob) throw new Error('Rasterization produced no image');
-          triggerBlobDownload(blob, `${slug}-${slugifyName(one.name)}.png`);
+          if (!png) throw new Error('Rasterization produced no image');
+          if (choice.format === 'pdf') {
+            triggerBlobDownload(
+              await pngToPdf(png, PRINT_PAGE_MM[t.label] ?? 'fit'),
+              `${file}.pdf`,
+            );
+          } else if (choice.format === 'jpg') {
+            triggerBlobDownload(await pngToJpg(png), `${file}.jpg`);
+          } else if (choice.format === 'custom' && choice.size) {
+            triggerBlobDownload(
+              await resizePng(png, choice.size),
+              `${file}-${choice.size.width}px.png`,
+            );
+          } else {
+            triggerBlobDownload(png, `${file}.png`);
+          }
           return;
         }
-        if (templateId) {
-          const entry = getEntryFor(t.sectionKey, t.label);
-          if (entry) {
-            const id = toast.loading(`Preparing ${one?.name ?? t.label}…`);
-            const result = await downloadEntry(
-              entry,
-              {
-                brand: b,
-                sourceBrand,
-                entries: [entry],
-                saved: loadBrandCustomizations(customizationBrandId),
-                // The whole point: this card shows exactly one design here.
-                featuredIdsByLabel: { ...featuredIdsByLabel, [t.label]: [templateId] },
-              },
-              // …and the file says WHICH design it is. Three Business Card
-              // tiles used to arrive as three files called
-              // `raqm-business-card.png` (QA Q22).
-              { ...choice, variant: one?.name },
-            );
-            if (result.added) toast.success(`${one?.name ?? t.label} downloaded`, { id });
-            else {
-              toast.error(`Couldn't download ${one?.name ?? t.label}`, {
-                id,
-                description: result.skipped[0]?.reason,
-              });
-            }
-            return;
+        if (entry) {
+          const id = toast.loading(`Preparing ${one?.name ?? label}…`);
+          const result = await downloadEntry(
+            entry,
+            {
+              brand: b,
+              sourceBrand,
+              entries: [entry],
+              saved: loadBrandCustomizations(customizationBrandId),
+              featuredIdsByLabel: templateId
+                ? // The whole point: this card shows exactly one design here.
+                  { ...featuredIdsByLabel, [t.label]: [templateId] }
+                : featuredIdsByLabel,
+              // One family, asked for by name, gets the print originals the
+              // whole-kit zip deliberately leaves out.
+              depth: 'full',
+            },
+            // …and the file says WHICH design it is. Three Business Card
+            // tiles used to arrive as three files called
+            // `raqm-business-card.png` (QA Q22).
+            templateId ? { ...choice, variant: one?.name } : choice,
+          );
+          if (result.added) toast.success(`${one?.name ?? label} downloaded`, { id });
+          else {
+            toast.error(`Couldn't download ${one?.name ?? label}`, {
+              id,
+              description: result.skipped[0]?.reason,
+            });
           }
+          return;
         }
-        switch (t.label) {
-          case 'Logos': {
-            const count = await downloadLogosZip(b);
-            if (count === 0) toast('No logos yet', { description: 'Add a logo in Setup first.' });
-            return;
-          }
-          case 'Colors': {
-            await runColorsExport(paletteOf(b), b.name);
-            return;
-          }
-          case 'Fonts': {
-            const result = await downloadFontsBundle(
-              b.fonts.map((f) => ({ name: f.family, files: f.files })),
-              `${slug}-fonts`,
-            );
-            if (result.missing.length > 0) {
-              toast(`Couldn't bundle ${result.missing.join(', ')}`, {
-                description: 'Upload the font in Setup → Typography to include it next time.',
-              });
-            }
-            return;
-          }
-          case 'Icons': {
-            const templates = (t.templates ?? []).slice(0, b.icons.length);
-            if (templates.length === 0) {
-              toast('No icons yet', { description: 'Add icons from the Icons drilldown first.' });
-              return;
-            }
-            await withOffscreenMounts(
-              templates.map((tpl) => (
-                <span key={tpl.id} className="brand-asset-render--icon-host">
-                  {renderTemplateDesign(tpl, sourceBrand ?? ({} as Brand), b)}
-                </span>
-              )),
-              96,
-              96,
-              async (hosts) => {
-                const entries: IconExportEntry[] = hosts.map((el, i) => ({
-                  name: templates[i]?.name ?? `Icon ${i + 1}`,
-                  source: b.icons[i] ?? '',
-                  element: el,
-                }));
-                await downloadIconsBundle(entries, `${slug}-icons`);
-              },
-            );
-            return;
-          }
-          // 'Photos' is deliberately NOT special-cased any more. This case
-          // used to fetch every source and zip whatever came back, named
-          // from the mime type — the exact code D1 was filed against, and
-          // the reason a brand whose only picture is a 404 shipped the
-          // app's own `index.html` as `photo-1.html`. It falls through to
-          // the shared writer, which verifies the BYTES, names each file
-          // from the Library, and hands back a reason for anything it had
-          // to leave out (QA Q13/Q14).
-          // 'About' (the Strategy card) is deliberately NOT special-cased
-          // any more: it used to ship about.md alone, which is the free-form
-          // sections and none of the eleven strategy answers. It falls
-          // through to the shared writer, which gives strategy.pdf +
-          // strategy.md + about.md — the same three files the kit ships.
-          default: {
-            // Everything that is not one of the brand's own asset
-            // bundles goes through the SAME writer the Export Kit uses,
-            // so a card can never answer "Nothing to export" for
-            // something the kit ships. That is exactly what Social Media
-            // System, Presentation System and Brand Board did: the card
-            // path looked for a TEMPLATE, and a composed view has none.
-            const entry = getEntryFor(t.sectionKey, t.label);
-            // EVERY deliverable goes through the shared writer now — not
-            // only the composed views — so the format menu (web · print ·
-            // flattened · custom) has one implementation.
-            if (entry) {
-              const id = toast.loading(`Preparing ${t.displayLabel ?? t.label}…`);
-              const result = await downloadEntry(
-                entry,
-                {
-                  brand: b,
-                  sourceBrand,
-                  entries: [entry],
-                  saved: loadBrandCustomizations(customizationBrandId),
-                  featuredIdsByLabel,
-                },
-                choice,
-              );
-              if (result.added) toast.success(`${t.displayLabel ?? t.label} downloaded`, { id });
-              else {
-                toast.error(`Couldn't download ${t.displayLabel ?? t.label}`, {
-                  id,
-                  description: result.skipped[0]?.reason,
-                });
-              }
-              return;
-            }
-            // Template deliverable — rasterize the first variant.
-            const tpl = t.template ?? t.templates?.[0];
-            if (!tpl || !sourceBrand) {
-              toast(`Nothing to export for ${t.label} yet`);
-              return;
-            }
-            const aspect = PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6;
-            // Export what the user SAVED, not the brand defaults. The
-            // editor's own Download snapshots the live DOM; every other
-            // export path rasterises the renderer offscreen and has to be
-            // handed the content explicitly.
-            const saved = loadBrandCustomizations(customizationBrandId);
-            const blob = await snapshotTemplatePng(
-              renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
-              260,
-              aspect,
-            );
-            if (!blob) throw new Error('Rasterization produced no image');
-            triggerBlobDownload(
-              blob,
-              `${slug}-${slugifyName(t.label)}-${slugifyName(tpl.name)}.png`,
-            );
-            return;
-          }
+        // A deliverable with no catalog entry — rasterize the first variant.
+        // Export what the user SAVED, not the brand defaults.
+        const tpl = t.template ?? t.templates?.[0];
+        if (!tpl || !sourceBrand) {
+          toast(`Nothing to export for ${t.label} yet`);
+          return;
         }
+        const saved = loadBrandCustomizations(customizationBrandId);
+        const blob = await snapshotTemplatePng(
+          renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
+          260,
+          PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6,
+        );
+        if (!blob) throw new Error('Rasterization produced no image');
+        triggerBlobDownload(
+          blob,
+          `${slug}-${slugifyName(t.label)}-${slugifyName(tpl.name)}.png`,
+        );
       } catch (err) {
         toast.error(`Download failed`, {
           description: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     },
-    [effectiveBrand, sourceBrand, runColorsExport, customizationBrandId, featuredIdsByLabel],
+    [effectiveBrand, sourceBrand, customizationBrandId, featuredIdsByLabel],
   );
 
   /**
@@ -1532,9 +1435,7 @@ export function BrandKitCosmosPage({
                     targetEntry
                       ? downloadOptionsFor(
                           targetEntry,
-                          drilldownTarget.label === 'Photos'
-                            ? photosUnavailableReason(effectiveBrand)
-                            : undefined,
+                          entryUnavailableReason(targetEntry, effectiveBrand),
                         )
                       : undefined
                   }
@@ -1570,172 +1471,60 @@ export function BrandKitCosmosPage({
                   }
                   onAddColor={handleAddColor}
                   onDownload={async (choice) => {
-                    // Colors drilldown bundles every core/accent/grey
-                    // swatch into one zip, each color in its own
-                    // folder with svg/png/jpg/ai for both the base
-                    // tile and the shades stack. Other drilldowns
-                    // still toast — their export flows aren't built
-                    // out yet.
-                    if (drilldownTarget.label === 'Fonts') {
-                      // Bulk Fonts download. Bytes come straight from
-                      // whatever the user uploaded in Setup
-                      // (round-tripped through Brand.typography.files).
-                      // No file picker — if a family was uploaded it's
-                      // already on the mock; Google Fonts fills in
-                      // anything that wasn't.
-                      try {
-                        const families = effectiveBrand.fonts.map((f) => ({
-                          name: f.family,
-                          files: f.files,
-                        }));
-                        const zipBase = `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-fonts`;
-                        const result = await downloadFontsBundle(
-                          families,
-                          zipBase,
-                        );
-                        if (result.missing.length > 0) {
-                          toast(`Couldn't bundle ${result.missing.join(', ')}`, {
-                            description:
-                              "Upload the font in Setup → Typography to include it next time.",
-                          });
-                        }
-                      } catch (err) {
-                        toast.error('Download failed', {
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
-                        });
-                      }
+                    /*
+                     * THE HEADER IS THE WHOLE FAMILY, THROUGH THE SAME
+                     * WRITER EVERY OTHER DOWNLOAD USES.
+                     *
+                     * It used to be four bespoke branches — Fonts, Icons,
+                     * Colors, then a hand-rolled zip loop for everything
+                     * else — and three of the four read `choice` not at
+                     * all: whichever row of the menu you pressed on the
+                     * Typography, Icons or Colors wall, you got that
+                     * family's one bundle. `allVariants` is what makes
+                     * this the WALL rather than the card: every design
+                     * shown, not the featured one.
+                     */
+                    const entry = getEntryFor(
+                      drilldownTarget.sectionKey,
+                      drilldownTarget.label,
+                    );
+                    const label = drilldownTarget.displayLabel ?? drilldownTarget.label;
+                    if (!entry) {
+                      toast(`Nothing to export for ${label} yet`);
                       return;
                     }
-                    if (drilldownTarget.label === 'Icons') {
-                      // Snapshot every rendered icon tile in the
-                      // drilldown grid, paired with its template name
-                      // (already derived from the icon class name in
-                      // legacy-mapping). Rasterizing live DOM lets
-                      // the export inherit the user-picked tint and
-                      // weight without re-implementing them.
-                      // Capture the icon's wrapper, not the inner
-                      // `<i>` — Flaticon glyphs render via `::before`
-                      // and html2canvas measures the host's
-                      // bounding box. The host can collapse to 0×0
-                      // with `display: flex` + auto sizing, which
-                      // crashes `drawImage` downstream.
-                      const tiles = stageRef.current?.querySelectorAll<HTMLElement>(
-                        '.bk-stage-layer--page2 .brand-asset-render--icon',
+                    const id = toast.loading(`Preparing ${label}…`);
+                    try {
+                      const result = await downloadEntry(
+                        entry,
+                        {
+                          // The tint the user picked on this wall is part
+                          // of the artwork they are looking at, and the
+                          // renderers read it off the brand.
+                          brand: iconTintOverride
+                            ? { ...effectiveBrand, iconTint: iconTintOverride }
+                            : effectiveBrand,
+                          sourceBrand,
+                          entries: [entry],
+                          saved: loadBrandCustomizations(customizationBrandId),
+                          featuredIdsByLabel,
+                          allVariants: true,
+                          depth: 'full',
+                        },
+                        choice,
                       );
-                      const tplNames = (drilldownTarget.templates ?? []).map((t) => t.name);
-                      const iconSources = effectiveBrand.icons;
-                      const entries: IconExportEntry[] = [];
-                      tiles?.forEach((el, i) => {
-                        entries.push({
-                          name: tplNames[i] ?? `Icon ${i + 1}`,
-                          source: iconSources[i] ?? '',
-                          element: el,
-                        });
-                      });
-                      try {
-                        await downloadIconsBundle(
-                          entries,
-                          `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-icons`,
-                        );
-                      } catch (err) {
-                        toast.error('Download failed', {
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
-                        });
-                      }
-                      return;
-                    }
-                    if (drilldownTarget.label === 'Colors') {
-                      // One palette vocabulary. Position is not a role
-                      // ("Core 4" told a customer nothing, D40) and the
-                      // generated grey ladder is not the brand's palette
-                      // (it is most of why this download was 320 files,
-                      // D37) — `paletteOf` settles both.
-                      await runColorsExport(paletteOf(effectiveBrand), effectiveBrand.name);
-                      return;
-                    }
-                    // Template drilldowns (stationery / social / web /
-                    // guides / presentations / animations): bundle a
-                    // rasterized PNG of every visible variant.
-                    {
-                      const templates = drilldownTarget.templates ?? [];
-                      if (templates.length === 0) {
-                        // A composed view — Strategy, the two Systems, the
-                        // Board. No template library to bundle, but very
-                        // much something to download.
-                        const entry = getEntryFor(
-                          drilldownTarget.sectionKey,
-                          drilldownTarget.label,
-                        );
-                        if (entry) {
-                          const id = toast.loading(`Preparing ${entry.label}…`);
-                          const result = await downloadEntry(entry, {
-                            brand: effectiveBrand,
-                            sourceBrand,
-                            entries: [entry],
-                            saved: loadBrandCustomizations(customizationBrandId),
-                            featuredIdsByLabel,
-                          });
-                          if (result.added) toast.success(`${entry.label} downloaded`, { id });
-                          else {
-                            toast.error(`Couldn't download ${entry.label}`, {
-                              id,
-                              description: result.skipped[0]?.reason,
-                            });
-                          }
-                          return;
-                        }
-                      }
-                      if (templates.length === 0 || !sourceBrand) {
-                        toast(`Nothing to export for ${drilldownTarget.label} yet`);
-                        return;
-                      }
-                      const id = toast.loading(
-                        `Preparing ${drilldownTarget.label} download…`,
-                      );
-                      try {
-                        const aspect =
-                          PICKER_ASPECT_BY_LABEL[drilldownTarget.label] ?? 1.6;
-                        const { default: JSZip } = await import('jszip');
-                        const zip = new JSZip();
-                        // THE HEADER HONOURS THE FORMAT THE MENU ASKED FOR.
-                        // The whole family, converted the same way the card's
-                        // own menu converts one design — `downloadEntry` does
-                        // exactly this for a single deliverable, and there is
-                        // no reason a wall of them should be PNG-or-nothing.
-                        const page =
-                          PRINT_PAGE_MM[drilldownTarget.label] ?? ('fit' as const);
-                        for (const tpl of templates) {
-                          const blob = await snapshotTemplatePng(
-                            renderTemplateDesign(tpl, sourceBrand, effectiveBrand),
-                            260,
-                            aspect,
-                          );
-                          if (!blob) continue;
-                          const name = slugifyName(tpl.name);
-                          if (choice.format === 'pdf') {
-                            zip.file(`${name}.pdf`, await pngToPdf(blob, page));
-                          } else if (choice.format === 'jpg') {
-                            zip.file(`${name}.jpg`, await pngToJpg(blob));
-                          } else if (choice.format === 'custom' && choice.size) {
-                            zip.file(`${name}.png`, await resizePng(blob, choice.size));
-                          } else {
-                            zip.file(`${name}.png`, blob);
-                          }
-                        }
-                        triggerBlobDownload(
-                          await zip.generateAsync({ type: 'blob' }),
-                          `${slugifyName(effectiveBrand.name)}-${slugifyName(drilldownTarget.label)}.zip`,
-                        );
-                        toast.success(`${drilldownTarget.label} exported`, { id });
-                      } catch (err) {
-                        toast.error('Download failed', {
+                      if (result.added) toast.success(`${label} downloaded`, { id });
+                      else {
+                        toast.error(`Couldn't download ${label}`, {
                           id,
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
+                          description: result.skipped[0]?.reason,
                         });
                       }
+                    } catch (err) {
+                      toast.error('Download failed', {
+                        id,
+                        description: err instanceof Error ? err.message : 'Unknown error',
+                      });
                     }
                   }}
                 />

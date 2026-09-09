@@ -41,7 +41,7 @@ import { contentForTemplate } from './savedContent';
 import type { SavedCardCustomization } from './cardCustomizations';
 import { aspectForLabel, featuredTemplates } from './cardPresentation';
 import { addIconsToZip, type IconExportEntry } from './iconExport';
-import { buildStrategyMarkdown, buildStrategyPdf } from './strategyDocument';
+import { buildStrategyJson, buildStrategyMarkdown, buildStrategyPdf } from './strategyDocument';
 import {
   snapshotDocumentPng,
   snapshotTemplatePng,
@@ -60,18 +60,22 @@ import {
   type ExportSkip,
   type ZipFolder,
 } from './kitExport';
-import { triggerBlobDownload } from './colorPaletteExport';
+import { triggerBlobDownload, type BundleDepth } from './colorPaletteExport';
 import {
   NATIVE_FORMATS,
   PRINT_PAGE_MM,
   SOCIAL_PACK_SLOTS,
+  isRasterKind,
   nativeFormatFor,
+  unitKindFor,
   composePngStrip,
   pngToJpg,
   pngToPdf,
+  rasterToPng,
   resizePng,
   type CustomSize,
   type DownloadFormat,
+  type KitExportUnitKind,
   type KitNativeFormat,
 } from './exportFormats';
 import {
@@ -103,17 +107,13 @@ import { throwIfAborted, yieldToBrowser } from './exportScheduler';
  * rasterize a deliverable at the shape its card is drawn in; `document`
  * units rasterize a page body that sizes itself; `board` is the poster,
  * which has its own fixed canvas.
+ *
+ * Declared in `exportFormats` and re-exported here, because the DOWNLOAD
+ * MENU has to know it too: a row is only worth offering if the unit behind
+ * it writes that kind of file. Two switches in two files is how the
+ * Typography card came to offer four raster rows over a folder of `.ttf`.
  */
-export type KitExportUnitKind =
-  | 'logos'
-  | 'colors'
-  | 'fonts'
-  | 'icons'
-  | 'photos'
-  | 'about'
-  | 'card'
-  | 'document'
-  | 'board';
+export type { KitExportUnitKind };
 
 export type KitExportUnit = {
   /** The catalog entry this unit came from. */
@@ -125,15 +125,6 @@ export type KitExportUnit = {
   path: string;
 };
 
-const ASSET_KINDS: Record<string, KitExportUnitKind> = {
-  Logos: 'logos',
-  Colors: 'colors',
-  Fonts: 'fonts',
-  Icons: 'icons',
-  Photos: 'photos',
-  About: 'about',
-};
-
 /**
  * Turn catalog entries into the steps an export will run.
  *
@@ -141,30 +132,14 @@ const ASSET_KINDS: Record<string, KitExportUnitKind> = {
  * count in the progress toast is the count of things the user asked for.
  */
 export function planKitExport(entries: ReadonlyArray<KitEntry>): KitExportUnit[] {
-  const units: KitExportUnit[] = [];
-  for (const entry of entries) {
-    const assetKind = entry.sectionKey === 'brand-assets' ? ASSET_KINDS[entry.storageLabel] : undefined;
-    if (assetKind) {
-      units.push({
-        entry,
-        kind: assetKind,
-        label: entry.label,
-        path: assetKind === 'about' ? 'strategy.pdf' : `${assetKind}/`,
-      });
-      continue;
+  return entries.map((entry) => {
+    const kind = unitKindFor(entry);
+    if (kind === 'about') return { entry, kind, label: entry.label, path: 'strategy.pdf' };
+    if (isRasterKind(kind)) {
+      return { entry, kind, label: entry.label, path: `deliverables/${slugifyName(entry.label)}.png` };
     }
-    const file = `deliverables/${slugifyName(entry.label)}.png`;
-    if (entry.view === 'brand-board') {
-      units.push({ entry, kind: 'board', label: entry.label, path: file });
-    } else if (entry.view === 'social-system' || entry.view === 'presentation-system') {
-      units.push({ entry, kind: 'document', label: entry.label, path: file });
-    } else if (entry.view === 'strategy') {
-      units.push({ entry, kind: 'about', label: entry.label, path: 'strategy.pdf' });
-    } else {
-      units.push({ entry, kind: 'card', label: entry.label, path: file });
-    }
-  }
-  return units;
+    return { entry, kind, label: entry.label, path: `${kind}/` };
+  });
 }
 
 /* ─── Running it ──────────────────────────────────────────────────── */
@@ -209,6 +184,18 @@ export type KitExportInput = {
    * for people who only wanted the artwork.
    */
   formats?: KitExportFormats;
+  /**
+   * How much of a brand-asset family's material to write.
+   *
+   * `lean` (the default) is what the whole-kit zip gets: a kit is browsed,
+   * and a browsable kit that takes a minute to build is a kit nobody waits
+   * for. `full` restores the print originals — the palette's JPGs and
+   * `.ai` files — for a DEDICATED download, where someone asked for that
+   * one family by name. It is the flag that let the card's ⬇ be deleted
+   * and re-pointed at this walker without the Colors card quietly losing
+   * the formats it used to hand over.
+   */
+  depth?: BundleDepth;
   onProgress?: (progress: KitExportProgress) => void;
   signal?: AbortSignal;
 };
@@ -629,13 +616,13 @@ export async function writeUnit(
       }
       case 'colors': {
         const dir = lazyFolder(root, 'colors');
-        if ((await addColorsToZip(dir, brand, signal)) > 0) keep();
+        if ((await addColorsToZip(dir, brand, signal, { depth: input.depth ?? 'lean' })) > 0) keep();
         else skipped.push({ label: unit.label, reason: 'this brand has no colours yet' });
         break;
       }
       case 'fonts': {
         const dir = lazyFolder(root, 'fonts');
-        const result = await addFontsToZip(dir, brand, signal);
+        const result = await addFontsToZip(dir, brand, signal, { lean: input.depth !== 'full' });
         skipped.push(...result.skipped);
         if (result.added > 0) keep();
         else if (result.skipped.length === 0) {
@@ -664,6 +651,11 @@ export async function writeUnit(
         // notes, as a document you send someone, and as data.
         zipAdd(root, 'strategy.md', buildStrategyMarkdown(brand));
         zipAdd(root, 'about.md', buildAboutMarkdown(brand));
+        // The same record with the stored ids AND the labels a person
+        // reads. It is a kilobyte, `buildStrategyBundle` already ships it,
+        // and without it the document menu's "As data (JSON)" row had
+        // nothing to hand over.
+        zipAdd(root, 'strategy.json', buildStrategyJson(brand));
         keep();
       try {
           const pdf = await buildStrategyPdf(brand, input.sourceBrand, { signal });
@@ -989,41 +981,131 @@ export async function downloadEntry(
     // handing the user an empty download.
   }
 
-  // The format menu, for a rasterized deliverable. PDF wraps the raster on
-  // the family's real paper size; JPG flattens it; custom resizes it. An
-  // asset FOLDER (logos, colors, fonts) is exempt: it already contains its
-  // own PDFs and vectors, and converting one PNG out of it would be a
-  // worse answer than the folder.
-  const rasterUnit = unit.kind === 'card' || unit.kind === 'document' || unit.kind === 'board';
-  const png = paths.includes(unit.path) && unit.path.endsWith('.png')
-    ? unit.path
-    : paths.find((path) => path.endsWith('.png'));
-  if (rasterUnit && png && (format === 'pdf' || format === 'jpg' || format === 'custom')) {
-    const raster = await zip.files[png].async('blob');
-    if (format === 'pdf') {
-      const page = PRINT_PAGE_MM[entry.storageLabel] ?? 'fit';
-      triggerBlobDownload(await pngToPdf(raster, page), `${base}.pdf`);
-    } else if (format === 'jpg') {
-      triggerBlobDownload(await pngToJpg(raster), `${base}.jpg`);
-    } else if (choice.size) {
-      triggerBlobDownload(await resizePng(raster, choice.size), `${base}-${choice.size.width}px.png`);
-    } else {
-      triggerBlobDownload(raster, `${base}.png`);
-    }
+  /*
+   * A NATIVE FILE IS NOT THE PICTURE.
+   *
+   * The favicon set is a folder of PNGs and a size pack is a PNG per
+   * platform, both written BESIDE the card's own raster. Counting them as
+   * "the PNGs this unit produced" turned *For web (PNG)* on the Favicon
+   * card into a zip of the whole icon set — the native row's answer,
+   * under the raster row's name. Matched on the same patterns the native
+   * row itself uses, so the two can never disagree about which files are
+   * whose.
+   */
+  const NATIVE_FILES = Object.values(NATIVE_PATTERN);
+  const isNativeFile = (path: string) => NATIVE_FILES.some((re) => re.test(path));
+
+  /** Everything the unit wrote with this extension, the native files aside. */
+  const withExt = (ext: RegExp) =>
+    paths.filter((path) => ext.test(path) && !isNativeFile(path));
+
+  /** A row that cannot be kept says so, out loud, and hands over nothing. */
+  const refuse = (reason: string) => {
+    skipped.push({ label: entry.label, reason });
+    return { added: false, skipped };
+  };
+
+  // "Everything" is what the unit wrote, unconverted. It is the only row
+  // that promises no particular extension, which is exactly why the two
+  // families whose output is neither artwork nor a single document — the
+  // font folder and the strategy bundle — have one.
+  if (format === 'zip') {
+    await send(paths);
     return { added: true, skipped };
   }
-  if (rasterUnit && png && format === 'png') {
-    triggerBlobDownload(await zip.files[png].async('blob'), `${base}.png`);
+
+  // The notes and the record. `strategy.*` wins over `about.*`: the row is
+  // on the Strategy card and about.md is the short version travelling with it.
+  if (format === 'md' || format === 'json') {
+    const picked = withExt(format === 'md' ? /\.md$/i : /\.json$/i);
+    const only = picked.find((path) => path.startsWith('strategy.')) ?? picked[0];
+    if (!only) return refuse(`${entry.label} has nothing to hand over as ${format.toUpperCase()}`);
+    triggerBlobDownload(await zip.files[only].async('blob'), `${base}.${format}`);
     return { added: true, skipped };
   }
+
   if (format === 'svg') {
-    const vectors = paths.filter((path) => path.endsWith('.svg'));
-    if (vectors.length > 0) {
-      await send(vectors);
+    const vectors = withExt(/\.svg$/i);
+    if (vectors.length === 0) return refuse(`${entry.label} has no vector artwork to export`);
+    await send(vectors);
+    return { added: true, skipped };
+  }
+
+  /*
+   * THE RASTER ROWS — png · pdf · jpg · custom.
+   *
+   * One rule for every family, and it is the rule the four bespoke card
+   * branches broke: a row hands over FILES OF THAT FORMAT. A file the unit
+   * already wrote in the format asked for beats one derived from a
+   * picture — `logos/` carries a real print PDF per variant and a full
+   * palette carries its own JPGs — and anything else is converted from the
+   * pictures the unit did write.
+   *
+   * Before this, a format the archive did not happen to contain fell
+   * through to "send whatever is here": *For print (PDF)* on Logos, *For
+   * web (PNG)* on Strategy and all four rows on Typography each handed
+   * over the family's whole folder under a promise none of them kept.
+   */
+  if (format !== 'custom') {
+    const own = withExt(
+      format === 'png' ? /\.png$/i : format === 'jpg' ? /\.jpe?g$/i : /\.pdf$/i,
+    );
+    if (own.length > 0) {
+      await send(own);
       return { added: true, skipped };
     }
   }
-  await send(paths);
+
+  // The pictures this unit drew, whatever they were encoded as.
+  const sources: Array<{ stem: string; blob: Blob }> = [];
+  for (const path of withExt(/\.(png|jpe?g)$/i)) {
+    sources.push({
+      stem: path.replace(/\.[a-z0-9]+$/i, ''),
+      blob: await zip.files[path].async('blob'),
+    });
+  }
+  if (sources.length === 0 && unit.kind === 'about') {
+    // A document has no picture in the archive — the kit ships words. A
+    // photograph OF the page is still a real answer, and it is the same
+    // view the Strategy drilldown renders.
+    const page = await snapshotDocumentPng(<StrategyView brand={input.brand} />);
+    if (page) sources.push({ stem: slugifyName(entry.label), blob: page });
+  }
+  if (sources.length === 0) {
+    return refuse(`${entry.label} has no artwork to hand over as ${format.toUpperCase()}`);
+  }
+
+  const page = PRINT_PAGE_MM[entry.storageLabel] ?? 'fit';
+  const converted: Array<{ path: string; blob: Blob }> = [];
+  for (const source of sources) {
+    throwIfAborted(input.signal);
+    if (format === 'png') {
+      converted.push({ path: `${source.stem}.png`, blob: await rasterToPng(source.blob) });
+    } else if (format === 'jpg') {
+      converted.push({ path: `${source.stem}.jpg`, blob: await pngToJpg(source.blob) });
+    } else if (format === 'pdf') {
+      converted.push({ path: `${source.stem}.pdf`, blob: await pngToPdf(source.blob, page) });
+    } else {
+      converted.push({
+        path: `${source.stem}.png`,
+        blob: choice.size ? await resizePng(source.blob, choice.size) : source.blob,
+      });
+    }
+    await yieldToBrowser(input.signal);
+  }
+
+  if (converted.length === 1) {
+    const suffix = format === 'custom' && choice.size ? `-${choice.size.width}px` : '';
+    const ext = format === 'custom' ? 'png' : format;
+    triggerBlobDownload(converted[0].blob, `${base}${suffix}.${ext}`);
+    return { added: true, skipped };
+  }
+  const out = new JSZip();
+  for (const file of converted) out.file(file.path, file.blob);
+  triggerBlobDownload(
+    await out.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
+    `${base}.zip`,
+  );
   return { added: true, skipped };
 }
 

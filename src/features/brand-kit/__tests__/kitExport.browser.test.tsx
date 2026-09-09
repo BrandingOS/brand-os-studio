@@ -23,7 +23,7 @@ import { getEntryFor, visibleEntries } from '../catalog/catalog';
 import { variantsForCard } from '../data/legacy-mapping';
 import { ExportKitDialog } from '../components/ExportKitDialog';
 import { buildKitZipBlob, downloadEntry } from '../data/exportEverything';
-import { resizePng } from '../data/exportFormats';
+import { downloadOptionsFor, resizePng } from '../data/exportFormats';
 import { isCancelled } from '../data/exportScheduler';
 import { isPng, readPngSize } from '../exporters';
 
@@ -225,6 +225,11 @@ describe('the kit export, end to end', () => {
     // template library, so the card's Download used to answer "Nothing to
     // export" for three things the Export Kit shipped happily. A card and
     // the kit now run the same writer, so they cannot disagree.
+    //
+    // Each card is asked for a row ITS OWN MENU offers, rather than for a
+    // PNG: Typography's deliverable is a folder of `.ttf` and the Strategy
+    // card's is a document of words, and the fix for both was to stop
+    // offering them a raster they cannot draw.
     const saved: Blob[] = [];
     const spy = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
@@ -233,13 +238,15 @@ describe('the kit export, end to end', () => {
     try {
       for (const entry of visibleEntries({ isDev: false, isAdmin: false })) {
         created.mockClear();
-        const result = await downloadEntry(entry, {
-          brand,
-          sourceBrand,
-          entries: [entry],
-        });
         // Photos is the one honest empty: this brand has none.
         if (entry.storageLabel === 'Photos') continue;
+        const offered = downloadOptionsFor(entry).find((o) => !o.disabledReason);
+        expect(offered, `${entry.label} offers no row it can honour`).toBeTruthy();
+        const result = await downloadEntry(
+          entry,
+          { brand, sourceBrand, entries: [entry] },
+          { format: offered!.format },
+        );
         expect(result.added, `${entry.label} produced nothing to download`).toBe(true);
         expect(created, `${entry.label} never handed the browser a file`).toHaveBeenCalled();
         saved.push(new Blob());

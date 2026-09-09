@@ -165,13 +165,36 @@ describe('downloadOptionsFor', () => {
   const shape = (section: string, label: string) =>
     downloadOptionsFor(getEntryFor(section as never, label)!).map((o) => `${o.label} (${o.chip})`);
 
-  it('opens with For web and For print, whatever the family', () => {
+  it('is five rows for every family, and only the two that are not artwork differ', () => {
     for (const entry of visibleEntries(DEVELOPER)) {
       const options = downloadOptionsFor(entry);
-      expect(options).toHaveLength(5);
-      expect(options.slice(0, 2).map((o) => o.format)).toEqual(['png', 'pdf']);
-      expect(options.filter((o) => o.secondary)).toHaveLength(3);
+      expect(options, entry.label).toHaveLength(5);
+      // Typography is a folder of `.ttf` and the Strategy card is a
+      // document of words. Offering them "For web (PNG)" was a promise
+      // neither could keep — all four raster rows on Typography handed
+      // over the same font folder.
+      if (entry.storageLabel === 'Fonts' || entry.view === 'strategy') continue;
+      expect(options.slice(0, 2).map((o) => o.format), entry.label).toEqual(['png', 'pdf']);
+      expect(options.filter((o) => o.secondary), entry.label).toHaveLength(3);
     }
+  });
+
+  it('gives Typography the one row it can honour, above the fold', () => {
+    const options = downloadOptionsFor(getEntryFor('brand-assets', 'Fonts')!);
+    const live = options.filter((o) => !o.disabledReason);
+    expect(live.map((o) => `${o.label} (${o.chip})`)).toEqual(['Font files (TTF)']);
+    // Burying the only honourable answer behind the "more" fold, under two
+    // greyed rows, is a card that reads as broken.
+    expect(live[0].secondary).toBeFalsy();
+    for (const dead of options.filter((o) => o.disabledReason)) {
+      expect(dead.disabledReason).toMatch(/font files/i);
+    }
+  });
+
+  it('gives the Strategy card the rows a DOCUMENT has', () => {
+    const options = downloadOptionsFor(getEntryFor('brand-assets', 'About')!);
+    expect(options.map((o) => o.format)).toEqual(['md', 'pdf', 'json', 'png', 'zip']);
+    expect(options.every((o) => !o.disabledReason)).toBe(true);
   });
 
   it('offers the real format where one now exists', () => {
