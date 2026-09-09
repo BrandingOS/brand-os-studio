@@ -39,7 +39,8 @@
  *    not the word "Save?".
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DsButton, DsConfirmDialog, DsInput, DsModal, DsSegmented, DsSelect } from '@/shared/ds';
+import { DsButton, DsConfirmDialog, DsInput, DsSegmented, DsSelect } from '@/shared/ds';
+import { KitDockPanel } from '../KitDockPanel';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
@@ -284,7 +285,7 @@ export function IconsEditor({
 
   return (
     <>
-      <DsModal
+      <KitDockPanel
         open={open}
         onClose={onClose}
         eyebrow="Brand assets"
@@ -432,7 +433,7 @@ export function IconsEditor({
             </p>
           ) : null}
         </div>
-      </DsModal>
+      </KitDockPanel>
 
       <DsConfirmDialog
         open={confirming}

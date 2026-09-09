@@ -30,7 +30,8 @@
  * a panel that quietly rewrote both would make its own confirmation a lie.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DsButton, DsConfirmDialog, DsModal } from '@/shared/ds';
+import { DsButton, DsConfirmDialog } from '@/shared/ds';
+import { KitDockPanel } from '../KitDockPanel';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
 import type { BrandStrategyFields, MockBrand } from '@/features/setup/data/mockBrand';
@@ -179,7 +180,7 @@ export function StrategyEditor({
 
   return (
     <>
-      <DsModal
+      <KitDockPanel
         open={open}
         onClose={onClose}
         eyebrow="Brand assets"
@@ -231,7 +232,7 @@ export function StrategyEditor({
           </div>
           {error && <p className="bka-strategy-error">{error}</p>}
         </div>
-      </DsModal>
+      </KitDockPanel>
 
       {/* Setup's own editors, not ours. See the header. */}
       <StrategyEditorModal target={editing} onClose={() => setEditing(null)} onSave={saveOne} />
