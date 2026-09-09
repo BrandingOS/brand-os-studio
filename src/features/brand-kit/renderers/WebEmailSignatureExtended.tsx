@@ -14,7 +14,7 @@ import {
 } from './brandStyle';
 
 /**
- * Email signatures — sixteen real signature BLOCKS.
+ * Email signatures — thirty real signature BLOCKS.
  *
  * What this file used to be: thirty designs of which five painted the
  * customer's content and twenty-five printed "Jane Smith · Vice President ·
@@ -310,10 +310,10 @@ function Rule({
   );
 }
 
-/* ── The sixteen designs ──────────────────────────────────────────── */
+/* ── The thirty designs ───────────────────────────────────────────── */
 
 type Design = {
-  /** A designer's name. Mirrored in `curation/emailSignature.ts`. */
+  /** A designer's name. Read by `curation/emailSignature.ts`. */
   name: string;
   tags: string[];
   /** The signature fills the sheet edge to edge instead of sitting on it. */
@@ -1890,6 +1890,1247 @@ const DESIGNS: Design[] = [
       </div>
     ),
   },
+
+  /* 17 */ {
+    name: 'Flush Right',
+    tags: ['Editorial', 'Minimal', 'Studio'],
+    render: (k) => (
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ display: 'inline-block' }}>
+          {k.mark({ ground: k.paper.bg, size: 18, tint: k.primary, company: '' })}
+        </div>
+        <Row
+          style={{
+            fontFamily: k.head,
+            fontSize: SIZE.name,
+            fontWeight: 700,
+            color: k.paper.text,
+            lineHeight: 1.25,
+            marginTop: 3,
+          }}
+        >
+          {k.F.name}
+          {k.has.pronouns && (
+            <span style={{ fontSize: SIZE.fine, fontWeight: 400, color: k.paper.muted }}>
+              <Sep color={k.paper.border} />
+              {k.F.pronouns}
+            </span>
+          )}
+          {!k.has.pronouns && k.F.pronouns}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.role}
+          <Sep color={k.paper.border} />
+          <span style={{ color: k.paper.accent, fontWeight: 600 }}>{k.F.company}</span>
+        </Row>
+        <Rule
+          color={k.paper.accent}
+          thickness={2}
+          width="22%"
+          style={{ margin: '5px 0 4px', marginLeft: 'auto' }}
+        />
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          {k.F.email}
+          <Sep color={k.paper.border} />
+          {k.F.phone}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          {k.F.website}
+          {k.has.social && <Sep color={k.paper.border} />}
+          {k.F.social}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.address}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            fontStyle: 'italic',
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.tagline}
+        </Row>
+      </div>
+    ),
+  },
+
+  /* 18 */ {
+    name: 'Brand Column',
+    tags: ['Colour-led', 'Bold', 'Corporate'],
+    bleed: true,
+    render: (k) => (
+      <table
+        cellPadding={0}
+        cellSpacing={0}
+        style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}
+      >
+        <tbody>
+          <tr>
+            <td
+              valign="top"
+              style={{
+                width: '34%',
+                background: k.brandInk.bg,
+                padding: '8px 8px 9px',
+                verticalAlign: 'top',
+              }}
+            >
+              {k.mark({ ground: k.brandInk.bg, size: 16, tint: k.brandInk.text, company: '' })}
+              <Row
+                style={{
+                  fontFamily: k.head,
+                  fontSize: SIZE.fine,
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: k.brandInk.text,
+                  lineHeight: 1.4,
+                  marginTop: 4,
+                }}
+              >
+                {k.F.company}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  fontStyle: 'italic',
+                  color: k.brandInk.muted,
+                  lineHeight: 1.45,
+                  marginTop: 2,
+                }}
+              >
+                {k.F.tagline}
+              </Row>
+            </td>
+            <td valign="top" style={{ padding: '8px 9px 9px', verticalAlign: 'top' }}>
+              <Row
+                style={{
+                  fontFamily: k.head,
+                  fontSize: SIZE.name,
+                  fontWeight: 700,
+                  color: k.paper.text,
+                  lineHeight: 1.25,
+                }}
+              >
+                {k.F.name}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.role,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.role}
+                {k.has.pronouns && <Sep color={k.paper.border} />}
+                {k.F.pronouns}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                  marginTop: 3,
+                }}
+              >
+                {k.F.email}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.phone}
+                <Sep color={k.paper.border} gap={3} />
+                {k.F.website}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.address}
+                {k.has.social && <Sep color={k.paper.border} gap={3} />}
+                {k.F.social}
+              </Row>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    ),
+  },
+
+  /* 19 */ {
+    name: 'Dark Footer',
+    tags: ['Dark', 'Structured', 'Corporate'],
+    bleed: true,
+    render: (k) => (
+      <div>
+        <div style={{ padding: '8px 9px 7px' }}>
+          <Cols
+            leftWidth="auto"
+            align="middle"
+            rightAlign="right"
+            left={
+              <>
+                <Row
+                  style={{
+                    fontFamily: k.head,
+                    fontSize: SIZE.name,
+                    fontWeight: 700,
+                    color: k.paper.text,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {k.F.name}
+                  {k.has.pronouns && (
+                    <span style={{ fontSize: SIZE.fine, fontWeight: 400, color: k.paper.muted }}>
+                      <Sep color={k.paper.border} />
+                      {k.F.pronouns}
+                    </span>
+                  )}
+                  {!k.has.pronouns && k.F.pronouns}
+                </Row>
+                <Row
+                  style={{
+                    fontFamily: k.body,
+                    fontSize: SIZE.role,
+                    color: k.paper.muted,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {k.F.role}
+                  <Sep color={k.paper.border} />
+                  <span style={{ color: k.paper.accent, fontWeight: 600 }}>{k.F.company}</span>
+                </Row>
+                <Row
+                  style={{
+                    fontFamily: k.body,
+                    fontSize: SIZE.fine,
+                    fontStyle: 'italic',
+                    color: k.paper.muted,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {k.F.tagline}
+                </Row>
+              </>
+            }
+            right={k.mark({ ground: k.paper.bg, size: 22, tint: k.primary, company: '' })}
+          />
+        </div>
+        <div style={{ background: k.dark.bg, padding: '6px 9px 7px' }}>
+          <Row
+            style={{
+              fontFamily: k.body,
+              fontSize: SIZE.contact,
+              color: k.dark.text,
+              lineHeight: 1.6,
+            }}
+          >
+            {k.F.email}
+            <Sep color={k.dark.border} />
+            {k.F.phone}
+          </Row>
+          <Row
+            style={{
+              fontFamily: k.body,
+              fontSize: SIZE.contact,
+              color: k.dark.muted,
+              lineHeight: 1.6,
+            }}
+          >
+            {k.F.website}
+            {k.has.social && <Sep color={k.dark.border} />}
+            {k.F.social}
+          </Row>
+          <Row
+            style={{
+              fontFamily: k.body,
+              fontSize: SIZE.fine,
+              color: k.dark.muted,
+              lineHeight: 1.5,
+            }}
+          >
+            {k.F.address}
+          </Row>
+        </div>
+      </div>
+    ),
+  },
+
+  /* 20 */ {
+    name: 'Framed',
+    tags: ['Classic', 'Studio', 'Structured'],
+    render: (k) => (
+      <div
+        style={{
+          border: `1px solid ${k.paper.border}`,
+          borderTop: `3px solid ${k.paper.accent}`,
+          padding: '7px 9px 8px',
+        }}
+      >
+        <Cols
+          leftWidth="auto"
+          align="middle"
+          rightAlign="right"
+          left={
+            <>
+              <Row
+                style={{
+                  fontFamily: k.head,
+                  fontSize: SIZE.name,
+                  fontWeight: 700,
+                  color: k.paper.text,
+                  lineHeight: 1.2,
+                }}
+              >
+                {k.F.name}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.role,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.role}
+                {k.has.pronouns && <Sep color={k.paper.border} />}
+                {k.F.pronouns}
+              </Row>
+            </>
+          }
+          right={k.mark({ ground: k.paper.bg, size: 20, tint: k.primary, company: '' })}
+        />
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            fontWeight: 600,
+            color: k.paper.accent,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.company}
+          {k.has.tagline && <Sep color={k.paper.border} />}
+          <span style={{ fontWeight: 400, fontStyle: 'italic', color: k.paper.muted }}>
+            {k.F.tagline}
+          </span>
+        </Row>
+        <Rule color={k.paper.border} style={{ margin: '5px 0 4px' }} />
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          {k.F.email}
+          <Sep color={k.paper.border} />
+          {k.F.phone}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          {k.F.website}
+          {k.has.social && <Sep color={k.paper.border} />}
+          {k.F.social}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.address}
+        </Row>
+      </div>
+    ),
+  },
+
+  /* 21 */ {
+    name: 'Bulleted',
+    tags: ['Minimal', 'Dense', 'Corporate'],
+    render: (k) => (
+      <>
+        <Row
+          style={{
+            fontFamily: k.head,
+            fontSize: SIZE.name,
+            fontWeight: 700,
+            color: k.paper.text,
+            lineHeight: 1.25,
+          }}
+        >
+          {k.F.name}
+          {k.has.pronouns && (
+            <span style={{ fontSize: SIZE.fine, fontWeight: 400, color: k.paper.muted }}>
+              <Sep color={k.paper.border} />
+              {k.F.pronouns}
+            </span>
+          )}
+          {!k.has.pronouns && k.F.pronouns}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.role}
+          <Sep color={k.paper.border} />
+          <span style={{ color: k.paper.accent, fontWeight: 600 }}>{k.F.company}</span>
+        </Row>
+        <div style={{ marginTop: 4 }}>
+          {(
+            [
+              <>
+                {k.F.email}
+                <Sep color={k.paper.border} />
+                {k.F.phone}
+              </>,
+              <>
+                {k.F.website}
+                {k.has.social && <Sep color={k.paper.border} />}
+                {k.F.social}
+              </>,
+              <>{k.F.address}</>,
+              <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>,
+            ] as ReactNode[]
+          ).map((line, i) => (
+            <Row
+              key={i}
+              style={{
+                fontFamily: k.body,
+                fontSize: i > 1 ? SIZE.fine : SIZE.contact,
+                color: k.paper.muted,
+                lineHeight: 1.6,
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 4,
+                  height: 4,
+                  marginRight: 5,
+                  background: k.paper.accent,
+                  verticalAlign: 'middle',
+                }}
+              />
+              {line}
+            </Row>
+          ))}
+        </div>
+      </>
+    ),
+  },
+
+  /* 22 */ {
+    name: 'Caps Lockup',
+    tags: ['Bold', 'Editorial', 'Corporate'],
+    render: (k) => (
+      <>
+        <Row
+          style={{
+            fontFamily: k.head,
+            fontSize: SIZE.role + 1,
+            fontWeight: 700,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: k.paper.text,
+            lineHeight: 1.35,
+          }}
+        >
+          {k.F.company}
+        </Row>
+        <Rule color={k.paper.accent} thickness={2} style={{ margin: '4px 0 5px' }} />
+        <Cols
+          leftWidth="auto"
+          align="middle"
+          rightAlign="right"
+          left={
+            <>
+              <Row
+                style={{
+                  fontFamily: k.head,
+                  fontSize: SIZE.name,
+                  fontWeight: 700,
+                  color: k.paper.text,
+                  lineHeight: 1.2,
+                }}
+              >
+                {k.F.name}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.role,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.role}
+                {k.has.pronouns && <Sep color={k.paper.border} />}
+                {k.F.pronouns}
+              </Row>
+            </>
+          }
+          right={k.mark({ ground: k.paper.bg, size: 20, tint: k.primary, company: '' })}
+        />
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+            marginTop: 3,
+          }}
+        >
+          {k.F.email}
+          <Sep color={k.paper.border} />
+          {k.F.phone}
+          <Sep color={k.paper.border} />
+          {k.F.website}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.address}
+          {k.has.social && <Sep color={k.paper.border} />}
+          {k.F.social}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            fontStyle: 'italic',
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.tagline}
+        </Row>
+      </>
+    ),
+  },
+
+  /* 23 */ {
+    name: 'Running Line',
+    tags: ['Minimal', 'Calm', 'Boutique'],
+    render: (k) => (
+      <>
+        <Row
+          style={{
+            fontFamily: k.head,
+            fontSize: SIZE.nameLarge,
+            fontWeight: 700,
+            letterSpacing: '-0.01em',
+            color: k.paper.text,
+            lineHeight: 1.15,
+          }}
+        >
+          {k.F.name}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.role}
+          <Sep color={k.paper.border} />
+          <span style={{ color: k.paper.accent, fontWeight: 600 }}>{k.F.company}</span>
+        </Row>
+        <Rule color={k.paper.accent} thickness={2} width="18%" style={{ margin: '5px 0 5px' }} />
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.7,
+          }}
+        >
+          {k.F.email}
+          <Sep color={k.paper.border} />
+          {k.F.phone}
+          <Sep color={k.paper.border} />
+          {k.F.website}
+          {k.has.social && <Sep color={k.paper.border} />}
+          {k.F.social}
+          {k.has.address && <Sep color={k.paper.border} />}
+          {k.F.address}
+          {k.has.pronouns && <Sep color={k.paper.border} />}
+          {k.F.pronouns}
+          {k.has.tagline && <Sep color={k.paper.border} />}
+          <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>
+        </Row>
+      </>
+    ),
+  },
+
+  /* 24 */ {
+    name: 'Role Badge',
+    tags: ['Colour-led', 'Bold', 'Studio'],
+    render: (k) => (
+      <>
+        <Cols
+          leftWidth="auto"
+          align="middle"
+          rightAlign="right"
+          left={
+            <Row
+              style={{
+                fontFamily: k.head,
+                fontSize: SIZE.nameLarge,
+                fontWeight: 700,
+                color: k.paper.text,
+                lineHeight: 1.15,
+              }}
+            >
+              {k.F.name}
+              {k.has.pronouns && (
+                <span style={{ fontSize: SIZE.fine, fontWeight: 400, color: k.paper.muted }}>
+                  <Sep color={k.paper.border} />
+                  {k.F.pronouns}
+                </span>
+              )}
+              {!k.has.pronouns && k.F.pronouns}
+            </Row>
+          }
+          right={k.mark({ ground: k.paper.bg, size: 20, tint: k.primary, company: '' })}
+        />
+        <Row style={{ marginTop: 4, lineHeight: 1.5 }}>
+          <span
+            style={{
+              display: 'inline-block',
+              background: k.brandInk.bg,
+              color: k.brandInk.text,
+              fontFamily: k.body,
+              fontSize: SIZE.fine,
+              fontWeight: 600,
+              padding: '2px 6px',
+              borderRadius: 999,
+              lineHeight: 1.4,
+            }}
+          >
+            {k.F.role}
+          </span>
+          <span
+            style={{
+              fontFamily: k.body,
+              fontSize: SIZE.role,
+              fontWeight: 600,
+              color: k.paper.text,
+            }}
+          >
+            <Sep color={k.paper.border} gap={5} />
+            {k.F.company}
+          </span>
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+            marginTop: 3,
+          }}
+        >
+          {k.F.email}
+          <Sep color={k.paper.border} />
+          {k.F.phone}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          {k.F.website}
+          {k.has.social && <Sep color={k.paper.border} />}
+          {k.F.social}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.address}
+          {k.has.tagline && <Sep color={k.paper.border} />}
+          <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>
+        </Row>
+      </>
+    ),
+  },
+
+  /* 25 */ {
+    name: 'Corner Mark',
+    tags: ['Logo-led', 'Minimal', 'Studio'],
+    render: (k) => (
+      <>
+        <Row
+          style={{
+            fontFamily: k.head,
+            fontSize: SIZE.name,
+            fontWeight: 700,
+            color: k.paper.text,
+            lineHeight: 1.25,
+          }}
+        >
+          {k.F.name}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.role}
+          {k.has.pronouns && <Sep color={k.paper.border} />}
+          {k.F.pronouns}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            fontWeight: 600,
+            color: k.paper.accent,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.company}
+        </Row>
+        <Rule color={k.paper.border} style={{ margin: '5px 0 4px' }} />
+        <Cols
+          leftWidth="auto"
+          align="bottom"
+          rightAlign="right"
+          gap={6}
+          left={
+            <>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.email}
+                <Sep color={k.paper.border} />
+                {k.F.phone}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.website}
+                {k.has.social && <Sep color={k.paper.border} />}
+                {k.F.social}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.address}
+                {k.has.tagline && <Sep color={k.paper.border} />}
+                <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>
+              </Row>
+            </>
+          }
+          right={k.mark({ ground: k.paper.bg, size: 26, tint: k.primary, company: '' })}
+        />
+      </>
+    ),
+  },
+
+  /* 26 */ {
+    name: 'Half Panel',
+    tags: ['Two-up', 'Calm', 'Structured'],
+    bleed: true,
+    render: (k) => (
+      <table
+        cellPadding={0}
+        cellSpacing={0}
+        style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}
+      >
+        <tbody>
+          <tr>
+            <td
+              valign="top"
+              style={{
+                width: '42%',
+                background: k.soft.bg,
+                padding: '8px 8px 9px',
+                verticalAlign: 'top',
+              }}
+            >
+              {k.mark({ ground: k.soft.bg, size: 18, tint: k.primary, company: '' })}
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.role,
+                  fontWeight: 600,
+                  color: k.soft.accent,
+                  lineHeight: 1.45,
+                  marginTop: 4,
+                }}
+              >
+                {k.F.company}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  fontStyle: 'italic',
+                  color: k.soft.muted,
+                  lineHeight: 1.45,
+                }}
+              >
+                {k.F.tagline}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  color: k.soft.muted,
+                  lineHeight: 1.45,
+                  marginTop: 2,
+                }}
+              >
+                {k.F.address}
+              </Row>
+            </td>
+            <td valign="top" style={{ padding: '8px 9px 9px', verticalAlign: 'top' }}>
+              <Row
+                style={{
+                  fontFamily: k.head,
+                  fontSize: SIZE.name,
+                  fontWeight: 700,
+                  color: k.paper.text,
+                  lineHeight: 1.25,
+                }}
+              >
+                {k.F.name}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  color: k.paper.muted,
+                  lineHeight: 1.45,
+                }}
+              >
+                {k.F.role}
+                {k.has.pronouns && <Sep color={k.paper.border} gap={3} />}
+                {k.F.pronouns}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                  marginTop: 3,
+                }}
+              >
+                {k.F.email}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.phone}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.website}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.social}
+              </Row>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    ),
+  },
+
+  /* 27 */ {
+    name: 'Ruled Rows',
+    tags: ['Structured', 'Classic', 'Dense'],
+    render: (k) => (
+      <>
+        <Cols
+          leftWidth="auto"
+          align="middle"
+          rightAlign="right"
+          left={
+            <>
+              <Row
+                style={{
+                  fontFamily: k.head,
+                  fontSize: SIZE.name,
+                  fontWeight: 700,
+                  color: k.paper.text,
+                  lineHeight: 1.2,
+                }}
+              >
+                {k.F.name}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.role,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.role}
+                {k.has.pronouns && <Sep color={k.paper.border} />}
+                {k.F.pronouns}
+              </Row>
+            </>
+          }
+          right={k.mark({ ground: k.paper.bg, size: 20, tint: k.primary, company: '' })}
+        />
+        <Rule color={k.paper.accent} thickness={2} style={{ margin: '5px 0 0' }} />
+        {(
+          [
+            <span style={{ fontWeight: 600, color: k.paper.accent }}>{k.F.company}</span>,
+            <>
+              {k.F.email}
+              <Sep color={k.paper.border} />
+              {k.F.phone}
+            </>,
+            <>
+              {k.F.website}
+              {k.has.social && <Sep color={k.paper.border} />}
+              {k.F.social}
+            </>,
+            <>
+              {k.F.address}
+              {k.has.tagline && <Sep color={k.paper.border} />}
+              <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>
+            </>,
+          ] as ReactNode[]
+        ).map((line, i) => (
+          <Row
+            key={i}
+            style={{
+              fontFamily: k.body,
+              fontSize: i === 3 ? SIZE.fine : SIZE.contact,
+              color: k.paper.muted,
+              lineHeight: 1.5,
+              padding: '3px 0',
+              borderBottom: `1px solid ${k.paper.border}`,
+            }}
+          >
+            {line}
+          </Row>
+        ))}
+      </>
+    ),
+  },
+
+  /* 28 */ {
+    name: 'Wordmark Top',
+    tags: ['Logo-led', 'Calm', 'Boutique'],
+    render: (k) => (
+      <>
+        <Row>{k.mark({ ground: k.paper.bg, size: 20, tint: k.primary, company: '', wide: true })}</Row>
+        <Rule color={k.paper.border} style={{ margin: '5px 0 5px' }} />
+        <Row
+          style={{
+            fontFamily: k.head,
+            fontSize: SIZE.name,
+            fontWeight: 700,
+            color: k.paper.text,
+            lineHeight: 1.25,
+          }}
+        >
+          {k.F.name}
+          {k.has.pronouns && (
+            <span style={{ fontSize: SIZE.fine, fontWeight: 400, color: k.paper.muted }}>
+              <Sep color={k.paper.border} />
+              {k.F.pronouns}
+            </span>
+          )}
+          {!k.has.pronouns && k.F.pronouns}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.role,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.role}
+          <Sep color={k.paper.border} />
+          <span style={{ color: k.paper.accent, fontWeight: 600 }}>{k.F.company}</span>
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+            marginTop: 3,
+          }}
+        >
+          {k.F.email}
+          <Sep color={k.paper.border} />
+          {k.F.phone}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.contact,
+            color: k.paper.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          {k.F.website}
+          {k.has.social && <Sep color={k.paper.border} />}
+          {k.F.social}
+        </Row>
+        <Row
+          style={{
+            fontFamily: k.body,
+            fontSize: SIZE.fine,
+            color: k.paper.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {k.F.address}
+          {k.has.tagline && <Sep color={k.paper.border} />}
+          <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>
+        </Row>
+      </>
+    ),
+  },
+
+  /* 29 */ {
+    name: 'Inset Block',
+    tags: ['Colour-led', 'Structured', 'Corporate'],
+    render: (k) => (
+      <>
+        <div
+          style={{
+            background: k.soft.bg,
+            borderLeft: `3px solid ${k.paper.accent}`,
+            padding: '6px 8px',
+          }}
+        >
+          <Row
+            style={{
+              fontFamily: k.head,
+              fontSize: SIZE.name,
+              fontWeight: 700,
+              color: k.soft.text,
+              lineHeight: 1.2,
+            }}
+          >
+            {k.F.name}
+            {k.has.pronouns && (
+              <span style={{ fontSize: SIZE.fine, fontWeight: 400, color: k.soft.muted }}>
+                <Sep color={k.soft.border} />
+                {k.F.pronouns}
+              </span>
+            )}
+            {!k.has.pronouns && k.F.pronouns}
+          </Row>
+          <Row
+            style={{
+              fontFamily: k.body,
+              fontSize: SIZE.role,
+              color: k.soft.muted,
+              lineHeight: 1.5,
+            }}
+          >
+            {k.F.role}
+            <Sep color={k.soft.border} />
+            <span style={{ color: k.soft.accent, fontWeight: 600 }}>{k.F.company}</span>
+          </Row>
+        </div>
+        <Cols
+          leftWidth="auto"
+          align="middle"
+          rightAlign="right"
+          gap={6}
+          left={
+            <>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                  marginTop: 4,
+                }}
+              >
+                {k.F.email}
+                <Sep color={k.paper.border} />
+                {k.F.phone}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.contact,
+                  color: k.paper.muted,
+                  lineHeight: 1.6,
+                }}
+              >
+                {k.F.website}
+                {k.has.social && <Sep color={k.paper.border} />}
+                {k.F.social}
+              </Row>
+              <Row
+                style={{
+                  fontFamily: k.body,
+                  fontSize: SIZE.fine,
+                  color: k.paper.muted,
+                  lineHeight: 1.5,
+                }}
+              >
+                {k.F.address}
+                {k.has.tagline && <Sep color={k.paper.border} />}
+                <span style={{ fontStyle: 'italic' }}>{k.F.tagline}</span>
+              </Row>
+            </>
+          }
+          right={k.mark({ ground: k.paper.bg, size: 22, tint: k.primary, company: '' })}
+        />
+      </>
+    ),
+  },
+
+  /* 30 */ {
+    name: 'Quiet',
+    tags: ['Minimal', 'Calm', 'Classic'],
+    render: (k) => (
+      <div style={{ fontFamily: k.body, fontSize: SIZE.role, lineHeight: 1.6 }}>
+        <Row style={{ fontWeight: 700, color: k.paper.text }}>
+          {k.F.name}
+          {k.has.pronouns && (
+            <span style={{ fontWeight: 400, color: k.paper.muted }}>
+              <Sep color={k.paper.muted} />
+              {k.F.pronouns}
+            </span>
+          )}
+          {!k.has.pronouns && k.F.pronouns}
+        </Row>
+        <Row style={{ color: k.paper.text }}>
+          {k.F.role}
+          <Sep color={k.paper.muted} />
+          {k.F.company}
+        </Row>
+        <Row style={{ color: k.paper.muted }}>
+          {k.F.email}
+          <Sep color={k.paper.muted} />
+          {k.F.phone}
+        </Row>
+        <Row style={{ color: k.paper.muted }}>
+          {k.F.website}
+          {k.has.social && <Sep color={k.paper.muted} />}
+          {k.F.social}
+        </Row>
+        <Row style={{ color: k.paper.muted }}>{k.F.address}</Row>
+        <Row style={{ color: k.paper.muted, fontStyle: 'italic' }}>{k.F.tagline}</Row>
+      </div>
+    ),
+  },
 ];
 
 /* ── The preview frame ────────────────────────────────────────────── */
@@ -2102,34 +3343,30 @@ export function WebEmailSignatureExtendedRenderer({ brand, templateIndex, conten
 /**
  * Ids are persistence keys and never move.
  *
- * `email-sig-ext-1..16` are the sixteen designs above, in order.
- * `email-sig-ext-17..30` are the culled generation; their ids stay
- * reserved and their names stay here so an old saved customization still
- * resolves to a real record, but `curation/emailSignature.ts` archives
- * them so nothing shows them. `variantsForCard` is what applies that.
+ * `email-sig-ext-1..30` are the thirty designs above, in order. Fourteen
+ * of them — `17..30` — were culled in the first curation pass, and that
+ * pass did not merely hide them: it deleted their artwork, so every one
+ * of the fourteen rendered design 1 under its own number. They are
+ * therefore RE-AUTHORED rather than restored, at the indices they always
+ * had, so a customization saved against `email-sig-ext-22` still resolves
+ * to `email-sig-ext-22`.
+ *
+ * `ARCHIVED_NAMES` went with them. It was a second list of fourteen names
+ * that no longer named anything, and keeping it would have meant a design
+ * added above still had to be crossed off a list somewhere else. What is
+ * archived is now DERIVED: whatever part of the thirty reserved ids
+ * `DESIGNS` does not reach — currently none of it.
  */
-const ARCHIVED_NAMES = [
-  'Two-Column',
-  'Brand Bar',
-  'Initials Big',
-  'Quote',
-  'Centered',
-  'Color Block',
-  'Wide Border',
-  'Initial Stack',
-  'Logo Repeat',
-  'Slogan',
-  'Frosted',
-  'Banner',
-  'Block Right',
-  'Magazine',
-] as const;
 
-/** The ids this family still shows, in order. */
+/** How many ids this family reserves, drawn or not. */
+const RESERVED_IDS = 30;
+
+/** The ids this family shows, in order. */
 export const EMAIL_SIG_KEPT_IDS: string[] = DESIGNS.map((_, i) => `email-sig-ext-${i + 1}`);
 
-/** The ids that stay reserved but are archived out of every surface. */
-export const EMAIL_SIG_ARCHIVED_IDS: string[] = ARCHIVED_NAMES.map(
+/** Reserved ids with no design behind them. Empty while `DESIGNS` is full. */
+export const EMAIL_SIG_ARCHIVED_IDS: string[] = Array.from(
+  { length: Math.max(0, RESERVED_IDS - DESIGNS.length) },
   (_, i) => `email-sig-ext-${DESIGNS.length + i + 1}`,
 );
 
@@ -2139,19 +3376,19 @@ export const WEB_EMAIL_SIG_EXTENDED = [
     name: d.name,
     category: 'Signature',
   })),
-  ...ARCHIVED_NAMES.map((name, i) => ({
+  ...EMAIL_SIG_ARCHIVED_IDS.map((_, i) => ({
     idSuffix: `ext-${DESIGNS.length + i + 1}`,
-    name,
+    name: `Signature ${DESIGNS.length + i + 1}`,
     category: 'Archived',
   })),
 ];
 
-/** The designer names, by template id — mirrored in the curation file. */
+/** The designer names, by template id — read by the curation file. */
 export const EMAIL_SIG_NAMES: Record<string, string> = Object.fromEntries(
   DESIGNS.map((d, i) => [`email-sig-ext-${i + 1}`, d.name]),
 );
 
-/** The filter chips, by template id — mirrored in the curation file. */
+/** The filter chips, by template id — read by the curation file. */
 export const EMAIL_SIG_TAGS: Record<string, string[]> = Object.fromEntries(
   DESIGNS.map((d, i) => [`email-sig-ext-${i + 1}`, d.tags]),
 );

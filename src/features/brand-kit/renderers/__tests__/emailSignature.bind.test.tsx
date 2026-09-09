@@ -9,6 +9,13 @@
  * screenshot; it is only visible by rendering every variant and asking
  * what it declared.
  *
+ * The rewrite kept sixteen and archived fourteen — and archiving deleted
+ * their drawings, so `email-sig-ext-17..30` each rendered design 1 under
+ * their own number. All fourteen are re-authored at those same indices,
+ * which is why this suite now measures thirty and expects nothing to be
+ * archived. The bar did not move: every one of the thirty carries the
+ * whole person.
+ *
  * `assertFullyBound` is deliberately all-or-nothing. A signature is a
  * block of contact details, and a design that keeps nine of the ten is a
  * design that silently drops the customer's address — a look they chose
@@ -42,20 +49,23 @@ const LABEL = 'Email Signature';
 const PERSON_PATHS = fieldPathsForFamily('email-sig');
 
 describe('email signature — curation', () => {
-  it('shows sixteen designs, not thirty', () => {
+  it('shows all thirty designs, with nothing archived', () => {
     const shown = variantsForCard(SECTION, LABEL, mockBrand);
     expect(shown.map((t) => t.id)).toEqual(EMAIL_SIG_KEPT_IDS);
-    expect(shown).toHaveLength(16);
+    expect(shown).toHaveLength(30);
+    // Fourteen of these were archived, and archiving them deleted their
+    // artwork — each rendered design 1 under its own number. They are
+    // re-authored at their own indices, so there is nothing left to hide.
+    expect(EMAIL_SIG_ARCHIVED_IDS).toEqual([]);
   });
 
-  it('reserves every culled id rather than renumbering', () => {
-    // The ids still exist in the template list — a saved customization
-    // filed under one still resolves — they are archived, not deleted.
+  it('keeps the ids in their original order rather than renumbering', () => {
+    // A template id is a persistence key: `email-sig-ext-22` has to be the
+    // twenty-second entry whether it was ever culled or not, or a saved
+    // customization comes back pointing at somebody else's design.
     const allIds = WEB_EMAIL_SIG_EXTENDED.map((t) => `email-sig-${t.idSuffix}`);
     expect(allIds).toHaveLength(30);
-    expect(allIds.slice(0, 16)).toEqual(EMAIL_SIG_KEPT_IDS);
-    expect(allIds.slice(16)).toEqual(EMAIL_SIG_ARCHIVED_IDS);
-    for (const id of EMAIL_SIG_ARCHIVED_IDS) expect(isArchived(id)).toBe(true);
+    expect(allIds).toEqual(EMAIL_SIG_KEPT_IDS);
     for (const id of EMAIL_SIG_KEPT_IDS) expect(isArchived(id)).toBe(false);
   });
 
@@ -74,7 +84,7 @@ describe('email signature — curation', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('features three of the sixteen, all of them real', () => {
+  it('features three of the thirty, all of them real', () => {
     const featured = DEFAULT_FEATURED_IDS_BY_LABEL[LABEL] ?? [];
     expect(featured).toHaveLength(3);
     for (const id of featured) expect(EMAIL_SIG_KEPT_IDS).toContain(id);
@@ -105,8 +115,8 @@ describe('email signature — binding', () => {
 
   it('leaves no design unbound', () => {
     const results = renderAllVariants(SECTION, LABEL);
-    expect(results).toHaveLength(16);
-    expect(boundVariantCount(results)).toBe(16);
+    expect(results).toHaveLength(30);
+    expect(boundVariantCount(results)).toBe(30);
   });
 
   it('declares nothing it cannot edit', () => {
