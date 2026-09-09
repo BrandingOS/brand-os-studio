@@ -26,11 +26,11 @@ export interface LightingPreset {
 
 export const LIGHTING_PRESETS: LightingPreset[] = [
   {
-    id: 'white-studio', name: 'White studio', background: '#f2f1ee', environmentIntensity: 1.1,
-    key: { position: [4, 6, 6], intensity: 2.2, color: '#ffffff' },
-    fill: { position: [-5, 1, 4], intensity: 0.8, color: '#eef1f5' },
-    rim: { position: [0, 3, -6], intensity: 1.4, color: '#ffffff' },
-    ambient: 0.35,
+    id: 'white-studio', name: 'White studio', background: '#f2f1ee', environmentIntensity: 1.0,
+    key: { position: [4, 6, 6], intensity: 1.1, color: '#ffffff' },
+    fill: { position: [-5, 1, 4], intensity: 0.4, color: '#eef1f5' },
+    rim: { position: [0, 3, -6], intensity: 0.7, color: '#ffffff' },
+    ambient: 0.15,
   },
   {
     id: 'black-studio', name: 'Black studio', background: '#0c0c0e', environmentIntensity: 0.55,
@@ -47,11 +47,11 @@ export const LIGHTING_PRESETS: LightingPreset[] = [
     ambient: 0.4,
   },
   {
-    id: 'soft-product', name: 'Soft product', background: '#e8e6e1', environmentIntensity: 1.3,
-    key: { position: [2, 7, 5], intensity: 1.5, color: '#fffaf2' },
-    fill: { position: [-4, 2, 5], intensity: 1.1, color: '#f0f4ff' },
-    rim: { position: [1, 1, -5], intensity: 0.6, color: '#ffffff' },
-    ambient: 0.55,
+    id: 'soft-product', name: 'Soft product', background: '#e8e6e1', environmentIntensity: 1.15,
+    key: { position: [2, 7, 5], intensity: 0.7, color: '#fffaf2' },
+    fill: { position: [-4, 2, 5], intensity: 0.35, color: '#f0f4ff' },
+    rim: { position: [1, 1, -5], intensity: 0.3, color: '#ffffff' },
+    ambient: 0.12,
   },
   {
     id: 'dramatic-rim', name: 'Dramatic rim', background: '#111114', environmentIntensity: 0.4,

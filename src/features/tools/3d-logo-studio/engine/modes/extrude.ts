@@ -104,7 +104,8 @@ export function extrude(components: readonly Component[], options: Partial<Extru
       // Inflate's sampler rather than triangulating the outline. It also means
       // a bevel wider than a thin stroke rounds that stroke over completely
       // instead of tearing it, which is what an inward offset would do.
-      const sample = sampleSurface(denseComponent, { quality: opt.curveQuality });
+      // A bevel is a gentle ramp, not a vertical wall: it needs no rim packing.
+      const sample = sampleSurface(denseComponent, { quality: opt.curveQuality, rimRings: 3 });
       if (sample.triangles.length > 0) {
         emitted = true;
         const { xs, ys, distance, triangles } = sample;

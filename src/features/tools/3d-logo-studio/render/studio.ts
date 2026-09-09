@@ -15,7 +15,7 @@
  */
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { buildEnvironmentTexture, type EnvironmentRecipe, SOFT_STUDIO, DARK_STUDIO, BRIGHT_STUDIO } from './environment';
 import type { MaterialParams, MaterialPreset } from '../materials/types';
 import type { LightingPreset } from '../materials/lighting';
 
@@ -48,6 +48,22 @@ export interface StudioOptions {
   antialias?: boolean;
 }
 
+/**
+ * Which surround each lighting preset reflects.
+ *
+ * This is most of what a lighting preset *is* for a metal: the directional
+ * lights add highlights, but the broad shape of a reflective surface comes
+ * entirely from what surrounds it.
+ */
+const ENVIRONMENTS: Record<string, EnvironmentRecipe> = {
+  'white-studio': SOFT_STUDIO,
+  'black-studio': DARK_STUDIO,
+  'neutral-studio': SOFT_STUDIO,
+  'soft-product': SOFT_STUDIO,
+  'dramatic-rim': DARK_STUDIO,
+  'high-contrast': BRIGHT_STUDIO,
+};
+
 export type Projection = 'orthographic' | 'perspective';
 
 export class Studio {
@@ -71,6 +87,7 @@ export class Studio {
   private projection: Projection = 'orthographic';
   private readonly pmrem: THREE.PMREMGenerator;
   private environment: THREE.Texture | null = null;
+  private environmentRecipe: EnvironmentRecipe | null = null;
   private readonly disposables: { dispose(): void }[] = [];
   private object: THREE.Mesh | null = null;
   private backdrop: THREE.Mesh | null = null;
@@ -149,16 +166,15 @@ export class Studio {
     rim.position.set(...preset.rim.position);
     add(rim);
 
-    if (!this.environment) {
-      const room = new RoomEnvironment();
-      this.environment = this.pmrem.fromScene(room, 0.04).texture;
-      room.traverse((o) => {
-        const m = o as THREE.Mesh;
-        m.geometry?.dispose?.();
-        const mat = m.material as THREE.Material | THREE.Material[] | undefined;
-        if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
-        else mat?.dispose();
-      });
+    // Rebuilt when the recipe changes, because what the metal reflects is most
+    // of what the lighting preset *is*.
+    const recipe = ENVIRONMENTS[preset.id] ?? SOFT_STUDIO;
+    if (this.environment === null || this.environmentRecipe !== recipe) {
+      this.environment?.dispose();
+      const source = buildEnvironmentTexture(recipe);
+      this.environment = this.pmrem.fromEquirectangular(source).texture;
+      this.environmentRecipe = recipe;
+      source.dispose();
     }
     this.scene.environment = this.environment;
     this.scene.environmentIntensity = preset.environmentIntensity;
@@ -321,14 +337,7 @@ export function buildMaterial(preset: MaterialPreset, overrides: Partial<Materia
     material.attenuationDistance = p.attenuationDistance;
   }
   if (p.textureKind !== 'none' && p.textureStrength > 0) {
-    const map = proceduralRoughness(p.textureKind, p.textureScale);
-    if (map) {
-      material.roughnessMap = map;
-      // The map modulates `roughness`, so the base value has to leave headroom
-      // or a textured metal reads exactly like a smooth one.
-      material.roughness = Math.min(1, p.roughness * (1 + p.textureStrength));
-      map.rotation = p.textureRotation;
-    }
+    applyTriplanarGrain(material, p);
   }
   return material;
 }
@@ -340,39 +349,202 @@ export function buildMaterial(preset: MaterialPreset, overrides: Partial<Materia
  * and download, and the PRD's rule is that nothing leaves the device. These are
  * small, tileable and deterministic, so two renders of the same project match.
  */
+/**
+ * Fine surface grain, projected triplanar in object space.
+ *
+ * The obvious approach — a tangent-space normal map on the mesh's UVs — cannot
+ * work here. The UVs are a flat projection of the artwork, so on a dome they
+ * stretch without bound towards the silhouette, and the grain smears into
+ * radial spokes converging on each ball's centre. It looked like a lighting
+ * artefact and was not; polished chrome, which carries no texture, rendered
+ * perfectly clean under the identical lights.
+ *
+ * Triplanar sampling has no UVs to stretch: the texture is read three times,
+ * along each object-space plane, and blended by how much the surface faces each
+ * axis. Because the grain here is isotropic — cast metal, not a woven or
+ * directional material — the sample can be applied as a small object-space
+ * perturbation of the normal rather than through a full tangent-space basis.
+ * That is not a general normal-map implementation and is not meant to be; it is
+ * the right one for fine, directionless relief, and it costs three texture
+ * reads instead of a tangent attribute on every vertex.
+ */
+function applyTriplanarGrain(material: THREE.MeshPhysicalMaterial, p: MaterialParams): void {
+  const grain = proceduralNormal(p.textureKind, p.textureScale, p.textureStrength);
+  if (!grain) return;
+  const rough = proceduralRoughness(p.textureKind, p.textureScale);
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.grainMap = { value: grain };
+    shader.uniforms.grainScale = { value: p.textureScale };
+    shader.uniforms.grainStrength = { value: p.textureStrength };
+    shader.uniforms.grainRough = { value: rough };
+    shader.uniforms.grainRoughAmount = { value: rough ? 0.5 : 0 };
+
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGrainPos;\nvarying vec3 vGrainNormal;')
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\nvGrainPos = position;\nvGrainNormal = normal;',
+      );
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+        varying vec3 vGrainPos;
+        varying vec3 vGrainNormal;
+        uniform sampler2D grainMap;
+        uniform sampler2D grainRough;
+        uniform float grainScale;
+        uniform float grainStrength;
+        uniform float grainRoughAmount;
+        vec4 triplanar(sampler2D tex, vec3 pos, vec3 nrm, float scale) {
+          vec3 blend = pow(abs(nrm), vec3(4.0));
+          blend /= max(dot(blend, vec3(1.0)), 1e-4);
+          vec4 sx = texture2D(tex, pos.yz * scale);
+          vec4 sy = texture2D(tex, pos.zx * scale);
+          vec4 sz = texture2D(tex, pos.xy * scale);
+          return sx * blend.x + sy * blend.y + sz * blend.z;
+        }`,
+      )
+      .replace(
+        '#include <normal_fragment_maps>',
+        `#include <normal_fragment_maps>
+        {
+          vec3 g = triplanar(grainMap, vGrainPos, normalize(vGrainNormal), grainScale).xyz * 2.0 - 1.0;
+          normal = normalize(normal + g * grainStrength * 0.55);
+        }`,
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>
+        if (grainRoughAmount > 0.0) {
+          float gr = triplanar(grainRough, vGrainPos, normalize(vGrainNormal), grainScale).g;
+          roughnessFactor = clamp(roughnessFactor * (1.0 - grainRoughAmount + gr * grainRoughAmount * 2.0), 0.02, 1.0);
+        }`,
+      );
+  };
+  // Changing the program is a recompile, and three caches by this key.
+  material.customProgramCacheKey = () => `grain-${p.textureKind}-${p.textureScale}-${p.textureStrength}`;
+  material.userData.grainTextures = [grain, rough].filter(Boolean);
+}
+
+/**
+ * A tangent-space normal map from the same procedural grain.
+ *
+ * Derived by differencing a height field rather than by generating normals
+ * directly, so the bumps are consistent with the roughness variation over the
+ * same surface — a bump that catches the light must also be the part that is
+ * rougher, or the two read as two different materials on one object.
+ */
+function proceduralNormal(
+  kind: MaterialParams['textureKind'],
+  scale: number,
+  strength: number,
+): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const height = grainField(kind, size);
+  const img = ctx.createImageData(size, size);
+  // Deliberately gentle: cast metal is fine relief, and a strong normal map on
+  // a mirror finish turns into visual noise.
+  const relief = 2.2 * Math.max(0.2, strength);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const l = height[y * size + ((x - 1 + size) % size)];
+      const r = height[y * size + ((x + 1) % size)];
+      const u = height[((y - 1 + size) % size) * size + x];
+      const d = height[((y + 1) % size) * size + x];
+      const nx = (l - r) * relief;
+      const ny = (u - d) * relief;
+      const nz = 1;
+      const len = Math.hypot(nx, ny, nz);
+      const i = (y * size + x) * 4;
+      img.data[i] = Math.round(((nx / len) * 0.5 + 0.5) * 255);
+      img.data[i + 1] = Math.round(((ny / len) * 0.5 + 0.5) * 255);
+      img.data[i + 2] = Math.round(((nz / len) * 0.5 + 0.5) * 255);
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(scale, scale);
+  tex.center.set(0.5, 0.5);
+  return tex;
+}
+
+/**
+ * The grain itself: value noise summed over several octaves.
+ *
+ * Octaves rather than one frequency because a single frequency tiles visibly —
+ * the eye finds the period immediately, and on a curved surface it reads as a
+ * pattern printed on the object rather than as the object's own surface.
+ */
+function grainField(kind: MaterialParams['textureKind'], size: number): Float32Array {
+  const out = new Float32Array(size * size);
+  const octaves = kind === 'brushed' ? [[64, 1], [128, 0.5], [256, 0.25]] : [[24, 1], [48, 0.55], [96, 0.3], [192, 0.15]];
+  let total = 0;
+  for (const [freq, amp] of octaves) {
+    total += amp;
+    const lattice = new Float32Array(freq * freq);
+    let seed = 0x9e3779b9 ^ freq;
+    for (let i = 0; i < lattice.length; i++) {
+      seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+      lattice[i] = ((seed >>> 0) % 4096) / 4096;
+    }
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        // Brushed metal is stretched along one axis; everything else is even.
+        const fx = kind === 'brushed' ? (x / size) * freq * 0.12 : (x / size) * freq;
+        const fy = (y / size) * freq;
+        const x0 = Math.floor(fx) % freq;
+        const y0 = Math.floor(fy) % freq;
+        const x1 = (x0 + 1) % freq;
+        const y1 = (y0 + 1) % freq;
+        const tx = smooth(fx - Math.floor(fx));
+        const ty = smooth(fy - Math.floor(fy));
+        const a = lattice[y0 * freq + x0];
+        const b = lattice[y0 * freq + x1];
+        const c = lattice[y1 * freq + x0];
+        const d = lattice[y1 * freq + x1];
+        out[y * size + x] += amp * ((a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty);
+      }
+    }
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= total;
+  return out;
+}
+
+function smooth(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
 function proceduralRoughness(kind: MaterialParams['textureKind'], scale: number): THREE.CanvasTexture | null {
   if (typeof document === 'undefined') return null;
-  const size = 256;
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const img = ctx.createImageData(size, size);
-  let seed = 0x9e3779b9;
-  const rand = () => {
-    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
-    return ((seed >>> 0) % 1000) / 1000;
-  };
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let v: number;
-      if (kind === 'brushed') {
-        // Streaks along one axis. Anisotropy is what sells brushed metal, and a
-        // roughness map that varies only across the grain is how it is faked
-        // without a full anisotropic BRDF.
-        v = 0.5 + (rand() - 0.5) * 0.9;
-        v = v * 0.25 + 0.6;
-      } else if (kind === 'speckle') {
-        v = rand() > 0.82 ? 0.95 : 0.35 + rand() * 0.2;
-      } else {
-        const grain = Math.sin((x / size) * Math.PI * 2 * 3) * 0.5 + 0.5;
-        v = 0.35 + grain * 0.3 + (rand() - 0.5) * 0.12;
-      }
-      const i = (y * size + x) * 4;
-      const c = Math.round(Math.max(0, Math.min(1, v)) * 255);
-      img.data[i] = c; img.data[i + 1] = c; img.data[i + 2] = c; img.data[i + 3] = 255;
-    }
+  const grain = grainField(kind, size);
+  for (let i = 0, p = 0; i < grain.length; i++, p += 4) {
+    // A narrow band around the material's own roughness. Wide swings are what
+    // produced starbursts: the map multiplies the base value, so a range of
+    // 0.3–0.95 on a metal is the difference between a mirror and a matte patch
+    // a few pixels apart.
+    const v = 0.72 + (grain[i] - 0.5) * 0.5;
+    const c = Math.round(Math.max(0, Math.min(1, v)) * 255);
+    img.data[p] = c; img.data[p + 1] = c; img.data[p + 2] = c; img.data[p + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(canvas);

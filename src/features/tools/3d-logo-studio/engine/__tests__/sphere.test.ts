@@ -121,7 +121,7 @@ describe('a circle becomes a sphere', () => {
   });
 
   it('is the same generator as Inflate, differing only in what it measures', () => {
-    expect(DEFAULT_SPHERE.scale).toBe('round');
+    expect(DEFAULT_SPHERE.scale).toBe('ball-union');
     expect(DEFAULT_INFLATE.scale).toBe('absolute');
     // Inflate is unchanged by the addition.
     const r = 20;
@@ -135,5 +135,92 @@ describe('a circle becomes a sphere', () => {
     // its inradius is 3, so that is the most it can swell
     expect(zRange(m).hi).toBeLessThan(4);
     expect(zRange(m).hi).toBeGreaterThan(1.5);
+  });
+});
+
+
+describe('the reference shape: balls joined by necks', () => {
+  /** A capsule outline — two circles joined by a rectangle. */
+  const capsule = (x0: number, x1: number, y: number, r: number, n = 128): Ring => {
+    const p: number[] = [];
+    for (let i = 0; i <= n / 2; i++) {
+      const a = -Math.PI / 2 + (i / (n / 2)) * Math.PI;
+      p.push(x1 + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    for (let i = 0; i <= n / 2; i++) {
+      const a = Math.PI / 2 + (i / (n / 2)) * Math.PI;
+      p.push(x0 + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    return Float64Array.from(p);
+  };
+
+  const R = 40;
+  const neck = 9;
+  /** One path: a big disc with a thin bar running off it. */
+  const mark = comp('mark', [circle(FAR, FAR, R, 256), capsule(FAR + R - 4, FAR + R + 120, FAR, neck, 128)]);
+
+  const heightAt = (m: MeshData, x: number, y: number, tolerance = 3) => {
+    let best = 0;
+    for (let i = 0; i < m.positions.length; i += 3) {
+      if (Math.abs(m.positions[i] - x) < tolerance && Math.abs(m.positions[i + 1] - y) < tolerance) {
+        best = Math.max(best, m.positions[i + 2]);
+      }
+    }
+    return best;
+  };
+
+  it('the ball is a ball and the neck is a neck, in one mesh', () => {
+    // This is what a single per-component reach cannot do: measured from the
+    // ball, the neck comes out as fat as the ball.
+    const m = inflate([mark], { ...DEFAULT_SPHERE, quality: 0.9 });
+    expect(heightAt(m, FAR, FAR)).toBeCloseTo(R, -0.6);
+    expect(heightAt(m, FAR + R + 80, FAR)).toBeCloseTo(neck, -0.6);
+  });
+
+  it('the single-reach approximation gets it wrong, which is why ball-union exists', () => {
+    const rounded = inflate([mark], { ...DEFAULT_SPHERE, scale: 'round', quality: 0.9 });
+    // A reach taken from the disc lifts the neck far above its own width.
+    expect(heightAt(rounded, FAR + R + 80, FAR)).toBeGreaterThan(neck * 1.8);
+  });
+
+  // KNOWN LIMITATION, deliberately recorded rather than deleted.
+  //
+  // When two subpaths of ONE component overlap — a disc with a bar drawn
+  // straight through it — their outlines cross, and at the crossing the mesher
+  // leaves a ring of unmatched edges. The surface is right and it renders
+  // correctly; it is not a closed manifold, so a GLB of it would not be
+  // watertight. Non-overlapping subpaths, holes, and separate components are all
+  // closed (every other test in this file and in solidity.test.ts).
+  //
+  // The fix is not more filtering in the sampler — several were tried and each
+  // traded this hole for a worse one. It is to resolve overlapping subpaths into
+  // a single outline with a polygon boolean union before sampling, which is a
+  // standard operation and a small dependency. Scheduled with the Phase 4 import
+  // work, where stroke outlining needs the same machinery.
+  it.fails('is still one closed solid when subpaths overlap', () => {
+    const m = inflate([mark], { ...DEFAULT_SPHERE, quality: 0.8 });
+    const seen = new Map<string, number>();
+    for (let t = 0; t < m.indices.length; t += 3) {
+      const v = [m.indices[t], m.indices[t + 1], m.indices[t + 2]];
+      for (let e = 0; e < 3; e++) {
+        const a = v[e], b = v[(e + 1) % 3];
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        seen.set(key, (seen.get(key) ?? 0) + 1);
+      }
+    }
+    let open = 0;
+    for (const n of seen.values()) if (n !== 2) open++;
+    expect(open).toBe(0);
+  });
+
+  it('the silhouette is still exactly the artwork', () => {
+    const m = inflate([mark], { ...DEFAULT_SPHERE, quality: 0.8 });
+    for (let i = 0; i < m.positions.length; i += 3) {
+      const x = m.positions[i] - FAR;
+      const y = m.positions[i + 1] - FAR;
+      const inDisc = Math.hypot(x, y) <= R + 0.01;
+      const inBar = x >= R - 4 - neck - 0.01 && x <= R + 120 + neck + 0.01 && Math.abs(y) <= neck + 0.01;
+      expect(inDisc || inBar, `(${x.toFixed(1)}, ${y.toFixed(1)})`).toBe(true);
+    }
   });
 });

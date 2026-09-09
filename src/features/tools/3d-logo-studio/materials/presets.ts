@@ -33,12 +33,16 @@ export const MATERIAL_PRESETS: MaterialPreset[] = [
   // ---- metals ----------------------------------------------------------
   preset('polished-chrome', 'Polished chrome', 'metal', { color: '#f4f6f8', metalness: 1, roughness: 0.04 }),
   preset('brushed-aluminium', 'Brushed aluminium', 'metal', {
-    color: '#d8dadd', metalness: 1, roughness: 0.32, anisotropy: 0.85,
-    textureKind: 'brushed', textureStrength: 0.35, textureScale: 6,
+    color: '#d8dadd', metalness: 1, roughness: 0.34, anisotropy: 0.85,
+    textureKind: 'brushed', textureStrength: 0.3, textureScale: 7,
   }),
+  // Tuned against the owner's reference frames: soft cast aluminium, not a
+  // mirror. Higher roughness than a polished metal, fine grain at a high tiling
+  // frequency so it reads as the surface of the object rather than as a pattern
+  // printed on it.
   preset('textured-silver', 'Textured silver', 'metal', {
-    color: '#c9ccd1', metalness: 1, roughness: 0.28,
-    textureKind: 'speckle', textureStrength: 0.5, textureScale: 3,
+    color: '#cfd2d6', metalness: 1, roughness: 0.42,
+    textureKind: 'speckle', textureStrength: 0.55, textureScale: 9,
   }),
   preset('gold', 'Gold', 'metal', { color: '#d4a13a', metalness: 1, roughness: 0.18 }),
   preset('copper', 'Copper', 'metal', { color: '#b06a4a', metalness: 1, roughness: 0.22 }),

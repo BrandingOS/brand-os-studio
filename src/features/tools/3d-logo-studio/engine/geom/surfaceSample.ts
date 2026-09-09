@@ -37,6 +37,17 @@ export interface SurfaceSample {
 export interface SampleOptions {
   /** Tessellation density, 0..1. */
   quality: number;
+  /**
+   * How many rings to pack against the outline.
+   *
+   * They exist for surfaces whose gradient is *vertical* at the silhouette —
+   * anything round — where too few of them show as a crown of radial spikes.
+   * A gentle ramp such as an extrusion's bevel does not need them, and paying
+   * for them there costs an order of magnitude in points for no visible gain:
+   * the contour is also sampled twice as finely when they are dense, so nine
+   * rings is nine times the work on twice the vertices.
+   */
+  rimRings?: number;
   /** Extra rings to measure against — `fused` behaviour. Defaults to the component's own. */
   againstRings?: readonly Float64Array[];
   /** Extra containment test for fused mode. */
@@ -63,6 +74,7 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
   if (!(cw > 0) || !(ch > 0)) return EMPTY;
 
   const q = clamp01(options.quality);
+  const rimRings = Math.max(1, Math.round(options.rimRings ?? 4));
   const baseSpacing = Math.min(cw, ch) / (6 + q * 26);
   if (!(baseSpacing > 0)) return EMPTY;
 
@@ -80,18 +92,80 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
   let ys: number[] = [];
   let boundaryCount = 0;
   let spacing = baseSpacing;
+  // The contour is sampled finer than the interior: it carries the silhouette,
+  // and it is also where a round surface turns hardest.
+  // Halved only when the rim is being resolved densely; the extra contour
+  // points are there to give those rings something to sit against.
+  let contourStep = baseSpacing * (rimRings > 5 ? 0.5 : 1);
 
   for (let attempt = 0; attempt < 5; attempt++) {
     xs = [];
     ys = [];
     boundaryCount = 0;
+    // Only vertices that are genuinely on the silhouette count as boundary.
+    //
+    // A component's subpaths can overlap — a mark drawn as a disc with a bar
+    // running out of it is one path, and the bar's outline runs *through* the
+    // disc. Those buried vertices are not on the outline of the union, and
+    // pinning them to the rim plane built a wall straight through the middle of
+    // the solid: 80 unmatched edges, an interior crease, and a shape that could
+    // not be exported.
+    //
+    // A vertex is on the silhouette when stepping across it leaves the shape.
+    // Both sides inside means it is buried, and it joins the interior instead.
+    // One pass over the contours, describing each vertex once: where it is,
+    // which way is inward, and whether it is on the silhouette at all.
+    // Both the boundary points and the rim rings read this, so they cannot
+    // disagree about which parts of the outline are real.
+    interface ContourVertex { x: number; y: number; inX: number; inY: number; onSilhouette: boolean }
+    const contour: ContourVertex[] = [];
     for (const ring of rings) {
-      const dense = resampleRing(ring, spacing);
-      for (let i = 0; i < dense.length; i += 2) {
-        xs.push(dense[i]);
-        ys.push(dense[i + 1]);
-        boundaryCount++;
+      const dense = resampleRing(ring, contourStep);
+      const count = dense.length / 2;
+      if (count < 3) continue;
+      for (let i = 0; i < count; i++) {
+        const prev = (i - 1 + count) % count;
+        const next = (i + 1) % count;
+        const tx = dense[next * 2] - dense[prev * 2];
+        const ty = dense[next * 2 + 1] - dense[prev * 2 + 1];
+        const len = Math.hypot(tx, ty);
+        const x = dense[i * 2];
+        const y = dense[i * 2 + 1];
+        if (!(len > 0)) {
+          contour.push({ x, y, inX: 0, inY: 0, onSilhouette: true });
+          continue;
+        }
+        // Inward is whichever normal lands in the shape. A hole winds the
+        // opposite way to its outline and a compound path can hold both, so it
+        // is measured rather than read off the winding.
+        const probe = contourStep * 0.6;
+        const px = (-ty / len);
+        const py = (tx / len);
+        const plus = inside(x + px * probe, y + py * probe);
+        const minus = inside(x - px * probe, y - py * probe);
+        // Both sides inside means the vertex is buried under another subpath —
+        // a mark drawn as a disc with a bar running out of it is one path, and
+        // the bar's outline runs straight through the disc. Pinning those to the
+        // rim plane built a wall through the middle of the solid.
+        const onSilhouette = !(plus && minus);
+        const sign = plus ? 1 : -1;
+        contour.push({ x, y, inX: px * sign, inY: py * sign, onSilhouette });
       }
+    }
+
+    const buried: number[] = [];
+    for (const v of contour) {
+      if (v.onSilhouette) {
+        xs.push(v.x);
+        ys.push(v.y);
+        boundaryCount++;
+      } else {
+        buried.push(v.x, v.y);
+      }
+    }
+    for (let i = 0; i < buried.length; i += 2) {
+      xs.push(buried[i]);
+      ys.push(buried[i + 1]);
     }
 
     // Graded inset rings, hugging the contour.
@@ -112,36 +186,36 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
     // The direction is found by trying both normals and keeping whichever lands
     // inside, rather than by reading the winding: a hole winds the opposite way
     // to its outline, and a compound path can hold both.
-    const insetRings = [0.45, 1.05, 1.85];
+    // Ring distances spaced so the *height* steps evenly, not the distance.
+    //
+    // Near the outline a round surface climbs like sqrt(d) — its gradient is
+    // vertical exactly at the silhouette, because that is what the silhouette of
+    // a sphere is. Rings spaced evenly in distance therefore take one enormous
+    // step in height at the very edge and tiny ones after it, and the mesh shows
+    // that as a crown of radial spikes around every ball. Spacing them as k²
+    // inverts the sqrt and makes the height steps uniform, which puts the
+    // vertices where the surface actually turns.
+    const rimBand = rimRings > 5 ? 4 : 2.5;
+    const insetRings = Array.from(
+      { length: rimRings },
+      (_, k) => rimBand * ((k + 1) / rimRings) ** 2,
+    );
     for (const factor of insetRings) {
       const insetDistance = spacing * factor;
-      for (const ring of rings) {
-        const dense = resampleRing(ring, spacing);
-        const count = dense.length / 2;
-        if (count < 3) continue;
-        for (let i = 0; i < count; i++) {
-          const prev = (i - 1 + count) % count;
-          const next = (i + 1) % count;
-          const tx = dense[next * 2] - dense[prev * 2];
-          const ty = dense[next * 2 + 1] - dense[prev * 2 + 1];
-          const len = Math.hypot(tx, ty);
-          if (!(len > 0)) continue;
-          const inx = -ty / len;
-          const iny = tx / len;
-          const px = dense[i * 2];
-          const py = dense[i * 2 + 1];
-          for (const sign of [1, -1]) {
-            const qx = px + inx * insetDistance * sign;
-            const qy = py + iny * insetDistance * sign;
-            if (!inside(qx, qy)) continue;
-            // A feature narrower than the inset would put this point on the far
-            // side of its own shape, or on top of the opposite wall.
-            if (index.distance(qx, qy) < insetDistance * 0.6) break;
-            xs.push(qx);
-            ys.push(qy);
-            break;
-          }
-        }
+      for (const v of contour) {
+        // Only from the silhouette. Rings grown off a buried outline run through
+        // the interior and cross the real ones, which tangles the triangulation
+        // exactly where two subpaths meet.
+        if (!v.onSilhouette) continue;
+        if (v.inX === 0 && v.inY === 0) continue;
+        const qx = v.x + v.inX * insetDistance;
+        const qy = v.y + v.inY * insetDistance;
+        if (!inside(qx, qy)) continue;
+        // A feature narrower than the inset would put this point on the far
+        // side of its own shape.
+        if (index.distance(qx, qy) < insetDistance * 0.5) continue;
+        xs.push(qx);
+        ys.push(qy);
       }
     }
 
@@ -151,7 +225,7 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
     // The exclusion band clears the inset rings as well as the contour, or the
     // two collide and make slivers.
     const rowStep = (spacing * Math.sqrt(3)) / 2;
-    const near = spacing * 2.3;
+    const near = spacing * (rimBand + 0.4);
     for (let row = 0, y = cb.minY + rowStep * 0.5; y < cb.maxY; y += rowStep, row++) {
       const offset = (row & 1) === 1 ? spacing * 0.5 : 0;
       for (let x = cb.minX + offset + spacing * 0.5; x < cb.maxX; x += spacing) {
@@ -163,6 +237,7 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
     }
     if (xs.length > boundaryCount) break;
     spacing /= 2;
+    contourStep /= 2;
   }
   if (xs.length < 3) return EMPTY;
 
@@ -218,6 +293,14 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
   // the shape AND it has no absurdly long edge: the centroid test alone lets a
   // sliver hug the outside of a concave boundary, and the edge test alone lets
   // a wide flat triangle bridge a hole.
+  // Delaunay triangulates the convex hull of the points, so it happily spans
+  // concavities, holes and the gaps between components. This filter is the whole
+  // correctness story.
+  //
+  // A triangle survives when its centroid is inside the shape and it has no
+  // absurdly long edge: the centroid test alone lets a sliver hug the outside of
+  // a concave boundary, and the edge test alone lets a wide flat triangle bridge
+  // a hole.
   const maxEdge = spacing * 3;
   const keep: number[] = [];
   for (let t = 0; t < tri.length; t += 3) {
@@ -226,17 +309,13 @@ export function sampleSurface(component: Component, options: SampleOptions): Sur
     if (Math.hypot(bx - ax, by - ay) > maxEdge) continue;
     if (Math.hypot(cx - bx, cy - by) > maxEdge) continue;
     if (Math.hypot(ax - cx, ay - cy) > maxEdge) continue;
-    // Three boundary points make a triangle lying flat on the rim plane, and
-    // the front and back copies of it are coincident: doubled coplanar faces,
+    // Three boundary points make a triangle lying flat on the rim plane, and the
+    // front and back copies of it are coincident: doubled coplanar faces,
     // z-fighting, useless normals, and a seam edge used four times instead of
-    // twice — which is what stops the solid being manifold. Dropping it from
-    // both surfaces welds them along those edges instead, which is closed and
-    // correct. Only safe once the component actually has an interior; a
-    // component that is all boundary would otherwise vanish.
+    // twice. Dropping it from both surfaces welds them along those edges
+    // instead, which is closed and correct.
     if (hasInterior && a < boundaryCount && b < boundaryCount && c < boundaryCount) continue;
-    const gx = (ax + bx + cx) / 3;
-    const gy = (ay + by + cy) / 3;
-    if (!pointInRings(component.rings, gx, gy, component.fillRule) && !inside(gx, gy)) continue;
+    if (!inside((ax + bx + cx) / 3, (ay + by + cy) / 3)) continue;
     keep.push(a, b, c);
   }
 

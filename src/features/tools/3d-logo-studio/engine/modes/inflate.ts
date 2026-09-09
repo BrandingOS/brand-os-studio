@@ -34,6 +34,7 @@ import type { Component, MeshData } from '../types';
 import { boundsOf, pointInComponent } from '../geom/polygon';
 import { MeshBuilder } from '../geom/meshBuilder';
 import { sampleSurface } from '../geom/surfaceSample';
+import { ballUnionField } from '../geom/ballUnion';
 
 export interface InflateOptions {
   /** Peak half-thickness, in the logo's own 2D units. */
@@ -86,9 +87,18 @@ export interface InflateOptions {
    * `round` measures each component and climbs to its own deepest point, scaled
    * by `roundness`. At roundness 1 with fullness 0.5 the profile is exactly
    * `sqrt(R² - r²)` — a true hemisphere — so a circle becomes a sphere and a
-   * rounded-rectangle becomes a proper pill, whatever size each one is.
+   * rounded-rectangle becomes a proper pill, whatever size each one is. It uses
+   * ONE reach for the whole component, which is right when a shape has a single
+   * characteristic width and wrong when it does not.
+   *
+   * `ball-union` drops the profile entirely and takes the union of every
+   * maximal inscribed ball — see `geom/ballUnion.ts`. A circle still becomes a
+   * sphere and a stroke still becomes a capsule, but now a mark made of fat
+   * balls joined by thin necks comes out with fat balls and thin necks, and the
+   * junctions flare organically. It is the geometry the reference renders are
+   * made of, and no per-component reach can express it.
    */
-  scale: 'absolute' | 'round';
+  scale: 'absolute' | 'round' | 'ball-union';
   /** Only read when `scale` is `round`. 1 is as round as the shape can be. */
   roundness: number;
 }
@@ -115,7 +125,7 @@ export const DEFAULT_INFLATE: InflateOptions = {
  */
 export const DEFAULT_SPHERE: InflateOptions = {
   ...DEFAULT_INFLATE,
-  scale: 'round',
+  scale: 'ball-union',
   roundness: 1,
   fullness: 0.5,
   edgeSoftness: 0,
@@ -172,6 +182,9 @@ export function inflate(components: readonly Component[], options: Partial<Infla
   for (const component of components) {
     const sample = sampleSurface(component, {
       quality: opt.quality,
+      // A ball-union surface, and a full inflate, are vertical where they meet
+      // the plane. A flat-ish one is not, and does not need the rings.
+      rimRings: opt.scale === 'ball-union' || opt.fullness >= 0.4 ? 9 : 4,
       againstRings: fusedRings,
       alsoInside: fusedRings
         ? (x, y) => components.some((o) => o !== component && pointInComponent(o, x, y))
@@ -181,6 +194,19 @@ export function inflate(components: readonly Component[], options: Partial<Infla
 
     const { xs, ys, distance, boundaryCount, triangles } = sample;
     const n = xs.length;
+
+    // The ball-union surface is read from a field rather than from a profile:
+    // its height at a point is not a function of that point's own distance to
+    // the boundary, so there is nothing to feed `inflateProfile`.
+    // In `fused` mode the field is built from every contour in the logo, so a
+    // mark traced as separate paths still melds where the parts meet — which is
+    // what a connected organic mark looks like, however its file is organised.
+    const field = opt.scale === 'ball-union'
+      ? ballUnionField(
+          fusedRings ? { ...component, rings: fusedRings } : component,
+          160 + clamp01(opt.quality) * 480,
+        )
+      : null;
 
     // `absolute` climbs to a fixed thickness wherever the shape is wide enough
     // to reach it. `round` measures this component and climbs to its own
@@ -200,7 +226,11 @@ export function inflate(components: readonly Component[], options: Partial<Infla
     const front = new Float64Array(n);
     const back = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      const h = inflateProfile(Math.min(1, distance[i] / reach), opt.fullness, opt.edgeSoftness) * peak;
+      // The rim is pinned regardless: it is the silhouette and the weld between
+      // the two surfaces, and a field sampled a hair inside it is not zero.
+      const h = field
+        ? (i < boundaryCount ? 0 : field.sample(xs[i], ys[i]) * roundness)
+        : inflateProfile(Math.min(1, distance[i] / reach), opt.fullness, opt.edgeSoftness) * peak;
       front[i] = h * balance * 2;
       back[i] = -h * (1 - balance) * 2;
     }
