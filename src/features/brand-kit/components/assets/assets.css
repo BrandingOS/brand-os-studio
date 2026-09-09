@@ -675,9 +675,18 @@
   display: block;
 }
 
+/*
+ * Two fields to a row only when two fields FIT.
+ *
+ * `.ds-segmented` is an `inline-flex` of fixed-padding options — it does
+ * not shrink — so a hard 1fr 1fr put "Bold" past the right edge of the
+ * docked column and gave the panel a sideways scrollbar. `auto-fit` with
+ * the segmented control's own natural width as the floor keeps the pair
+ * side by side wherever there is room and stacks them where there is not.
+ */
 .bka-icons-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px 14px;
   align-items: start;
 }

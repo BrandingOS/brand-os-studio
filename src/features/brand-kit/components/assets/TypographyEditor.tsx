@@ -55,9 +55,9 @@ import {
   DsChip,
   DsConfirmDialog,
   DsInput,
-  DsModal,
   DsSelect,
 } from '@/shared/ds';
+import { KitDockPanel } from '../KitDockPanel';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
 import type { BrandFont, MockBrand } from '@/features/setup/data/mockBrand';
@@ -530,7 +530,7 @@ export function TypographyEditor({
 
   return (
     <>
-      <DsModal
+      <KitDockPanel
         open={open}
         onClose={onClose}
         eyebrow="Brand assets"
@@ -713,7 +713,7 @@ export function TypographyEditor({
             </p>
           ) : null}
         </div>
-      </DsModal>
+      </KitDockPanel>
 
       <DsConfirmDialog
         open={confirming}

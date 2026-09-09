@@ -35,7 +35,8 @@
  *    #7A3DFF", "Add Coral as an Accent") rather than saying "Save?".
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DsButton, DsConfirmDialog, DsInput, DsModal, DsSelect } from '@/shared/ds';
+import { DsButton, DsConfirmDialog, DsInput, DsSelect } from '@/shared/ds';
+import { KitDockPanel } from '../KitDockPanel';
 import { ColorPickerHSV } from '@/shared/components/ColorPickerHSV';
 import { hexToName } from '@/features/setup/data/colorNames';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
@@ -308,7 +309,7 @@ export function ColorsEditor({
 
   return (
     <>
-      <DsModal
+      <KitDockPanel
         open={open}
         onClose={onClose}
         eyebrow="Brand assets"
@@ -468,7 +469,7 @@ export function ColorsEditor({
             </p>
           ) : null}
         </div>
-      </DsModal>
+      </KitDockPanel>
 
       <DsConfirmDialog
         open={confirming}

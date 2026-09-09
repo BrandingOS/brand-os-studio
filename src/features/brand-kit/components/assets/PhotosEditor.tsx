@@ -42,7 +42,8 @@
  * down.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DsButton, DsConfirmDialog, DsInput, DsModal, DsTextArea } from '@/shared/ds';
+import { DsButton, DsConfirmDialog, DsInput, DsTextArea } from '@/shared/ds';
+import { KitDockPanel } from '../KitDockPanel';
 import { AssetSourcePopover } from '@/shared/upload/AssetSourcePopover';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
@@ -318,7 +319,7 @@ export function PhotosEditor({ open, onClose, brand, sourceBrand, onBrandChange 
 
   return (
     <>
-      <DsModal
+      <KitDockPanel
         open={open}
         onClose={onClose}
         eyebrow="Brand assets"
@@ -498,7 +499,7 @@ export function PhotosEditor({ open, onClose, brand, sourceBrand, onBrandChange 
             </p>
           ) : null}
         </div>
-      </DsModal>
+      </KitDockPanel>
 
       <DsConfirmDialog
         open={confirming}
