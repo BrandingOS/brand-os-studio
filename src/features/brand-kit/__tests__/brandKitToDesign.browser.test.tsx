@@ -34,7 +34,6 @@ import {
   instantiateFromMaster,
 } from '@/features/editor/renderers/template-instance/createDocument';
 import { defaultContentFor, type InvoiceContent , type DeliverableContent } from '@/features/brandkit/content';
-import { saveFeaturedVariants } from '../data/cardCustomizations';
 
 /**
  * `useNavigate` is mocked directly rather than proven via a real route
@@ -179,11 +178,6 @@ describe('the tile menu gates a design Design cannot actually edit', () => {
     // gate is what a user can actually reach.
     const { storage } = statefulDesignStorage();
     container.register(SERVICE_KEYS.DESIGN_STORAGE, () => storage);
-    // Two tiles, deliberately: rendering the whole twenty-design library at
-    // once is what a drilldown never does (the card shows its featured set)
-    // and it is heavy enough to take the page down.
-    saveFeaturedVariants(sourceBrand.id, 'Invoice', ['invoices-ext-1', 'invoices-ext-2']);
-
     renderKit();
     await openInvoice();
 
@@ -194,12 +188,19 @@ describe('the tile menu gates a design Design cannot actually edit', () => {
       if (found.length === 0) throw new Error('no variant tiles');
       return found;
     });
-    // The first three tiles are enough: the claim is about the GATE, and
-    // "every kept invoice binds" is asserted against the whole family, far
-    // more cheaply, in `contentBinding.test.tsx`. Opening a context menu on
-    // all twenty rendered invoices crashes the page.
+    // TWO tiles, and the bound is load-bearing. The claim is about the
+    // GATE, and "every kept invoice binds" is asserted against the whole
+    // family, far more cheaply, in `contentBinding.test.tsx`.
+    //
+    // The drilldown shows the whole twenty-two-design library now, and a
+    // third context menu over twenty-two live invoice renderers takes the
+    // browser process down. That is not this change: forcing twenty-two
+    // tiles onto the PREVIOUS drilldown (a 22-id featured list) and running
+    // this same loop kills the page there too. Invoices are the heaviest
+    // renderer in the kit and this is the cost of holding twenty-two of
+    // them plus a menu in one tab.
     let menus = 0;
-    for (const tile of tiles) {
+    for (const tile of tiles.slice(0, 2)) {
       fireEvent.contextMenu(tile);
       // Not every "Open …" button is a variant tile (the card's own Open is
       // one too); only tiles open the template menu.

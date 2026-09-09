@@ -35,7 +35,6 @@ import type { BrandOSDocument } from '@/features/editor/schema';
 import { BrandKitCosmosPage } from '../BrandKitCosmosPage';
 import { DELIVERABLES } from '../kit/registry';
 import { variantsForCard } from '../data/legacy-mapping';
-import { saveFeaturedVariants } from '../data/cardCustomizations';
 import { contentKindForTemplateType, defaultContentFor } from '@/features/brandkit/content/kinds';
 import type { KitSectionKey } from '../components/BrandKitSidebar';
 
@@ -191,11 +190,14 @@ describe('every wired family reaches Design', () => {
    * Every assertion names its family, so a failure still says which one.
    */
   it('hands a real variant of each family to Design, and opens its master', async () => {
-    // Two featured tiles per card, set before the first render. A
-    // drilldown shows a card's featured set, and a whole family at once
-    // (twenty invoices, ten deck slides) is heavy enough to take the page
-    // down. Read from the catalog rather than hardcoded, so a curation
-    // pass cannot leave this test pointing at an id nothing renders.
+    // The two designs each family is acted on through. A drilldown shows
+    // the family's WHOLE library now — the three-featured truncation and
+    // the modal behind it are gone — so these are simply the first two
+    // tiles on the wall, read from the catalog rather than hardcoded so a
+    // curation pass cannot leave this test pointing at an id nothing
+    // renders. Tiles below the fold defer their artwork
+    // (`useNearViewport`), which is what keeps a twenty-four-design wall
+    // from taking the page down here.
     const plan = FAMILIES.map((family) => {
       const def = DELIVERABLES.find(
         (d) => d.sectionKey === family.sectionKey && d.label === family.label,
@@ -206,12 +208,7 @@ describe('every wired family reaches Design', () => {
       const catalog = variantsForCard(family.sectionKey, family.label);
       expect(catalog.length, family.label).toBeGreaterThanOrEqual(2);
       const featured = catalog.slice(0, 2);
-      saveFeaturedVariants(
-        sourceBrand.id,
-        family.label,
-        featured.map((t) => t.id),
-      );
-      return { ...family, def, kind, featured };
+      return { ...family, def, kind, catalog, featured };
     });
 
     const { storage, saved } = statefulDesignStorage();
@@ -219,13 +216,15 @@ describe('every wired family reaches Design', () => {
     renderKit();
 
     for (const family of plan) {
-      const { label, def, kind, featured } = family;
+      const { label, def, kind, catalog, featured } = family;
       const base = saved.length;
       navigateMock.mockClear();
 
       await openCard(label);
       const tiles = await variantTiles();
-      expect(tiles, label).toHaveLength(featured.length);
+      // The whole family, in library order — so the first two tiles ARE
+      // the first two designs.
+      expect(tiles, label).toHaveLength(catalog.length);
 
       // ── Use Template ─────────────────────────────────────────────
       const use = await menuOn(tiles[0], 'Use Template');
