@@ -8,7 +8,8 @@
  * shape), padding, background, trim — the affordance behind every favicon,
  * signature and app-store icon anyone has ever needed.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DsButton, DsInput, DsMenu, DsMenuDivider, DsMenuItem, DsModal, DsSwitch } from '@/shared/ds';
 import type { DownloadFormat, DownloadOption, CustomSize } from '../data/exportFormats';
 
@@ -28,6 +29,37 @@ export function DownloadMenu({
 }) {
   const [custom, setCustom] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const scope = useRef<HTMLSpanElement>(null);
+
+  /*
+   * THE CUSTOM-SIZE SHEET CANNOT LIVE INSIDE A CARD.
+   *
+   * Every Brand Kit card carries `will-change: opacity` for the wave
+   * fade-in, and `will-change` on opacity CREATES A STACKING CONTEXT. A
+   * `position: fixed; z-index: 200` scrim inside one card is therefore
+   * confined to that card's level, and the next card in the grid — plain,
+   * `z-index: auto`, later in the DOM — paints straight over it. Measured
+   * on the Logos card: `elementsFromPoint` over the sheet's own Download
+   * button returned the LETTERHEAD card's cover, so pressing it opened
+   * Letterhead's drilldown and no file was ever downloaded.
+   *
+   * The menu itself is fine where it is — it is anchored to the button and
+   * meant to sit inside the card. Only the sheet, which is a full-screen
+   * dialog, moves. Sibling of `<body>`, so nothing in the page can be
+   * above it, and the theme travels with it because `--ds-*` is defined
+   * per `[data-theme]` and a detached host inherits nothing.
+   */
+  const host = useMemo(
+    () => (typeof document === 'undefined' ? null : document.createElement('div')),
+    [],
+  );
+  useEffect(() => {
+    if (!host) return undefined;
+    const theme = scope.current?.closest<HTMLElement>('[data-theme]')?.dataset.theme;
+    if (theme) host.dataset.theme = theme;
+    document.body.appendChild(host);
+    return () => host.remove();
+  }, [host]);
 
   useEffect(() => {
     if (custom) return;
@@ -85,18 +117,31 @@ export function DownloadMenu({
           </DsMenu>
         </div>
       )}
-      <CustomSizeSheet
-        open={custom}
-        onClose={() => {
-          setCustom(false);
-          onClose();
-        }}
-        onDownload={(size) => {
-          onChoose({ format: 'custom', size });
-          setCustom(false);
-          onClose();
-        }}
-      />
+      {/* An always-present anchor: the sheet's host has to read the theme
+          off the tree it came from, and by the time it opens the menu
+          above has unmounted. */}
+      <span ref={scope} hidden />
+      {host &&
+        createPortal(
+          // A React portal still bubbles events through the React TREE, so
+          // a click inside the sheet would reach the card's own onClick and
+          // open its drilldown behind the dialog.
+          <div onClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.stopPropagation()}>
+            <CustomSizeSheet
+              open={custom}
+              onClose={() => {
+                setCustom(false);
+                onClose();
+              }}
+              onDownload={(size) => {
+                onChoose({ format: 'custom', size });
+                setCustom(false);
+                onClose();
+              }}
+            />
+          </div>,
+          host,
+        )}
     </>
   );
 }

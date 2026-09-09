@@ -122,7 +122,6 @@ type Row = { entry: string; format: DownloadFormat; chip: string; verdict: strin
 
 /** One line per cell, which is what `.audit/downloads/RESULTS.md` is built from. */
 function report(row: Row): void {
-  // eslint-disable-next-line no-console
   console.log(`MATRIX\t${row.entry}\t${row.chip}\t${row.verdict}`);
 }
 const MATRIX: Row[] = [];
@@ -279,4 +278,75 @@ describe('the Photos card, once the brand has a photograph', () => {
       capture.restore();
     }
   }, 120_000);
+});
+
+/**
+ * THE CUSTOM-SIZE SHEET, WHERE A FINGER CAN REACH IT.
+ *
+ * Every Brand Kit card carries `will-change: opacity` for the wave
+ * fade-in, and `will-change` on opacity creates a STACKING CONTEXT. A
+ * `position: fixed; z-index: 200` scrim inside one card is confined to
+ * that card's level, so the next card in the grid — plain, `z-index:
+ * auto`, later in the DOM — paints straight over it.
+ *
+ * Measured on the real page: `elementsFromPoint` over the sheet's own
+ * *Download PNG* button returned the LETTERHEAD card's cover. Pressing it
+ * opened Letterhead's drilldown and no file was ever downloaded — a row
+ * that was offered, looked live, and could not be completed.
+ *
+ * Nothing but a real browser can answer this: jsdom has no paint order.
+ */
+describe('the custom-size sheet, opened from inside a card', () => {
+  it('is reachable, and its click does not fall through to the card', async () => {
+    const { render, fireEvent, cleanup } = await import('@testing-library/react');
+    const { DownloadMenu } = await import('../components/DownloadMenu');
+    const cardClicks: string[] = [];
+    // Two cards, exactly as the grid draws them: a stacking context each,
+    // the menu in the FIRST and a plain cover in the second.
+    const { container } = render(
+      <div style={{ position: 'relative' }}>
+        <div
+          style={{ willChange: 'opacity', position: 'relative' }}
+          onClick={() => cardClicks.push('first')}
+        >
+          <DownloadMenu
+            options={[{ format: 'custom', label: 'Custom size…', chip: 'PNG' }]}
+            onChoose={() => {}}
+            onClose={() => {}}
+          />
+        </div>
+        <div
+          style={{ willChange: 'opacity', position: 'relative' }}
+          onClick={() => cardClicks.push('second')}
+        >
+          <div
+            data-testid="cover"
+            style={{ position: 'relative', height: 900, background: '#ccc' }}
+          />
+        </div>
+      </div>,
+    );
+    try {
+      fireEvent.click(container.querySelector('[role="menuitem"]')!);
+      const button = await vi.waitFor(() => {
+        const found = Array.from(document.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === 'Download PNG',
+        );
+        expect(found, 'the sheet never opened').toBeTruthy();
+        return found!;
+      });
+      // Out of the card entirely — a sibling of <body>, because no z-index
+      // can lift a box above a stacking context it lives inside.
+      expect(container.contains(button), 'the sheet is still inside the card').toBe(false);
+      const box = button.getBoundingClientRect();
+      const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      expect(button.contains(top) || top === button, 'something paints over the sheet').toBe(true);
+      // A React portal bubbles through the React TREE, so without the guard
+      // this click also opens the card it was opened from.
+      fireEvent.click(button);
+      expect(cardClicks, 'the click fell through to a card').toEqual([]);
+    } finally {
+      cleanup();
+    }
+  });
 });
