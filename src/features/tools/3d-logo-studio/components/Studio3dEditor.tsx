@@ -25,8 +25,8 @@ import type { MeshData } from '../engine/types';
 import { EMPTY_MESH } from '../engine/types';
 import {
   createDocument, setGeometryMode, setModeOptions, setDefaultMaterial, setLighting,
-  resetToSource, setCameraView, setCamera, type CameraView, type GeometryMode,
-  type Studio3dDocument,
+  resetToSource, setCameraView, setCamera, setRender, type CameraView, type GeometryMode,
+  type RenderState, type Studio3dDocument,
 } from '../engine/document';
 import { buildMesh } from '../engine/buildMesh';
 import type { RevolveWarning } from '../engine/modes/revolve';
@@ -72,6 +72,7 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [highQualityUnavailable, setHighQualityUnavailable] = useState<string | null>(null);
 
   // Monotonic, so a slow rebuild that finishes after a faster later one is
   // discarded instead of painting an older shape over a newer one.
@@ -194,6 +195,14 @@ export function Studio3dEditor({ initialDocument }: Studio3dEditorProps) {
           onBackgroundToggle={(v) => setDoc((d) => (d ? setLighting(d, { showBackground: v }) : d))}
           onViewChange={(view: CameraView) => setDoc((d) => (d ? setCameraView(d, view) : d))}
           onProjectionChange={(projection) => setDoc((d) => (d ? setCamera(d, { projection, zoom: undefined, frustumHeight: undefined }) : d))}
+          onRenderChange={(patch: Partial<RenderState>) => {
+            // A new attempt deserves a clean slate: the last refusal was about
+            // the previous settings, and leaving it up makes the control look
+            // permanently broken.
+            if (patch.mode) setHighQualityUnavailable(null);
+            setDoc((d) => (d ? setRender(d, patch) : d));
+          }}
+          highQualityUnavailable={highQualityUnavailable}
           onReset={() => setDoc((d) => (d ? resetToSource(d) : d))}
         />
       </div>

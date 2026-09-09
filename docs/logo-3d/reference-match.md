@@ -192,3 +192,93 @@ The full browser suite has two failures. Both were verified against a worktree a
   rasterisation test, not a regression.
 
 Neither is caused by this work, and neither is fixed by it.
+
+---
+
+## High-quality render — path tracing (2026-09-09)
+
+The owner's judgement was *"materials are very weak"*, with an explicit licence:
+*"or you can make option for High Resolution even if this will be heavy."*
+
+That licence matters, because the weakness is not tunable. The rasterized
+preview has three hard limits, and all three show on a mark made of clustered
+shapes:
+
+- **Nothing reflects anything else.** A metal ball reflects the environment map
+  and never its neighbour, so a cluster reads as separate objects rather than one
+  piece of cast metal.
+- **No occlusion.** Light reaches the inside of a neck as easily as the top of a
+  ball, so the crevices that give a solid its weight are simply absent.
+- **Glass refracts once.** `transmission` is a screen-space approximation: no
+  caustics, no dispersion, nothing seen through two surfaces.
+
+Those are what rasterization *is*. The answer is to trace paths — which is also
+exactly what the PRD's §12 already specifies without naming it: progressive
+refinement, a quality setting, sample progress, a time estimate, pause and
+cancellation.
+
+**`three-gpu-pathtracer`** (MIT, WebGL2, on-device) is now wired behind a
+**Render: Preview · High quality** control, with sample count, traced resolution,
+live progress and a coarse time estimate. It is lazy-loaded; a build check
+confirms neither it, `three-mesh-bvh`, nor Three.js itself reaches the entry
+chunk.
+
+Evidence: `proof/traced-silver.png`, `proof/traced-chrome.png`,
+`proof/traced-glass-black.png` — the same mark, same materials, same
+environment, traced. The balls reflect each other, the necks darken, and the
+glass carries light through several surfaces.
+
+### Four things this turned up
+
+1. **A path tracer is lit only by what is in the scene.** With no environment and
+   no emissive geometry it renders *black*, correctly — the studio's directional
+   lights do not exist to it. This is why `environment.ts` paints a real
+   environment rather than relying on lights, and there is a test asserting the
+   scene always carries one.
+2. **The tracer needs the raw equirectangular environment, not the PMREM one.**
+   The rasterizer wants the prefiltered cube-UV texture with roughness baked into
+   its mip chain; the tracer samples directions itself and, handed the
+   prefiltered one, reads past the end of a lookup table and throws `Cannot read
+   properties of undefined`. `Studio` now keeps both, and the tracer installs the
+   raw one for the duration and puts it back.
+3. **Cancelling deadlocked.** `cancel()` stopped the frame loop, and the promise
+   was only ever settled from inside that loop — so the render stopped and the
+   caller waited for ever. Found by a test that cancels after 300ms and requires
+   the promise to settle within five seconds; the resolver is now held so
+   `cancel` can settle it directly.
+4. **Glass carries a `dispersion` value at all times.** The rasterizer ignores it
+   and the tracer honours it, so one material description drives both and the
+   rainbow fringing in the reference appears when — and only when — it can.
+
+### The testing limitation, stated plainly
+
+**These renders cannot be verified in CI.** Playwright's headless Chromium falls
+back to SwiftShader, a software rasterizer: a sample takes **4.5 seconds** there
+against **18 milliseconds** on the real GPU, so the same render is two hundred
+times slower and a suite would never finish. Confirmed by asking the context —
+headless reports `SwiftShader driver`, headed reports
+`ANGLE Metal Renderer: Apple M1 Pro`.
+
+So the suite is split honestly:
+
+- **In CI** the traced cases skip, and what runs instead is the *refusal*:
+  `pathTracingSupport` detects a software rasterizer and declines with a reason,
+  because a render that would take hours is not a slow feature but a broken one.
+  Two tests pass, five skip, in 1.2 seconds.
+- **Headed**, on real hardware, all seven run and the screenshots above are the
+  output:
+
+  ```
+  npx vitest run --project browser --browser.headless=false \
+    src/features/tools/3d-logo-studio/__tests__/pathTraced.browser.test.tsx
+  ```
+
+Cancellation, progress monotonicity and the environment requirement are all
+checked; only the *pictures* need hardware.
+
+### Still not matched
+
+The reference's glass close-ups show pronounced chromatic fringing that our
+dispersion produces more subtly, and its silver has a photographed micro-texture
+finer than the procedural grain. Both are tuning against the frames rather than
+missing capability, and belong with Phase 7's material work.

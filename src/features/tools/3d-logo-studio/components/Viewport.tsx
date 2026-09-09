@@ -8,6 +8,7 @@ import { type CameraState, type Studio3dDocument } from '../engine/document';
 import { toBufferGeometry, normalizeToUnitSize } from '../render/geometry';
 import { Studio, buildMaterial, LIGHTING_PRESETS } from '../render/studio';
 import { getMaterial } from '../materials/presets';
+import type { PathTraceHandle, PathTraceProgress } from '../render/pathTracer';
 
 export interface ViewportProps {
   doc: Studio3dDocument;
@@ -219,6 +220,15 @@ export function Viewport({ doc, mesh, busy, onReady, onCameraChange }: ViewportP
       <LoadingPill label="Rebuilding geometry…" />
     </div>}
   </div>;
+}
+
+/** Coarse on purpose: a countdown to the second on a minutes-long render reads
+ *  as precision the estimate does not have. */
+function formatRemaining(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 10) return 'a few seconds';
+  if (seconds < 90) return `${Math.round(seconds / 5) * 5} seconds`;
+  return `${Math.round(seconds / 30) / 2} minutes`;
 }
 
 export default Viewport;

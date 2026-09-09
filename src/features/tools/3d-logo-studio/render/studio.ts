@@ -88,6 +88,15 @@ export class Studio {
   private readonly pmrem: THREE.PMREMGenerator;
   private environment: THREE.Texture | null = null;
   private environmentRecipe: EnvironmentRecipe | null = null;
+  /**
+   * The environment before prefiltering.
+   *
+   * The rasterizer wants the PMREM output — a cube-UV texture with roughness
+   * baked into its mip chain. A path tracer wants the raw equirectangular map,
+   * because it samples directions itself; handed the prefiltered one it reads
+   * past the end of a lookup table and throws. Both are kept.
+   */
+  private environmentSource: THREE.DataTexture | null = null;
   private readonly disposables: { dispose(): void }[] = [];
   private object: THREE.Mesh | null = null;
   private backdrop: THREE.Mesh | null = null;
@@ -171,10 +180,11 @@ export class Studio {
     const recipe = ENVIRONMENTS[preset.id] ?? SOFT_STUDIO;
     if (this.environment === null || this.environmentRecipe !== recipe) {
       this.environment?.dispose();
-      const source = buildEnvironmentTexture(recipe);
+      this.environmentSource?.dispose();
+      const source = buildEnvironmentTexture(recipe, 1024);
       this.environment = this.pmrem.fromEquirectangular(source).texture;
+      this.environmentSource = source;
       this.environmentRecipe = recipe;
-      source.dispose();
     }
     this.scene.environment = this.environment;
     this.scene.environmentIntensity = preset.environmentIntensity;
@@ -298,9 +308,15 @@ export class Studio {
     return this.options.canvas.toDataURL(type);
   }
 
+  /** The un-prefiltered environment, for a renderer that samples it directly. */
+  get rawEnvironment(): THREE.DataTexture | null {
+    return this.environmentSource;
+  }
+
   dispose(): void {
     this.clearObject();
     this.clearBackdrop();
+    this.environmentSource?.dispose();
     this.environment?.dispose();
     this.pmrem.dispose();
     this.scene.clear();
@@ -324,6 +340,9 @@ export function buildMaterial(preset: MaterialPreset, overrides: Partial<Materia
     thickness: p.thickness,
     clearcoat: p.clearcoat,
     clearcoatRoughness: p.clearcoatRoughness,
+    // Ignored by the rasterizer and honoured by the path tracer, so one material
+    // description serves both.
+    dispersion: p.dispersion,
     emissive: new THREE.Color(p.emissive),
     emissiveIntensity: p.emissiveIntensity,
     iridescence: p.iridescence,

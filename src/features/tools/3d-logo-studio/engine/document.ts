@@ -90,6 +90,30 @@ export interface Modifier {
   params: Record<string, number | string | boolean>;
 }
 
+/**
+ * How a frame is produced.
+ *
+ * `preview` is the rasterized viewport: instant, and unable to bounce light.
+ * `high` traces paths — real reflections between the parts of a mark, occlusion
+ * in its crevices, and glass that refracts more than once. It is progressive and
+ * it is slow, which is why it is a mode rather than the default.
+ */
+export interface RenderState {
+  mode: 'preview' | 'high';
+  /** Samples per pixel to accumulate before a high render is called finished. */
+  targetSamples: number;
+  /** Traced resolution as a fraction of the viewport. */
+  renderScale: number;
+}
+
+export const DEFAULT_RENDER: RenderState = {
+  mode: 'preview',
+  // Enough for a clean metal; glass and caustics want several times more, and
+  // the control goes there.
+  targetSamples: 256,
+  renderScale: 1,
+};
+
 export interface CameraState {
   /** Optional for documents made before interactive navigation. */
   zoom?: number;
@@ -140,6 +164,7 @@ export interface Studio3dDocument {
     backdrop: [string, string] | null;
   };
   camera: CameraState;
+  render: RenderState;
   animation: AnimationState;
 }
 
@@ -297,6 +322,7 @@ export function createDocument(input: CreateDocumentInput): Studio3dDocument {
     materials: { defaultId: 'satin-black', byComponent: {} },
     lighting: { presetId: 'white-studio', showBackground: true, backdrop: null },
     camera: DEFAULT_CAMERA,
+    render: DEFAULT_RENDER,
     animation: DEFAULT_ANIMATION,
   };
 }
@@ -352,6 +378,10 @@ export function setLighting(doc: Studio3dDocument, patch: Partial<Studio3dDocume
 
 export function setCamera(doc: Studio3dDocument, patch: Partial<CameraState>): Studio3dDocument {
   return touch(doc, { camera: { ...doc.camera, ...patch } });
+}
+
+export function setRender(doc: Studio3dDocument, patch: Partial<RenderState>): Studio3dDocument {
+  return touch(doc, { render: { ...doc.render, ...patch } });
 }
 
 export function setTransform(doc: Studio3dDocument, patch: Partial<Transform>): Studio3dDocument {

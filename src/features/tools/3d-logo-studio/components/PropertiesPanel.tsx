@@ -9,7 +9,8 @@
  */
 import { DsSegmented, DsSelect, DsSlider, DsSwitch, DsButton } from '@/shared/ds';
 
-import type { CameraView, GeometryMode, Studio3dDocument } from '../engine/document';
+import { DsBanner } from '@/shared/ds';
+import type { CameraView, GeometryMode, RenderState, Studio3dDocument } from '../engine/document';
 import { currentCameraView } from '../engine/document';
 import { MATERIAL_PRESETS } from '../materials/presets';
 import { materialOptions } from './MaterialSwatch';
@@ -24,6 +25,9 @@ export interface PropertiesPanelProps {
   onBackgroundToggle: (visible: boolean) => void;
   onViewChange: (view: CameraView) => void;
   onProjectionChange: (projection: 'orthographic' | 'perspective') => void;
+  onRenderChange: (patch: Partial<RenderState>) => void;
+  /** Set when a traced render was asked for and cannot run on this device. */
+  highQualityUnavailable?: string | null;
   onReset: () => void;
 }
 
@@ -44,6 +48,8 @@ export function PropertiesPanel({
   onBackgroundToggle,
   onViewChange,
   onProjectionChange,
+  onRenderChange,
+  highQualityUnavailable,
   onReset,
 }: PropertiesPanelProps) {
   const { mode } = doc.geometry;
@@ -222,6 +228,36 @@ export function PropertiesPanel({
           onChange={onLightingChange}
         />
         <DsSwitch label="Show background" checked={doc.lighting.showBackground} onChange={onBackgroundToggle} />
+      </Group>
+
+      <Group title="Render">
+        <DsSegmented
+          options={[
+            { value: 'preview', label: 'Preview' },
+            { value: 'high', label: 'High quality' },
+          ]}
+          value={doc.render.mode}
+          onChange={(v) => onRenderChange({ mode: v as RenderState['mode'] })}
+          aria-label="Render quality"
+        />
+        {doc.render.mode === 'high' && (
+          <>
+            <DsSlider label="Samples" value={doc.render.targetSamples} min={32} max={2048} step={32}
+              onChange={(v) => onRenderChange({ targetSamples: v })} />
+            <DsSlider label="Resolution" value={doc.render.renderScale} min={0.25} max={1} step={0.05}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={(v) => onRenderChange({ renderScale: v })} />
+            {highQualityUnavailable
+              ? <DsBanner tone="warning">{highQualityUnavailable}</DsBanner>
+              : (
+                <p className="l3d-note">
+                  Traces real light: the parts of your logo reflect each other, crevices
+                  darken, and glass refracts more than once. It restarts whenever anything
+                  changes, and it is slow — that is the trade.
+                </p>
+              )}
+          </>
+        )}
       </Group>
 
       <Group title="Project">

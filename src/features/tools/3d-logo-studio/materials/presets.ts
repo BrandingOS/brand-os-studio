@@ -51,18 +51,18 @@ export const MATERIAL_PRESETS: MaterialPreset[] = [
   // ---- glass -----------------------------------------------------------
   preset('clear-glass', 'Clear glass', 'glass', {
     color: '#ffffff', metalness: 0, roughness: 0.02, transmission: 1, ior: 1.52,
-    thickness: 0.5, clearcoat: 1, clearcoatRoughness: 0.02,
+    thickness: 0.5, clearcoat: 1, clearcoatRoughness: 0.02, dispersion: 2.2,
   }, GLASS_GLB),
   preset('frosted-glass', 'Frosted glass', 'glass', {
     color: '#ffffff', roughness: 0.42, transmission: 1, ior: 1.5, thickness: 0.5,
   }, { ...GLASS_GLB, roughness: 0.45, opacity: 0.5 }),
   preset('smoked-glass', 'Smoked glass', 'glass', {
     color: '#ffffff', roughness: 0.06, transmission: 1, ior: 1.5, thickness: 0.6,
-    attenuationColor: '#2a2c31', attenuationDistance: 0.9,
+    attenuationColor: '#2a2c31', attenuationDistance: 0.9, dispersion: 1.2,
   }, { ...GLASS_GLB, color: '#4a4d53', opacity: 0.6 }),
   preset('tinted-glass', 'Tinted glass', 'glass', {
     color: '#ffffff', roughness: 0.05, transmission: 1, ior: 1.5, thickness: 0.6,
-    attenuationColor: '#2f6f8f', attenuationDistance: 0.8,
+    attenuationColor: '#2f6f8f', attenuationDistance: 0.8, dispersion: 1.6,
   }, { ...GLASS_GLB, color: '#5f9fbf', opacity: 0.55 }),
 
   // ---- coatings and synthetics -----------------------------------------

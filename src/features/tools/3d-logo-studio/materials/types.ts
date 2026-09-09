@@ -37,6 +37,15 @@ export interface MaterialParams {
   attenuationDistance: number;
   clearcoat: number;
   clearcoatRoughness: number;
+  /**
+   * Wavelength-dependent refraction — the rainbow fringing at a glass edge.
+   *
+   * Only a traced render can show it: it needs the ray split by wavelength, and
+   * the rasterized `transmission` approximation refracts once, in grey. The
+   * value is carried at all times so the same material description drives both,
+   * and the preview simply ignores it.
+   */
+  dispersion: number;
   emissive: string;
   emissiveIntensity: number;
   iridescence: number;
@@ -71,6 +80,7 @@ export const BASE_PARAMS: MaterialParams = {
   attenuationDistance: Infinity,
   clearcoat: 0,
   clearcoatRoughness: 0.1,
+  dispersion: 0,
   emissive: '#000000',
   emissiveIntensity: 0,
   iridescence: 0,
@@ -89,6 +99,7 @@ export function relevantControls(preset: MaterialPreset): (keyof MaterialParams)
   const p = preset.params;
   if (p.transmission > 0) base.push('transmission', 'ior', 'thickness', 'attenuationColor', 'attenuationDistance');
   if (p.clearcoat > 0) base.push('clearcoat', 'clearcoatRoughness');
+  if (p.dispersion > 0) base.push('dispersion');
   if (p.emissiveIntensity > 0) base.push('emissive', 'emissiveIntensity');
   if (p.iridescence > 0) base.push('iridescence');
   if (p.anisotropy > 0) base.push('anisotropy');
