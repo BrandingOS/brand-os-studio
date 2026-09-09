@@ -607,6 +607,17 @@ function variantsForCardRaw(
  * so a family converting its renderers never edits this file or the
  * dispatch — it edits `renderers/curation/<family>.ts`.
  */
+/**
+ * Every variant a card declares BEFORE curation — the restore audit's
+ * denominator. Exported so `.audit` tooling and the restore guards can
+ * measure an archived design without reaching into module internals.
+ */
+export function variantsForCardUncurated(
+  ...args: Parameters<typeof variantsForCardRaw>
+): ReturnType<typeof variantsForCardRaw> {
+  return variantsForCardRaw(...args);
+}
+
 export function variantsForCard(
   ...args: Parameters<typeof variantsForCardRaw>
 ): ReturnType<typeof variantsForCardRaw> {

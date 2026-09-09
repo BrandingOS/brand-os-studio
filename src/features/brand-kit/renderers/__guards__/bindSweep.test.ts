@@ -20,16 +20,20 @@ import {
 
 afterEach(cleanup);
 
-/** Measured 2026-08-29 on `feat/brand-kit-strongest` — after the Invoice family conversion. */
-const INVOICE_BOUND_TODAY = 20;
+/**
+ * Measured 2026-08-29 after the Invoice family conversion (20), and again
+ * on 2026-09-09 when `ext-18` and `ext-22` were restored (22). Both had
+ * been culled on taste rather than on any measurement, and both bind.
+ */
+const INVOICE_BOUND_TODAY = 22;
 
 describe('bind sweep — invoices', () => {
   const results = renderAllVariants('stationery', 'Invoice');
 
   it('renders every variant the card offers', () => {
-    // Twenty curated designs after the conversion — the hundred "wave-2"
-    // generations are archived, not shown.
-    expect(results.length).toBeGreaterThanOrEqual(20);
+    // Twenty-two curated designs — the hundred "wave-2" generations are
+    // archived, not shown.
+    expect(results.length).toBeGreaterThanOrEqual(22);
   });
 
   it('finds exactly the designs that bind today', () => {

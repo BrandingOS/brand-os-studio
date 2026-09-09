@@ -17,10 +17,14 @@ import { INVOICES_WAVE_2_IDS } from '../InvoicesExtended2';
  *     and bound nothing. One of them — `-ext-72`, the audit's wave-2 #50 —
  *     also overflowed its client name out of the pill it was drawn in
  *     (`.audit/OURS.md` D52). See `InvoicesExtended2.tsx`.
- *   • **`ext-18` Stamp Header** — a second stamp motif beside `ext-5`, and
- *     the round badge reads as a smudge at tile size.
- *   • **`ext-22` Ledger Lines** — the weakest of the editorial group; its
- *     reading is `ext-13`'s with a rule under it.
+ *   • **`ext-18` Stamp Header and `ext-22` Ledger Lines are BACK.** They
+ *     were culled on taste — "a second stamp motif", "the weakest of the
+ *     editorial group" — and taste is not a measurement. Re-measured
+ *     2026-09-09: both draw artwork of their own (they are the only two
+ *     archived ids in the whole kit that still did), both declare all 22
+ *     of the invoice kind's bind paths, both scan clean of literals, and
+ *     both clear the contrast and layout sweeps. Nothing objective held
+ *     them back, so nothing holds them back.
  *
  * Archiving, not deleting: every id above stays a valid persistence key, so
  * a customer who saved a customization against one still has it, and the
@@ -29,8 +33,6 @@ import { INVOICES_WAVE_2_IDS } from '../InvoicesExtended2';
 export const curation: FamilyCuration = {
   archived: [
     ...Array.from({ length: 8 }, (_, i) => `invoices-${i + 1}`),
-    'invoices-ext-18',
-    'invoices-ext-22',
     ...INVOICES_WAVE_2_IDS,
   ],
 
@@ -52,9 +54,11 @@ export const curation: FamilyCuration = {
     'invoices-ext-15': 'Thank You Note',
     'invoices-ext-16': 'Side Totals',
     'invoices-ext-17': 'Mono Document',
+    'invoices-ext-18': 'Stamp Header',
     'invoices-ext-19': 'Diagonal Header',
     'invoices-ext-20': 'Itemised Cards',
     'invoices-ext-21': 'Centred Total',
+    'invoices-ext-22': 'Ledger Lines',
   },
 
   /**
@@ -80,8 +84,10 @@ export const curation: FamilyCuration = {
     'invoices-ext-15': ['Studio', 'Receipt', 'Warm'],
     'invoices-ext-16': ['Agency', 'Quote', 'Modern'],
     'invoices-ext-17': ['Legal', 'Statement', 'Minimal'],
+    'invoices-ext-18': ['Trades', 'Reminder', 'Vintage'],
     'invoices-ext-19': ['Tech', 'Statement', 'Bold'],
     'invoices-ext-20': ['Retail', 'Quote', 'Modern'],
     'invoices-ext-21': ['Trades', 'Reminder', 'Editorial'],
+    'invoices-ext-22': ['Legal', 'Statement', 'Vintage'],
   },
 };

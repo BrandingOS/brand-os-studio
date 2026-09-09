@@ -1,5 +1,5 @@
 /**
- * Invoices — twenty documents that add up.
+ * Invoices — twenty-two documents that add up.
  *
  * This is the family where "the design is not the data" cost the most.
  * 130 variants shipped: the legacy eight were four designs shown twice
@@ -57,7 +57,8 @@ const KEPT_IDS = [
   'invoices-ext-5', 'invoices-ext-6', 'invoices-ext-7', 'invoices-ext-8',
   'invoices-ext-9', 'invoices-ext-10', 'invoices-ext-11', 'invoices-ext-12',
   'invoices-ext-13', 'invoices-ext-14', 'invoices-ext-15', 'invoices-ext-16',
-  'invoices-ext-17', 'invoices-ext-19', 'invoices-ext-20', 'invoices-ext-21',
+  'invoices-ext-17', 'invoices-ext-18', 'invoices-ext-19', 'invoices-ext-20',
+  'invoices-ext-21', 'invoices-ext-22',
 ];
 
 /**
@@ -88,7 +89,7 @@ function invoiceWithADiscount(): DeliverableContent {
 }
 
 describe('invoices — curation', () => {
-  it('shows twenty designs, not a hundred and thirty', () => {
+  it('shows twenty-two designs, not a hundred and thirty', () => {
     const shown = variantsForCard(SECTION, LABEL, mockBrand);
     expect(shown.map((t) => t.id)).toEqual(KEPT_IDS);
   });
@@ -100,11 +101,11 @@ describe('invoices — curation', () => {
     for (let n = 1; n <= 8; n += 1) expect(isArchived(`invoices-${n}`), `invoices-${n}`).toBe(true);
     expect(INVOICES_WAVE_2_IDS).toHaveLength(100);
     for (const id of INVOICES_WAVE_2_IDS) expect(isArchived(id), id).toBe(true);
-    // Two wave-1 designs went too: a second stamp motif beside `ext-5`,
-    // and the weakest of the editorial group.
-    expect(isArchived('invoices-ext-18')).toBe(true);
-    expect(isArchived('invoices-ext-22')).toBe(true);
+    // Every wave-1 design is offered. `ext-18` and `ext-22` were culled on
+    // taste and restored on measurement — they are the only two archived
+    // ids in the whole kit that still had artwork of their own.
     for (const id of KEPT_IDS) expect(isArchived(id), id).toBe(false);
+    expect(KEPT_IDS).toHaveLength(22);
     expect(INVOICES_EXTENDED).toHaveLength(22);
   });
 
@@ -122,7 +123,7 @@ describe('invoices — curation', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('features three of the twenty, none of them a generator’s output', () => {
+  it('features three of the twenty-two, none of them a generator’s output', () => {
     const featured = DEFAULT_FEATURED_IDS_BY_LABEL[LABEL] ?? [];
     expect(featured).toHaveLength(3);
     for (const id of featured) {
@@ -147,8 +148,8 @@ describe('invoices — binding', () => {
 
   it('leaves no design unbound', () => {
     const results = renderAllVariants(SECTION, LABEL);
-    expect(results).toHaveLength(20);
-    expect(boundVariantCount(results)).toBe(20);
+    expect(results).toHaveLength(22);
+    expect(boundVariantCount(results)).toBe(22);
   });
 
   it('states a discount on every design once there is one to state', () => {
