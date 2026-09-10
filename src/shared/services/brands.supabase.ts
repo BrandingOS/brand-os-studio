@@ -117,6 +117,9 @@ export class SupabaseBrandsService implements IBrandsService {
     if (!user) throw new Error('User not authenticated');
 
     const brandData: Record<string, unknown> = {
+      // See the note below `insertRow` — the id has to be known before the
+      // insert so the row can be read back afterwards.
+      id: crypto.randomUUID(),
       user_id: user.id,
       name: input.name,
       logo_url: input.logo,
@@ -147,10 +150,23 @@ export class SupabaseBrandsService implements IBrandsService {
     // brand you never finished.
     if (extras.onboarding !== undefined) brandData.onboarding = extras.onboarding;
 
-    // One call site, reused for the retry — a second `.insert()` expression
-    // would duplicate the generated-types overload complaint this file already
-    // carries, and the ratchet reads that as a new error.
-    const insertRow = () => supabase.from('brands').insert(brandData).select().single();
+    // The row's id is minted HERE rather than by the database, and the insert
+    // deliberately does NOT ask for the row back.
+    //
+    // `INSERT ... RETURNING` makes Postgres apply the table's SELECT policy to
+    // the returned row, and `brands_select` resolves visibility through
+    // `brands_with_capability('brand.view')` — a STABLE set-returning function
+    // that reads `public.brands`. From its snapshot the row being inserted does
+    // not exist yet, so it cannot be in the set, so the row cannot be returned:
+    // "new row violates row-level security policy for table brands". The INSERT
+    // policy itself passes. Only a super_admin escaped it, via the separate
+    // `admin_brands_all` policy — which is why this looked fine to the owner and
+    // failed for every other account.
+    //
+    // Knowing the id up front is what lets the row be read back in a SECOND
+    // statement, whose snapshot does include it. Verified against production.
+    const id = brandData.id as string;
+    const insertRow = () => supabase.from('brands').insert(brandData);
 
     let result = await insertRow();
 
@@ -164,8 +180,12 @@ export class SupabaseBrandsService implements IBrandsService {
       delete brandData.onboarding;
       result = await insertRow();
     }
+    if (result.error) throw result.error;
 
-    const { data, error } = result;
+    // Separate statement, new snapshot: the row is visible to the SELECT policy
+    // now. The slug in particular is assigned by a trigger, so it can only be
+    // learned by reading back.
+    const { data, error } = await supabase.from('brands').select('*').eq('id', id).single();
     if (error) throw error;
     // The row exists now, so the marker the column could not take gets a home
     // against its id. Without this the brand comes back unmarked, which every
