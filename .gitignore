@@ -63,3 +63,8 @@ src/features/tools/3d-logo-studio/__tests__/traced-*.png
 src/features/tools/3d-logo-studio/__tests__/spike-*.png
 src/features/tools/3d-logo-studio/__tests__/live-*.png
 src/features/tools/3d-logo-studio/__tests__/__screenshots__/
+
+# Local audit artifacts (screenshots taken while reviewing a change).
+# Anchored to the repo root ON PURPOSE: `.audit/` unanchored would also
+# swallow `src/**/__tests__/.audit/`, which tests WRITE and the repo tracks.
+/.audit/

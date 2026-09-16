@@ -178,14 +178,14 @@ describe('a tile carries its own actions', () => {
       fireEvent.click(first.querySelector('button[aria-label^="Edit "]')!);
       await settle();
 
-      // The asset editor is a DsModal with the family's own title…
-      const modal = document.querySelector('.ds-modal') as HTMLElement | null;
-      expect(modal).toBeTruthy();
+      // The asset editor is a DOCKED PANEL with the family's own title…
+      const panel = document.querySelector('.bk-dock-panel') as HTMLElement | null;
+      expect(panel).toBeTruthy();
       // …and it asks for something. An empty panel is the defect.
       expect(
-        modal!.querySelectorAll('input, select, button[role="combobox"], .ds-select').length,
+        panel!.querySelectorAll('input, select, button[role="combobox"], .ds-select').length,
       ).toBeGreaterThan(0);
-      // The legacy full-screen card editor must not be what opened.
+      // The template-content editor must not be what opened.
       expect(document.querySelector('.bk-editor')).toBeNull();
     },
   );
@@ -252,7 +252,7 @@ describe('a tile carries its own actions', () => {
     expect(labels.join(' | ')).toMatch(/Custom size/);
   });
 
-  it('lists Use Template · Edit Template · Set as featured in the ⋯ menu', async () => {
+  it('lists Use Template · Edit Template · Set as cover in the ⋯ menu', async () => {
     renderKit();
     await openItem('Business Card');
 
@@ -267,7 +267,7 @@ describe('a tile carries its own actions', () => {
     );
     expect(labels).toContain('Use Template');
     expect(labels).toContain('Edit Template');
-    expect(labels).toContain('Set as featured');
+    expect(labels).toContain('Set as cover');
   });
 
   it('Escape peels one layer: the menu first, the drilldown second', async () => {
@@ -299,34 +299,28 @@ describe('a tile carries its own actions', () => {
 
 describe('a wall of designs can be searched and filtered', () => {
   /**
-   * Where the library actually IS.
+   * Where the library actually IS: on the wall.
    *
-   * A card in `PICKER_LABELS` (every stationery, social, web, guide,
-   * deck and animation family) shows THREE featured designs in its
-   * drilldown; the other twenty-one live behind its "+". So the row that
-   * sifts a pile has to be on both surfaces, and the picker is the one
-   * that carries the tags — which is why it is tested here and why the
-   * two share one component (`KitFilterRow`).
+   * It used to be three designs in the drilldown and twenty-seven behind
+   * a "+" that opened a modal over the page, so the row that sifts a pile
+   * was tested on the picker — the surface that carried the pile. The
+   * picker is gone; the drilldown is the library, and the row is its own.
    */
-  async function openPicker() {
-    await openItem('Business Card');
-    fireEvent.click(
-      document.querySelector('button[aria-label^="Browse more"]') as HTMLElement,
-    );
-    await settle();
+  function cells(): string[] {
+    return captions();
   }
 
-  function cells(): string[] {
-    return Array.from(document.querySelectorAll('.bk-card-picker-cell-label')).map(
-      (el) => el.textContent?.trim() ?? '',
-    );
+  function facetChips(): HTMLElement[] {
+    return Array.from(
+      document.querySelectorAll<HTMLElement>('.bk-drilldown-chips .ds-chip'),
+    ).filter((c) => c.dataset.facet !== 'all');
   }
 
   it('offers only tags a designer really filed a design under', async () => {
     renderKit();
-    await openPicker();
+    await openItem('Business Card');
 
-    const chips = Array.from(document.querySelectorAll('.bk-drilldown-chips .ds-chip'));
+    const chips = facetChips();
     expect(chips.length).toBeGreaterThan(0);
 
     const known = new Set(
@@ -340,23 +334,22 @@ describe('a wall of designs can be searched and filtered', () => {
     }
   });
 
-  it('a chip narrows the wall to the designs that carry that tag', async () => {
+  it('a chip narrows the wall to exactly the designs that carry that tag', async () => {
     renderKit();
-    await openPicker();
+    await openItem('Business Card');
 
     const before = cells();
     expect(before.length).toBeGreaterThan(2);
 
-    const chip = document.querySelector('.bk-drilldown-chips .ds-chip') as HTMLElement;
+    const chip = facetChips()[0]!;
     const count = Number(chip.querySelector('.bk-chip-count')!.textContent!.trim());
     fireEvent.click(chip);
     await settle();
 
-    // The chip's own count is a promise about what pressing it does. The
-    // three featured designs are already excluded from the picker, so it
-    // can only ever be a ceiling.
-    expect(cells().length).toBeLessThanOrEqual(count);
-    expect(cells().length).toBeGreaterThan(0);
+    // The chip's own count is a promise about what pressing it does, and
+    // on the whole library it is an EXACT promise — there is nothing
+    // excluded from the wall for it to over-count.
+    expect(cells()).toHaveLength(count);
     expect(count).toBeLessThan(before.length);
     expect(chip.getAttribute('aria-pressed')).toBe('true');
 
@@ -365,9 +358,30 @@ describe('a wall of designs can be searched and filtered', () => {
     expect(cells()).toHaveLength(before.length);
   });
 
+  it('the All chip carries the family total and takes you back to it', async () => {
+    renderKit();
+    await openItem('Business Card');
+
+    const all = document.querySelector('.ds-chip[data-facet="all"]') as HTMLElement;
+    expect(all).toBeTruthy();
+    const total = Number(all.querySelector('.bk-chip-count')!.textContent!.trim());
+    expect(total).toBe(cells().length);
+    // With nothing chosen, All is what is showing.
+    expect(all.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(facetChips()[0]!);
+    await settle();
+    expect(cells().length).toBeLessThan(total);
+    expect(all.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(all);
+    await settle();
+    expect(cells()).toHaveLength(total);
+  });
+
   it('search matches a design by its name', async () => {
     renderKit();
-    await openPicker();
+    await openItem('Business Card');
 
     const all = cells();
     const target = all[Math.min(2, all.length - 1)]!;
@@ -385,7 +399,7 @@ describe('a wall of designs can be searched and filtered', () => {
 
   it('says it filtered to nothing, and offers the way back', async () => {
     renderKit();
-    await openPicker();
+    await openItem('Business Card');
 
     const field = document.querySelector('input.bk-drilldown-search') as HTMLInputElement;
     fireEvent.change(field, { target: { value: 'zzzz-no-such-design' } });
@@ -402,8 +416,8 @@ describe('a wall of designs can be searched and filtered', () => {
 
   it('the drilldown carries the same row wherever the wall is long', async () => {
     renderKit();
-    // Logos is not a picker family — every combination is on the wall, so
-    // the row belongs in the drilldown itself.
+    // Logos was never a picker family — every combination has always been
+    // on the wall, and now every family is like Logos.
     await openItem('Logos');
     const field = document.querySelector('input.bk-drilldown-search') as HTMLInputElement;
     expect(field).toBeTruthy();
@@ -414,6 +428,15 @@ describe('a wall of designs can be searched and filtered', () => {
     await settle();
     expect(tiles()).toHaveLength(0);
     expect(document.querySelector('.bk-drilldown-empty')).toBeTruthy();
+  });
+
+  it('no browsing surface covers the page any more', async () => {
+    renderKit();
+    await openItem('Business Card');
+
+    expect(document.querySelector('button[aria-label^="Browse more"]')).toBeNull();
+    expect(document.querySelector('.bk-card-picker-backdrop')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 });
 

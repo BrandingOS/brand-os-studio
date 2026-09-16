@@ -100,21 +100,30 @@ describe('contrast sweep — email signatures', () => {
     assertReadable(host, { maxViolations: BUDGET, label: 'the featured email signatures' });
   });
 
-  it('reads for every kept design, not only the featured three', () => {
-    // The picker offers all sixteen; a design nobody featured is still a
-    // design a customer can choose.
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    render(
-      <>
-        {all.map((t) => (
-          <div key={t.id} style={{ width: 260, background: '#ffffff' }}>
-            {renderCosmosTemplate(t, SEED_BRANDS[0]!, mockBrand, undefined)}
-          </div>
-        ))}
-      </>,
-      { container: host },
-    );
-    assertReadable(host, { maxViolations: BUDGET, label: 'every email signature' });
+  it('reads for every design, not only the featured three', () => {
+    // The picker offers all thirty; a design nobody featured is still a
+    // design a customer can choose. Both brands, for the reason above —
+    // fourteen of these designs are new, and a signature that reads on the
+    // violet-on-cream brand and not on the red-on-near-black one is a
+    // signature that does not read.
+    for (const brand of SEED_BRANDS.slice(0, 2)) {
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      render(
+        <>
+          {all.map((t) => (
+            <div key={t.id} style={{ width: 260, background: '#ffffff' }}>
+              {renderCosmosTemplate(t, brand, mockBrand, undefined)}
+            </div>
+          ))}
+        </>,
+        { container: host },
+      );
+      assertReadable(host, {
+        maxViolations: BUDGET,
+        label: `every email signature for ${brand.name}`,
+      });
+      cleanup();
+    }
   });
 });

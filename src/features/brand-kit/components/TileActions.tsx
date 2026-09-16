@@ -26,7 +26,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DsMenu, DsMenuDivider, DsMenuItem } from '@/shared/ds';
 import type { DownloadOption } from '../data/exportFormats';
-import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
+import { DownloadMenu, isInsideDownloadSheet, type DownloadChoice } from './DownloadMenu';
 
 /** An entry in the ⋯ menu. Absent handlers are absent items. */
 export type TileMenuAction = {
@@ -122,6 +122,11 @@ export function TileActions({
     // layer instead of closing the menu and the whole drilldown at once.
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
+      // The custom-size sheet is a full-screen dialog on `<body>`, so it is
+      // "outside" this tile by DOM but very much part of this menu. Closing
+      // on its mousedown unmounted the sheet before its own Download button
+      // could fire a click: the sheet vanished and nothing downloaded.
+      if (isInsideDownloadSheet(e.target)) return;
       if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
     };
     const onKey = (e: KeyboardEvent) => {

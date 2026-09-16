@@ -101,28 +101,17 @@ describe.each(BRANDS.map((b) => [b.name, b] as const))(
       }
     });
 
-    it('carries the usage split on the primary tile, and only there', () => {
-      const first = mount(renderCosmosTemplate(templates[0]!, brand, mock, undefined));
-      const strip = first.container.querySelector('[data-color-proportion]');
-      expect(strip).not.toBeNull();
-      // Sums to 100 — the bar IS the split, not a decoration.
-      const pcts = Array.from(strip!.children)
-        .map((el) => Number((el.textContent ?? '').replace('%', '')))
-        .filter((n) => Number.isFinite(n) && n > 0);
-      expect(pcts.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(100);
-      cleanup();
-
-      const second = mount(renderCosmosTemplate(templates[1]!, brand, mock, undefined));
-      expect(second.container.querySelector('[data-color-proportion]')).toBeNull();
-    });
-
-    it('shows every other brand colour set ON this one — the matrix, by row', () => {
+    it('shows the colour only — no usage split, no pairings, no contrast verdicts', () => {
+      // Which colours may sit on which is Guideline content. On the swatch it
+      // read as a second, forbidden palette beside the real one.
       for (let i = 0; i < templates.length; i += 1) {
         const { container } = mount(
           renderCosmosTemplate(templates[i]!, brand, mock, undefined),
         );
-        const chips = Array.from(container.querySelectorAll('[title*=" on this colour"]'));
-        expect(chips.length).toBe(Math.min(palette.length - 1, 6));
+        expect(container.querySelector('[data-color-proportion]')).toBeNull();
+        expect(container.querySelectorAll('[title*=" on this colour"]')).toHaveLength(0);
+        expect(container.querySelectorAll('[title*=" on white"], [title*=" on black"]')).toHaveLength(0);
+        expect(container.textContent ?? '').not.toMatch(/\bAA(A|18)?\b|\bFAIL\b/);
         cleanup();
       }
     });

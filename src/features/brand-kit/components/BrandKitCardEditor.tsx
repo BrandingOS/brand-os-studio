@@ -7,9 +7,9 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { Image as ImageIcon, RotateCcw } from 'lucide-react';
-import { DsButton, DsSwitch } from '@/shared/ds';
+import { DsButton, DsInput, DsSwitch } from '@/shared/ds';
+import { KitDockPanel } from './KitDockPanel';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
@@ -27,9 +27,9 @@ import {
   type DeliverableContent,
 } from '@/features/brandkit/content';
 
-// The editor portals to document.body and is mounted from more than one
-// page, so it brings its own styles rather than relying on whichever page
-// happened to import them first.
+// The editor is mounted from more than one page, so it brings its own
+// styles rather than relying on whichever page happened to import them
+// first.
 import '../brand-kit.css';
 import { toast } from 'sonner';
 import { recolorLogoSvg, contrastRatio, extractWrappedImageUrl, cachedRecoloredLogo } from '../data/recolorLogo';
@@ -291,6 +291,15 @@ type Props = {
   onClose: () => void;
   onSave: (target: EditorTarget, customization: SavedCardCustomization) => void;
   onDownload: (target: EditorTarget) => void;
+  /**
+   * The working draft, reported on every change.
+   *
+   * This is what makes the editor DOCKED rather than merely narrow: the
+   * page merges the draft over its saved customizations, so the card the
+   * user is editing repaints beside the panel as they type. Nothing is
+   * persisted by it — Save is still the only write.
+   */
+  onDraftChange?: (target: EditorTarget, customization: SavedCardCustomization) => void;
   /** Persistence hook for the brand-asset-icon editor — when the
    *  user picks a different weight, the page rewrites brand.icons
    *  at this index so the drilldown tile matches on close. */
@@ -308,16 +317,25 @@ type Props = {
 };
 
 /**
- * Full-screen-ish (90vw × 90vh) card editor. Left half shows the card
- * cover at large size; right half is a scrollable edit rail with the
- * brand's colors, logos, and fonts. Selection state is local — the
- * intent is to wire each control to a real renderer later, when the
- * card covers are generated per-brand instead of being stock photos.
+ * The template-content editor, DOCKED.
  *
- * Closes on Escape, backdrop click, or the Cancel button. Renders
- * through a portal so the dialog escapes the workspace's stacking
- * context, with the workspace's data-theme mirrored onto the dialog
- * so light/dark tokens still apply.
+ * It was a 92vw × 90vh dialog on a blurred scrim: the one surface whose
+ * whole job is "change this and watch what happens" was also the one that
+ * hid everything the change happened to. It is now a column of the page
+ * (`KitDockPanel`) — the live preview sits at the top of the panel, the
+ * controls under it, and the kit itself stays on screen and clickable
+ * beside it.
+ *
+ * Two consequences worth knowing:
+ *
+ *  • **The panel does not own the page's focus or its scroll.** No
+ *    aria-modal, no focus trap, no body-scroll lock. Escape closes it and
+ *    `KitDockPanel` hands focus back to whatever opened it.
+ *
+ *  • **The draft leaves the panel.** `onDraftChange` reports the working
+ *    customization on every keystroke so the CARD BEHIND repaints from it
+ *    — the edit is visible where the user will actually look for it, not
+ *    only in the panel's own preview.
  */
 
 /**
@@ -384,6 +402,7 @@ export function BrandKitCardEditor({
   onClose,
   onSave,
   onDownload,
+  onDraftChange,
   onUpdateIconAt,
   onUseTemplate,
   onEditTemplate,
@@ -535,22 +554,31 @@ export function BrandKitCardEditor({
     }
   }, [target, brand, templateType, initialCustomization]);
 
+  /**
+   * Follow the workspace's theme.
+   *
+   * A docked panel outlives a theme switch — the modal it replaces could
+   * only ever read the attribute once, on open, because it was gone again
+   * moments later. `theme` is not what paints the panel (the DS tokens
+   * cascade in from the workspace); it is the surface colour the icon
+   * preview's contrast flip is measured AGAINST, so a stale reading would
+   * hide the glyph it is there to protect.
+   *
+   * Escape and the body-scroll lock both left with the backdrop: the panel
+   * owns Escape (`KitDockPanel`), and locking the page behind a docked
+   * column would take away the very thing docking exists to give back.
+   */
   useEffect(() => {
-    if (!target) return;
+    if (!target) return undefined;
     const ws = document.querySelector('[data-workspace]');
-    setTheme(ws?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [target, onClose]);
+    const read = () =>
+      setTheme(ws?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    read();
+    if (!ws) return undefined;
+    const obs = new MutationObserver(read);
+    obs.observe(ws, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, [target]);
 
   // Brand projection used by the legacy renderer — picked swatches
   // override the brand's primary/secondary so recolors preview live.
@@ -644,6 +672,46 @@ export function BrandKitCardEditor({
     },
     [],
   );
+
+  /**
+   * Report the working draft upward, so the CARD BEHIND the panel repaints
+   * from it.
+   *
+   * The whole point of docking is that the kit stays on screen; a preview
+   * that lives only inside the panel would leave the card the user is
+   * looking at showing yesterday's version. Nothing here writes — the
+   * page merges this over its saved customizations and drops it on close,
+   * so an abandoned edit leaves nothing behind.
+   *
+   * The callback is reached through a ref so an unmemoised handler from a
+   * parent cannot turn this into a render loop.
+   */
+  const draftSinkRef = useRef(onDraftChange);
+  draftSinkRef.current = onDraftChange;
+  useEffect(() => {
+    if (!target) return;
+    draftSinkRef.current?.(target, {
+      overrides,
+      cover: selectedCover,
+      color: selectedColor,
+      secondaryColor: selectedSecondaryColor,
+      logoId: selectedLogoId,
+      logoColor: selectedLogoColor,
+      fontId: selectedFontId,
+      ...(content ? { content } : {}),
+      savedAt: '',
+    });
+  }, [
+    target,
+    overrides,
+    content,
+    selectedCover,
+    selectedColor,
+    selectedSecondaryColor,
+    selectedLogoId,
+    selectedLogoColor,
+    selectedFontId,
+  ]);
 
   if (!target) return null;
 
@@ -1024,18 +1092,146 @@ export function BrandKitCardEditor({
         ? editorFields.filter((f) => presentMarkers.has(f.key))
         : editorFields;
 
-  return createPortal(
-    <div
-      className="bk-editor-backdrop"
-      data-theme={theme}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Edit ${target.label}`}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+  /**
+   * The panel's action row — Reset · Edit/Use Template on the quiet side,
+   * Cancel · Download · Save on the loud one. Hoisted out of the tree
+   * because a docked panel takes its actions as PROPS: the row is pinned
+   * to the bottom of the column, so it is a slot rather than a sibling of
+   * the body it belongs to.
+   */
+  const quietActions = (
+    <>
+      {!isBrandAsset && (
+        <DsButton
+          tone="tertiary"
+          className="bk-editor-btn--reset"
+          onClick={() => {
+            // Reset EVERYTHING to the brand's defaults — content,
+            // colors, logo, font, cover. Saving afterwards stores
+            // the clean slate.
+            setSelectedCover(target.cover);
+            setSelectedColor(brand.colors.core[0]?.hex ?? null);
+            setSelectedSecondaryColor(
+              brand.colors.core[1]?.hex ?? brand.colors.accent[0]?.hex ?? null,
+            );
+            setSelectedLogoId(brand.logos[0]?.id ?? null);
+            setSelectedLogoColor(brand.colors.core[0]?.hex ?? '#0F1216');
+            setSelectedFontId(brand.fonts[0]?.id ?? null);
+            setOverrides(defaultOverridesForType(templateType, brand));
+            setSelectedPath(null);
+            if (contentKind) setContent(defaultContentFor(contentKind, brand, templateType));
+          }}
+          title="Reset to brand defaults"
+        >
+          <RotateCcw size={13} aria-hidden />
+          <span>Reset</span>
+        </DsButton>
+      )}
+      {!isBrandAsset &&
+        target.template &&
+        (onUseTemplate || onEditTemplate) &&
+        rendererBindsContent(target.template) && (
+          <>
+            {onEditTemplate && (
+              <DsButton
+                tone="tertiary"
+                size="sm"
+                onClick={() => onEditTemplate(target.template!)}
+                title="Open this variant's master template in Design"
+              >
+                Edit Template
+              </DsButton>
+            )}
+            {onUseTemplate && (
+              <DsButton
+                tone="tertiary"
+                size="sm"
+                onClick={() => onUseTemplate(target.template!)}
+                title="Start a Design from this template"
+              >
+                Use Template
+              </DsButton>
+            )}
+          </>
+        )}
+    </>
+  );
+  const mainActions = (
+    <>
+      <DsButton tone="secondary" size="sm" onClick={onClose}>
+        Cancel
+      </DsButton>
+      <DsButton
+        tone="secondary"
+        size="sm"
+        onClick={() => {
+          // Color assets get a dedicated bundle (base + shades
+          // in svg/png/jpg/ai). Font assets emit a real
+          // TTF/OTF bundle from the user's uploaded files (or
+          // a Google Fonts fallback). Other asset types still
+          // toast for now.
+          if (isColorAsset && colorPreview) {
+            handleDownloadColorBundle();
+            return;
+          }
+          if (isFontAsset && fontPreview) {
+            handleDownloadFontBundle();
+            return;
+          }
+          onDownload(target);
+        }}
+      >
+        Download
+      </DsButton>
+      <DsButton
+        tone="primary"
+        size="sm"
+        onClick={() => {
+          // Persist the chosen weight when an icon was edited
+          // — `iconPreviewClass` already has the new prefix
+          // applied via withIconWeight.
+          if (
+            isIconAsset &&
+            iconIndex !== null &&
+            iconPreviewClass &&
+            onUpdateIconAt
+          ) {
+            onUpdateIconAt(iconIndex, iconPreviewClass);
+          }
+          onSave(target, {
+            overrides,
+            cover: selectedCover,
+            color: selectedColor,
+            secondaryColor: selectedSecondaryColor,
+            logoId: selectedLogoId,
+            logoColor: selectedLogoColor,
+            fontId: selectedFontId,
+            // Saved as real nested data — an invoice's line items go
+            // in as an array of objects and come back as one. It is
+            // deliberately NOT flattened into `overrides`, which
+            // cannot express it.
+            ...(content ? { content } : {}),
+            savedAt: new Date().toISOString(),
+          });
+        }}
+      >
+        Save
+      </DsButton>
+    </>
+  );
+
+  return (
+    <KitDockPanel
+      open
+      onClose={onClose}
+      eyebrow={sectionLabel(target.sectionKey)}
+      title={target.label}
+      size="wide"
+      className="bk-editor"
+      secondaryActions={quietActions}
+      actions={mainActions}
     >
-      <div className="bk-editor" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="bk-editor-preview-slot">
         {isIconAsset && iconPreviewClass ? (
           // Custom large preview for the icon editor — the workspace-
           // scoped CSS for the brand-asset-icon glyph doesn't reach
@@ -1190,438 +1386,305 @@ export function BrandKitCardEditor({
             style={{ backgroundImage: `url(${selectedCover ?? target.cover})` }}
           />
         )}
+      </div>
+      <div className="bk-editor-rail-body">
+        {contentKind && content && (
+          <ContentPanel
+            kind={contentKind}
+            content={content}
+            onChange={setContent}
+            selectedPath={selectedPath}
+            onSelect={setSelectedPath}
+            onResetContent={() => {
+              setSelectedPath(null);
+              setContent(defaultContentFor(contentKind, brand, templateType));
+            }}
+          />
+        )}
+        {!contentKind && visibleFields.length > 0 && (
+          <RailGroup
+            title="Content"
+            hint="Type-specific text shown on this artifact."
+            action={
+              <button
+                type="button"
+                className="bk-editor-group-reset"
+                onClick={() => setOverrides(defaultOverridesForType(templateType, brand))}
+                aria-label="Reset content"
+                title="Reset"
+              >
+                <RotateCcw size={12} aria-hidden />
+                <span>Reset</span>
+              </button>
+            }
+          >
+            <div className="bk-editor-fields">
+              {visibleFields.map((field) => {
+                const Icon = field.icon;
+                const value = (overrides[field.key] as string | undefined) ?? '';
+                return (
+                  <label key={field.key} className="bk-editor-field">
+                    <span className="bk-editor-field-label">
+                      <Icon size={12} aria-hidden />
+                      {field.label}
+                    </span>
+                    <DsInput
+                      type={field.type ?? 'text'}
+                      value={value}
+                      onChange={(e) =>
+                        setOverrides((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      placeholder={field.placeholder}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </RailGroup>
+        )}
 
-        <aside className="bk-editor-rail-card" aria-label="Edit options">
-          <header className="bk-editor-rail-head">
-            <div className="bk-editor-rail-titles">
-              <span className="bk-editor-eyebrow">{sectionLabel(target.sectionKey)}</span>
-              <h2 className="bk-editor-title">{target.label}</h2>
+        {isIconAsset ? (
+          <>
+            <RailGroup title="Weight" hint="Pick the stroke thickness for this icon.">
+              <div className="bk-editor-icon-weights">
+                {ICON_WEIGHTS.map((w) => {
+                  const previewName = iconPreviewClass
+                    ? withIconWeight(iconPreviewClass, w.id)
+                    : null;
+                  return (
+                    <button
+                      key={w.id}
+                      type="button"
+                      className={`bk-editor-icon-weight${selectedIconWeight === w.id ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedIconWeight(w.id)}
+                      aria-pressed={selectedIconWeight === w.id}
+                      title={w.label}
+                    >
+                      {previewName && (
+                        <i className={`fi ${previewName}`} aria-hidden />
+                      )}
+                      <span className="bk-editor-icon-weight-label">{w.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </RailGroup>
+            <RailGroup title="Color" hint="Tap a brand color to recolor the icon.">
+              <SwatchGroups
+                colors={allColors}
+                selected={selectedIconColor}
+                onPick={setSelectedIconColor}
+                keyPrefix="icon"
+                labelPrefix="Icon color"
+              />
+            </RailGroup>
+          </>
+        ) : isFontAsset && fontPreview ? (
+          <RailGroup title="Weight" hint="Hover a weight to highlight it on the preview.">
+            <div
+              className="bk-editor-font-weight-list"
+              onMouseLeave={() => setHoveredFontWeight(null)}
+            >
+              {/* Render heaviest → lightest so the rail mirrors the
+                  type-scale on the left (big → small). Rows are
+                  non-interactive — they exist as a quick reference
+                  and to drive the hover-highlight on the preview. */}
+              {[...fontWeightOptions].reverse().map((w) => (
+                <div
+                  key={w}
+                  className="bk-editor-font-weight-row"
+                  onMouseEnter={() => setHoveredFontWeight(w)}
+                >
+                  <span
+                    className="bk-editor-font-weight-sample"
+                    style={{ fontFamily: fontPreviewStack, fontWeight: w }}
+                  >
+                    Aa
+                  </span>
+                  <span className="bk-editor-font-weight-meta">
+                    <span className="bk-editor-font-weight-name">
+                      {FONT_WEIGHT_LABELS[w] ?? `Weight ${w}`}
+                    </span>
+                    <span className="bk-editor-font-weight-num">{w}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </RailGroup>
+        ) : isColorAsset && colorPreview ? (
+          <RailGroup title="Shades" hint="Tones from light to dark, generated from the base hex.">
+            <div className="bk-editor-color-shades">
+              {colorShadesWithNames.map(({ hex, name }) => (
+                <button
+                  key={hex}
+                  type="button"
+                  className="bk-editor-color-shade"
+                  style={{ background: hex, color: readableOn(hex) }}
+                  onClick={() => copyHexToClipboard(hex, hex)}
+                  aria-label={`Copy ${hex.toUpperCase()}`}
+                >
+                  <span className="bk-editor-color-shade-name">{name}</span>
+                  <span className="bk-editor-color-shade-hex">
+                    {hex}
+                    <span className="bk-editor-color-shade-copy" aria-hidden>
+                      <CopyIcon ref={setCopyIconRef(hex)} size={13} />
+                    </span>
+                  </span>
+                </button>
+              ))}
             </div>
             <button
               type="button"
-              className="bk-editor-close"
-              onClick={onClose}
-              aria-label="Close editor"
+              className="bk-editor-shades-download"
+              onClick={handleDownloadShades}
+              aria-label="Download shades as CSV"
             >
-              <CloseIcon />
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Download shades</span>
             </button>
-          </header>
-          <div className="bk-editor-rail-body">
-            {contentKind && content && (
-              <ContentPanel
-                kind={contentKind}
-                content={content}
-                onChange={setContent}
-                selectedPath={selectedPath}
-                onSelect={setSelectedPath}
-                onResetContent={() => {
-                  setSelectedPath(null);
-                  setContent(defaultContentFor(contentKind, brand, templateType));
-                }}
-              />
-            )}
-            {!contentKind && visibleFields.length > 0 && (
-              <RailGroup
-                title="Content"
-                hint="Type-specific text shown on this artifact."
-                action={
+          </RailGroup>
+        ) : livePreview ? null : (
+          // The cover is the card's THUMBNAIL in the grid, not
+          // anything on the artifact. Offering it beside a live
+          // artifact was the clearest sign the panel was generic:
+          // it changed something the user could not see from here.
+          <RailGroup title="Image" hint="Pick the cover for this card.">
+            <div className="bk-editor-covers">
+              {target.covers.map((src) => {
+                const isSelected = selectedCover === src;
+                return (
                   <button
+                    key={src}
                     type="button"
-                    className="bk-editor-group-reset"
-                    onClick={() => setOverrides(defaultOverridesForType(templateType, brand))}
-                    aria-label="Reset content"
-                    title="Reset"
-                  >
-                    <RotateCcw size={12} aria-hidden />
-                    <span>Reset</span>
-                  </button>
-                }
-              >
-                <div className="bk-editor-fields">
-                  {visibleFields.map((field) => {
-                    const Icon = field.icon;
-                    const value = (overrides[field.key] as string | undefined) ?? '';
-                    return (
-                      <label key={field.key} className="bk-editor-field">
-                        <span className="bk-editor-field-label">
-                          <Icon size={12} aria-hidden />
-                          {field.label}
-                        </span>
-                        <input
-                          type={field.type ?? 'text'}
-                          value={value}
-                          onChange={(e) =>
-                            setOverrides((prev) => ({ ...prev, [field.key]: e.target.value }))
-                          }
-                          placeholder={field.placeholder}
-                          className="bk-editor-field-input"
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-              </RailGroup>
-            )}
-
-            {isIconAsset ? (
-              <>
-                <RailGroup title="Weight" hint="Pick the stroke thickness for this icon.">
-                  <div className="bk-editor-icon-weights">
-                    {ICON_WEIGHTS.map((w) => {
-                      const previewName = iconPreviewClass
-                        ? withIconWeight(iconPreviewClass, w.id)
-                        : null;
-                      return (
-                        <button
-                          key={w.id}
-                          type="button"
-                          className={`bk-editor-icon-weight${selectedIconWeight === w.id ? ' is-selected' : ''}`}
-                          onClick={() => setSelectedIconWeight(w.id)}
-                          aria-pressed={selectedIconWeight === w.id}
-                          title={w.label}
-                        >
-                          {previewName && (
-                            <i className={`fi ${previewName}`} aria-hidden />
-                          )}
-                          <span className="bk-editor-icon-weight-label">{w.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </RailGroup>
-                <RailGroup title="Color" hint="Tap a brand color to recolor the icon.">
-                  <SwatchGroups
-                    colors={allColors}
-                    selected={selectedIconColor}
-                    onPick={setSelectedIconColor}
-                    keyPrefix="icon"
-                    labelPrefix="Icon color"
-                  />
-                </RailGroup>
-              </>
-            ) : isFontAsset && fontPreview ? (
-              <RailGroup title="Weight" hint="Hover a weight to highlight it on the preview.">
-                <div
-                  className="bk-editor-font-weight-list"
-                  onMouseLeave={() => setHoveredFontWeight(null)}
-                >
-                  {/* Render heaviest → lightest so the rail mirrors the
-                      type-scale on the left (big → small). Rows are
-                      non-interactive — they exist as a quick reference
-                      and to drive the hover-highlight on the preview. */}
-                  {[...fontWeightOptions].reverse().map((w) => (
-                    <div
-                      key={w}
-                      className="bk-editor-font-weight-row"
-                      onMouseEnter={() => setHoveredFontWeight(w)}
-                    >
-                      <span
-                        className="bk-editor-font-weight-sample"
-                        style={{ fontFamily: fontPreviewStack, fontWeight: w }}
-                      >
-                        Aa
-                      </span>
-                      <span className="bk-editor-font-weight-meta">
-                        <span className="bk-editor-font-weight-name">
-                          {FONT_WEIGHT_LABELS[w] ?? `Weight ${w}`}
-                        </span>
-                        <span className="bk-editor-font-weight-num">{w}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </RailGroup>
-            ) : isColorAsset && colorPreview ? (
-              <RailGroup title="Shades" hint="Tones from light to dark, generated from the base hex.">
-                <div className="bk-editor-color-shades">
-                  {colorShadesWithNames.map(({ hex, name }) => (
-                    <button
-                      key={hex}
-                      type="button"
-                      className="bk-editor-color-shade"
-                      style={{ background: hex, color: readableOn(hex) }}
-                      onClick={() => copyHexToClipboard(hex, hex)}
-                      aria-label={`Copy ${hex.toUpperCase()}`}
-                    >
-                      <span className="bk-editor-color-shade-name">{name}</span>
-                      <span className="bk-editor-color-shade-hex">
-                        {hex}
-                        <span className="bk-editor-color-shade-copy" aria-hidden>
-                          <CopyIcon ref={setCopyIconRef(hex)} size={13} />
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="bk-editor-shades-download"
-                  onClick={handleDownloadShades}
-                  aria-label="Download shades as CSV"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Download shades</span>
-                </button>
-              </RailGroup>
-            ) : livePreview ? null : (
-              // The cover is the card's THUMBNAIL in the grid, not
-              // anything on the artifact. Offering it beside a live
-              // artifact was the clearest sign the panel was generic:
-              // it changed something the user could not see from here.
-              <RailGroup title="Image" hint="Pick the cover for this card.">
-                <div className="bk-editor-covers">
-                  {target.covers.map((src) => {
-                    const isSelected = selectedCover === src;
-                    return (
-                      <button
-                        key={src}
-                        type="button"
-                        className={`bk-editor-cover${isSelected ? ' is-selected' : ''}`}
-                        onClick={() => setSelectedCover(src)}
-                        aria-pressed={isSelected}
-                        aria-label="Select image"
-                      >
-                        <span
-                          className="bk-editor-cover-thumb"
-                          style={{ backgroundImage: `url(${src})` }}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </RailGroup>
-            )}
-
-            {!isBrandAsset && hasGroup('colors') && (
-            <RailGroup title="Colors" hint="Tap a swatch to recolor primary or secondary.">
-              <div className="bk-editor-color-row">
-                <span className="bk-editor-color-row-label">Primary</span>
-                <SwatchGroups
-                  colors={allColors}
-                  selected={selectedColor}
-                  onPick={setSelectedColor}
-                  keyPrefix="p"
-                  labelPrefix="Primary"
-                />
-              </div>
-              <div className="bk-editor-color-row">
-                <span className="bk-editor-color-row-label">Secondary</span>
-                <SwatchGroups
-                  colors={allColors}
-                  selected={selectedSecondaryColor}
-                  onPick={setSelectedSecondaryColor}
-                  keyPrefix="s"
-                  labelPrefix="Secondary"
-                />
-              </div>
-            </RailGroup>
-            )}
-
-            {!isBrandAsset && hasGroup('logo') && (
-            <RailGroup
-              title="Logos"
-              hint="Choose a mark to drop on the artwork."
-              action={
-                <label className="bk-editor-toggle">
-                  <ImageIcon size={12} aria-hidden />
-                  <span className="bk-editor-toggle-label">Show Logo</span>
-                  {/* Bare control — the wrapping <label> names it. */}
-                  <DsSwitch
-                    checked={!!overrides.showLogo}
-                    onChange={(on) => setOverrides((prev) => ({ ...prev, showLogo: on }))}
-                  />
-                </label>
-              }
-            >
-              <div className="bk-editor-logos">
-                {brand.logos.map((logo) => (
-                  <button
-                    key={logo.id}
-                    type="button"
-                    className={`bk-editor-logo${selectedLogoId === logo.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedLogoId(logo.id)}
-                    aria-pressed={selectedLogoId === logo.id}
-                    aria-label={`${logo.label} logo`}
+                    className={`bk-editor-cover${isSelected ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedCover(src)}
+                    aria-pressed={isSelected}
+                    aria-label="Select image"
                   >
                     <span
-                      className="bk-editor-logo-thumb"
-                      dangerouslySetInnerHTML={{ __html: logo.svg }}
-                      aria-hidden
+                      className="bk-editor-cover-thumb"
+                      style={{ backgroundImage: `url(${src})` }}
                     />
-                    <span className="bk-editor-logo-label">{logo.label}</span>
                   </button>
-                ))}
-              </div>
-              <div className="bk-editor-color-row" style={{ marginTop: 12 }}>
-                <span className="bk-editor-color-row-label">Mark</span>
-                <SwatchGroups
-                  colors={allColors}
-                  selected={selectedLogoColor}
-                  onPick={setSelectedLogoColor}
-                  keyPrefix="logo"
-                  labelPrefix="Logo color"
-                />
-              </div>
-            </RailGroup>
-            )}
+                );
+              })}
+            </div>
+          </RailGroup>
+        )}
 
-            {!isBrandAsset && hasGroup('typography') && (
-            <RailGroup title="Typography" hint="Pick a face for the body copy.">
-              <div className="bk-editor-fonts">
-                {brand.fonts.map((font) => (
-                  <button
-                    key={font.id}
-                    type="button"
-                    className={`bk-editor-font${selectedFontId === font.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedFontId(font.id)}
-                    aria-pressed={selectedFontId === font.id}
-                  >
-                    <span className="bk-editor-font-role">{font.role}</span>
-                    <span
-                      className="bk-editor-font-family"
-                      style={{ fontFamily: `${font.family}, ${font.fallback ?? 'sans-serif'}` }}
-                    >
-                      {font.family}
-                    </span>
-                    <span className="bk-editor-font-weights">{font.weights}</span>
-                  </button>
-                ))}
-              </div>
-            </RailGroup>
-            )}
+        {!isBrandAsset && hasGroup('colors') && (
+        <RailGroup title="Colors" hint="Tap a swatch to recolor primary or secondary.">
+          <div className="bk-editor-color-row">
+            <span className="bk-editor-color-row-label">Primary</span>
+            <SwatchGroups
+              colors={allColors}
+              selected={selectedColor}
+              onPick={setSelectedColor}
+              keyPrefix="p"
+              labelPrefix="Primary"
+            />
           </div>
-          <footer className="bk-editor-rail-footer">
-            {!isBrandAsset && (
-              <DsButton
-                tone="tertiary"
-                className="bk-editor-btn--reset"
-                onClick={() => {
-                  // Reset EVERYTHING to the brand's defaults — content,
-                  // colors, logo, font, cover. Saving afterwards stores
-                  // the clean slate.
-                  setSelectedCover(target.cover);
-                  setSelectedColor(brand.colors.core[0]?.hex ?? null);
-                  setSelectedSecondaryColor(
-                    brand.colors.core[1]?.hex ?? brand.colors.accent[0]?.hex ?? null,
-                  );
-                  setSelectedLogoId(brand.logos[0]?.id ?? null);
-                  setSelectedLogoColor(brand.colors.core[0]?.hex ?? '#0F1216');
-                  setSelectedFontId(brand.fonts[0]?.id ?? null);
-                  setOverrides(defaultOverridesForType(templateType, brand));
-                  setSelectedPath(null);
-                  if (contentKind) setContent(defaultContentFor(contentKind, brand, templateType));
-                }}
-                title="Reset to brand defaults"
+          <div className="bk-editor-color-row">
+            <span className="bk-editor-color-row-label">Secondary</span>
+            <SwatchGroups
+              colors={allColors}
+              selected={selectedSecondaryColor}
+              onPick={setSelectedSecondaryColor}
+              keyPrefix="s"
+              labelPrefix="Secondary"
+            />
+          </div>
+        </RailGroup>
+        )}
+
+        {!isBrandAsset && hasGroup('logo') && (
+        <RailGroup
+          title="Logos"
+          hint="Choose a mark to drop on the artwork."
+          action={
+            <label className="bk-editor-toggle">
+              <ImageIcon size={12} aria-hidden />
+              <span className="bk-editor-toggle-label">Show Logo</span>
+              {/* Bare control — the wrapping <label> names it. */}
+              <DsSwitch
+                checked={!!overrides.showLogo}
+                onChange={(on) => setOverrides((prev) => ({ ...prev, showLogo: on }))}
+              />
+            </label>
+          }
+        >
+          <div className="bk-editor-logos">
+            {brand.logos.map((logo) => (
+              <button
+                key={logo.id}
+                type="button"
+                className={`bk-editor-logo${selectedLogoId === logo.id ? ' is-selected' : ''}`}
+                onClick={() => setSelectedLogoId(logo.id)}
+                aria-pressed={selectedLogoId === logo.id}
+                aria-label={`${logo.label} logo`}
               >
-                <RotateCcw size={13} aria-hidden />
-                <span>Reset</span>
-              </DsButton>
-            )}
-            {!isBrandAsset &&
-              target.template &&
-              (onUseTemplate || onEditTemplate) &&
-              rendererBindsContent(target.template) && (
-                <>
-                  {onEditTemplate && (
-                    <DsButton
-                      tone="tertiary"
-                      size="sm"
-                      onClick={() => onEditTemplate(target.template!)}
-                      title="Open this variant's master template in Design"
-                    >
-                      Edit Template
-                    </DsButton>
-                  )}
-                  {onUseTemplate && (
-                    <DsButton
-                      tone="tertiary"
-                      size="sm"
-                      onClick={() => onUseTemplate(target.template!)}
-                      title="Start a Design from this template"
-                    >
-                      Use Template
-                    </DsButton>
-                  )}
-                </>
-              )}
-            <DsButton tone="secondary" size="sm" onClick={onClose}>
-              Cancel
-            </DsButton>
-            <DsButton
-              tone="secondary"
-              size="sm"
-              onClick={() => {
-                // Color assets get a dedicated bundle (base + shades
-                // in svg/png/jpg/ai). Font assets emit a real
-                // TTF/OTF bundle from the user's uploaded files (or
-                // a Google Fonts fallback). Other asset types still
-                // toast for now.
-                if (isColorAsset && colorPreview) {
-                  handleDownloadColorBundle();
-                  return;
-                }
-                if (isFontAsset && fontPreview) {
-                  handleDownloadFontBundle();
-                  return;
-                }
-                onDownload(target);
-              }}
-            >
-              Download
-            </DsButton>
-            <DsButton
-              tone="primary"
-              size="sm"
-              onClick={() => {
-                // Persist the chosen weight when an icon was edited
-                // — `iconPreviewClass` already has the new prefix
-                // applied via withIconWeight.
-                if (
-                  isIconAsset &&
-                  iconIndex !== null &&
-                  iconPreviewClass &&
-                  onUpdateIconAt
-                ) {
-                  onUpdateIconAt(iconIndex, iconPreviewClass);
-                }
-                onSave(target, {
-                  overrides,
-                  cover: selectedCover,
-                  color: selectedColor,
-                  secondaryColor: selectedSecondaryColor,
-                  logoId: selectedLogoId,
-                  logoColor: selectedLogoColor,
-                  fontId: selectedFontId,
-                  // Saved as real nested data — an invoice's line items go
-                  // in as an array of objects and come back as one. It is
-                  // deliberately NOT flattened into `overrides`, which
-                  // cannot express it.
-                  ...(content ? { content } : {}),
-                  savedAt: new Date().toISOString(),
-                });
-              }}
-            >
-              Save
-            </DsButton>
-          </footer>
-        </aside>
+                <span
+                  className="bk-editor-logo-thumb"
+                  dangerouslySetInnerHTML={{ __html: logo.svg }}
+                  aria-hidden
+                />
+                <span className="bk-editor-logo-label">{logo.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="bk-editor-color-row" style={{ marginTop: 12 }}>
+            <span className="bk-editor-color-row-label">Mark</span>
+            <SwatchGroups
+              colors={allColors}
+              selected={selectedLogoColor}
+              onPick={setSelectedLogoColor}
+              keyPrefix="logo"
+              labelPrefix="Logo color"
+            />
+          </div>
+        </RailGroup>
+        )}
+
+        {!isBrandAsset && hasGroup('typography') && (
+        <RailGroup title="Typography" hint="Pick a face for the body copy.">
+          <div className="bk-editor-fonts">
+            {brand.fonts.map((font) => (
+              <button
+                key={font.id}
+                type="button"
+                className={`bk-editor-font${selectedFontId === font.id ? ' is-selected' : ''}`}
+                onClick={() => setSelectedFontId(font.id)}
+                aria-pressed={selectedFontId === font.id}
+              >
+                <span className="bk-editor-font-role">{font.role}</span>
+                <span
+                  className="bk-editor-font-family"
+                  style={{ fontFamily: `${font.family}, ${font.fallback ?? 'sans-serif'}` }}
+                >
+                  {font.family}
+                </span>
+                <span className="bk-editor-font-weights">{font.weights}</span>
+              </button>
+            ))}
+          </div>
+        </RailGroup>
+        )}
       </div>
-    </div>,
-    document.body,
+    </KitDockPanel>
   );
 }
 
@@ -1793,25 +1856,6 @@ function RailGroup({
       </header>
       {children}
     </section>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
   );
 }
 

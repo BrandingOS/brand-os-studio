@@ -69,8 +69,8 @@ function gridHost() {
 }
 
 describe('contrast sweep — invoices', () => {
-  it('has twenty designs and three featured ones to measure', () => {
-    expect(all).toHaveLength(20);
+  it('has twenty-two designs and three featured ones to measure', () => {
+    expect(all).toHaveLength(22);
     expect(featured).toHaveLength(3);
   });
 

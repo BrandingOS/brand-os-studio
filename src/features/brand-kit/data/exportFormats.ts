@@ -79,6 +79,56 @@ export type CustomSize = {
 const VECTOR_NATIVE = new Set(['Logos', 'Colors', 'Icons']);
 
 /**
+ * What one step of an export produces — the SHAPE of a family's output.
+ *
+ * It lives here, beside the menu, because the menu and the walker have to
+ * agree about it: a row is only worth offering if the unit behind it
+ * actually writes that kind of file. Before this they were two switches in
+ * two files and they disagreed — the Typography card offered *For web
+ * (PNG)*, *For print (PDF)*, *Flattened (JPG)* and *Custom size…*, and the
+ * fonts unit writes `.ttf`, `.css` and `.md`. All four rows handed over the
+ * same font folder under four different promises.
+ *
+ * `exportEverything.planKitExport` reads this, so there is one answer.
+ */
+export type KitExportUnitKind =
+  | 'logos'
+  | 'colors'
+  | 'fonts'
+  | 'icons'
+  | 'photos'
+  | 'about'
+  | 'card'
+  | 'document'
+  | 'board';
+
+const ASSET_KINDS: Readonly<Record<string, KitExportUnitKind>> = {
+  Logos: 'logos',
+  Colors: 'colors',
+  Fonts: 'fonts',
+  Icons: 'icons',
+  Photos: 'photos',
+  About: 'about',
+};
+
+/** The kind of unit a catalog entry exports as. */
+export function unitKindFor(entry: KitEntry): KitExportUnitKind {
+  if (entry.sectionKey === 'brand-assets') {
+    const kind = ASSET_KINDS[entry.storageLabel];
+    if (kind) return kind;
+  }
+  if (entry.view === 'brand-board') return 'board';
+  if (entry.view === 'social-system' || entry.view === 'presentation-system') return 'document';
+  if (entry.view === 'strategy') return 'about';
+  return 'card';
+}
+
+/** A unit whose output is a picture that can be converted, resized or printed. */
+export function isRasterKind(kind: KitExportUnitKind): boolean {
+  return kind === 'card' || kind === 'document' || kind === 'board';
+}
+
+/**
  * The platform sizes a social slot is actually served at.
  *
  * Ids into `exporters/socialSizes.ts` `SOCIAL_SIZES`, which is where the
@@ -147,6 +197,35 @@ export function nativeFormatFor(entry: KitEntry): KitNativeFormat | null {
 }
 
 /**
+ * The rows a family whose deliverable is a DOCUMENT of words can honour.
+ *
+ * Same shape as every other Download menu — two rows, a divider, three
+ * more — because a menu that changes shape per card is a menu nobody
+ * learns. What changes is what the rows can honestly offer: there is no
+ * vector of a page of words and nothing to resize, so the third and fifth
+ * rows are the two things a document really has instead — the record as
+ * data, and everything at once.
+ */
+export const DOCUMENT_DOWNLOAD_OPTIONS: ReadonlyArray<DownloadOption> = [
+  { format: 'md', label: 'For web', chip: 'MD' },
+  { format: 'pdf', label: 'For print', chip: 'PDF' },
+  { format: 'json', label: 'As data', chip: 'JSON', secondary: true },
+  { format: 'png', label: 'Flattened', chip: 'PNG', secondary: true },
+  { format: 'zip', label: 'Everything', chip: 'ZIP', secondary: true },
+];
+
+/** Why the raster rows are dead on the Typography card. */
+const NO_TYPE_RASTER =
+  'Typography is delivered as font files — there is no artwork here to rasterize';
+
+/** Why the vector row is dead on the Photos card. */
+const NO_PHOTO_VECTOR = 'A photograph is pixels — there is no vector of it to export';
+
+/** Why the vector row is dead on a deliverable the browser draws. */
+const NO_DESIGN_VECTOR =
+  'This design is drawn in the browser — it has no vector to export';
+
+/**
  * The menu, which is the SAME FIVE ROWS everywhere.
  *
  * *For web* and *For print* up front; then one row that is the family's own
@@ -155,35 +234,21 @@ export function nativeFormatFor(entry: KitEntry): KitNativeFormat | null {
  * artwork still shows the third row, disabled with the reason — a menu that
  * changes shape per card is a menu nobody learns.
  *
+ * A ROW THAT CANNOT BE HONOURED IS NEVER OFFERED AS IF IT COULD BE. This is
+ * the whole reason the menu asks `unitKindFor` rather than drawing five
+ * fixed rows: the Typography card used to offer PNG, PDF, JPG and a custom
+ * size over a folder of `.ttf` files, and every one of those four rows
+ * handed over the same font folder — four promises, one payload, none of
+ * them kept. Now the three families whose output is not a picture say so:
+ * Typography offers its font files, the Strategy document offers the rows a
+ * document has, and Photos admits it has no vector.
+ *
  * `unavailable` disables the WHOLE menu with one reason, for a card that
  * has no material to export at all. Same principle, one level up: the rows
  * stay, and each says why it cannot run.
  */
 export function downloadOptionsFor(entry: KitEntry, unavailable?: string): DownloadOption[] {
-  const native = nativeFormatFor(entry);
-  const third: DownloadOption = native
-    ? {
-        format: native,
-        label: NATIVE_FORMATS[native].label,
-        chip: NATIVE_FORMATS[native].chip,
-        secondary: true,
-      }
-    : {
-        format: 'svg',
-        label: 'Vector',
-        chip: 'SVG',
-        secondary: true,
-        ...(VECTOR_NATIVE.has(entry.storageLabel)
-          ? {}
-          : { disabledReason: 'This design is drawn in the browser — it has no vector to export' }),
-      };
-  const options: DownloadOption[] = [
-    { format: 'png', label: 'For web', chip: 'PNG' },
-    { format: 'pdf', label: 'For print', chip: 'PDF' },
-    third,
-    { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true },
-    { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true },
-  ];
+  const options = rowsFor(entry);
   /*
    * A CARD WITH NOTHING TO EXPORT SAYS SO IN THE MENU.
    *
@@ -199,6 +264,48 @@ export function downloadOptionsFor(entry: KitEntry, unavailable?: string): Downl
    */
   if (unavailable) return options.map((option) => ({ ...option, disabledReason: unavailable }));
   return options;
+}
+
+function rowsFor(entry: KitEntry): DownloadOption[] {
+  const kind = unitKindFor(entry);
+  // Words, not artwork. `md` · `pdf` · `json` · a picture of the page · everything.
+  if (kind === 'about') return DOCUMENT_DOWNLOAD_OPTIONS.map((o) => ({ ...o }));
+  // Files, not artwork. The one working row is deliberately NOT `secondary`:
+  // burying the only honourable answer behind the fold, under two greyed
+  // rows, is a card that reads as broken.
+  if (kind === 'fonts') {
+    return [
+      { format: 'png', label: 'For web', chip: 'PNG', disabledReason: NO_TYPE_RASTER },
+      { format: 'pdf', label: 'For print', chip: 'PDF', disabledReason: NO_TYPE_RASTER },
+      { format: 'zip', label: 'Font files', chip: 'TTF' },
+      { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true, disabledReason: NO_TYPE_RASTER },
+      { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true, disabledReason: NO_TYPE_RASTER },
+    ];
+  }
+  const native = nativeFormatFor(entry);
+  const third: DownloadOption = native
+    ? {
+        format: native,
+        label: NATIVE_FORMATS[native].label,
+        chip: NATIVE_FORMATS[native].chip,
+        secondary: true,
+      }
+    : {
+        format: 'svg',
+        label: 'Vector',
+        chip: 'SVG',
+        secondary: true,
+        ...(VECTOR_NATIVE.has(entry.storageLabel)
+          ? {}
+          : { disabledReason: kind === 'photos' ? NO_PHOTO_VECTOR : NO_DESIGN_VECTOR }),
+      };
+  return [
+    { format: 'png', label: 'For web', chip: 'PNG' },
+    { format: 'pdf', label: 'For print', chip: 'PDF' },
+    third,
+    { format: 'jpg', label: 'Flattened', chip: 'JPG', secondary: true },
+    { format: 'custom', label: 'Custom size…', chip: 'PNG', secondary: true },
+  ];
 }
 
 /**
@@ -243,6 +350,29 @@ export async function composePngStrip(
   } finally {
     for (const bitmap of bitmaps) bitmap.close();
   }
+}
+
+/**
+ * Re-encode any raster a browser can decode as a PNG.
+ *
+ * The Photos folder holds whatever the brand actually uploaded — a JPEG,
+ * a WebP — and "For web (PNG)" has to mean PNG there too. Everything else
+ * in this file already assumes its input decodes; this is the same
+ * assumption with no resizing attached.
+ */
+export async function rasterToPng(image: Blob): Promise<Blob> {
+  if (image.type === 'image/png') return image;
+  const bitmap = await createImageBitmap(image);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No 2D context');
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png'),
+  );
 }
 
 /** Turn a rendered PNG into a flattened JPG on a solid ground. */

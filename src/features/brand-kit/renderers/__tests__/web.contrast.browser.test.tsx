@@ -67,8 +67,12 @@ describe.each(LABELS)('contrast sweep — %s', (label) => {
   const all = variantsForCard('web', label, mockBrand);
   const featured = featuredTemplates(label, all);
 
-  it('has twelve designs and three featured ones to measure', () => {
-    expect(all).toHaveLength(12);
+  it('has designs to measure, three of them featured', () => {
+    // The count itself is `web.bind.test.tsx`'s assertion — it reads each
+    // family's own name map. Hard-coding it here as well would mean a
+    // family restoring a design had to come and edit a CONTRAST suite to
+    // say so, which is how a count and its designs drift apart.
+    expect(all.length).toBeGreaterThan(0);
     expect(featured).toHaveLength(3);
   });
 
@@ -108,8 +112,8 @@ describe.each(LABELS)('contrast sweep — %s', (label) => {
   }
 
   it('reads for every kept design, not only the featured three', () => {
-    // The picker offers all twelve; a design nobody featured is still a
-    // design a customer can choose.
+    // The picker offers every one of them; a design nobody featured is
+    // still a design a customer can choose.
     for (const brand of SEED_BRANDS.slice(0, 2)) {
       for (const t of all) {
         const { container } = mount(

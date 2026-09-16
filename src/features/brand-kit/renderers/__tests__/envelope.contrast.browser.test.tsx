@@ -5,7 +5,7 @@
  * customer: a sorting machine and then a postman, both of whom get one
  * pass at it. There is no design here worth an address nobody can make
  * out, so the budget is ZERO — for the featured three and for all
- * sixteen, on both seed brands.
+ * thirty, on both seed brands.
  *
  * jsdom cannot answer this: no cascade, so every renderer measures as
  * black on white and passes vacuously. The failures are PAIRINGS — a
@@ -13,14 +13,16 @@
  * reversed type on a half-tone ground — and only a browser with the real
  * stylesheets loaded can see them.
  *
- * Nothing needed fixing when this landed, and that is itself the result:
- * the fourteen wave-1 designs that could NOT be made to read were culled
- * rather than loosened. `curation/envelope.ts` names them — Vintage
- * Airmail's border-image stripes and Brand Tape's rotated strip both ran
- * type over a repeating gradient, which this sweep would have SKIPPED
- * rather than judged. That is the trap the `skippedNoSolidBackground`
- * assertion below exists to close: a family can "pass" by painting every
- * word on a gradient, and passing that way is worse than failing.
+ * The fourteen wave-1 designs that could not be made to read were first
+ * culled rather than loosened; they are back (2026-09-09), re-authored to
+ * this same budget rather than let in under a raised one. Two of them
+ * were the reason the `skippedNoSolidBackground` assertion below exists:
+ * Vintage Airmail's border-image stripes and Brand Tape's rotated strip
+ * both ran type over a repeating gradient, which this sweep SKIPS rather
+ * than judges — a family can "pass" by painting every word on a gradient,
+ * and passing that way is worse than failing. Their restorations put the
+ * stripes in a ring and the tape square to the sheet, so every word on
+ * both is set on a flat colour and is measured here like any other.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
@@ -49,8 +51,8 @@ function mountAt260(node: React.ReactNode) {
 }
 
 describe('contrast sweep — envelopes', () => {
-  it('has sixteen designs and three featured ones to measure', () => {
-    expect(all).toHaveLength(16);
+  it('has thirty designs and three featured ones to measure', () => {
+    expect(all).toHaveLength(30);
     expect(featured).toHaveLength(3);
   });
 
@@ -100,7 +102,7 @@ describe('contrast sweep — envelopes', () => {
   });
 
   for (const brand of SEED_BRANDS.slice(0, 2)) {
-    it(`reads for every kept design, not only the featured three — ${brand.name}`, () => {
+    it(`reads for every offered design, not only the featured three — ${brand.name}`, () => {
       const host = document.createElement('div');
       document.body.appendChild(host);
       render(

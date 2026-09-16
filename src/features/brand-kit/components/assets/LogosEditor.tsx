@@ -41,7 +41,8 @@
  *    "Save?".
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DsButton, DsCheckbox, DsConfirmDialog, DsInput, DsModal, DsSelect } from '@/shared/ds';
+import { DsButton, DsCheckbox, DsConfirmDialog, DsInput, DsSelect } from '@/shared/ds';
+import { KitDockPanel } from '../KitDockPanel';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
 import type { BrandLogo, MockBrand } from '@/features/setup/data/mockBrand';
@@ -392,7 +393,7 @@ export function LogosEditor({
 
   return (
     <>
-      <DsModal
+      <KitDockPanel
         open={open}
         onClose={onClose}
         eyebrow="Brand assets"
@@ -572,7 +573,7 @@ export function LogosEditor({
             </p>
           ) : null}
         </div>
-      </DsModal>
+      </KitDockPanel>
 
       <DsConfirmDialog
         open={confirming}

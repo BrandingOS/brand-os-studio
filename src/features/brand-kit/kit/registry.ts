@@ -321,19 +321,25 @@ export const DELIVERABLES: DeliverableDef[] = [
     {
       label: 'Business Card',
       templateType: 'business-cards',
-      featuredIds: ['business-cards-ext-3', 'business-cards-ext-4', 'business-cards-ext-113'],
+      // These three are the same three `data/cardPresentation.ts` shows on
+      // the card. They used to name archived ids — `business-cards-ext-113`
+      // ("Wave 2 · 95", which printed "VP" over the bound job title),
+      // `letterhead-ext-69`/`-73` and `envelope-ext-127`, all generator
+      // output — so the generator seeded a kit from designs the kit no
+      // longer offers.
+      featuredIds: ['business-cards-ext-2', 'business-cards-ext-3', 'business-cards-ext-4'],
       contentTypeId: 'business-card-kit',
     },
     {
       label: 'Letterhead',
       templateType: 'letterhead',
-      featuredIds: ['letterhead-ext-6', 'letterhead-ext-69', 'letterhead-ext-73'],
+      featuredIds: ['letterhead-ext-1', 'letterhead-ext-6', 'letterhead-ext-19'],
       contentTypeId: 'letterhead-kit',
     },
     {
       label: 'Envelope',
       templateType: 'envelope',
-      featuredIds: ['envelope-ext-30', 'envelope-ext-3', 'envelope-ext-127'],
+      featuredIds: ['envelope-ext-30', 'envelope-ext-3', 'envelope-ext-12'],
       contentTypeId: 'envelope-kit',
     },
     {

@@ -1,5 +1,5 @@
 /**
- * Envelope — sixteen designs, and every one of them can be posted.
+ * Envelope — thirty designs, and every one of them can be posted.
  *
  * An envelope carries exactly two things: who it is from and who it is
  * going to. That is a lower bar than any other family here and it is
@@ -7,6 +7,13 @@
  * of them addressed to a "Jane Smith" who does not exist, a hundred named
  * by the loop that emitted them, and none of them able to tell the panel
  * that an address had lines in it.
+ *
+ * Sixteen of the thirty wave-1 fronts survived the first curation pass;
+ * the other fourteen were re-authored at their own indices on 2026-09-09,
+ * because archiving them had also deleted their drawings and all fourteen
+ * were quietly rendering `envelope-ext-1`. So the sweeps below now run
+ * over the whole of wave 1. Wave 2 (`ext-31 … ext-130`) stays archived
+ * for that same measured reason, unrepaired: it draws design 0 too.
  *
  * ## Why the required paths are what they are
  *
@@ -45,11 +52,16 @@ afterEach(cleanup);
 const SECTION = 'stationery';
 const LABEL = 'Envelope';
 
+/** All of wave 1, in id order — the card offers no other envelope. */
 const KEPT_IDS = [
   'envelope-ext-1', 'envelope-ext-2', 'envelope-ext-3', 'envelope-ext-4',
-  'envelope-ext-6', 'envelope-ext-7', 'envelope-ext-9', 'envelope-ext-12',
-  'envelope-ext-14', 'envelope-ext-16', 'envelope-ext-20', 'envelope-ext-21',
-  'envelope-ext-25', 'envelope-ext-26', 'envelope-ext-27', 'envelope-ext-30',
+  'envelope-ext-5', 'envelope-ext-6', 'envelope-ext-7', 'envelope-ext-8',
+  'envelope-ext-9', 'envelope-ext-10', 'envelope-ext-11', 'envelope-ext-12',
+  'envelope-ext-13', 'envelope-ext-14', 'envelope-ext-15', 'envelope-ext-16',
+  'envelope-ext-17', 'envelope-ext-18', 'envelope-ext-19', 'envelope-ext-20',
+  'envelope-ext-21', 'envelope-ext-22', 'envelope-ext-23', 'envelope-ext-24',
+  'envelope-ext-25', 'envelope-ext-26', 'envelope-ext-27', 'envelope-ext-28',
+  'envelope-ext-29', 'envelope-ext-30',
 ];
 
 /** The panel's own five, with the two lists addressed at their first row. */
@@ -62,12 +74,12 @@ const ADDRESS_PATHS = [
 ];
 
 describe('envelope — curation', () => {
-  it('shows sixteen designs, not a hundred and thirty', () => {
+  it('shows the thirty wave-1 designs, not a hundred and thirty', () => {
     const shown = variantsForCard(SECTION, LABEL, mockBrand);
     expect(shown.map((t) => t.id)).toEqual(KEPT_IDS);
   });
 
-  it('reserves every culled id rather than renumbering', () => {
+  it('reserves every archived id rather than renumbering', () => {
     const allIds = [
       ...ENVELOPE_EXTENDED.map((t) => `envelope-${t.idSuffix}`),
       ...ENVELOPE_EXTENDED_2.map((t) => `envelope-${t.idSuffix}`),
@@ -94,7 +106,7 @@ describe('envelope — curation', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('features three of the sixteen, none of them a generator’s output', () => {
+  it('features three of the thirty, none of them a generator’s output', () => {
     const featured = DEFAULT_FEATURED_IDS_BY_LABEL[LABEL] ?? [];
     expect(featured).toHaveLength(3);
     for (const id of featured) {
@@ -121,8 +133,8 @@ describe('envelope — binding', () => {
 
   it('leaves no design unbound', () => {
     const results = renderAllVariants(SECTION, LABEL);
-    expect(results).toHaveLength(16);
-    expect(boundVariantCount(results)).toBe(16);
+    expect(results).toHaveLength(30);
+    expect(boundVariantCount(results)).toBe(30);
   });
 
   it('declares every address LINE the content carries, not only the first', () => {

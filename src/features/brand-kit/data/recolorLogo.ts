@@ -196,10 +196,11 @@ export function visuallyClose(a: string, b: string): boolean {
  *      at ~2.6:1 were shipped as valid pairings.)
  *   2. **Treatments** — the mono cut (black or white) for every ground the
  *      owned variants cannot cover. Same drawing, one flat colour.
- *   3. **Rules** — clear space, minimum size, and three misuses. These are
- *      the half of a logo system that a wall of colour swatches has never
- *      been able to express, and the audit's flat "no clear-space, min-size
- *      or misuse guidance".
+ *
+ * Usage RULES — clear space, minimum size, misuse — are deliberately NOT
+ * here. The Brand Kit holds the brand's assets; how to use them belongs to
+ * the Guideline (`features/guidelines/pages/LogoMisusePage.tsx`), and a rule
+ * drawn as a tile beside the real variants reads as one more variant.
  *
  * ### Why `logoIndex` is always 0
  *
@@ -207,7 +208,7 @@ export function visuallyClose(a: string, b: string): boolean {
  * `${mark.name} on ${bg.name}`, and prefixes it with the logo's label only
  * when the combos span more than one `logoIndex`. Every tile here already
  * names its own subject in `mark.name` — "Primary on Sand", "Black on
- * Ink", "Clear space on every side" — so a prefix would read "Primary ·
+ * Ink" — so a prefix would read "Primary ·
  * Primary on Sand". Sharing one `logoIndex` keeps the caption the tile
  * wrote. The artwork the tile actually draws is `sourceIndex`.
  */
@@ -223,15 +224,7 @@ export function visuallyClose(a: string, b: string): boolean {
  */
 export const MIN_PAIRING_CONTRAST = 3;
 
-export type LogoTileKind =
-  | 'pairing'
-  | 'treatment'
-  | 'clear-space'
-  | 'min-size'
-  | 'misuse';
-
-/** Which rule a misuse tile is showing broken. */
-export type LogoMisuse = 'stretch' | 'contrast' | 'recolor';
+export type LogoTileKind = 'pairing' | 'treatment';
 
 export type LogoTile = {
   /** Always 0 — see the section note above. */
@@ -247,15 +240,12 @@ export type LogoTile = {
   sourceIndex: number;
   /**
    * A flat colour to redraw the silhouette in, or null to draw the
-   * artwork exactly as uploaded. Only treatments and the recolour misuse
+   * artwork exactly as uploaded. Only treatments
    * set this — a pairing that had to be recoloured would not be a pairing.
    */
   recolor: string | null;
   /** Measured ink-vs-ground ratio. 0 where the tile is not a pairing. */
   contrast: number;
-  misuse?: LogoMisuse;
-  /** The rule, in the tile's own words. */
-  note?: string;
 };
 
 /**
@@ -583,143 +573,7 @@ export function logoCombosFor(brand: ComboBrand): LogoTile[] {
     });
   }
 
-  /* 3 — The rules. Drawn on the ground the primary silhouette reads on,
-     so the diagram itself is never the thing that fails. */
-  const ink = inks[silhouette];
-  const stage =
-    grounds.find((g) => contrastRatio(ink, g.hex) >= 4.5) ??
-    (contrastRatio(ink, '#FFFFFF') >= contrastRatio(ink, '#111113')
-      ? UNIVERSAL_GROUNDS[0]
-      : UNIVERSAL_GROUNDS[1]);
-
-  push({
-    logoLabel: primary.label,
-    mark: { hex: ink, name: 'Clear space' },
-    bg: { hex: stage.hex, name: 'every side' },
-    kind: 'clear-space',
-    sourceIndex: silhouette,
-    recolor: null,
-    contrast: contrastRatio(ink, stage.hex),
-    note: 'R = ⅓ of the smaller dimension',
-  });
-  push({
-    logoLabel: primary.label,
-    mark: { hex: ink, name: 'Minimum size' },
-    bg: { hex: stage.hex, name: 'screen and print' },
-    kind: 'min-size',
-    sourceIndex: silhouette,
-    recolor: null,
-    contrast: contrastRatio(ink, stage.hex),
-    note: '24 px · 48 px · 96 px — never smaller than 24 px',
-  });
-  push({
-    logoLabel: primary.label,
-    mark: { hex: ink, name: 'Never stretch' },
-    bg: { hex: stage.hex, name: 'any layout' },
-    kind: 'misuse',
-    misuse: 'stretch',
-    sourceIndex: silhouette,
-    recolor: null,
-    contrast: contrastRatio(ink, stage.hex),
-    note: 'Scale both axes together',
-  });
-  push({
-    logoLabel: primary.label,
-    mark: { hex: ink, name: 'Never place' },
-    bg: { hex: tooCloseTo(ink, stage.hex), name: 'a low-contrast ground' },
-    kind: 'misuse',
-    misuse: 'contrast',
-    sourceIndex: silhouette,
-    recolor: null,
-    contrast: contrastRatio(ink, tooCloseTo(ink, stage.hex)),
-    note: `Keep at least ${MIN_PAIRING_CONTRAST}:1`,
-  });
-  /* The recolour misuse has to be SEEN to say anything. Taking
-     `accent[0]` blindly drew SKAM's near-black accent on SKAM's black stage:
-     a tile that says "never recolour" and shows nothing at all, which is the
-     one thing worse than not shipping the rule. So the wrong colour is chosen
-     to be wrong AND visible — a brand colour that is not the ink and reads on
-     the stage; failing that, the ink itself pulled toward the stage's
-     foreground, which is unmistakably not an approved variant. */
-  const approved = [...inks, '#000000', '#FFFFFF'];
-  const wrongCandidates = [...brand.colors.accent, ...brand.colors.core]
-    // Not the ink of ANY variant, and neither mono cut. Filtering on the
-    // primary's ink alone let SKAM illustrate "never recolour" with a white
-    // mark on black — which is the mono treatment two tiles up, i.e. the tile
-    // told the reader that an approved variant was a mistake.
-    .filter((c) => c?.hex && !approved.some((a) => visuallyClose(a, c.hex)))
-    .map((c) => ({
-      hex: c.hex,
-      ratio: contrastRatio(c.hex, stage.hex),
-      chroma: chromaOf(c.hex),
-    }))
-    // 1.8:1 is a VISIBILITY floor, not a legibility one — a misuse tile is
-    // deliberately not a pairing, so it is not held to MIN_PAIRING_CONTRAST.
-    .filter((c) => c.ratio >= 1.8)
-    // Ranking by contrast alone reaches for the darkest or lightest colour
-    // the brand owns, which is exactly what a mono cut looks like: Raqm's
-    // "never recolour" tile drew a charcoal wordmark on white and read as an
-    // approved variant. A wrong colour has to look wrong, so the most
-    // CHROMATIC candidate wins and contrast is only the tie-break.
-    .sort((a, b) => b.chroma - a.chroma || b.ratio - a.ratio);
-  const wrong =
-    wrongCandidates[0]
-      ? wrongCandidates[0].hex
-      : nudgeToward(
-          ink,
-          contrastRatio('#FFFFFF', stage.hex) >= contrastRatio('#111113', stage.hex)
-            ? '#FFFFFF'
-            : '#111113',
-          0.45,
-        );
-  push({
-    logoLabel: primary.label,
-    mark: { hex: wrong, name: 'Never recolour' },
-    bg: { hex: stage.hex, name: 'any surface' },
-    kind: 'misuse',
-    misuse: 'recolor',
-    sourceIndex: silhouette,
-    recolor: wrong,
-    contrast: contrastRatio(wrong, stage.hex),
-    note: 'Use the approved variants only',
-  });
-
   return tiles;
-}
-
-/** How far a colour is from grey, in [0, 255]. A hue the brand chose scores
- *  high; a neutral, a near-black and a near-white all score near zero. */
-export function chromaOf(hex: string): number {
-  const [r, g, b] = hexToRgb(hex);
-  return Math.max(r, g, b) - Math.min(r, g, b);
-}
-
-
-/**
- * A ground the ink genuinely FAILS on.
- *
- * The misuse tile blended 72% toward the stage and called it low
- * contrast — on Raqm's violet over cream that lands at 3.7:1, above the
- * floor, so the tile illustrating "never place the logo on a
- * low-contrast ground" was itself a legal pairing. It walks toward the
- * ink until the ratio is really below the floor.
- */
-export function tooCloseTo(ink: string, ground: string): string {
-  for (let t = 0.72; t <= 0.96; t += 0.04) {
-    const candidate = nudgeToward(ground, ink, t);
-    if (contrastRatio(ink, candidate) < MIN_PAIRING_CONTRAST) return candidate;
-  }
-  return nudgeToward(ground, ink, 0.96);
-}
-
-/** Blend `a` toward `b` by `t` (0 = a, 1 = b). Used to build the ground a
- *  deliberately-illegible misuse tile needs. */
-export function nudgeToward(a: string, b: string, t: number): string {
-  const [ar, ag, ab] = hexToRgb(a);
-  const [br, bg, bb] = hexToRgb(b);
-  const mix = (x: number, y: number) => Math.round(x + (y - x) * Math.max(0, Math.min(1, t)));
-  const hex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${hex(mix(ar, br))}${hex(mix(ag, bg))}${hex(mix(ab, bb))}`;
 }
 
 /* ─── Recolouring a raster silhouette ─────────────────────────────── */

@@ -14,18 +14,13 @@ import {
 } from '../data/recolorLogo';
 import {
   bestTextOn,
-  contrast,
-  contrastReport,
   formatCmyk,
   formatHsl,
   formatRgb,
   isNearWhite,
   normalizeHex,
   paletteFromMockBrand,
-  usageProportions,
-  wcagLevel,
   type PaletteColor,
-  type WcagLevel,
 } from '../data/colorPaletteExport';
 import { fgOn, fontStack, surface } from './brandStyle';
 // Typography only — its own statement, so the specimen work never has to
@@ -95,8 +90,10 @@ const ORIGINAL_BG_DARK = '#18181B';
  * shared with `data/logoExport.ts`, so a tile and the file it downloads
  * are the same decision:
  *
- *   originals → contrast-checked pairings → mono treatments →
- *   clear space · minimum size · three misuses
+ *   originals → contrast-checked pairings → mono treatments
+ *
+ * No usage rules (clear space, minimum size, misuse): those belong to the
+ * Guideline, not to the kit's asset wall.
  *
  * ### Why nothing here paints a CSS mask if it can help it
  *
@@ -291,198 +288,10 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
   if (!tile) return null;
   const logo = brand.logos[tile.sourceIndex];
   if (!logo) return null;
-  const fg = fgOn(tile.bg.hex);
 
-  if (tile.kind === 'pairing' || tile.kind === 'treatment') {
-    return (
-      <TileFrame bg={tile.bg.hex}>
-        <LogoArt logo={logo} recolor={tile.recolor} />
-      </TileFrame>
-    );
-  }
-
-  const caption = (text: string) => (
-    <span
-      style={{
-        fontFamily: body,
-        fontSize: 7,
-        letterSpacing: '0.02em',
-        lineHeight: 1.3,
-        // Full-strength ink, not 72%. The low-contrast MISUSE tile is drawn
-        // on a ground chosen to defeat the logo, and a held-back caption on
-        // it fell under the floor — so the tile that names the rule was
-        // breaking it. The rule is illustrated by the ARTWORK; the words
-        // explaining it must always be readable.
-        color: fg,
-        textAlign: 'center',
-      }}
-    >
-      {text}
-    </span>
-  );
-
-  if (tile.kind === 'clear-space') {
-    // The rule is a FORMULA, so the diagram has to obey it: the inner frame
-    // hugs the artwork (`fit="natural"` — a frame wider than the drawing
-    // states a margin the brand never set), and the dashed margin around it
-    // is exactly a third of the frame's height on every side. The four R's
-    // sit IN that margin, so the letter and the space it names are the same
-    // measurement.
-    const LOGO_H = 44;
-    const R = Math.round(LOGO_H / 3);
-    return (
-      <TileFrame bg={tile.bg.hex} padding="10% 11%" column>
-        <span
-          style={{
-            position: 'relative',
-            display: 'inline-flex',
-            border: `1px dashed ${rgba(fg, 0.45)}`,
-            padding: R,
-            boxSizing: 'content-box',
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              height: LOGO_H,
-              outline: `1px solid ${rgba(fg, 0.3)}`,
-            }}
-          >
-            <LogoArt logo={logo} recolor={null} fit="natural" />
-          </span>
-          {(
-            [
-              { top: 1, left: '50%', transform: 'translateX(-50%)' },
-              { bottom: 1, left: '50%', transform: 'translateX(-50%)' },
-              { left: 1, top: '50%', transform: 'translateY(-50%)' },
-              { right: 1, top: '50%', transform: 'translateY(-50%)' },
-            ] as CSSProperties[]
-          ).map((pos, i) => (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                fontFamily: body,
-                fontSize: 7,
-                lineHeight: 1,
-                fontWeight: 600,
-                color: rgba(fg, 0.65),
-                ...pos,
-              }}
-            >
-              R
-            </span>
-          ))}
-        </span>
-        {caption(tile.note ?? '')}
-      </TileFrame>
-    );
-  }
-
-  if (tile.kind === 'min-size') {
-    // Three steps, in proportion, each labelled with the size it stands for.
-    // The smallest one IS the floor — a tile that only said "24 px" would
-    // leave the reader guessing what that looks like. Each step takes its
-    // HEIGHT from the ladder and its width from the artwork, so a square mark
-    // and a wide wordmark both step evenly instead of one of them floating in
-    // a landscape slot.
-    const steps: Array<{ h: number; label: string }> = [
-      { h: 13, label: '24 px' },
-      { h: 24, label: '48 px' },
-      { h: 40, label: '96 px' },
-    ];
-    return (
-      <TileFrame bg={tile.bg.hex} padding="11% 9%" column>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            gap: '10%',
-            width: '100%',
-          }}
-        >
-          {steps.map((step) => (
-            <span
-              key={step.label}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                flex: '0 1 auto',
-                minWidth: 0,
-              }}
-            >
-              <span style={{ display: 'inline-flex', height: step.h }}>
-                <LogoArt logo={logo} recolor={null} fit="natural" />
-              </span>
-              <span
-                style={{
-                  fontFamily: body,
-                  fontSize: typePx(6),
-                  color: rgba(fg, 0.6),
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {step.label}
-              </span>
-            </span>
-          ))}
-        </div>
-        {caption(tile.note ?? '')}
-      </TileFrame>
-    );
-  }
-
-  // Misuse. Every one of these is a thing the kit has to say OUT LOUD,
-  // because a gallery that only ever shows correct usage reads as a menu
-  // of options rather than a rule.
-  const stretched = tile.misuse === 'stretch';
   return (
-    <TileFrame bg={tile.bg.hex} padding="12% 12%" column>
-      <span
-        aria-hidden
-        style={{
-          position: 'absolute',
-          top: '7%',
-          right: '7%',
-          width: 13,
-          height: 13,
-          borderRadius: '50%',
-          border: `1px solid ${rgba(fg, 0.55)}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: body,
-          fontSize: 8,
-          lineHeight: 1,
-          // Full strength for the same reason the caption is: this mark is
-          // the tile's verdict, on a ground picked to defeat contrast.
-          color: fg,
-        }}
-      >
-        ✕
-      </span>
-      {/* The stretch tile has to SHOW a stretched logo. Clipping it at the
-          frame edge reads as a broken export rather than as the mistake being
-          named, so the artwork is laid out narrow enough that the stretch
-          still lands inside the tile, and nothing is hidden.
-          1.5× was not enough to READ as a mistake on a wordmark: on Raqm the
-          distorted lockup and the tile beside it came out the same width, so
-          the tile that says "never stretch" looked like a logo. A round mark
-          gave it away and a wide one hid it, which is the wrong way round —
-          the wordmark is the case a reader has to be shown. 1.85× over a
-          narrower box is unmistakable and still clears the 12% padding
-          (40% × 1.85 = 74% of the content box). */}
-      <span style={{ height: 46, width: stretched ? '40%' : '64%', display: 'block' }}>
-        <LogoArt
-          logo={logo}
-          recolor={tile.recolor}
-          style={stretched ? { transform: 'scaleX(1.85)', transformOrigin: 'center' } : undefined}
-        />
-      </span>
-      {caption(tile.note ?? '')}
+    <TileFrame bg={tile.bg.hex}>
+      <LogoArt logo={logo} recolor={tile.recolor} />
     </TileFrame>
   );
 }
@@ -490,74 +299,24 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
 /* ─── Color swatch ─────────────────────────────────────────── */
 
 /**
- * The Colors drilldown — the palette as a SYSTEM, not a wall of squares.
+ * The Colors drilldown shows the brand's colours and nothing else: role,
+ * name and the colour's own values (HEX · RGB · CMYK · HSL).
  *
- * `variantsForCard` emits exactly one entry per brand colour
- * (`brandAssetTemplates` in `data/legacy-mapping.ts`, which this wave
- * does not own), so there is no list slot for a proportion bar or a
- * contrast matrix. Rather than leave both invisible, the information
- * they carry rides on the tiles that DO exist:
+ * No contrast levels, no "pairs with" row, no usage split. Which colours may
+ * sit on which is GUIDELINE content, not a brand asset — drawn on the swatch
+ * it read as a second, forbidden palette beside the real one.
  *
- *   • every tile carries its own ROW of the contrast matrix — the other
- *     brand colours set on this colour's ground, each with its WCAG
- *     level. n tiles therefore hold the whole n × n matrix, and every
- *     row is drawn on the ground it actually describes;
- *   • tile 0 (the Primary) additionally carries the usage split as a
- *     full-bleed companion strip along its foot, because the 60 % of a
- *     60 / 30 / 10 layout IS the primary.
- *
- * `ColorProportionTile` and `ColorContrastMatrixTile` remain reachable at
- * `templateIndex >= palette.length`: the moment two entries are added to
- * `brandAssetTemplates` they become tiles of their own and the companions
- * can be dropped.
- *
- * The role is what the colour DOES (`paletteFromMockBrand`), never the
- * slot it sits in — the page used to print "CORE 4 … CORE 7", which
- * tells a customer nothing (D40). The generated grey ladder stays out:
- * it is drawn for every brand and belongs to none of them.
+ * The role is what the colour DOES (`paletteFromMockBrand`), never the slot
+ * it sits in. The generated grey ladder stays out: it is drawn for every
+ * brand and belongs to none of them.
  */
 export function BrandAssetColorRenderer({ brand, templateIndex }: Props) {
   const palette = paletteFromMockBrand(brand);
   if (palette.length === 0) return null;
   if (templateIndex < palette.length) {
-    const color = palette[templateIndex];
-    const others = palette.filter((_, i) => i !== templateIndex);
-    return (
-      <ColorSwatchTile
-        color={color}
-        others={others}
-        proportions={templateIndex === 0 ? palette : undefined}
-      />
-    );
-  }
-  if (templateIndex === palette.length) {
-    return <ColorProportionTile colors={palette} />;
-  }
-  if (templateIndex === palette.length + 1) {
-    return <ColorContrastMatrixTile colors={palette} />;
+    return <ColorSwatchTile color={palette[templateIndex]} />;
   }
   return null;
-}
-
-/** Short code for a WCAG level — a matrix cell has ~40px, a pair chip
- *  half that, so the level travels as a code rather than a sentence.
- *
- *  "AA Large" was abbreviated `18` (for 18pt) and read, on the tile, as a
- *  bare number beside three letter-codes: nothing on the swatch said what
- *  it counted. `AA18` keeps the size hint and is still legibly a WCAG
- *  level; the full words ride along in every chip's `title`. */
-function levelCode(level: WcagLevel): string {
-  if (level === 'AAA') return 'AAA';
-  if (level === 'AA') return 'AA';
-  if (level === 'AA Large') return 'AA18';
-  return '×';
-}
-
-/** The level as a sentence, for the tooltip. */
-function levelWords(level: WcagLevel): string {
-  if (level === 'AA Large') return 'AA for large text only (24px+)';
-  if (level === 'Fail') return 'fails WCAG';
-  return `${level} for body text`;
 }
 
 /**
@@ -566,18 +325,9 @@ function levelWords(level: WcagLevel): string {
  * role, name, HEX, RGB, CMYK, HSL, how it behaves on white and on
  * black, and which of its siblings can be set on it.
  */
-function ColorSwatchTile({
-  color,
-  others = [],
-  proportions,
-}: {
-  color: PaletteColor;
-  others?: PaletteColor[];
-  proportions?: PaletteColor[];
-}) {
+function ColorSwatchTile({ color }: { color: PaletteColor }) {
   const hex = normalizeHex(color.hex);
   const fg = bestTextOn(hex);
-  const report = contrastReport(hex);
   const spec = (label: string, value: string) => (
     <span key={label} style={{ whiteSpace: 'nowrap' }}>
       <span style={{ opacity: 0.6 }}>{label}</span> {value}
@@ -632,22 +382,7 @@ function ColorSwatchTile({
           >
             {color.role}
           </span>
-          <span style={{ display: 'flex', gap: 4 }}>
-            <ContrastPill
-              ground="#FFFFFF"
-              ink="#111113"
-              level={report.onWhite.level}
-              title={`${color.name} on white — ${report.onWhite.ratio.toFixed(2)}:1, ${levelWords(report.onWhite.level)}`}
-            />
-            <ContrastPill
-              ground="#111113"
-              ink="#FFFFFF"
-              level={report.onBlack.level}
-              title={`${color.name} on black — ${report.onBlack.ratio.toFixed(2)}:1, ${levelWords(report.onBlack.level)}`}
-            />
-          </span>
         </div>
-        {others.length > 0 ? <PairsRow ground={hex} fg={fg} others={others} /> : null}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' }}>
           <span
             style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.05 }}
@@ -682,335 +417,8 @@ function ColorSwatchTile({
           {spec('HSL', formatHsl(hex))}
         </div>
       </div>
-      {proportions ? <ProportionStrip colors={proportions} /> : null}
     </div>
   );
-}
-
-/**
- * This colour's row of the contrast matrix: each sibling set ON this
- * ground, with the level it reaches.
- *
- * The specimen is a SWATCH, not the word "Aa". A letterform painted in
- * the sibling's colour demonstrates the pairing beautifully and is, for
- * every failing pair, a 3:1 text node on our own surface — the exact
- * thing the contrast sweep exists to forbid. So the pairing is shown as
- * a chip of the colour itself (ringed, so a sibling that all but matches
- * the ground still has an edge) and the LEVEL is the only text, drawn in
- * the tile's own readable ink.
- */
-function PairsRow({
-  ground,
-  fg,
-  others,
-}: {
-  ground: string;
-  fg: string;
-  others: PaletteColor[];
-}) {
-  // Six siblings is what fits on two lines at a 260px mount; past that
-  // the row becomes texture. The matrix tile carries the rest.
-  const shown = others.slice(0, 6);
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: '3px 4px',
-        marginTop: 2,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 7,
-          fontWeight: 600,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          opacity: 0.55,
-          marginRight: 1,
-        }}
-      >
-        On this
-      </span>
-      {shown.map((other) => {
-        const otherHex = normalizeHex(other.hex);
-        const level = wcagLevel(contrast(ground, otherHex));
-        return (
-          <span
-            key={`${other.name}-${otherHex}`}
-            title={`${other.name} on this colour — ${levelWords(level)}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 3,
-              border: `1px solid ${rgba(fg, 0.28)}`,
-              borderRadius: 3,
-              padding: '1px 4px',
-              lineHeight: 1.4,
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 2,
-                alignSelf: 'center',
-                backgroundColor: otherHex,
-                boxShadow: `inset 0 0 0 1px ${rgba(fg, 0.35)}`,
-              }}
-            />
-            <span style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em' }}>
-              {levelCode(level)}
-            </span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-/** "AA on white" as a chip you can actually see: the chip IS the ground
- *  being tested, so the badge demonstrates the claim it makes. */
-function ContrastPill({
-  ground,
-  ink,
-  level,
-  title,
-}: {
-  ground: string;
-  ink: string;
-  level: WcagLevel;
-  title?: string;
-}) {
-  return (
-    <span
-      title={title}
-      style={{
-        backgroundColor: ground,
-        color: ink,
-        border: '1px solid currentColor',
-        borderRadius: 3,
-        padding: '1px 4px',
-        fontSize: 8,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        lineHeight: 1.5,
-      }}
-    >
-      {levelCode(level)}
-    </span>
-  );
-}
-
-/** The usage split as a full-bleed strip along a swatch's foot — the
- *  companion the Primary tile carries while the palette has no list
- *  slot of its own. */
-function ProportionStrip({ colors }: { colors: PaletteColor[] }) {
-  const segments = usageProportions(colors).filter((s) => s.pct > 0);
-  if (segments.length < 2) return null;
-  return (
-    <div
-      data-color-proportion
-      style={{ display: 'flex', alignItems: 'stretch', height: 22, flexShrink: 0 }}
-    >
-      {segments.map(({ color, pct }) => {
-        const hex = normalizeHex(color.hex);
-        return (
-          <span
-            key={`${hex}-${color.name}`}
-            title={`${color.name} — ${pct}%`}
-            style={{
-              flexGrow: pct,
-              flexBasis: 0,
-              minWidth: 0,
-              backgroundColor: hex,
-              color: bestTextOn(hex),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 8,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              boxShadow: isNearWhite(hex) ? `inset 0 0 0 1px ${rgba(bestTextOn(hex), 0.16)}` : undefined,
-            }}
-          >
-            {pct >= 10 ? `${pct}%` : ''}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-/** The proportional usage bar as a tile of its own — how much of a
- *  layout each colour should hold. 60 / 30 / 10, extended for palettes
- *  that are not three deep. Reachable once `brandAssetTemplates` emits
- *  an entry for it. */
-function ColorProportionTile({ colors }: { colors: PaletteColor[] }) {
-  const segments = usageProportions(colors).filter((s) => s.pct > 0);
-  if (segments.length === 0) return null;
-  return (
-    <div
-      className="brand-asset-render brand-asset-render--color"
-      style={{ flexDirection: 'row', alignItems: 'stretch', justifyContent: 'stretch', padding: 0 }}
-    >
-      {segments.map(({ color, pct }) => {
-        const hex = normalizeHex(color.hex);
-        const fg = bestTextOn(hex);
-        return (
-          <div
-            key={`${hex}-${color.name}`}
-            style={{
-              flexGrow: pct,
-              flexBasis: 0,
-              backgroundColor: hex,
-              color: fg,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              gap: 1,
-              padding: '10px 8px',
-              overflow: 'hidden',
-              minWidth: 0,
-            }}
-          >
-            <span style={{ fontSize: 15, fontWeight: 600, lineHeight: 1 }}>{pct}%</span>
-            {pct >= 20 ? (
-              <span
-                style={{
-                  fontSize: 8,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  opacity: 0.85,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {color.name}
-              </span>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Every pair of brand colours, measured. Each cell is the row colour
- *  as a ground with the column colour laid on it, so the reader SEES
- *  the pairing and reads its WCAG level at the same time. */
-function ColorContrastMatrixTile({ colors }: { colors: PaletteColor[] }) {
-  // Five is the most that stays legible at a 260px mount: six columns of
-  // ~40px. Past that the matrix becomes a texture, not a table.
-  const shown = colors.slice(0, 5);
-  if (shown.length < 2) return null;
-  const ground = shown.find((c) => c.role === 'Background')?.hex ?? '#FFFFFF';
-  const groundHex = normalizeHex(ground);
-  const groundFg = bestTextOn(groundHex);
-  const cell: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 0,
-    minHeight: 0,
-  };
-  return (
-    <div
-      className="brand-asset-render brand-asset-render--color"
-      style={{
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        justifyContent: 'stretch',
-        backgroundColor: groundHex,
-        color: groundFg,
-        padding: '9px 10px',
-        gap: 5,
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `14px repeat(${shown.length}, minmax(0, 1fr))`,
-          gridAutoRows: 'minmax(0, 1fr)',
-          gap: 2,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <span style={cell} />
-        {shown.map((c) => (
-          <span
-            key={`h-${c.name}`}
-            style={{ ...cell, backgroundColor: normalizeHex(c.hex), borderRadius: 2 }}
-          />
-        ))}
-        {shown.map((row) => (
-          <Fragment key={`r-${row.name}`}>
-            <span
-              style={{ ...cell, backgroundColor: normalizeHex(row.hex), borderRadius: 2 }}
-            />
-            {shown.map((col) => {
-              const rowHex = normalizeHex(row.hex);
-              const colHex = normalizeHex(col.hex);
-              const same = rowHex === colHex;
-              const level = wcagLevel(contrast(rowHex, colHex));
-              return (
-                <span
-                  key={`c-${row.name}-${col.name}`}
-                  style={{ ...cell, backgroundColor: rowHex, borderRadius: 2 }}
-                  title={`${col.name} on ${row.name} — ${same ? 'the same colour' : levelWords(level)}`}
-                >
-                  <span
-                    style={{
-                      backgroundColor: colHex,
-                      color: bestTextOn(colHex),
-                      borderRadius: 2,
-                      padding: '2px 3px',
-                      fontSize: 8,
-                      fontWeight: 700,
-                      letterSpacing: '0.02em',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {same ? '—' : levelCode(level)}
-                  </span>
-                </span>
-              );
-            })}
-          </Fragment>
-        ))}
-      </div>
-      <span
-        style={{
-          fontSize: 7.5,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          opacity: 0.7,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {'AAA 7:1 · AA 4.5:1 · 18 = 3:1 large · × fails'}
-      </span>
-    </div>
-  );
-}
-
-/** Pick black / white text per swatch luminance — same heuristic the
- *  editor uses so the drilldown tiles stay readable on every hue. */
-function readableOn(hex: string): '#111113' | '#ffffff' {
-  const m = hex.replace('#', '');
-  const expanded = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
-  const r = parseInt(expanded.slice(0, 2), 16);
-  const g = parseInt(expanded.slice(2, 4), 16);
-  const b = parseInt(expanded.slice(4, 6), 16);
-  // Standard luminance formula. >150 → use dark text, else light.
-  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  return luminance > 150 ? '#111113' : '#ffffff';
 }
 
 /* ─── Typeface specimen ────────────────────────────────────── */
@@ -1088,25 +496,6 @@ function specimenStack(font: { family: string; fallback?: string }): string {
 }
 
 /** What this face is FOR — read off the role the brand gave it. */
-function usageLine(role: string): string {
-  const r = (role ?? '').toLowerCase();
-  if (/mono|code/.test(r)) return 'Code, data and tabular figures.';
-  if (/display|head|title|primary/.test(r)) return 'Headlines and titles. Tighten tracking above 32px.';
-  if (/text|body|para|secondary/.test(r)) return 'Body copy, labels and UI. 16px floor, 1.5 line height.';
-  return 'Everything the brand sets in type.';
-}
-
-/** The other half of the pairing, in one sentence. */
-function pairingLine(
-  fonts: MockBrand['fonts'],
-  index: number,
-): string {
-  const self = fonts[index];
-  const other = fonts.find((f, i) => i !== index && f.family !== self?.family);
-  if (!other) return 'The brand sets everything in this one face.';
-  return `Pairs with ${other.family} for ${(other.role || 'the rest').toLowerCase()}.`;
-}
-
 /**
  * The muted ink, darkened until it can be READ.
  *
@@ -1314,15 +703,10 @@ export function BrandAssetFontRenderer({ brand, templateIndex }: Props) {
         ))}
       </div>
 
-      {/* The pairing rule, and — when we cannot get the files — why. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6cqw' }}>
-        <span style={{ fontSize: '2.5cqw', lineHeight: 1.35, color: muted }}>
-          {pairingLine(brand.fonts, templateIndex)}
-        </span>
-        <span style={{ fontSize: '2.5cqw', lineHeight: 1.35, color: muted }}>
-          {source === 'unavailable' ? UPLOAD_HINT : usageLine(f.role)}
-        </span>
-        </div>
+      {/* Only a status, never guidance: usage belongs to the Guideline. */}
+      {source === 'unavailable' ? (
+        <span style={{ fontSize: '2.5cqw', lineHeight: 1.35, color: muted }}>{UPLOAD_HINT}</span>
+      ) : null}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -21,7 +22,11 @@ import { container as serviceContainer } from '@/core/container/ServiceContainer
 import { SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { createTemplateInstanceDocument } from '@/features/editor/renderers/template-instance/createDocument';
-import { defaultContentFor, contentKindForTemplateType } from '@/features/brandkit/content';
+import {
+  defaultContentFor,
+  contentKindForTemplateType,
+  type DeliverableContent,
+} from '@/features/brandkit/content';
 import { ensureMasterDesign, instanceFromMaster } from './kit/masterTemplates';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
@@ -49,6 +54,7 @@ import {
   type EditorTarget,
 } from './components/BrandKitCardEditor';
 import { ExportKitDialog } from './components/ExportKitDialog';
+import { KitDockHost, KitDockProvider } from './components/KitDockPanel';
 import { DownloadMenu, type DownloadChoice } from './components/DownloadMenu';
 import {
   downloadOptionsFor,
@@ -58,7 +64,7 @@ import {
   PRINT_PAGE_MM,
   type DownloadOption,
 } from './data/exportFormats';
-import { photosUnavailableReason } from './data/photoExport';
+import { entryUnavailableReason } from './data/exportAvailability';
 import { IconPickerModal } from './components/IconPickerModal';
 import { ColorsEditor } from './components/assets/ColorsEditor';
 import { TypographyEditor } from './components/assets/TypographyEditor';
@@ -66,8 +72,8 @@ import { IconsEditor } from './components/assets/IconsEditor';
 import { LogosEditor } from './components/assets/LogosEditor';
 import { PhotosEditor } from './components/assets/PhotosEditor';
 import { StrategyEditor } from './components/assets/StrategyEditor';
-import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { TileActions, type TileMenuAction } from './components/TileActions';
+import { useNearViewport } from './components/useNearViewport';
 import {
   KitFilterRow,
   KitFilterEmpty,
@@ -83,20 +89,15 @@ import {
   withIconWeight,
 } from './data/iconWeights';
 import { contrastRatio } from './data/recolorLogo';
-import {
-  buildAllColorsZip,
-  triggerBlobDownload,
-  type PaletteColor,
-} from './data/colorPaletteExport';
-import { downloadIconsBundle, type IconExportEntry } from './data/iconExport';
-import { downloadFontsBundle } from './data/fontExport';
+import { triggerBlobDownload } from './data/colorPaletteExport';
 import { contentForTemplate, loadBrandCustomizations } from './data/savedContent';
 import {
   DEFAULT_FEATURED_IDS_BY_LABEL,
-  PICKER_ASPECT_BY_LABEL,
   PICKER_LABELS,
   aspectForLabel,
+  densityForLabel,
   featuredTemplates,
+  tileMinWidth,
 } from './data/cardPresentation';
 import {
   cardCustomizationKey,
@@ -104,17 +105,10 @@ import {
   loadFeaturedVariants,
   saveCardCustomization,
   saveFeaturedVariants,
+  type SavedCardCustomization,
 } from './data/cardCustomizations';
-import {
-  snapshotElementPng,
-  snapshotTemplatePng,
-  withOffscreenMounts,
-} from './data/templateSnapshot';
-import {
-  downloadLogosZip,
-  paletteOf,
-  slugifyName,
-} from './data/kitExport';
+import { snapshotElementPng, snapshotTemplatePng } from './data/templateSnapshot';
+import { slugifyName } from './data/kitExport';
 import {
   downloadEntry,
   downloadEverything,
@@ -272,20 +266,17 @@ export function BrandKitCosmosPage({
     [customizationBrandId, savedRevision],
   );
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  // Which template-picker is open (by card label), or null when none.
-  // A single state replaces the per-label `*PickerOpen` flags.
-  const [pickerLabel, setPickerLabel] = useState<string | null>(null);
-  // Featured variant IDs per card label. Initialized from the curated
-  // defaults (Stationery only); other labels resolve at render time
-  // by taking the first 3 templates from the live drilldown target.
-  // Picker appends per-label; persists for the session only.
+  // Which design is each card's FACE, per label. Not a browsing
+  // decision any more — the drilldown shows the family's whole library
+  // — this is the cover the overview card paints and the design a
+  // card-level download ships. A tile's ⋯ → "Set as cover" writes it.
   const [featuredIdsByLabel, setFeaturedIdsByLabel] = useState<
     Record<string, string[]>
   >({ ...DEFAULT_FEATURED_IDS_BY_LABEL });
-  // Hydrate picker-added variants (persisted per brand + card label) so
-  // a "+"-added variant survives navigation and refresh. Saved lists
-  // win over the curated defaults for their label; brands without saves
-  // render the defaults unchanged.
+  // Hydrate the user's own covers (persisted per brand + card label) so
+  // a chosen cover survives navigation and refresh. Saved lists win over
+  // the curated defaults for their label; brands without saves render
+  // the defaults unchanged.
   useEffect(() => {
     const saved = loadFeaturedVariants(customizationBrandId);
     if (Object.keys(saved).length > 0) {
@@ -364,6 +355,24 @@ export function BrandKitCosmosPage({
    */
   const [assetEditor, setAssetEditor] = useState<string | null>(null);
   /**
+   * The element every editor docks into, once the shell has rendered it.
+   *
+   * State rather than a ref: the panels are mounted further down this
+   * component and have to render again once the host exists.
+   */
+  const [dockHost, setDockHost] = useState<HTMLElement | null>(null);
+  /**
+   * The card editor's UNSAVED draft, merged over the saved customizations
+   * so the card BEHIND the docked panel repaints as the user types.
+   *
+   * Keyed by template id, which is what every reader of `savedContent`
+   * looks it up by. Dropped when the panel closes: it is a preview of an
+   * edit, and an abandoned edit must not survive as one.
+   */
+  const [cardDraft, setCardDraft] = useState<
+    { id: string; record: SavedCardCustomization } | null
+  >(null);
+  /**
    * The editor's live draft, shown by the kit BEHIND the open panel.
    *
    * It shadows `baseBrand` rather than replacing it: an editor writes for
@@ -393,6 +402,36 @@ export function BrandKitCosmosPage({
     setAssetEditorVariant(null);
     setBrandPreview(null);
   }, []);
+  /**
+   * Close the card editor and drop its draft.
+   *
+   * Both halves, always: a draft left behind would keep showing an edit
+   * the user walked away from as if it had been saved.
+   */
+  const closeCardEditor = useCallback(() => {
+    setEditorTarget(null);
+    setCardDraft(null);
+  }, []);
+  /** The card editor's live draft, keyed by the template it belongs to. */
+  const handleCardDraft = useCallback(
+    (t: EditorTarget, record: SavedCardCustomization) => {
+      const id = t.template?.id;
+      if (!id) return;
+      setCardDraft({ id, record });
+    },
+    [],
+  );
+  /**
+   * What the kit PAINTS FROM — the saved customizations with the open
+   * editor's live draft laid over them. Nothing else reads `savedContent`
+   * directly, so a tile and the panel beside it cannot disagree.
+   */
+  const liveContent = useMemo(
+    () => (cardDraft ? { ...savedContent, [cardDraft.id]: cardDraft.record } : savedContent),
+    [savedContent, cardDraft],
+  );
+  /** True while any editor is docked — the shell grows a column for it. */
+  const dockOpen = editorTarget !== null || assetEditor !== null;
   /** Open a brand asset's own editor, optionally on the variant that was clicked. */
   const openAssetEditor = useCallback((label: string, templateId?: string) => {
     setAssetEditor(label);
@@ -463,56 +502,25 @@ export function BrandKitCosmosPage({
     [brand.icons, suggestedIcons],
   );
 
-  // Real card downloads (KIT-03). Brand-asset cards route to their
-  // dedicated bundle builders; template cards rasterize their first
-  // featured variant offscreen and download the PNG.
-  // One colors export at a time — the bundle takes a moment even in
-  // vector form, and a second click used to silently queue a duplicate
-  // multi-minute job with zero feedback.
-  const colorsExportBusyRef = useRef(false);
-  const runColorsExport = useCallback(async (palette: PaletteColor[], brandName: string) => {
-    if (colorsExportBusyRef.current) {
-      toast('Colors export already running…', { id: 'bk-colors-export' });
-      return;
-    }
-    colorsExportBusyRef.current = true;
-    toast.loading(`Preparing colors bundle… 0/${palette.length}`, { id: 'bk-colors-export' });
-    try {
-      const blob = await buildAllColorsZip(palette, brandName, (done, total, name) => {
-        toast.loading(`Preparing colors bundle… ${done}/${total}`, {
-          id: 'bk-colors-export',
-          description: name,
-        });
-      });
-      triggerBlobDownload(blob, `${slugifyName(brandName)}-colors.zip`);
-      const mb = blob.size / (1024 * 1024);
-      toast.success('Colors bundle downloaded', {
-        id: 'bk-colors-export',
-        description: `${palette.length} colors · ${mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(blob.size / 1024))} KB`}`,
-      });
-    } catch (err) {
-      toast.error('Colors export failed', {
-        id: 'bk-colors-export',
-        description: err instanceof Error ? err.message : 'Unknown error',
-      });
-    } finally {
-      colorsExportBusyRef.current = false;
-    }
-  }, []);
-
   /**
    * Download one card — or, when `templateId` is given, ONE VARIANT of it.
    *
-   * A tile's ⬇ has to download the design under the cursor, not the card's
-   * first featured one (`.audit/OURS.md` D53). Rather than a second export
-   * path, the variant is expressed as a one-entry featured list: the shared
-   * writer already ships "the variants the card SHOWS", so narrowing that
-   * list to a single id makes the bundle exactly this design, through the
-   * same code the card, the group and Export Kit all use.
+   * ONE PATH. Every card, every tile, every group header and the Export
+   * Kit reach `downloadEntry`, so what a format row means is decided in
+   * one place and cannot be decided differently in another.
    *
-   * Brand-asset cards are the exception, and deliberately: Logos, Colors,
-   * Fonts, Icons and Photos export as BUNDLES of the brand's own files, not
-   * as rasterised template variants. A tile there rasterises itself.
+   * This function used to hold four bespoke arms — Logos, Colors, Fonts,
+   * Icons — that called their own bundle builders and never read `choice`
+   * at all. Measured: the Logos card's *Vector (SVG)* and *For web (PNG)*
+   * rows both handed over the same 439 774-byte archive of fifteen PNGs
+   * and no SVG, and the Typography card answered all five of its rows
+   * with the same folder of `.ttf` files. Deleting them is the fix; the
+   * walker already honoured the format for every other family.
+   *
+   * A brand-asset TILE is still its own artifact — one logo on one ground,
+   * one swatch, one glyph — so it rasterises itself rather than exporting
+   * its whole family. It honours the format now too, which it also used to
+   * ignore: every row on a tile produced a PNG.
    */
   const handleDownloadCard = useCallback(
     async (
@@ -525,11 +533,21 @@ export function BrandKitCosmosPage({
       const one = templateId
         ? (t.templates ?? []).find((tpl) => tpl.id === templateId)
         : undefined;
+      const entry = getEntryFor(t.sectionKey, t.label);
+      const label = t.displayLabel ?? t.label;
+      // A tile can answer the five picture rows out of its own drawing.
+      // Anything else — the font files, the strategy record — belongs to
+      // the FAMILY, so it falls through to the shared writer.
+      const tileFormat =
+        choice.format === 'png' ||
+        choice.format === 'jpg' ||
+        choice.format === 'pdf' ||
+        choice.format === 'custom' ||
+        choice.format === 'svg';
       try {
-        if (templateId && t.sectionKey === 'brand-assets') {
-          // A brand-asset tile is its own artifact — rasterise THIS tile.
+        if (templateId && t.sectionKey === 'brand-assets' && tileFormat) {
           if (!one || !sourceBrand) {
-            toast(`Nothing to export for ${t.displayLabel ?? t.label} yet`);
+            toast(`Nothing to export for ${label} yet`);
             return;
           }
           // …unless the tile is an EMPTY STATE. The Photos card renders
@@ -537,176 +555,114 @@ export function BrandKitCosmosPage({
           // shipped a picture of an error message under the missing
           // photograph's own name — `skam-grain-texture-overlay.png` was a
           // white card reading "No photos yet" (QA Q14).
-          if (t.label === 'Photos') {
-            const reason = photosUnavailableReason(b);
-            if (reason) {
-              toast(`Nothing to export for ${one.name}`, { description: reason });
+          const missing = entry ? entryUnavailableReason(entry, b) : undefined;
+          if (missing) {
+            toast(`Nothing to export for ${one.name}`, { description: missing });
+            return;
+          }
+          const file = `${slug}-${slugifyName(one.name)}`;
+          if (choice.format === 'svg') {
+            // The vector of a tile is the tile's own drawing, read off the
+            // tile. A Flaticon glyph is a font and a recoloured logo is a
+            // CSS mask — neither has one, and saying so beats handing over
+            // a PNG with `.svg` on the end.
+            const svg = document
+              .querySelector<HTMLElement>(
+                `.bk-stage-layer--page2 [data-template-id="${templateId}"]`,
+              )
+              ?.querySelector('svg');
+            if (!svg) {
+              toast(`${one.name} has no vector artwork`, {
+                description:
+                  'This design is drawn as a font glyph or a mask — download the PNG instead.',
+              });
               return;
             }
+            triggerBlobDownload(
+              new Blob([svg.outerHTML], { type: 'image/svg+xml' }),
+              `${file}.svg`,
+            );
+            return;
           }
-          const blob = await snapshotTemplatePng(
+          const png = await snapshotTemplatePng(
             renderTemplateDesign(one, sourceBrand, b),
             260,
             aspectForLabel(t.label),
           );
-          if (!blob) throw new Error('Rasterization produced no image');
-          triggerBlobDownload(blob, `${slug}-${slugifyName(one.name)}.png`);
+          if (!png) throw new Error('Rasterization produced no image');
+          if (choice.format === 'pdf') {
+            triggerBlobDownload(
+              await pngToPdf(png, PRINT_PAGE_MM[t.label] ?? 'fit'),
+              `${file}.pdf`,
+            );
+          } else if (choice.format === 'jpg') {
+            triggerBlobDownload(await pngToJpg(png), `${file}.jpg`);
+          } else if (choice.format === 'custom' && choice.size) {
+            triggerBlobDownload(
+              await resizePng(png, choice.size),
+              `${file}-${choice.size.width}px.png`,
+            );
+          } else {
+            triggerBlobDownload(png, `${file}.png`);
+          }
           return;
         }
-        if (templateId) {
-          const entry = getEntryFor(t.sectionKey, t.label);
-          if (entry) {
-            const id = toast.loading(`Preparing ${one?.name ?? t.label}…`);
-            const result = await downloadEntry(
-              entry,
-              {
-                brand: b,
-                sourceBrand,
-                entries: [entry],
-                saved: loadBrandCustomizations(customizationBrandId),
-                // The whole point: this card shows exactly one design here.
-                featuredIdsByLabel: { ...featuredIdsByLabel, [t.label]: [templateId] },
-              },
-              // …and the file says WHICH design it is. Three Business Card
-              // tiles used to arrive as three files called
-              // `raqm-business-card.png` (QA Q22).
-              { ...choice, variant: one?.name },
-            );
-            if (result.added) toast.success(`${one?.name ?? t.label} downloaded`, { id });
-            else {
-              toast.error(`Couldn't download ${one?.name ?? t.label}`, {
-                id,
-                description: result.skipped[0]?.reason,
-              });
-            }
-            return;
+        if (entry) {
+          const id = toast.loading(`Preparing ${one?.name ?? label}…`);
+          const result = await downloadEntry(
+            entry,
+            {
+              brand: b,
+              sourceBrand,
+              entries: [entry],
+              saved: loadBrandCustomizations(customizationBrandId),
+              featuredIdsByLabel: templateId
+                ? // The whole point: this card shows exactly one design here.
+                  { ...featuredIdsByLabel, [t.label]: [templateId] }
+                : featuredIdsByLabel,
+              // One family, asked for by name, gets the print originals the
+              // whole-kit zip deliberately leaves out.
+              depth: 'full',
+            },
+            // …and the file says WHICH design it is. Three Business Card
+            // tiles used to arrive as three files called
+            // `raqm-business-card.png` (QA Q22).
+            templateId ? { ...choice, variant: one?.name } : choice,
+          );
+          if (result.added) toast.success(`${one?.name ?? label} downloaded`, { id });
+          else {
+            toast.error(`Couldn't download ${one?.name ?? label}`, {
+              id,
+              description: result.skipped[0]?.reason,
+            });
           }
+          return;
         }
-        switch (t.label) {
-          case 'Logos': {
-            const count = await downloadLogosZip(b);
-            if (count === 0) toast('No logos yet', { description: 'Add a logo in Setup first.' });
-            return;
-          }
-          case 'Colors': {
-            await runColorsExport(paletteOf(b), b.name);
-            return;
-          }
-          case 'Fonts': {
-            const result = await downloadFontsBundle(
-              b.fonts.map((f) => ({ name: f.family, files: f.files })),
-              `${slug}-fonts`,
-            );
-            if (result.missing.length > 0) {
-              toast(`Couldn't bundle ${result.missing.join(', ')}`, {
-                description: 'Upload the font in Setup → Typography to include it next time.',
-              });
-            }
-            return;
-          }
-          case 'Icons': {
-            const templates = (t.templates ?? []).slice(0, b.icons.length);
-            if (templates.length === 0) {
-              toast('No icons yet', { description: 'Add icons from the Icons drilldown first.' });
-              return;
-            }
-            await withOffscreenMounts(
-              templates.map((tpl) => (
-                <span key={tpl.id} className="brand-asset-render--icon-host">
-                  {renderTemplateDesign(tpl, sourceBrand ?? ({} as Brand), b)}
-                </span>
-              )),
-              96,
-              96,
-              async (hosts) => {
-                const entries: IconExportEntry[] = hosts.map((el, i) => ({
-                  name: templates[i]?.name ?? `Icon ${i + 1}`,
-                  source: b.icons[i] ?? '',
-                  element: el,
-                }));
-                await downloadIconsBundle(entries, `${slug}-icons`);
-              },
-            );
-            return;
-          }
-          // 'Photos' is deliberately NOT special-cased any more. This case
-          // used to fetch every source and zip whatever came back, named
-          // from the mime type — the exact code D1 was filed against, and
-          // the reason a brand whose only picture is a 404 shipped the
-          // app's own `index.html` as `photo-1.html`. It falls through to
-          // the shared writer, which verifies the BYTES, names each file
-          // from the Library, and hands back a reason for anything it had
-          // to leave out (QA Q13/Q14).
-          // 'About' (the Strategy card) is deliberately NOT special-cased
-          // any more: it used to ship about.md alone, which is the free-form
-          // sections and none of the eleven strategy answers. It falls
-          // through to the shared writer, which gives strategy.pdf +
-          // strategy.md + about.md — the same three files the kit ships.
-          default: {
-            // Everything that is not one of the brand's own asset
-            // bundles goes through the SAME writer the Export Kit uses,
-            // so a card can never answer "Nothing to export" for
-            // something the kit ships. That is exactly what Social Media
-            // System, Presentation System and Brand Board did: the card
-            // path looked for a TEMPLATE, and a composed view has none.
-            const entry = getEntryFor(t.sectionKey, t.label);
-            // EVERY deliverable goes through the shared writer now — not
-            // only the composed views — so the format menu (web · print ·
-            // flattened · custom) has one implementation.
-            if (entry) {
-              const id = toast.loading(`Preparing ${t.displayLabel ?? t.label}…`);
-              const result = await downloadEntry(
-                entry,
-                {
-                  brand: b,
-                  sourceBrand,
-                  entries: [entry],
-                  saved: loadBrandCustomizations(customizationBrandId),
-                  featuredIdsByLabel,
-                },
-                choice,
-              );
-              if (result.added) toast.success(`${t.displayLabel ?? t.label} downloaded`, { id });
-              else {
-                toast.error(`Couldn't download ${t.displayLabel ?? t.label}`, {
-                  id,
-                  description: result.skipped[0]?.reason,
-                });
-              }
-              return;
-            }
-            // Template deliverable — rasterize the first variant.
-            const tpl = t.template ?? t.templates?.[0];
-            if (!tpl || !sourceBrand) {
-              toast(`Nothing to export for ${t.label} yet`);
-              return;
-            }
-            const aspect = PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6;
-            // Export what the user SAVED, not the brand defaults. The
-            // editor's own Download snapshots the live DOM; every other
-            // export path rasterises the renderer offscreen and has to be
-            // handed the content explicitly.
-            const saved = loadBrandCustomizations(customizationBrandId);
-            const blob = await snapshotTemplatePng(
-              renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
-              260,
-              aspect,
-            );
-            if (!blob) throw new Error('Rasterization produced no image');
-            triggerBlobDownload(
-              blob,
-              `${slug}-${slugifyName(t.label)}-${slugifyName(tpl.name)}.png`,
-            );
-            return;
-          }
+        // A deliverable with no catalog entry — rasterize the first variant.
+        // Export what the user SAVED, not the brand defaults.
+        const tpl = t.template ?? t.templates?.[0];
+        if (!tpl || !sourceBrand) {
+          toast(`Nothing to export for ${t.label} yet`);
+          return;
         }
+        const saved = loadBrandCustomizations(customizationBrandId);
+        const blob = await snapshotTemplatePng(
+          renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
+          260,
+          aspectForLabel(t.label),
+        );
+        if (!blob) throw new Error('Rasterization produced no image');
+        triggerBlobDownload(
+          blob,
+          `${slug}-${slugifyName(t.label)}-${slugifyName(tpl.name)}.png`,
+        );
       } catch (err) {
         toast.error(`Download failed`, {
           description: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     },
-    [effectiveBrand, sourceBrand, runColorsExport, customizationBrandId, featuredIdsByLabel],
+    [effectiveBrand, sourceBrand, customizationBrandId, featuredIdsByLabel],
   );
 
   /**
@@ -762,8 +718,8 @@ export function BrandKitCosmosPage({
         saveFeaturedVariants(customizationBrandId, label, next);
         return { ...prev, [label]: next };
       });
-      toast.success('Set as featured', {
-        description: 'It is now this card’s cover and its default download.',
+      toast.success('Set as cover', {
+        description: 'It is now this card’s face and its default download.',
       });
     },
     [customizationBrandId],
@@ -1429,501 +1385,357 @@ export function BrandKitCosmosPage({
   }, [view, drilldownTarget, editorTarget, assetEditor]);
 
   return (
-    <WorkspaceShell
-      rightActions={
-        <button
-          type="button"
-          className="pill-btn pill-btn--primary"
-          onClick={handleExportKit}
-          disabled={exportingKit}
-        >
-          <span>{exportingKit ? 'Exporting…' : 'Export kit'}</span>
-          <ArrowRight size={14} className="pill-btn-arrow" />
-        </button>
-      }
-    >
-      <div className="shell">
-        <KitSidebar
-          brand={effectiveBrand}
-          groups={groups}
-          activeKey={openEntry?.key ?? null}
-          onSelectOverview={handleSelectOverview}
-          onSelectEntry={handleSelectEntry}
-        />
-        <div className="board-wrap bk-cosmos-board" data-workspace-main>
-          <div ref={stageRef} className="bk-stage" data-active={view}>
-            {/* Page 1 — the Overview. One band per catalog group, each
-                holding only the items this viewer may see. Always
-                mounted, always visible (modulo the per-tile wipe). */}
-            <div ref={page1Ref} className="bk-stage-layer bk-stage-layer--page1">
-              {groups.map((group) => (
-                <KitSection
-                  key={group.id}
-                  dataKey={group.id}
-                  title={group.label}
-                  // Every group is exportable now: a composed view
-                  // rasterises as a page body and Strategy writes the
-                  // about document, so there is no group whose Download
-                  // can only answer "nothing to export".
-                  onDownload={() => handleDownloadGroup(group.entries, group.label)}
-                >
-                  <EntryGrid
-                    entries={group.entries}
-                    brand={effectiveBrand}
+    /* Every editor in the kit docks into ONE host — the third column of
+       the shell above. The provider is what lets a panel mounted here,
+       beside the shell, portal into it: its confirmation dialogs stay at
+       PAGE level, where a scrim can actually cover the page (`.panel` is
+       sticky, which creates a stacking context — CLAUDE.md). */
+    <KitDockProvider host={dockHost}>
+      <WorkspaceShell
+        rightActions={
+          <button
+            type="button"
+            className="pill-btn pill-btn--primary"
+            onClick={handleExportKit}
+            disabled={exportingKit}
+          >
+            <span>{exportingKit ? 'Exporting…' : 'Export kit'}</span>
+            <ArrowRight size={14} className="pill-btn-arrow" />
+          </button>
+        }
+      >
+        {/* THE EDITOR IS A COLUMN OF THIS GRID, NOT A LAYER OVER IT.
+            `data-dock` is what grows the third track (components/
+            kitDock.css); the board is its sibling and reflows into what is
+            left, which is the whole point — the kit stays visible and
+            clickable while it is being edited. */}
+        <div className="shell" data-dock={dockOpen ? 'open' : undefined}>
+          <KitSidebar
+            brand={effectiveBrand}
+            groups={groups}
+            activeKey={openEntry?.key ?? null}
+            onSelectOverview={handleSelectOverview}
+            onSelectEntry={handleSelectEntry}
+          />
+          <div className="board-wrap bk-cosmos-board" data-workspace-main>
+            <div ref={stageRef} className="bk-stage" data-active={view}>
+              {/* Page 1 — the Overview. One band per catalog group, each
+                  holding only the items this viewer may see. Always
+                  mounted, always visible (modulo the per-tile wipe). */}
+              <div ref={page1Ref} className="bk-stage-layer bk-stage-layer--page1">
+                {groups.map((group) => (
+                  <KitSection
+                    key={group.id}
+                    dataKey={group.id}
+                    title={group.label}
+                    // Every group is exportable now: a composed view
+                    // rasterises as a page body and Strategy writes the
+                    // about document, so there is no group whose Download
+                    // can only answer "nothing to export".
+                    onDownload={() => handleDownloadGroup(group.entries, group.label)}
+                  >
+                    <EntryGrid
+                      entries={group.entries}
+                      brand={effectiveBrand}
+                      sourceBrand={sourceBrand}
+                      featuredIdsByLabel={featuredIdsByLabel}
+                      savedContent={liveContent}
+                      onPickCard={handlePickCard}
+                      onEditCard={(t) => {
+                        // A brand asset has its own editor. Editing Colors
+                        // means editing the PALETTE, not retouching one
+                        // swatch tile's stock artwork.
+                        if (t.sectionKey === 'brand-assets' && ASSET_EDITOR_LABELS.has(t.label)) {
+                          openAssetEditor(t.label);
+                          return;
+                        }
+                        setEditorTarget(t);
+                      }}
+                      onDownloadCard={handleDownloadCard}
+                    />
+                  </KitSection>
+                ))}
+              </div>
+              {/* Page 2 — drilldown. Mounted on the first card click
+                  and stays in the DOM forever after (target updates
+                  in place). Lives behind page 1 with opacity 0 until
+                  the wipe reveals it. */}
+              {drilldownTarget !== null && (
+                <div ref={page2Ref} className="bk-stage-layer bk-stage-layer--page2">
+                  <BrandKitDrilldown
+                    target={drilldownTarget}
+                    entry={targetEntry}
                     sourceBrand={sourceBrand}
-                    featuredIdsByLabel={featuredIdsByLabel}
-                    savedContent={savedContent}
-                    onPickCard={handlePickCard}
-                    onEditCard={(t) => {
-                      // A brand asset has its own editor. Editing Colors
-                      // means editing the PALETTE, not retouching one
-                      // swatch tile's stock artwork.
-                      if (t.sectionKey === 'brand-assets' && ASSET_EDITOR_LABELS.has(t.label)) {
-                        openAssetEditor(t.label);
+                    mockBrand={effectiveBrand}
+                    savedContent={liveContent}
+                    onBack={requestExitDrilldown}
+                    onUseTemplate={
+                      drilldownDeliverable?.contentTypeId
+                        ? (template) => handleUseTemplate(template, drilldownDeliverable)
+                        : undefined
+                    }
+                    onEditTemplate={
+                      drilldownDeliverable?.contentTypeId
+                        ? (template) => handleEditTemplate(template, drilldownDeliverable)
+                        : undefined
+                    }
+                    onPickVariant={(template) => {
+                      // A TILE'S PENCIL OPENS THE SAME EDITOR ITS CARD DOES.
+                      // Only the card's ✎ was re-pointed at the brand-asset
+                      // editors, so a tile still reached `BrandKitCardEditor` —
+                      // which has no fields for a brand asset and rendered an
+                      // empty right panel (QA Q6). One editor per asset, reached
+                      // from either place, opened on the variant that was
+                      // pressed.
+                      if (
+                        drilldownTarget.sectionKey === 'brand-assets' &&
+                        ASSET_EDITOR_LABELS.has(drilldownTarget.label)
+                      ) {
+                        openAssetEditor(drilldownTarget.label, template?.id);
                         return;
                       }
-                      setEditorTarget(t);
+                      setEditorTarget({ ...drilldownTarget, template });
                     }}
-                    onDownloadCard={handleDownloadCard}
-                  />
-                </KitSection>
-              ))}
-            </div>
-            {/* Page 2 — drilldown. Mounted on the first card click
-                and stays in the DOM forever after (target updates
-                in place). Lives behind page 1 with opacity 0 until
-                the wipe reveals it. */}
-            {drilldownTarget !== null && (
-              <div ref={page2Ref} className="bk-stage-layer bk-stage-layer--page2">
-                <BrandKitDrilldown
-                  target={drilldownTarget}
-                  entry={targetEntry}
-                  sourceBrand={sourceBrand}
-                  mockBrand={effectiveBrand}
-                  onBack={requestExitDrilldown}
-                  onUseTemplate={
-                    drilldownDeliverable?.contentTypeId
-                      ? (template) => handleUseTemplate(template, drilldownDeliverable)
-                      : undefined
-                  }
-                  onEditTemplate={
-                    drilldownDeliverable?.contentTypeId
-                      ? (template) => handleEditTemplate(template, drilldownDeliverable)
-                      : undefined
-                  }
-                  onPickVariant={(template) => {
-                    // A TILE'S PENCIL OPENS THE SAME EDITOR ITS CARD DOES.
-                    // Only the card's ✎ was re-pointed at the brand-asset
-                    // editors, so a tile still reached `BrandKitCardEditor` —
-                    // which has no fields for a brand asset and rendered an
-                    // empty right panel (QA Q6). One editor per asset, reached
-                    // from either place, opened on the variant that was
-                    // pressed.
-                    if (
-                      drilldownTarget.sectionKey === 'brand-assets' &&
-                      ASSET_EDITOR_LABELS.has(drilldownTarget.label)
-                    ) {
-                      openAssetEditor(drilldownTarget.label, template?.id);
-                      return;
-                    }
-                    setEditorTarget({ ...drilldownTarget, template });
-                  }}
-                  downloadOptions={
-                    targetEntry
-                      ? downloadOptionsFor(
-                          targetEntry,
-                          drilldownTarget.label === 'Photos'
-                            ? photosUnavailableReason(effectiveBrand)
-                            : undefined,
-                        )
-                      : undefined
-                  }
-                  onDownloadVariant={(template, choice) =>
-                    handleDownloadCard(drilldownTarget, choice, template.id)
-                  }
-                  onSetFeatured={
-                    PICKER_LABELS.has(drilldownTarget.label)
-                      ? (template) =>
-                          handleSetFeatured(
-                            drilldownTarget.label,
-                            template.id,
-                            drilldownTarget.templates,
+                    downloadOptions={
+                      targetEntry
+                        ? downloadOptionsFor(
+                            targetEntry,
+                            entryUnavailableReason(targetEntry, effectiveBrand),
                           )
-                      : undefined
-                  }
-                  onAddIcon={() => setIconPickerOpen(true)}
-                  onSetGlobalIconWeight={handleSetGlobalIconWeight}
-                  iconTintOverride={iconTintOverride}
-                  onSetGlobalIconTint={setIconTintOverride}
-                  featuredIds={
-                    PICKER_LABELS.has(drilldownTarget.label)
-                      ? featuredIdsByLabel[drilldownTarget.label] ??
-                        (drilldownTarget.templates ?? [])
-                          .slice(0, 3)
-                          .map((t) => t.id)
-                      : undefined
-                  }
-                  onAddVariants={
-                    PICKER_LABELS.has(drilldownTarget.label)
-                      ? () => setPickerLabel(drilldownTarget.label)
-                      : undefined
-                  }
-                  onAddColor={handleAddColor}
-                  onDownload={async (choice) => {
-                    // Colors drilldown bundles every core/accent/grey
-                    // swatch into one zip, each color in its own
-                    // folder with svg/png/jpg/ai for both the base
-                    // tile and the shades stack. Other drilldowns
-                    // still toast — their export flows aren't built
-                    // out yet.
-                    if (drilldownTarget.label === 'Fonts') {
-                      // Bulk Fonts download. Bytes come straight from
-                      // whatever the user uploaded in Setup
-                      // (round-tripped through Brand.typography.files).
-                      // No file picker — if a family was uploaded it's
-                      // already on the mock; Google Fonts fills in
-                      // anything that wasn't.
-                      try {
-                        const families = effectiveBrand.fonts.map((f) => ({
-                          name: f.family,
-                          files: f.files,
-                        }));
-                        const zipBase = `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-fonts`;
-                        const result = await downloadFontsBundle(
-                          families,
-                          zipBase,
-                        );
-                        if (result.missing.length > 0) {
-                          toast(`Couldn't bundle ${result.missing.join(', ')}`, {
-                            description:
-                              "Upload the font in Setup → Typography to include it next time.",
-                          });
-                        }
-                      } catch (err) {
-                        toast.error('Download failed', {
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
-                        });
-                      }
-                      return;
+                        : undefined
                     }
-                    if (drilldownTarget.label === 'Icons') {
-                      // Snapshot every rendered icon tile in the
-                      // drilldown grid, paired with its template name
-                      // (already derived from the icon class name in
-                      // legacy-mapping). Rasterizing live DOM lets
-                      // the export inherit the user-picked tint and
-                      // weight without re-implementing them.
-                      // Capture the icon's wrapper, not the inner
-                      // `<i>` — Flaticon glyphs render via `::before`
-                      // and html2canvas measures the host's
-                      // bounding box. The host can collapse to 0×0
-                      // with `display: flex` + auto sizing, which
-                      // crashes `drawImage` downstream.
-                      const tiles = stageRef.current?.querySelectorAll<HTMLElement>(
-                        '.bk-stage-layer--page2 .brand-asset-render--icon',
+                    onDownloadVariant={(template, choice) =>
+                      handleDownloadCard(drilldownTarget, choice, template.id)
+                    }
+                    onSetFeatured={
+                      PICKER_LABELS.has(drilldownTarget.label)
+                        ? (template) =>
+                            handleSetFeatured(
+                              drilldownTarget.label,
+                              template.id,
+                              drilldownTarget.templates,
+                            )
+                        : undefined
+                    }
+                    onAddIcon={() => setIconPickerOpen(true)}
+                    onSetGlobalIconWeight={handleSetGlobalIconWeight}
+                    iconTintOverride={iconTintOverride}
+                    onSetGlobalIconTint={setIconTintOverride}
+                    onAddColor={handleAddColor}
+                    onDownload={async (choice) => {
+                      /*
+                       * THE HEADER IS THE WHOLE FAMILY, THROUGH THE SAME
+                       * WRITER EVERY OTHER DOWNLOAD USES.
+                       *
+                       * It used to be four bespoke branches — Fonts, Icons,
+                       * Colors, then a hand-rolled zip loop for everything
+                       * else — and three of the four read `choice` not at
+                       * all: whichever row of the menu you pressed on the
+                       * Typography, Icons or Colors wall, you got that
+                       * family's one bundle. `allVariants` is what makes
+                       * this the WALL rather than the card: every design
+                       * shown, not the featured one.
+                       */
+                      const entry = getEntryFor(
+                        drilldownTarget.sectionKey,
+                        drilldownTarget.label,
                       );
-                      const tplNames = (drilldownTarget.templates ?? []).map((t) => t.name);
-                      const iconSources = effectiveBrand.icons;
-                      const entries: IconExportEntry[] = [];
-                      tiles?.forEach((el, i) => {
-                        entries.push({
-                          name: tplNames[i] ?? `Icon ${i + 1}`,
-                          source: iconSources[i] ?? '',
-                          element: el,
-                        });
-                      });
-                      try {
-                        await downloadIconsBundle(
-                          entries,
-                          `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-icons`,
-                        );
-                      } catch (err) {
-                        toast.error('Download failed', {
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
-                        });
+                      const label = drilldownTarget.displayLabel ?? drilldownTarget.label;
+                      if (!entry) {
+                        toast(`Nothing to export for ${label} yet`);
+                        return;
                       }
-                      return;
-                    }
-                    if (drilldownTarget.label === 'Colors') {
-                      // One palette vocabulary. Position is not a role
-                      // ("Core 4" told a customer nothing, D40) and the
-                      // generated grey ladder is not the brand's palette
-                      // (it is most of why this download was 320 files,
-                      // D37) — `paletteOf` settles both.
-                      await runColorsExport(paletteOf(effectiveBrand), effectiveBrand.name);
-                      return;
-                    }
-                    // Template drilldowns (stationery / social / web /
-                    // guides / presentations / animations): bundle a
-                    // rasterized PNG of every visible variant.
-                    {
-                      const templates = drilldownTarget.templates ?? [];
-                      if (templates.length === 0) {
-                        // A composed view — Strategy, the two Systems, the
-                        // Board. No template library to bundle, but very
-                        // much something to download.
-                        const entry = getEntryFor(
-                          drilldownTarget.sectionKey,
-                          drilldownTarget.label,
-                        );
-                        if (entry) {
-                          const id = toast.loading(`Preparing ${entry.label}…`);
-                          const result = await downloadEntry(entry, {
-                            brand: effectiveBrand,
+                      const id = toast.loading(`Preparing ${label}…`);
+                      try {
+                        const result = await downloadEntry(
+                          entry,
+                          {
+                            // The tint the user picked on this wall is part
+                            // of the artwork they are looking at, and the
+                            // renderers read it off the brand.
+                            brand: iconTintOverride
+                              ? { ...effectiveBrand, iconTint: iconTintOverride }
+                              : effectiveBrand,
                             sourceBrand,
                             entries: [entry],
                             saved: loadBrandCustomizations(customizationBrandId),
                             featuredIdsByLabel,
-                          });
-                          if (result.added) toast.success(`${entry.label} downloaded`, { id });
-                          else {
-                            toast.error(`Couldn't download ${entry.label}`, {
-                              id,
-                              description: result.skipped[0]?.reason,
-                            });
-                          }
-                          return;
-                        }
-                      }
-                      if (templates.length === 0 || !sourceBrand) {
-                        toast(`Nothing to export for ${drilldownTarget.label} yet`);
-                        return;
-                      }
-                      const id = toast.loading(
-                        `Preparing ${drilldownTarget.label} download…`,
-                      );
-                      try {
-                        const aspect =
-                          PICKER_ASPECT_BY_LABEL[drilldownTarget.label] ?? 1.6;
-                        const { default: JSZip } = await import('jszip');
-                        const zip = new JSZip();
-                        // THE HEADER HONOURS THE FORMAT THE MENU ASKED FOR.
-                        // The whole family, converted the same way the card's
-                        // own menu converts one design — `downloadEntry` does
-                        // exactly this for a single deliverable, and there is
-                        // no reason a wall of them should be PNG-or-nothing.
-                        const page =
-                          PRINT_PAGE_MM[drilldownTarget.label] ?? ('fit' as const);
-                        for (const tpl of templates) {
-                          const blob = await snapshotTemplatePng(
-                            renderTemplateDesign(tpl, sourceBrand, effectiveBrand),
-                            260,
-                            aspect,
-                          );
-                          if (!blob) continue;
-                          const name = slugifyName(tpl.name);
-                          if (choice.format === 'pdf') {
-                            zip.file(`${name}.pdf`, await pngToPdf(blob, page));
-                          } else if (choice.format === 'jpg') {
-                            zip.file(`${name}.jpg`, await pngToJpg(blob));
-                          } else if (choice.format === 'custom' && choice.size) {
-                            zip.file(`${name}.png`, await resizePng(blob, choice.size));
-                          } else {
-                            zip.file(`${name}.png`, blob);
-                          }
-                        }
-                        triggerBlobDownload(
-                          await zip.generateAsync({ type: 'blob' }),
-                          `${slugifyName(effectiveBrand.name)}-${slugifyName(drilldownTarget.label)}.zip`,
+                            allVariants: true,
+                            depth: 'full',
+                          },
+                          choice,
                         );
-                        toast.success(`${drilldownTarget.label} exported`, { id });
+                        if (result.added) toast.success(`${label} downloaded`, { id });
+                        else {
+                          toast.error(`Couldn't download ${label}`, {
+                            id,
+                            description: result.skipped[0]?.reason,
+                          });
+                        }
                       } catch (err) {
                         toast.error('Download failed', {
                           id,
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
+                          description: err instanceof Error ? err.message : 'Unknown error',
                         });
                       }
-                    }
-                  }}
-                />
-              </div>
-            )}
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
+          <KitDockHost onHost={setDockHost} />
         </div>
-      </div>
-      <BrandKitCardEditor
-        brand={effectiveBrand}
-        sourceBrand={sourceBrand}
-        target={editorTarget}
-        initialCustomization={editorCustomization}
-        onClose={() => setEditorTarget(null)}
-        onSave={(t, customization) => {
-          const ok = saveCardCustomization(
-            customizationBrandId,
-            cardCustomizationKey(t),
-            customization,
-          );
-          if (ok) {
-            toast.success(`Saved ${t.label}`, {
-              description: 'Your customization is stored with this brand.',
-            });
-          } else {
-            toast.error(`Couldn't save ${t.label}`, {
-              description: 'Storage write failed — try again.',
-            });
-          }
-          setEditorTarget(null);
-        }}
-        onDownload={async (t) => {
-          // The editor preview already renders the user's live overrides
-          // — snapshot that DOM so the download matches what they see.
-          const host = document.querySelector<HTMLElement>('.bk-preview-host');
-          if (host) {
-            // Top-centre, deliberately: the editor's Cancel · Download ·
-            // Save bar sits bottom-right, exactly where a toast lands by
-            // default. "Business Card exported" used to cover Save, and the
-            // click after a download went to the toast instead.
-            const where = { position: 'top-center' as const };
-            const id = toast.loading(`Exporting ${t.label}…`, where);
-            try {
-              const blob = await snapshotElementPng(host, 4);
-              if (!blob) throw new Error('Rasterization produced no image');
-              triggerBlobDownload(
-                blob,
-                `${slugifyName(effectiveBrand.name)}-${slugifyName(t.label)}.png`,
-              );
-              toast.success(`${t.label} exported`, { id, ...where });
-            } catch (err) {
-              toast.error('Download failed', {
-                id,
-                ...where,
-                description: err instanceof Error ? err.message : 'Unknown error',
+        <BrandKitCardEditor
+          brand={effectiveBrand}
+          sourceBrand={sourceBrand}
+          target={editorTarget}
+          initialCustomization={editorCustomization}
+          onClose={closeCardEditor}
+          onDraftChange={handleCardDraft}
+          onSave={(t, customization) => {
+            const ok = saveCardCustomization(
+              customizationBrandId,
+              cardCustomizationKey(t),
+              customization,
+            );
+            if (ok) {
+              toast.success(`Saved ${t.label}`, {
+                description: 'Your customization is stored with this brand.',
+              });
+            } else {
+              toast.error(`Couldn't save ${t.label}`, {
+                description: 'Storage write failed — try again.',
               });
             }
-            return;
+            closeCardEditor();
+          }}
+          onDownload={async (t) => {
+            // The editor preview already renders the user's live overrides
+            // — snapshot that DOM so the download matches what they see.
+            const host = document.querySelector<HTMLElement>('.bk-preview-host');
+            if (host) {
+              // Top-centre, deliberately: the editor's Cancel · Download ·
+              // Save bar sits bottom-right, exactly where a toast lands by
+              // default. "Business Card exported" used to cover Save, and the
+              // click after a download went to the toast instead.
+              const where = { position: 'top-center' as const };
+              const id = toast.loading(`Exporting ${t.label}…`, where);
+              try {
+                const blob = await snapshotElementPng(host, 4);
+                if (!blob) throw new Error('Rasterization produced no image');
+                triggerBlobDownload(
+                  blob,
+                  `${slugifyName(effectiveBrand.name)}-${slugifyName(t.label)}.png`,
+                );
+                toast.success(`${t.label} exported`, { id, ...where });
+              } catch (err) {
+                toast.error('Download failed', {
+                  id,
+                  ...where,
+                  description: err instanceof Error ? err.message : 'Unknown error',
+                });
+              }
+              return;
+            }
+            // No live preview (cover-image cards) — fall back to the
+            // same offscreen path the card download uses.
+            await handleDownloadCard(t);
+          }}
+          onUpdateIconAt={handleUpdateIconAt}
+          onUseTemplate={
+            editorDeliverable?.contentTypeId
+              ? (template) => handleUseTemplate(template, editorDeliverable)
+              : undefined
           }
-          // No live preview (cover-image cards) — fall back to the
-          // same offscreen path the card download uses.
-          await handleDownloadCard(t);
-        }}
-        onUpdateIconAt={handleUpdateIconAt}
-        onUseTemplate={
-          editorDeliverable?.contentTypeId
-            ? (template) => handleUseTemplate(template, editorDeliverable)
-            : undefined
-        }
-        onEditTemplate={
-          editorDeliverable?.contentTypeId
-            ? (template) => handleEditTemplate(template, editorDeliverable)
-            : undefined
-        }
-      />
-      <ExportKitDialog
-        open={exportPickerOpen}
-        onClose={() => {
-          setExportPickerOpen(false);
-          setExportDone(null);
-          setExportProgress(null);
-        }}
-        entries={allEntries}
-        onExport={handleExportChosen}
-        busy={exportingKit}
-        progress={exportProgress}
-        done={exportDone}
-        onCancelExport={() => exportAbortRef.current?.abort()}
-      />
-      {/* The brand-asset editors. Each writes to the BRAND through the
-          Setup chain and confirms first; `onBrandChange` is the live
-          preview, so the kit behind the panel repaints as you edit.
+          onEditTemplate={
+            editorDeliverable?.contentTypeId
+              ? (template) => handleEditTemplate(template, editorDeliverable)
+              : undefined
+          }
+        />
+        <ExportKitDialog
+          open={exportPickerOpen}
+          onClose={() => {
+            setExportPickerOpen(false);
+            setExportDone(null);
+            setExportProgress(null);
+          }}
+          entries={allEntries}
+          onExport={handleExportChosen}
+          busy={exportingKit}
+          progress={exportProgress}
+          done={exportDone}
+          onCancelExport={() => exportAbortRef.current?.abort()}
+        />
+        {/* The brand-asset editors. Each writes to the BRAND through the
+            Setup chain and confirms first; `onBrandChange` is the live
+            preview, so the kit behind the panel repaints as you edit.
 
-          Mounted only while OPEN, never all five behind an `open` flag:
-          `PhotosEditor` builds an uploader from the DI container the
-          moment it renders, so five always-mounted panels would stand up
-          machinery nobody asked for — and take the whole page down on any
-          surface that has not booted the container. */}
-      {assetEditor !== null && (
-        <>
-          <LogosEditor
-            open={assetEditor === 'Logos'}
-            onClose={closeAssetEditor}
-            brand={baseBrand}
-            sourceBrand={sourceBrand}
-            onBrandChange={setBrandPreview}
-            focusVariantId={assetEditorVariant}
-          />
-          <ColorsEditor
-            open={assetEditor === 'Colors'}
-            onClose={closeAssetEditor}
-            brand={baseBrand}
-            sourceBrand={sourceBrand}
-            onBrandChange={setBrandPreview}
-          />
-          <TypographyEditor
-            open={assetEditor === 'Fonts'}
-            onClose={closeAssetEditor}
-            brand={baseBrand}
-            sourceBrand={sourceBrand}
-            onBrandChange={setBrandPreview}
-          />
-          <IconsEditor
-            open={assetEditor === 'Icons'}
-            onClose={closeAssetEditor}
-            brand={baseBrand}
-            sourceBrand={sourceBrand}
-            onBrandChange={setBrandPreview}
-          />
-          {assetEditor === 'Photos' && (
-            <PhotosEditor
-              open
+            Mounted only while OPEN, never all five behind an `open` flag:
+            `PhotosEditor` builds an uploader from the DI container the
+            moment it renders, so five always-mounted panels would stand up
+            machinery nobody asked for — and take the whole page down on any
+            surface that has not booted the container. */}
+        {assetEditor !== null && (
+          <>
+            <LogosEditor
+              open={assetEditor === 'Logos'}
+              onClose={closeAssetEditor}
+              brand={baseBrand}
+              sourceBrand={sourceBrand}
+              onBrandChange={setBrandPreview}
+              focusVariantId={assetEditorVariant}
+            />
+            <ColorsEditor
+              open={assetEditor === 'Colors'}
               onClose={closeAssetEditor}
               brand={baseBrand}
               sourceBrand={sourceBrand}
               onBrandChange={setBrandPreview}
             />
-          )}
-          {assetEditor === 'About' && (
-            <StrategyEditor
-              open
+            <TypographyEditor
+              open={assetEditor === 'Fonts'}
               onClose={closeAssetEditor}
               brand={baseBrand}
               sourceBrand={sourceBrand}
               onBrandChange={setBrandPreview}
             />
-          )}
-        </>
-      )}
-      <IconPickerModal
-        open={iconPickerOpen}
-        selected={effectiveBrand.icons}
-        onPick={handleAddIcon}
-        onClose={() => setIconPickerOpen(false)}
-      />
-      <TemplatePickerModal
-        open={pickerLabel !== null}
-        title={pickerLabel ? `Add ${pickerLabel.toLowerCase()} variant` : ''}
-        noun={pickerLabel ?? 'variant'}
-        tileAspect={pickerLabel ? PICKER_ASPECT_BY_LABEL[pickerLabel] ?? 1.6 : 1.6}
-        templates={
-          pickerLabel && drilldownTarget?.label === pickerLabel
-            ? drilldownTarget.templates ?? []
-            : []
-        }
-        excludedIds={
-          pickerLabel
-            ? featuredIdsByLabel[pickerLabel] ??
-              (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id)
-            : []
-        }
-        sourceBrand={sourceBrand}
-        mockBrand={effectiveBrand}
-        onPick={(tpl) => {
-          if (!pickerLabel) return;
-          setFeaturedIdsByLabel((prev) => {
-            const current =
-              prev[pickerLabel] ??
-              (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id);
-            if (current.includes(tpl.id)) return prev;
-            const next = [...current, tpl.id];
-            saveFeaturedVariants(customizationBrandId, pickerLabel, next);
-            return { ...prev, [pickerLabel]: next };
-          });
-        }}
-        onClose={() => setPickerLabel(null)}
-      />
-    </WorkspaceShell>
+            <IconsEditor
+              open={assetEditor === 'Icons'}
+              onClose={closeAssetEditor}
+              brand={baseBrand}
+              sourceBrand={sourceBrand}
+              onBrandChange={setBrandPreview}
+            />
+            {assetEditor === 'Photos' && (
+              <PhotosEditor
+                open
+                onClose={closeAssetEditor}
+                brand={baseBrand}
+                sourceBrand={sourceBrand}
+                onBrandChange={setBrandPreview}
+              />
+            )}
+            {assetEditor === 'About' && (
+              <StrategyEditor
+                open
+                onClose={closeAssetEditor}
+                brand={baseBrand}
+                sourceBrand={sourceBrand}
+                onBrandChange={setBrandPreview}
+              />
+            )}
+          </>
+        )}
+        <IconPickerModal
+          open={iconPickerOpen}
+          selected={effectiveBrand.icons}
+          onPick={handleAddIcon}
+          onClose={() => setIconPickerOpen(false)}
+        />
+      </WorkspaceShell>
+    </KitDockProvider>
   );
 }
 
@@ -1936,6 +1748,16 @@ type DrilldownProps = {
   /** Setup-shaped brand data — required for brand-asset variants
    *  whose renderers live in a MockBrand world. */
   mockBrand?: MockBrand;
+  /**
+   * Saved customizations WITH the open editor's live draft laid over them.
+   *
+   * A tile used to render the library's default whatever the user had
+   * saved, which was survivable while editing happened behind a scrim
+   * nobody could see past. Docked, the tile is right there beside the
+   * panel — so it has to be the artifact being edited, not a stock copy
+   * of it.
+   */
+  savedContent?: Record<string, SavedCardCustomization>;
   onBack: (origin?: Origin) => void;
   onPickVariant: (template?: BrandKitTemplate) => void;
   /** Optional — when provided, the Icons drilldown shows an "Add"
@@ -1952,16 +1774,6 @@ type DrilldownProps = {
   /** Pass a hex to set the global tint, or null to clear it and
    *  fall back to the per-tile default. */
   onSetGlobalIconTint?: (hex: string | null) => void;
-  /** Curated variant IDs for the current drilldown's card. When
-   *  defined, the grid renders only these tiles in this order — the
-   *  rest of the library is reachable via the "+" picker. Undefined
-   *  means render all of `target.templates` (used for cards with no
-   *  designed picker pattern, e.g. Brand Assets). */
-  featuredIds?: string[];
-  /** Opens the per-card variants picker (more variants from the
-   *  library). When defined alongside `featuredIds`, the drilldown
-   *  shows a "+" in its header. */
-  onAddVariants?: () => void;
   /** Optional — when provided, the Colors drilldown shows a "+"
    *  button that pops the inline HSV color picker (Setup parity). */
   onAddColor?: (group: 'core' | 'accent', hex: string) => void;
@@ -1982,8 +1794,8 @@ type DrilldownProps = {
   onDownloadVariant?: (template: BrandKitTemplate, choice: DownloadChoice) => void;
   /** The five download words this card can honour. */
   downloadOptions?: DownloadOption[];
-  /** Promote a variant to the card's face. Only offered where the card
-   *  really has a featured list to promote into. */
+  /** Promote a design to the card's face on the overview. Only offered
+   *  where the card really has a cover list to promote into. */
   onSetFeatured?: (template: BrandKitTemplate) => void;
 };
 
@@ -2003,19 +1815,76 @@ type DrilldownProps = {
  * uses, just framed in our cosmos shell. Cards with no legacy
  * counterpart fall back to the shared cover image.
  */
+/**
+ * How many tiles paint before the observer has said anything.
+ *
+ * The rest wait for an IntersectionObserver (`useNearViewport`), the same
+ * deferral the overview's 37 covers use — with thirty designs on a wall,
+ * mounting thirty React renderers in one frame is the cost of opening a
+ * card.
+ *
+ * Four, not "the first screenful": the number has to hold for a narrow
+ * window as well as a wide one, and at 414px a document family is ONE
+ * column of 590px-tall tiles — a screenful there is one tile, and twelve
+ * is eleven invoices nobody asked for. Four is the first row at document
+ * density on a laptop and a small overshoot on a phone. The point of it
+ * is not to cover the fold (the observer does that, within a frame) but
+ * to make sure the tile the user pressed a card to see is never an empty
+ * box, not even for one frame.
+ */
+const EAGER_TILES = 4;
+
+/**
+ * A tile's live artwork — mounted when it is worth mounting, and NOT
+ * re-rendered because something else on the page moved.
+ *
+ * Both halves are needed and they answer different costs. The observer
+ * answers the FIRST paint: thirty renderers in one frame is what opening
+ * a card would otherwise cost. `memo` answers every frame after it — the
+ * drilldown holds six pieces of state (a tile menu, the download menu, the
+ * weight and colour popovers, the theme, the filter query), and without
+ * this each of them re-ran every renderer on the wall. Opening a context
+ * menu on each of twenty-two invoices in turn took the browser down.
+ *
+ * The memo holds because `content` is `undefined` for any design nobody
+ * has edited (`contentForTemplate` returns undefined with no saved
+ * record), which is nearly all of them; an edited design gets a new
+ * content object and repaints, which is exactly what the docked editor
+ * needs.
+ */
+const VariantArtwork = memo(function VariantArtwork({
+  template,
+  sourceBrand,
+  mockBrand,
+  content,
+  eager,
+}: {
+  template: BrandKitTemplate;
+  sourceBrand: Brand;
+  mockBrand?: MockBrand;
+  content?: DeliverableContent;
+  eager: boolean;
+}) {
+  const [ref, near] = useNearViewport<HTMLSpanElement>(eager);
+  return (
+    <span ref={ref} className="bk-variant-tile-render" aria-hidden>
+      {near ? renderTemplateDesign(template, sourceBrand, mockBrand, content) : null}
+    </span>
+  );
+});
+
 function BrandKitDrilldown({
   target,
   entry,
   sourceBrand,
   mockBrand,
+  savedContent,
   onBack,
   onPickVariant,
   onAddIcon,
   onSetGlobalIconWeight,
   iconTintOverride,
   onSetGlobalIconTint,
-  featuredIds,
-  onAddVariants,
   onAddColor,
   onDownload,
   onUseTemplate,
@@ -2088,21 +1957,22 @@ function BrandKitDrilldown({
       // Icons drilldown uses.
       return variantsForCard(target.sectionKey, target.label, mockBrand);
     }
-    if (featuredIds) {
-      // Filter the full library down to the curated/picked IDs in
-      // their stored order. Drives the "3 featured + picker" pattern
-      // for Stationery, Social, Web, Brand Guides, Presentations,
-      // Animations.
-      const all = target.templates ?? [];
-      return featuredIds
-        .map((id) => all.find((t) => t.id === id))
-        .filter((t): t is typeof all[number] => Boolean(t));
-    }
+    /*
+     * EVERY DESIGN THE FAMILY HAS.
+     *
+     * This used to filter the library down to three curated ids and put
+     * the other twenty-seven behind a "+" that opened a modal over the
+     * page. Ninety-four designs were on the machine and six were on the
+     * screen. A library is not a library if you have to know it is there.
+     *
+     * The wall is the library now; `featuredTemplates` still exists, and
+     * still means something — but only "which of these is the card's
+     * face", which is a question about the OVERVIEW, not about browsing.
+     */
     return target.templates ?? [];
   }, [
     isIcons,
     isColors,
-    featuredIds,
     mockBrand,
     target.sectionKey,
     target.label,
@@ -2152,7 +2022,7 @@ function BrandKitDrilldown({
       }
       if (onSetFeatured) {
         out.push({
-          label: 'Set as featured',
+          label: 'Set as cover',
           onSelect: () => onSetFeatured(tpl),
           separated: out.length > 0,
         });
@@ -2369,28 +2239,6 @@ function BrandKitDrilldown({
               </svg>
             </button>
           )}
-          {onAddVariants && (
-            <button
-              type="button"
-              className="section-add"
-              onClick={onAddVariants}
-              aria-label={`Browse more ${target.label.toLowerCase()} variants`}
-              title="More variants"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-          )}
           {isColors && onAddColor && (
             <div className="bk-drilldown-color">
               <button
@@ -2575,7 +2423,12 @@ function BrandKitDrilldown({
           )}
         </div>
       </div>
-      {!composed && hasTemplates && (
+      {/* THE ROW IS PART OF THE PAGE, NOT OF THE FAMILY. Present on every
+          wall of designs, inert where there is nothing to sift — a
+          control that appears on some cards and not on others is a
+          control nobody learns is there. Composed views (Strategy, the
+          two systems, the Brand Board) have no wall to sift. */}
+      {!composed && (
         <KitFilterRow
           filter={filter}
           total={templates.length}
@@ -2585,20 +2438,23 @@ function BrandKitDrilldown({
       {composed ?? (
       <div
         className="bk-drilldown-grid"
+        data-density={densityForLabel(target.label)}
         style={
-          isIcons
-            ? ({
-                ...(iconTintOverride ? { '--bk-icon-tint': iconTintOverride } : {}),
-                ...(iconBgFlip ? { '--bk-icon-bg': iconBgFlip } : {}),
-              } as CSSProperties)
-            : undefined
+          {
+            // The grid is keyed to the MATERIAL. A 48px glyph and an A4
+            // letterhead are not the same cell; `auto-fill` then decides
+            // the column count from the width it is actually given.
+            '--bk-tile-min': `${tileMinWidth(target.label)}px`,
+            ...(isIcons && iconTintOverride ? { '--bk-icon-tint': iconTintOverride } : {}),
+            ...(isIcons && iconBgFlip ? { '--bk-icon-bg': iconBgFlip } : {}),
+          } as CSSProperties
         }
       >
         {hasTemplates ? (
           visible.length === 0 ? (
             <KitFilterEmpty onClear={filter.clear} />
           ) : (
-          visible.map((tpl) => (
+          visible.map((tpl, i) => (
             <figure key={tpl.id} className="bk-variant-card" data-template-id={tpl.id}>
               <button
                 type="button"
@@ -2609,9 +2465,17 @@ function BrandKitDrilldown({
                 aria-label={`Open ${tpl.name}`}
               >
                 {sourceBrand ? (
-                  <span className="bk-variant-tile-render" aria-hidden>
-                    {renderTemplateDesign(tpl, sourceBrand, mockBrand)}
-                  </span>
+                  <VariantArtwork
+                    template={tpl}
+                    sourceBrand={sourceBrand}
+                    mockBrand={mockBrand}
+                    content={
+                      savedContent && mockBrand
+                        ? contentForTemplate(savedContent, tpl, mockBrand)
+                        : undefined
+                    }
+                    eager={i < EAGER_TILES}
+                  />
                 ) : (
                   <span
                     className="bk-variant-tile-cover"

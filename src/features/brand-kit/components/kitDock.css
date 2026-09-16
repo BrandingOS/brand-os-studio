@@ -1,0 +1,192 @@
+/* ============================================================
+ * The Brand Kit's docked editing column.
+ *
+ * A COLUMN OF THE PAGE, not a layer over it: the shell grows a third
+ * grid track while an editor is open and the board reflows into what is
+ * left. There is deliberately no scrim, no fixed full-viewport layer and
+ * no z-index race here — if you find yourself adding one, the panel has
+ * stopped being docked.
+ *
+ * Chrome comes from the house `.panel` vocabulary in workspace.css
+ * (sticky, bordered, its own scroller). Everything below is either the
+ * dock's own layout, or the same rules written UNSCOPED so a panel still
+ * paints on a surface with no `[data-workspace]` ancestor — which is how
+ * every editor's own test mounts it.
+ * ============================================================ */
+
+/* `display: contents` so the panel itself is the grid item and the house
+   `.panel` sticky/`align-self: start` behave exactly as they do for the
+   kit's own sidebar. An empty host occupies nothing. */
+.bk-dock-host {
+  display: contents;
+}
+
+/* The third track. `auto` so the panel owns its own width — a template
+   editor carrying a live preview is wider than a list of colours, and
+   that decision belongs to the panel, not to the page. */
+[data-workspace] .shell[data-dock] {
+  grid-template-columns: minmax(232px, 256px) minmax(0, 1fr) auto;
+}
+
+.bk-dock-panel {
+  width: 380px;
+  max-width: 100%;
+  min-width: 0;
+  /* Unscoped fallback for the `.panel` chrome — see the header. Inside
+     the workspace `[data-workspace] .panel` is more specific and wins. */
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-menu);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+  overflow: hidden;
+  animation: bk-dock-in var(--ds-duration-panel) var(--ds-ease);
+}
+.bk-dock-panel[data-size='wide'] {
+  width: 520px;
+}
+
+@keyframes bk-dock-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bk-dock-panel { animation: none; }
+}
+
+/* ── Head ── */
+.bk-dock-panel .bk-dock-top,
+[data-workspace] .bk-dock-panel .bk-dock-top {
+  /* `display` too, not only the direction: the house `.panel-top` is
+     `[data-workspace]`-scoped, and a panel mounted outside the workspace
+     (any editor's own test) would otherwise lay its close button out on a
+     line of its own. */
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-border);
+  flex: 0 0 auto;
+}
+.bk-dock-panel .bk-dock-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+/* The house title face, restated unscoped for the standalone case. */
+.bk-dock-panel .panel-heading-title {
+  font-size: 20px;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--ds-text);
+}
+.bk-dock-panel .panel-heading-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ds-text-muted);
+  font-weight: 500;
+}
+
+.bk-dock-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  color: var(--ds-text);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease), border-color var(--ds-duration-state) var(--ds-ease);
+}
+.bk-dock-close:hover {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+}
+.bk-dock-close:focus-visible {
+  outline: none;
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+/* ── Body — the only thing that scrolls ── */
+.bk-dock-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--ds-space-4);
+}
+.bk-dock-body::-webkit-scrollbar { width: 6px; }
+.bk-dock-body::-webkit-scrollbar-thumb {
+  background: var(--ds-border-strong);
+  border-radius: var(--ds-radius-pill);
+}
+
+/* ── Foot — always inside the box, never below it ── */
+.bk-dock-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+.bk-dock-foot-quiet,
+.bk-dock-foot-main {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+}
+.bk-dock-foot-main { margin-left: auto; }
+
+/*
+ * The board keeps its rhythm but not its full gutters. The kit's grid is
+ * `repeat(auto-fill, minmax(260px, 1fr))`, and at 40px a side the track
+ * left over by a wide panel fell one card short of two columns — so the
+ * kit reflowed to a single 500px card, which is a reflow but not one that
+ * shows you your kit.
+ */
+@media (min-width: 1101px) {
+  [data-workspace] .shell[data-dock] .board-wrap {
+    padding-left: var(--ds-space-5);
+    padding-right: var(--ds-space-5);
+  }
+}
+
+/*
+ * Below 1100px the side-by-side column stops earning its width, so the
+ * panel spans the shell instead — still in flow, still not covering the
+ * board, just above it rather than beside it.
+ */
+@media (max-width: 1100px) {
+  [data-workspace] .shell[data-dock] {
+    grid-template-columns: minmax(232px, 256px) minmax(0, 1fr);
+  }
+  .bk-dock-panel,
+  .bk-dock-panel[data-size='wide'] {
+    width: auto;
+    grid-column: 1 / -1;
+    order: -1;
+    max-height: min(60vh, 560px);
+  }
+}
+@media (max-width: 900px) {
+  [data-workspace] .shell[data-dock] {
+    grid-template-columns: 1fr;
+  }
+}

@@ -148,6 +148,11 @@
   box-shadow: 0 0 0 3px var(--ds-focus-ring);
   border-color: var(--ds-focus-border);
 }
+.ds-input:disabled,
+.ds-textarea:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .ds-input--error,
 .ds-input--error:focus {
   border-color: var(--ds-error-border);
@@ -405,6 +410,12 @@
 .ds-chip:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+/* Same disabled reading as `.ds-btn` — the DS has one answer to "this
+   control is here but cannot be used", and a chip is a control. */
+.ds-chip:disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .ds-badge {

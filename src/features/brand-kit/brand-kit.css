@@ -83,6 +83,15 @@
   z-index: 2;
   pointer-events: none;
 }
+/* Same rule, same reason, one level up: `.bk-card` also carries
+   `will-change: opacity` for the page's wave reveal, so a card's own
+   download menu is ordered only within that card. */
+[data-workspace] .bk-card:hover,
+[data-workspace] .bk-card:focus-within,
+[data-workspace] .bk-card.is-ctx-active {
+  position: relative;
+  z-index: 4;
+}
 [data-workspace] .bk-card:hover .bk-card-actions,
 [data-workspace] .bk-card:focus-within .bk-card-actions,
 [data-workspace] .bk-card.is-ctx-active .bk-card-actions {
@@ -118,34 +127,25 @@
   padding-left: 2px;
 }
 
-/* ─── Card editor (90vw × 90vh) ────────────────────────────── */
-
-/* Backdrop carries data-theme so the dialog inside keeps the same
-   light/dark tokens as the workspace it was launched from. */
-.bk-editor-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  background: rgba(15, 17, 22, 0.55);
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  animation: bk-editor-fade 160ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes bk-editor-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.bk-editor-backdrop {
-  /* Editor-scoped aliases, re-based onto the canonical DS tokens
-     (convergence doc §4 local-var pattern). The backdrop carries
-     data-theme, so the DS dark map resolves these automatically —
-     the old hand-maintained dark override block is gone. --bke-muted /
-     --bke-surface-hover / --bke-ring / --bke-text-tertiary were used
-     but never DEFINED (resolving only via per-usage fallbacks; one
-     hover had none and silently dropped) — now real. */
+/* ─── Card editor — a DOCKED COLUMN, not a dialog ──────────────
+ *
+ * What used to live here: `.bk-editor-backdrop`, a fixed full-viewport
+ * layer at `z-index: 1000` carrying an `rgba(15,17,22,.55)` scrim and an
+ * 8px backdrop blur, with a 92vw × 90vh two-card grid inside it. It is
+ * gone, and it must not come back: the editor now IS a column of the
+ * page (`components/kitDock.css`), so the kit it edits stays visible and
+ * clickable beside it.
+ *
+ * `.bk-editor` is the class the panel root still carries. It is no
+ * longer a layout — the dock owns width, height, stickiness and
+ * scrolling — it is the SCOPE that the editor's own `--bke-*` aliases
+ * are declared on, which is why every `.bk-editor-*` rule below still
+ * resolves. The aliases re-base onto the canonical DS tokens
+ * (convergence doc §4), and the DS dark map resolves through whatever
+ * `data-theme` the workspace is wearing, so there is no dark override
+ * block to maintain.
+ */
+.bk-editor {
   --bke-surface: var(--ds-surface);
   --bke-surface-2: var(--ds-surface-subtle);
   --bke-surface-hover: var(--ds-surface-hover);
@@ -156,82 +156,30 @@
   --bke-border: var(--ds-border);
   --bke-border-strong: var(--ds-border-strong);
   --bke-ring: var(--ds-focus-ring);
-  --bke-shadow: var(--ds-shadow-float);
+  --bke-shadow: var(--ds-shadow-xs);
 }
 
-/* Two floating cards on the dimmed backdrop, separated by a gap.
-   The wrapper is just a layout container — no border or background. */
-.bk-editor {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  width: 92vw;
-  max-width: 1600px;
-  height: 90vh;
-  font-family: inherit;
-  animation: bk-editor-rise 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes bk-editor-rise {
-  from { opacity: 0; transform: translateY(8px) scale(0.99); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* ── Left column: preview + variant switcher ──
-   Grid col 1 is now this column rather than the preview card directly,
-   so a deliverable can show its OTHER layouts underneath the preview
-   without the rail's own column stealing the strip (a bare 2-column
-   grid would place the strip in the rail's track, one row down from
-   where the preview sits — this wrapper keeps both preview and strip
-   in column 1). */
-.bk-editor-preview-col {
+/* The preview sits at the top of the column, above the controls, and is
+   capped so a tall artifact can never push every control below the fold.
+   `aspect-ratio` keeps it honest at the panel's width. */
+.bk-editor-preview-slot {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-  min-height: 0;
+  margin-bottom: var(--ds-space-4);
 }
-.bk-editor-preview-col > .bk-editor-preview-card {
-  flex: 1 1 auto;
+.bk-editor-preview-slot > .bk-editor-preview-card {
+  aspect-ratio: 16 / 10;
+  max-height: 44vh;
 }
-
-/* Variant switcher — reuses the drilldown grid's own tile classes
-   (.bk-variant-card / .bk-variant-tile / .bk-variant-tile-render /
-   .bk-variant-tile-cover / .bk-variant-label) so a variant reads as
-   the same artifact in both places. Those classes' CONTAINER rules
-   are declared `[data-workspace] .bk-variant-card` / `[data-workspace]
-   .bk-variant-label` on the page, which never reaches this portal (see
-   the Radix-portal note in CLAUDE.md) — so the sizing for THIS context
-   is scoped here instead, unscoped, the same way every other
-   `.bk-editor-*` rule in this file already is. */
-.bk-editor-variants {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  flex: 0 0 auto;
-  padding-bottom: 2px;
+.bk-editor-preview-slot > .bk-editor-preview-card--icon,
+.bk-editor-preview-slot > .bk-editor-preview-card--color {
+  aspect-ratio: 4 / 3;
 }
-.bk-editor-variants .bk-variant-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  width: 128px;
-  flex: 0 0 auto;
-}
-.bk-editor-variants .bk-variant-tile {
-  aspect-ratio: 1.6 / 1;
-}
-.bk-editor-variants .bk-variant-tile.is-selected {
-  border-color: var(--bke-text);
-  box-shadow: 0 0 0 2px var(--bke-text), var(--ds-shadow-xs);
-}
-.bk-editor-variants .bk-variant-label {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--bke-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.bk-editor-preview-slot > .bk-editor-preview-card--font {
+  aspect-ratio: auto;
+  max-height: 40vh;
+  overflow: auto;
 }
 
 /* ── Left card: preview ──
@@ -630,68 +578,14 @@
 .bk-snapshot-host--auto > * {
   height: auto;
 }
-.bk-editor-eyebrow {
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--bke-text-secondary);
-}
-.bk-editor-title {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
-  color: var(--bke-text);
-}
-
 /* ── Right card: edit rail ── */
-.bk-editor-rail-card {
-  background: var(--bke-surface);
-  border: 1px solid var(--bke-border);
-  border-radius: 18px;
-  box-shadow: var(--bke-shadow);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 0;
-  overflow: hidden;
-}
-.bk-editor-rail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 14px;
-  border-bottom: 1px solid var(--bke-border);
-}
-.bk-editor-rail-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.bk-editor-close {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: 1px solid var(--bke-border);
-  border-radius: 10px;
-  color: var(--bke-text);
-  cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease;
-}
-.bk-editor-close:hover {
-  background: var(--bke-surface-2);
-  border-color: var(--bke-border-strong);
-}
+/* The dock's `.bk-dock-body` is the scroller and owns the padding; this
+   is only the stack of control groups inside it. */
 .bk-editor-rail-body {
-  padding: 14px 14px 14px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  min-height: 0;
+  gap: var(--ds-space-4);
+  min-width: 0;
 }
 
 .bk-editor-group { display: flex; flex-direction: column; gap: 8px; }
@@ -752,25 +646,6 @@
   color: var(--bke-text-secondary);
   letter-spacing: -0.005em;
 }
-.bk-editor-field-input {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--bke-border);
-  background: var(--bke-surface);
-  color: var(--bke-text);
-  font: inherit;
-  font-size: 13px;
-  letter-spacing: -0.005em;
-  transition: border-color 140ms var(--ds-ease), box-shadow 140ms var(--ds-ease);
-}
-.bk-editor-field-input:focus {
-  outline: none;
-  border-color: var(--bke-border-strong);
-  box-shadow: 0 0 0 3px var(--bke-ring, rgba(0, 0, 0, 0.06));
-}
-.bk-editor-field-input::placeholder { color: var(--bke-text-tertiary, var(--bke-text-secondary)); opacity: 0.6; }
-
 /* Show Logo toggle (lives in Logos group header) */
 .bk-editor-toggle {
   display: inline-flex;
@@ -933,163 +808,6 @@
   font-size: 11px;
   color: var(--bke-text-secondary);
   font-variant-numeric: tabular-nums;
-}
-
-.bk-editor-rail-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  /* Wraps so a reason for an unavailable action can sit on its own line
-     above the buttons it explains. */
-  flex-wrap: wrap;
-  gap: 6px;
-  /* Tighter side padding: four DS buttons (Reset · Cancel · Download ·
-     Save) need the full 320px rail width. */
-  padding: 12px 10px;
-  border-top: 1px solid var(--bke-border);
-  background: var(--bke-surface);
-}
-.bk-editor-rail-note {
-  flex: 1 1 100%;
-  margin: 0 2px 2px;
-  font-size: 11px;
-  line-height: 1.4;
-  text-align: left;
-  color: var(--bke-text-muted);
-}
-.bk-editor-rail-footer .ds-btn--sm {
-  padding-left: 12px;
-  padding-right: 12px;
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Variants modal — opens between the kit grid and the card editor.
-   Same backdrop tokens as the editor; single full-width card with a
-   horizontal rail of variant tiles. Click a tile to open the editor.
-   ────────────────────────────────────────────────────────────────── */
-.bk-variants-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  background: rgba(15, 17, 22, 0.55);
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  animation: bk-editor-fade 160ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-.bk-variants-backdrop[data-theme="light"] {
-  --bke-surface: #ffffff;
-  --bke-surface-2: #f7f7f5;
-  --bke-text: #111113;
-  --bke-text-secondary: #6b6b6f;
-  --bke-border: rgba(17, 17, 20, 0.08);
-  --bke-border-strong: rgba(17, 17, 20, 0.18);
-  --bke-shadow: 0 30px 60px -20px rgba(15, 17, 22, 0.45);
-}
-.bk-variants-backdrop[data-theme="dark"] {
-  --bke-surface: #131418;
-  --bke-surface-2: #1b1c21;
-  --bke-text: #f1f0ec;
-  --bke-text-secondary: #a8a8ad;
-  --bke-border: rgba(255, 255, 255, 0.08);
-  --bke-border-strong: rgba(255, 255, 255, 0.18);
-  --bke-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
-}
-
-.bk-variants {
-  display: flex;
-  flex-direction: column;
-  width: 92vw;
-  max-width: 1600px;
-  height: 90vh;
-  background: var(--bke-surface);
-  border: 1px solid var(--bke-border);
-  border-radius: 18px;
-  box-shadow: var(--bke-shadow);
-  overflow: hidden;
-  font-family: inherit;
-  animation: bk-editor-rise 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.bk-variants-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 22px 26px 18px;
-  border-bottom: 1px solid var(--bke-border);
-  flex: 0 0 auto;
-}
-.bk-variants-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.bk-variants-eyebrow {
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--bke-text-secondary);
-}
-.bk-variants-title {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
-  color: var(--bke-text);
-}
-.bk-variants-subtitle {
-  font-size: 12px;
-  color: var(--bke-text-secondary);
-  margin-top: 2px;
-}
-.bk-variants-close {
-  appearance: none;
-  background: transparent;
-  border: 1px solid var(--bke-border);
-  color: var(--bke-text);
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background 120ms, border-color 120ms;
-  flex: 0 0 auto;
-}
-.bk-variants-close:hover {
-  background: var(--bke-surface-2);
-  border-color: var(--bke-border-strong);
-}
-
-/* Vertical grid scroller. Mirrors the outer .bk-grid sizing so each
-   variant tile reads as the same kind of artifact as the cards on the
-   page behind the modal — same minimum width, same aspect ratio, same
-   gap. Scrolls vertically when there are more variants than fit. */
-.bk-variants-scroller {
-  flex: 1 1 auto;
-  /* min-height: 0 is required on a flex child that has its own
-     overflow — without it the child takes its content size and the
-     overflow never activates, which is what was crushing the tiles
-     into thin slivers. */
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  grid-auto-rows: max-content;
-  row-gap: 20px;
-  column-gap: 20px;
-  padding: 24px 26px 28px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-}
-.bk-variants-scroller::-webkit-scrollbar {
-  width: 10px;
-}
-.bk-variants-scroller::-webkit-scrollbar-thumb {
-  background: var(--bke-border-strong);
-  border-radius: 8px;
 }
 
 /* Variant card — wraps the cover tile + label so each unit mirrors
@@ -1485,10 +1203,25 @@
   position: relative;
   top: -3px;
 }
+/* The wall of designs.
+ *
+ * `auto-fill` with a per-family floor, never a fixed column count: the
+ * count is a CONSEQUENCE of how wide the material has to be, and the same
+ * three columns that suit a letterhead give a 48px icon a 335px cell.
+ * `--bk-tile-min` is set inline from `tileMinWidth()`; the 260px fallback
+ * is the old value, so a grid rendered without it is unchanged. */
 [data-workspace] .bk-drilldown-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--bk-tile-min, 260px), 1fr));
   gap: 20px;
+}
+/* Small material sits closer together — 20px between two 140px icon tiles
+   reads as a scattering rather than a set. */
+[data-workspace] .bk-drilldown-grid[data-density='glyph'] {
+  gap: 14px;
+}
+[data-workspace] .bk-drilldown-grid[data-density='swatch'] {
+  gap: 16px;
 }
 
 /* ============================================================
@@ -1856,130 +1589,6 @@
   font-size: 13px;
   color: #666;
   text-align: center;
-}
-
-/* ============================================================
- * Business-card picker modal — browse-and-add for variants the
- * curated showcase doesn't include yet.
- * ============================================================ */
-.bk-card-picker-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  background: var(--ds-scrim);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.bk-card-picker {
-  width: min(1080px, 100%);
-  max-height: min(720px, 90vh);
-  background: var(--ds-surface);
-  border-radius: 18px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.bk-card-picker-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid var(--ds-border);
-}
-.bk-card-picker-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ds-text);
-}
-.bk-card-picker-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid var(--ds-border);
-  background: var(--ds-surface);
-  color: var(--ds-text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.bk-card-picker-close:hover {
-  background: var(--ds-surface-hover);
-  color: var(--ds-text);
-}
-/* The picker's filter row. It sits between the head and the scrolling
-   grid, so it takes the modal's own gutters and never scrolls with the
-   designs it filters. Both selectors, because `.bk-drilldown-filter` is
-   `[data-workspace]`-scoped and would otherwise out-specify the margin. */
-.bk-drilldown-filter.bk-card-picker-filter,
-[data-workspace] .bk-drilldown-filter.bk-card-picker-filter {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 14px 22px 0;
-}
-.bk-card-picker-grid {
-  flex: 1;
-  overflow-y: auto;
-  padding: 18px 22px 22px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 18px;
-}
-.bk-card-picker-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  color: var(--ds-text-muted);
-  font-size: 13px;
-  padding: 64px 0;
-}
-.bk-card-picker-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-  color: var(--ds-text);
-}
-.bk-card-picker-tile {
-  /* `position: relative` is load-bearing — many business-card
-     renderers use `position: absolute` children without a positioned
-     wrapper of their own, so without this they'd escape the tile and
-     paint at viewport coords (showing as a giant brand initial
-     flickering behind the picker grid). */
-  position: relative;
-  display: block;
-  /* aspect-ratio is set inline by the modal so cards (1.6) and
-     letterheads (1/1.414) can both render at their natural shape. */
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--ds-surface-subtle);
-  border: 1px solid var(--ds-border);
-  transition: transform 140ms ease, border-color 140ms ease;
-}
-.bk-card-picker-tile > * {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.bk-card-picker-cell:hover .bk-card-picker-tile {
-  transform: translateY(-2px);
-  border-color: var(--ds-border-strong);
-}
-.bk-card-picker-cell-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ds-text-secondary);
 }
 
 /* ============================================================
@@ -2387,7 +1996,20 @@
   filter: brightness(0.92);
 }
 
-/* ── Review overlay (portaled — bke tokens, mirrored data-theme) ── */
+/* ── Review overlay (portaled — bke tokens, mirrored data-theme) ──
+   Belongs to the lifecycle page at /b/:slug/brand-kit-next, which is a
+   different surface from the kit this file mostly styles; it is still a
+   real overlay. The keyframes below were named `bk-editor-*` back when
+   the card editor was one too. */
+@keyframes bk-overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes bk-overlay-rise {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to   { opacity: 1; transform: none; }
+}
+
 .bk-review-backdrop {
   position: fixed;
   inset: 0;
@@ -2397,7 +2019,7 @@
   background: rgba(15, 17, 22, 0.55);
   backdrop-filter: blur(8px) saturate(140%);
   -webkit-backdrop-filter: blur(8px) saturate(140%);
-  animation: bk-editor-fade 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: bk-overlay-fade 160ms var(--ds-ease);
 }
 .bk-review-backdrop[data-theme="light"] {
   --bke-surface: #ffffff;
@@ -2427,7 +2049,7 @@
   background: var(--bke-surface);
   box-shadow: var(--bke-shadow);
   color: var(--bke-text);
-  animation: bk-editor-rise 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: bk-overlay-rise var(--ds-duration-panel) var(--ds-ease);
   overflow: hidden;
 }
 .bk-review-head {
@@ -3397,6 +3019,21 @@
 }
 /* Focus-within as well as hover: the actions have to be reachable with
    Tab, and a control you can focus but cannot see is worse than none. */
+/* THE CARD WITH THE OPEN MENU PAINTS ABOVE ITS NEIGHBOURS.
+   Every variant card carries `will-change: opacity` for the drilldown's
+   wave reveal, and `will-change` on opacity CREATES A STACKING CONTEXT —
+   so `.bk-tile-actions`' own `z-index: 3` only orders it INSIDE its card,
+   and the next tile in the grid, plain and later in the DOM, paints over
+   the menu that overhangs it. Measured on the Colours wall: every row of
+   an open tile menu answered `elementFromPoint` with a neighbouring
+   tile's label, so not one of the five could be clicked. The tiles that
+   happened to work were the ones with no later sibling underneath.
+   Ordering the card itself is the fix; nothing here changes while no
+   menu is open. */
+[data-workspace] .bk-variant-card:hover,
+[data-workspace] .bk-variant-card:focus-within {
+  z-index: 4;
+}
 [data-workspace] .bk-variant-card:hover .bk-tile-actions,
 [data-workspace] .bk-variant-card:focus-within .bk-tile-actions,
 [data-workspace] .bk-tile-actions:focus-within {
@@ -3453,6 +3090,14 @@
   align-items: center;
   gap: 10px 8px;
   margin: 0 0 20px;
+}
+/* Nothing to sift. The row keeps its place and its shape and says how
+   many designs there are — it never disappears, because a control that
+   comes and goes is one nobody learns is there. The controls carry the
+   DS's own disabled reading (`.ds-chip:disabled`, `.ds-input:disabled`);
+   this only stops the cursor lying about them. */
+[data-workspace] .bk-drilldown-filter.is-inert .bk-drilldown-search {
+  cursor: default;
 }
 [data-workspace] .bk-drilldown-search {
   flex: 0 1 320px;

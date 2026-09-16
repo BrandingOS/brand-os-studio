@@ -20,7 +20,7 @@ import {
 import { typePx } from './typeFloor';
 
 /**
- * Envelopes — the `address` kind, drawn sixteen ways.
+ * Envelopes — the `address` kind, drawn thirty ways.
  *
  * ## What this file used to be
  *
@@ -34,13 +34,22 @@ import { typePx } from './typeFloor';
  *
  * ## What it is now
  *
- * Sixteen curated fronts. Every one of them paints the SAME anatomy —
+ * The thirty wave-1 fronts. Every one of them paints the SAME anatomy —
  * a sender block, a recipient block, the mark, and the postage corner —
  * from `AddressContent`, through `<Bind>`, so each is a field in Quick
- * Edit and each repaints live. The other fourteen wave-1 ids and all
- * hundred wave-2 ids are archived in `curation/envelope.ts`: their ids
- * stay reserved, so a saved customization pointing at one still resolves,
- * and `variantsForCard` stops offering them.
+ * Edit and each repaints live.
+ *
+ * Sixteen of the thirty survived the 2026-09 curation pass. The other
+ * fourteen were archived, and archiving them DELETED their drawings from
+ * this record — measured 2026-09-09, all fourteen were falling through to
+ * design 0, so the kit was offering one picture under fifteen numbers.
+ * They are re-authored here at their own reserved indices: the same ids,
+ * the same anatomy, and the idea each one was culled for is kept only
+ * where the idea was sound. Where it was not — a seal printed over the
+ * address, type set on a repeating gradient, a brand name spelled one
+ * letter per line — the slot carries a different reading of the same
+ * intent, and the design's comment says which. `curation/envelope.ts`
+ * records what came back and what stayed out.
  *
  * ## Two things worth knowing before editing a design here
  *
@@ -433,12 +442,16 @@ type Ctx = {
 
 type Design = (x: Ctx) => JSX.Element;
 
-/* ── The sixteen ──────────────────────────────────────────────────── */
+/* ── The thirty ───────────────────────────────────────────────────── */
 
 /**
- * Keyed by `templateIndex`, which is `<id> - 1`, so the surviving designs
- * keep the exact ids their saved customizations are filed under. The gaps
- * are the archived ones; `curation/envelope.ts` is the list.
+ * Keyed by `templateIndex`, which is `<id> - 1`, so every design keeps the
+ * exact id its saved customizations are filed under. The record is dense
+ * from 0 to 29 and must stay that way: a gap here is not a hidden design,
+ * it is `envelope-ext-N` silently drawing design 0 under its own name.
+ *
+ * Wave 2 (`ext-31 … ext-130`) has no entry and never had a distinct one —
+ * see `curation/envelope.ts`.
  */
 const DESIGNS: Record<number, Design> = {
   // ext-1 · Classic Return — the plain one, and the reference anatomy:
@@ -531,6 +544,32 @@ const DESIGNS: Record<number, Design> = {
     </EnvelopeStage>
   ),
 
+  // ext-5 · Wax Seal — the seal is the graphic, and it sits where a seal
+  // goes: on the closing edge, clear of both address blocks rather than
+  // in the middle of the one place a postman has to read.
+  4: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute left-[5%] top-[12%] w-[34%]">
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.9} />
+      </div>
+      <PostageBox
+        c={x.c}
+        ink={x.paper}
+        fonts={x.fonts}
+        style={{ position: 'absolute', right: '5%', top: '9%' }}
+      />
+      <div className="absolute left-[6%] right-[28%] top-[64%] -translate-y-1/2">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.92} />
+      </div>
+      <div
+        className="absolute right-[5%] bottom-[9%] w-[17%] aspect-square rounded-full flex items-center justify-center"
+        style={{ background: x.brandInk.bg }}
+      >
+        <Mark brand={x.brand} ground={x.brandInk.bg} height={7} show={x.showLogo} />
+      </div>
+    </EnvelopeStage>
+  ),
+
   // ext-6 · Window Frame — the recipient sits in a drawn window, the way
   // it does on a real window envelope.
   5: (x) => (
@@ -570,6 +609,32 @@ const DESIGNS: Record<number, Design> = {
       </div>
       <div className="absolute left-[5%] right-[26%] bottom-[12%]">
         <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-8 · Diagonal Cut — the brand arrives as a slanted band across the
+  // head of the envelope. Both address blocks sit clear of it, on paper,
+  // and the mark and the postage line sit INSIDE it, so what is measured
+  // is the ground they are really printed on.
+  7: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute inset-x-0 top-0 h-[62%]"
+        style={{ background: x.brandInk.bg, clipPath: 'polygon(0 0, 100% 0, 100% 58%, 0 100%)' }}
+      >
+        <div className="absolute left-[5%] top-[14%] w-[40%]">
+          <Mark brand={x.brand} ground={x.brandInk.bg} height={8} show={x.showLogo} />
+        </div>
+        <div className="absolute right-[5%] top-[16%]">
+          <PostageLabel c={x.c} ink={x.brandInk} fonts={x.fonts} align="right" />
+        </div>
+      </div>
+      <div className="absolute left-[5%] bottom-[8%] w-[34%]">
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.85} />
+      </div>
+      <div className="absolute left-[46%] right-[6%] bottom-[10%]">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.92} align="right" />
       </div>
     </EnvelopeStage>
   ),
@@ -626,6 +691,56 @@ const DESIGNS: Record<number, Design> = {
     </EnvelopeStage>
   ),
 
+  // ext-10 · Airmail Border — the striped ring an airmail envelope wears,
+  // in the brand's own two colours. The stripes are a RING and the paper
+  // inside them is flat, so no word is ever set over the repeat.
+  9: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `repeating-linear-gradient(45deg, ${x.primary} 0 4px, ${x.paper.bg} 4px 8px, ${x.secondary} 8px 12px, ${x.paper.bg} 12px 16px)`,
+        }}
+      />
+      <div className="absolute inset-[4%]" style={{ background: x.paper.bg }}>
+        <div className="absolute left-[5%] top-[10%] w-[36%] flex flex-col gap-[3px]">
+          <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
+          <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.85} />
+        </div>
+        <div className="absolute right-[5%] top-[10%]">
+          <PostageLabel c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+        </div>
+        <div className="absolute left-[42%] right-[5%] bottom-[12%]">
+          <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.92} align="right" />
+        </div>
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-11 · Centred Mark — one axis, top to bottom: the mark at the
+  // head, the address on a secondary band through the middle, the sender
+  // at the foot. The mark is centred; the address still has a band of its
+  // own, which is what the old decoration-only reading never had.
+  10: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute inset-x-0 top-[9%] flex justify-center">
+        <Mark brand={x.brand} ground={x.paper.bg} height={10} show={x.showLogo} tint={x.primary} />
+      </div>
+      <div className="absolute right-[5%] top-[10%]">
+        <PostageLabel c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+      <div
+        className="absolute inset-x-0 top-[36%] h-[32%] flex flex-col items-center justify-center px-[14%]"
+        style={{ background: x.secondInk.bg }}
+      >
+        <RecipientBlock c={x.c} ink={x.secondInk} fonts={x.fonts} scale={0.92} align="center" />
+      </div>
+      <div className="absolute inset-x-0 bottom-[6%] flex justify-center px-[10%]">
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.85} align="center" />
+      </div>
+    </EnvelopeStage>
+  ),
+
   // ext-12 · Half Colour — the right half is the brand's, and it is the
   // half that carries the address, so the loudest thing is the important one.
   11: (x) => (
@@ -640,6 +755,32 @@ const DESIGNS: Record<number, Design> = {
       <div className="absolute left-[6%] top-[14%] w-[36%] flex flex-col gap-[3px]">
         <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
         <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-13 · Corner Seal — what seals it, drawn as a brand triangle in the
+  // corner the flap actually meets. A sticker that lands on the address is
+  // not a seal, it is a redaction, so this one takes the corner instead.
+  12: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.elevated.bg} border={x.elevated.border}>
+      <div
+        className="absolute right-0 bottom-0 w-[28%] h-[44%]"
+        style={{ background: x.primary, clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
+      />
+      <div className="absolute left-[5%] top-[11%] w-[34%] flex flex-col gap-[3px]">
+        <Mark brand={x.brand} ground={x.elevated.bg} show={x.showLogo} tint={x.primary} />
+        <SenderBlock c={x.c} ink={x.elevated} fonts={x.fonts} scale={0.9} />
+      </div>
+      <PostageBox
+        c={x.c}
+        ink={x.elevated}
+        fonts={x.fonts}
+        style={{ position: 'absolute', right: '5%', top: '9%' }}
+      />
+      <div className="absolute left-[6%] right-[36%] bottom-[14%]">
+        <div style={{ height: '1px', background: x.primary, marginBottom: '4px' }} />
+        <RecipientBlock c={x.c} ink={x.elevated} fonts={x.fonts} scale={0.92} />
       </div>
     </EnvelopeStage>
   ),
@@ -676,6 +817,27 @@ const DESIGNS: Record<number, Design> = {
     </EnvelopeStage>
   ),
 
+  // ext-15 · Brand Wash — the stock itself is the brand's colour and
+  // everything on it is reversed out. Not half of one (ext-12) and not a
+  // band across one (ext-2): a single ground, edge to edge.
+  14: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.brandInk.bg} border={x.brandInk.border}>
+      <div className="absolute left-[5%] top-[11%] w-[36%] flex flex-col gap-[3px]">
+        <Mark brand={x.brand} ground={x.brandInk.bg} show={x.showLogo} />
+        <SenderBlock c={x.c} ink={x.brandInk} fonts={x.fonts} scale={0.9} />
+      </div>
+      <PostageBox
+        c={x.c}
+        ink={x.brandInk}
+        fonts={x.fonts}
+        style={{ position: 'absolute', right: '5%', top: '11%' }}
+      />
+      <div className="absolute left-[44%] right-[6%] bottom-[15%]">
+        <RecipientBlock c={x.c} ink={x.brandInk} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
   // ext-16 · Postage Square — the stamp itself is the graphic: a brand
   // square top-right holding the mark and the postage line.
   15: (x) => (
@@ -691,6 +853,83 @@ const DESIGNS: Record<number, Design> = {
         <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.9} />
       </div>
       <div className="absolute left-[5%] right-[32%] bottom-[13%]">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-17 · Side Flap — the flap on the SIDE, pointing in at the address
+  // rather than down over it. Top Flap (ext-3) hangs from the head and
+  // leaves the corners; this one takes the binding edge and leaves the
+  // whole right-hand side.
+  16: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[28%]"
+        style={{ background: x.brandInk.bg, clipPath: 'polygon(0 0, 0 100%, 100% 50%)' }}
+      >
+        <div className="absolute left-[8%] top-1/2 -translate-y-1/2 w-[52%]">
+          <Mark brand={x.brand} ground={x.brandInk.bg} height={9} show={x.showLogo} />
+        </div>
+      </div>
+      <div className="absolute left-[33%] top-[13%] w-[34%]">
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.9} />
+      </div>
+      <div className="absolute right-[5%] top-[13%]">
+        <PostageLabel c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+      <div className="absolute left-[33%] right-[6%] bottom-[16%]">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-18 · Type Stack — sender and recipient set as ONE ranged column,
+  // the way a label is typed, against a single brand rule. The stack is
+  // of LINES; the old design stacked the brand's letters one per row,
+  // which is not a name, it is a column of letters.
+  17: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div
+        className="absolute left-[4%] top-[16%] bottom-[16%]"
+        style={{ width: '1.5px', background: x.primary }}
+      />
+      <div className="absolute left-[9%] top-[16%] w-[48%] flex flex-col gap-[8px]">
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.85} />
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+      <PostageBox
+        c={x.c}
+        ink={x.paper}
+        fonts={x.fonts}
+        style={{ position: 'absolute', right: '6%', top: '14%' }}
+      />
+      <div className="absolute right-[6%] bottom-[13%] w-[24%] flex justify-end">
+        <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-19 · Brand Tape — two runs of tape, down the binding edge and
+  // along the foot, with the postage line printed on the foot. Solid
+  // colour and square to the sheet: the old rotated strip ran its type
+  // over a repeating gradient, which is why none of it could be read.
+  18: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute left-0 top-0 bottom-0 w-[7%]" style={{ background: x.brandInk.bg }} />
+      <div
+        className="absolute inset-x-0 bottom-0 h-[15%] flex items-center justify-between px-[4%]"
+        style={{ background: x.brandInk.bg }}
+      >
+        <div className="w-[34%] pl-[14%]">
+          <Mark brand={x.brand} ground={x.brandInk.bg} height={7} show={x.showLogo} />
+        </div>
+        <PostageLabel c={x.c} ink={x.brandInk} fonts={x.fonts} align="right" />
+      </div>
+      <div className="absolute left-[12%] top-[13%] w-[34%]">
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.9} />
+      </div>
+      <div className="absolute left-[50%] right-[6%] top-[46%] -translate-y-1/2">
         <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
       </div>
     </EnvelopeStage>
@@ -736,6 +975,85 @@ const DESIGNS: Record<number, Design> = {
       </div>
       <div className="absolute left-[40%] right-[6%] top-[54%] -translate-y-1/2">
         <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-22 · Hand Ruled — a ruled sheet rather than a printed one: the
+  // frame and the divider are dashed and drawn in the brand's colour. The
+  // hand is in the RULING, not in a borrowed script face.
+  21: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute inset-[6%]" style={{ border: `0.5px dashed ${x.primary}` }} />
+      <div className="absolute left-[11%] top-[15%] w-[32%] flex flex-col gap-[3px]">
+        <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.85} />
+      </div>
+      <div className="absolute right-[11%] top-[15%]">
+        <PostageLabel c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+      <div
+        className="absolute left-[11%] right-[11%] top-[54%]"
+        style={{ borderTop: `0.5px dashed ${x.primary}` }}
+      />
+      <div className="absolute left-[11%] right-[11%] top-[62%]">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.95} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-23 · Striped Edge — a selvedge of brand stripes down the trailing
+  // edge: colour without a panel, so the sheet stays addressable across
+  // its whole width.
+  22: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute right-0 top-0 bottom-0 w-[9%] flex">
+        {[x.primary, x.secondary, x.primary, x.secondary].map((band, i) => (
+          <div key={i} style={{ flex: 1, background: band }} />
+        ))}
+      </div>
+      <div className="absolute left-[5%] top-[12%] w-[34%] flex flex-col gap-[3px]">
+        <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.9} />
+      </div>
+      <PostageBox
+        c={x.c}
+        ink={x.paper}
+        fonts={x.fonts}
+        style={{ position: 'absolute', right: '14%', top: '11%' }}
+      />
+      <div className="absolute left-[5%] right-[16%] bottom-[13%]">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-24 · Monogram Plate — the initial struck into a plate, the way a
+  // blind emboss sits on good stock. Initial Block (ext-21) fills a third
+  // of the sheet with colour and prints the sender on it; this one is a
+  // single mark on the elevated stock, and the address never crosses it.
+  23: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.elevated.bg} border={x.elevated.border}>
+      <div className="absolute left-[5%] top-[12%] w-[36%]">
+        <SenderBlock c={x.c} ink={x.elevated} fonts={x.fonts} scale={0.9} />
+      </div>
+      <div className="absolute right-[5%] top-[10%]">
+        <PostageLabel c={x.c} ink={x.elevated} fonts={x.fonts} align="right" />
+      </div>
+      <div className="absolute left-[6%] right-[32%] bottom-[15%]">
+        <RecipientBlock c={x.c} ink={x.elevated} fonts={x.fonts} scale={0.92} />
+      </div>
+      <div
+        className="absolute right-[6%] bottom-[13%] w-[20%] aspect-square flex items-center justify-center leading-none"
+        style={{
+          border: `1px solid ${x.primary}`,
+          fontSize: '22px',
+          fontFamily: x.fonts.heading,
+          fontWeight: 800,
+          color: accentInk(x.primary, x.elevated, true),
+        }}
+      >
+        {x.c.sender.name.charAt(0).toUpperCase()}
       </div>
     </EnvelopeStage>
   ),
@@ -814,6 +1132,61 @@ const DESIGNS: Record<number, Design> = {
     </EnvelopeStage>
   ),
 
+  // ext-28 · Big Mark — the logo at full voice on a reversed stock, with
+  // the whole right-hand side given to the address. A big logo is only a
+  // problem when it is the ONLY thing on the sheet.
+  27: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.invInk.bg} border={x.invInk.border}>
+      <div className="absolute left-[5%] top-[13%] w-[32%]">
+        <Mark brand={x.brand} ground={x.invInk.bg} height={20} show={x.showLogo} />
+      </div>
+      <div className="absolute left-[5%] top-[52%] w-[32%]">
+        <SenderBlock c={x.c} ink={x.invInk} fonts={x.fonts} scale={0.85} />
+      </div>
+      <PostageBox
+        c={x.c}
+        ink={x.invInk}
+        fonts={x.fonts}
+        style={{ position: 'absolute', right: '5%', top: '10%' }}
+      />
+      <div className="absolute left-[43%] right-[6%] bottom-[14%]">
+        <RecipientBlock c={x.c} ink={x.invInk} fonts={x.fonts} />
+      </div>
+    </EnvelopeStage>
+  ),
+
+  // ext-29 · Mosaic Corner — a small field of the brand's colours in the
+  // corner, and nothing else on the sheet but address. The mosaic is
+  // confined to the head; it does not tile the paper the address is on.
+  28: (x) => (
+    <EnvelopeStage stage={x.stage} paper={x.paper.bg} border={x.paper.border}>
+      <div className="absolute right-[5%] top-[11%] w-[26%] grid grid-cols-4 gap-[1.5px]">
+        {[
+          x.primary,
+          x.secondary,
+          x.invInk.bg,
+          x.secondary,
+          x.invInk.bg,
+          x.primary,
+          x.secondary,
+          x.primary,
+        ].map((tile, i) => (
+          <div key={i} style={{ background: tile, aspectRatio: '1 / 1' }} />
+        ))}
+      </div>
+      <div className="absolute left-[5%] top-[12%] w-[34%] flex flex-col gap-[3px]">
+        <Mark brand={x.brand} ground={x.paper.bg} show={x.showLogo} tint={x.primary} />
+        <SenderBlock c={x.c} ink={x.paper} fonts={x.fonts} scale={0.85} />
+      </div>
+      <div className="absolute right-[5%] top-[46%]">
+        <PostageLabel c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+      <div className="absolute left-[38%] right-[5%] bottom-[13%]">
+        <RecipientBlock c={x.c} ink={x.paper} fonts={x.fonts} align="right" />
+      </div>
+    </EnvelopeStage>
+  ),
+
   // ext-30 · Subtle Lux — the elevated stock, one hairline, everything
   // centred. The quiet one, and the card's default face.
   29: (x) => (
@@ -858,7 +1231,7 @@ const DESIGNS: Record<number, Design> = {
   ),
 };
 
-/** The first kept design — what an archived id falls back to. */
+/** The first design — what a wave-2 id falls back to. */
 const FALLBACK_INDEX = 0;
 
 export function EnvelopeExtendedRenderer({ brand, templateIndex, content }: Props) {
@@ -893,12 +1266,10 @@ export function EnvelopeExtendedRenderer({ brand, templateIndex, content }: Prop
 /**
  * The family's template list.
  *
- * Ids are persistence keys: the sixteen below are the surviving designs
- * and their `ext-N` numbers are unchanged. The fourteen archived wave-1
- * ids are NOT listed here — they are declared in `curation/envelope.ts`,
- * which is the one place that decides what a card offers, and removing
- * them from this array as well would make `variantsForCard` and the
- * archive disagree about which ids exist.
+ * Ids are persistence keys and the `ext-N` numbers here have never moved.
+ * The `name` on each entry is the LEGACY name the generator gave it;
+ * `curation/envelope.ts` is what a card actually shows, and it is the one
+ * place that decides which ids are offered at all.
  */
 export const ENVELOPE_EXTENDED = [
   { idSuffix: 'ext-1', name: 'Classic Return', category: 'Minimalist' },

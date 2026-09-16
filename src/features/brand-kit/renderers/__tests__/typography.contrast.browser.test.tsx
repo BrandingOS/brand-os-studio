@@ -142,13 +142,13 @@ describe.each(BRANDS)('the Typography specimen · %s', (_name, brand) => {
     expect(text).toContain('Caption 12');
   });
 
-  it('says what the pairing is, and what the face is for', () => {
-    const { container } = mount(renderCosmosTemplate(templates[0]!, brand, mock, undefined));
-    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
-    if (mock.fonts.length > 1) {
-      expect(text).toContain(`Pairs with ${mock.fonts[1]!.family}`);
-    } else {
-      expect(text).toContain('sets everything in this one face');
+  it('shows the typeface only — no pairing or usage guidance', () => {
+    // How a face is used belongs to the Guideline, not the kit's specimen.
+    for (let i = 0; i < templates.length; i += 1) {
+      const { container } = mount(renderCosmosTemplate(templates[i]!, brand, mock, undefined));
+      const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+      expect(text).not.toMatch(/Pairs with|sets everything in this one face|Headlines and titles|Body copy|line height|tracking/i);
+      cleanup();
     }
   });
 

@@ -11,12 +11,13 @@ import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
 import { getEntryFor, type KitEntry } from '../catalog/catalog';
 import { downloadOptionsFor } from '../data/exportFormats';
-import { photosUnavailableReason } from '../data/photoExport';
+import { entryUnavailableReason } from '../data/exportAvailability';
 import { usePhotoSources } from '../data/usePhotoSources';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
 import { DownloadMenu, type DownloadChoice } from './DownloadMenu';
 import { DeliverableCard } from './DeliverableCard';
 import { CardCover } from './CardCover';
+import { featuredTemplates } from '../data/cardPresentation';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -329,6 +330,12 @@ type CardProps = {
   downloadUnavailable?: string;
 };
 
+/** Why this card's Download cannot run — nothing when it can. */
+function cardUnavailableReason(item: GridItem, brand?: MockBrand): string | undefined {
+  const entry = getEntryFor(item.sectionKey, item.storageLabel);
+  return entry ? entryUnavailableReason(entry, brand) : undefined;
+}
+
 function BrandKitCard({
   item,
   onEdit,
@@ -563,10 +570,21 @@ export function CardGrid({
               onEditAction={
                 onEditCard
                   ? (it) => {
-                      // Preselect the first variant so the editor opens
-                      // with a live preview instead of the cover image.
+                      // THE PENCIL EDITS THE VARIANT THE CARD IS SHOWING.
+                      // It used to open `templates[0]` — the library's first,
+                      // which for every curated family is not what the cover
+                      // draws. Harmless while the editor covered the page;
+                      // now that it is DOCKED and the card repaints from the
+                      // draft beside it, editing one variant while looking at
+                      // another is the whole feature failing silently.
                       const target = targetFor(it);
-                      onEditCard({ ...target, template: target.templates?.[0] });
+                      const shown =
+                        featuredTemplates(
+                          it.storageLabel,
+                          target.templates ?? [],
+                          featuredIdsByLabel,
+                        )[0] ?? target.templates?.[0];
+                      onEditCard({ ...target, template: shown });
                     }
                   : undefined
               }
@@ -576,12 +594,11 @@ export function CardGrid({
               onOpenMenu={openMenu}
               // A card whose material does not exist offers a menu that
               // says so rather than five rows that quietly do nothing
-              // (QA Q13/Q14). Photos is the only such family today.
-              downloadUnavailable={
-                item.sectionKey === 'brand-assets' && item.storageLabel === 'Photos'
-                  ? photosUnavailableReason(brand)
-                  : undefined
-              }
+              // (QA Q13/Q14). Every family that is assembled out of files
+              // the brand OWNS can be empty, not only Photos — an Icons
+              // card with no icon set answered all five rows with
+              // "Nothing to export".
+              downloadUnavailable={cardUnavailableReason(item, brand)}
               cover={
                 brand ? (
                   <CardCover

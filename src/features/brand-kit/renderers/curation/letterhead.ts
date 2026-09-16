@@ -1,13 +1,39 @@
 import type { FamilyCuration } from './types';
 
 /**
- * Letterhead — twenty kept designs, one hundred and ten reserved ids.
+ * Letterhead — thirty offered designs, one hundred reserved ids.
  *
  * The family shipped 130 variants. `.audit/CODE.md` §2 measured what they
  * actually were: 128 of them bound exactly ONE of the letter kind's eight
  * fields, 100 were named by their generator ("Wave 2 · 43" — two of which
- * the kit FEATURED), and two rendered a page with nothing on it. The twenty
- * kept here are the distinct, readable, fully-bound ones.
+ * the kit FEATURED), and two rendered a page with nothing on it. The first
+ * curation pass kept twenty and archived the rest.
+ *
+ * ## Ten came back (2026-09-09)
+ *
+ * `letterhead-ext-21` … `letterhead-ext-30` are un-archived and offered
+ * again: Colour Half · Meta Column · Stamp Date · Colour Frame · Signature
+ * Foot · Split Head · Edge Bands · Wide Margin · Subject Bar · Header
+ * Panel.
+ *
+ * They are RE-AUTHORED, not recovered. The cull did not only hide those
+ * ids, it deleted their drawings from `LetterheadExtended.tsx`, so each of
+ * them had been rendering whatever the designs array fell through to. There
+ * was nothing left to restore, and the originals were not worth rebuilding
+ * anyway — among them a page framed by four brackets and nothing else, a
+ * ledger of empty ruled lines, and the memo whose "TO · Team / RE ·
+ * Quarterly Brief / DATE 27 · 04 · 2026" header was three literals. The ten
+ * at those indices now are ten new readings of a letter sheet, each fully
+ * bound and each distinct from the twenty beside them.
+ *
+ * ## Wave 2 stays out
+ *
+ * `letterhead-ext-31` … `letterhead-ext-130` remain archived, and the
+ * reason is measured rather than editorial: their artwork is gone too, and
+ * `LetterheadExtended2.tsx` answers for all hundred of them by drawing the
+ * kept design at the same position. Un-archiving one would put a second
+ * copy of a design that is already on the shelf beside the first, under a
+ * generator's name.
  *
  * Kept ids keep their POSITION in the family, so `ext-6` is still the design
  * whose contacts sit in a heavy footer and `ext-1` is still the one with the
@@ -42,6 +68,16 @@ export const curation: FamilyCuration = {
     'letterhead-ext-18': 'Duo Band',
     'letterhead-ext-19': 'Editorial Masthead',
     'letterhead-ext-20': 'Stacked Masthead',
+    'letterhead-ext-21': 'Colour Half',
+    'letterhead-ext-22': 'Meta Column',
+    'letterhead-ext-23': 'Stamp Date',
+    'letterhead-ext-24': 'Colour Frame',
+    'letterhead-ext-25': 'Signature Foot',
+    'letterhead-ext-26': 'Split Head',
+    'letterhead-ext-27': 'Edge Bands',
+    'letterhead-ext-28': 'Wide Margin',
+    'letterhead-ext-29': 'Subject Bar',
+    'letterhead-ext-30': 'Header Panel',
   },
 
   tags: {
@@ -65,19 +101,29 @@ export const curation: FamilyCuration = {
     'letterhead-ext-18': ['Retail', 'Announcement', 'Colour block'],
     'letterhead-ext-19': ['Law', 'Correspondence', 'Classic'],
     'letterhead-ext-20': ['Hospitality', 'Invitation', 'Centred'],
+    'letterhead-ext-21': ['Agency', 'Announcement', 'Colour block'],
+    'letterhead-ext-22': ['Consulting', 'Correspondence', 'Two column'],
+    'letterhead-ext-23': ['Corporate', 'Correspondence', 'Structured'],
+    'letterhead-ext-24': ['Hospitality', 'Invitation', 'Colour block'],
+    'letterhead-ext-25': ['Law', 'Correspondence', 'Dark'],
+    'letterhead-ext-26': ['Studio', 'Correspondence', 'Geometric'],
+    'letterhead-ext-27': ['Retail', 'Announcement', 'Colour block'],
+    'letterhead-ext-28': ['Consulting', 'Proposal', 'Minimal'],
+    'letterhead-ext-29': ['Corporate', 'Announcement', 'Structured'],
+    'letterhead-ext-30': ['Healthcare', 'Correspondence', 'Soft'],
   },
 
   /**
-   * `ext-21` … `ext-30` are the ten wave-1 designs curation dropped — among
-   * them the page framed by four brackets and nothing else, the ledger of
-   * empty ruled lines, and the memo whose "TO · Team / RE · Quarterly Brief /
-   * DATE 27 · 04 · 2026" header was three literals. `ext-31` … `ext-130` are
-   * the whole of wave 2.
+   * Wave 2, and only wave 2 — `ext-31` … `ext-130`.
+   *
+   * The ten wave-1 ids that used to head this list (`ext-21` … `ext-30`)
+   * came back on 2026-09-09; see the header. These hundred stay because
+   * every one of them draws a design the kit already offers: their own
+   * artwork was deleted with the cull, and `LetterheadExtended2.tsx` maps
+   * each id onto the kept design at the same position.
    */
   archived: [
-    'letterhead-ext-21', 'letterhead-ext-22', 'letterhead-ext-23', 'letterhead-ext-24',
-    'letterhead-ext-25', 'letterhead-ext-26', 'letterhead-ext-27', 'letterhead-ext-28',
-    'letterhead-ext-29', 'letterhead-ext-30', 'letterhead-ext-31', 'letterhead-ext-32',
+    'letterhead-ext-31', 'letterhead-ext-32',
     'letterhead-ext-33', 'letterhead-ext-34', 'letterhead-ext-35', 'letterhead-ext-36',
     'letterhead-ext-37', 'letterhead-ext-38', 'letterhead-ext-39', 'letterhead-ext-40',
     'letterhead-ext-41', 'letterhead-ext-42', 'letterhead-ext-43', 'letterhead-ext-44',
