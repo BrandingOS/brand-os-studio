@@ -3281,6 +3281,11 @@
    * WorkspaceShell, so the tab you are ON is always the one you can see.
    */
   [data-workspace] .segmented-nav {
+    /* A grid item stretches by default, so the strip filled the whole middle
+       column and printed five tabs flush left in a wide empty box. It hugs
+       its tabs and sits centred; `max-width` still hands the overflow to
+       the scroller below when they stop fitting. */
+    justify-self: center;
     max-width: 100%;
     min-width: 0;
     overflow-x: auto;
@@ -3359,6 +3364,11 @@
     grid-area: nav;
     justify-self: stretch;
   }
+  /* Its own full-width row: centre the tabs inside it. Auto margins, not
+     `justify-content: center` — those collapse to 0 once the tabs overflow,
+     where centring would push the first tab out of scroll reach. */
+  [data-workspace] .segmented-nav-item:first-of-type { margin-left: auto; }
+  [data-workspace] .segmented-nav-item:last-of-type { margin-right: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
