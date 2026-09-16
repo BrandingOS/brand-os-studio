@@ -226,7 +226,7 @@ describe('LogosEditor', () => {
     expect(reread.logoGrounds).toBeTruthy();
     expect(
       logoCombosFor(reread).some(
-        (t) => t.bg.hex.toLowerCase() === target.hex.toLowerCase() && t.kind !== 'misuse',
+        (t) => t.bg.hex.toLowerCase() === target.hex.toLowerCase(),
       ),
     ).toBe(false);
   });

@@ -55,14 +55,11 @@ describe('logoCombosFor', () => {
         ],
       },
     });
-    // Pairings are drawn only on the brand's own grounds; the rule tiles
-    // (clear space, minimum size, misuse) sit on a stage the primary
-    // silhouette reads on, which may be a universal light/dark ground.
     const pairings = combos.filter((c) => c.kind === 'pairing');
     for (const p of pairings) expect(p.contrast).toBeGreaterThanOrEqual(3);
-    expect(combos.some((c) => c.kind === 'clear-space')).toBe(true);
-    expect(combos.some((c) => c.kind === 'min-size')).toBe(true);
-    expect(combos.filter((c) => c.kind === 'misuse')).toHaveLength(3);
+    // Usage rules (clear space, minimum size, misuse) belong to the
+    // Guideline, never to the kit's asset wall.
+    for (const c of combos) expect(['pairing', 'treatment']).toContain(c.kind);
   });
 
   it('returns empty when there are no logos', () => {
@@ -136,7 +133,7 @@ describe('logoCombosFor — no duplicate tiles', () => {
       colors,
     });
     // What the eye sees is (kind, mark, bg) — a mask discards everything else.
-    const seen = combos.map((c) => `${c.kind}|${c.misuse ?? ''}|${c.mark.hex}|${c.bg.hex}`);
+    const seen = combos.map((c) => `${c.kind}|${c.mark.hex}|${c.bg.hex}`);
     expect(new Set(seen).size).toBe(seen.length);
   });
 

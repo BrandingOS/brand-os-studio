@@ -95,8 +95,10 @@ const ORIGINAL_BG_DARK = '#18181B';
  * shared with `data/logoExport.ts`, so a tile and the file it downloads
  * are the same decision:
  *
- *   originals → contrast-checked pairings → mono treatments →
- *   clear space · minimum size · three misuses
+ *   originals → contrast-checked pairings → mono treatments
+ *
+ * No usage rules (clear space, minimum size, misuse): those belong to the
+ * Guideline, not to the kit's asset wall.
  *
  * ### Why nothing here paints a CSS mask if it can help it
  *
@@ -291,198 +293,10 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
   if (!tile) return null;
   const logo = brand.logos[tile.sourceIndex];
   if (!logo) return null;
-  const fg = fgOn(tile.bg.hex);
 
-  if (tile.kind === 'pairing' || tile.kind === 'treatment') {
-    return (
-      <TileFrame bg={tile.bg.hex}>
-        <LogoArt logo={logo} recolor={tile.recolor} />
-      </TileFrame>
-    );
-  }
-
-  const caption = (text: string) => (
-    <span
-      style={{
-        fontFamily: body,
-        fontSize: 7,
-        letterSpacing: '0.02em',
-        lineHeight: 1.3,
-        // Full-strength ink, not 72%. The low-contrast MISUSE tile is drawn
-        // on a ground chosen to defeat the logo, and a held-back caption on
-        // it fell under the floor — so the tile that names the rule was
-        // breaking it. The rule is illustrated by the ARTWORK; the words
-        // explaining it must always be readable.
-        color: fg,
-        textAlign: 'center',
-      }}
-    >
-      {text}
-    </span>
-  );
-
-  if (tile.kind === 'clear-space') {
-    // The rule is a FORMULA, so the diagram has to obey it: the inner frame
-    // hugs the artwork (`fit="natural"` — a frame wider than the drawing
-    // states a margin the brand never set), and the dashed margin around it
-    // is exactly a third of the frame's height on every side. The four R's
-    // sit IN that margin, so the letter and the space it names are the same
-    // measurement.
-    const LOGO_H = 44;
-    const R = Math.round(LOGO_H / 3);
-    return (
-      <TileFrame bg={tile.bg.hex} padding="10% 11%" column>
-        <span
-          style={{
-            position: 'relative',
-            display: 'inline-flex',
-            border: `1px dashed ${rgba(fg, 0.45)}`,
-            padding: R,
-            boxSizing: 'content-box',
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              height: LOGO_H,
-              outline: `1px solid ${rgba(fg, 0.3)}`,
-            }}
-          >
-            <LogoArt logo={logo} recolor={null} fit="natural" />
-          </span>
-          {(
-            [
-              { top: 1, left: '50%', transform: 'translateX(-50%)' },
-              { bottom: 1, left: '50%', transform: 'translateX(-50%)' },
-              { left: 1, top: '50%', transform: 'translateY(-50%)' },
-              { right: 1, top: '50%', transform: 'translateY(-50%)' },
-            ] as CSSProperties[]
-          ).map((pos, i) => (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                fontFamily: body,
-                fontSize: 7,
-                lineHeight: 1,
-                fontWeight: 600,
-                color: rgba(fg, 0.65),
-                ...pos,
-              }}
-            >
-              R
-            </span>
-          ))}
-        </span>
-        {caption(tile.note ?? '')}
-      </TileFrame>
-    );
-  }
-
-  if (tile.kind === 'min-size') {
-    // Three steps, in proportion, each labelled with the size it stands for.
-    // The smallest one IS the floor — a tile that only said "24 px" would
-    // leave the reader guessing what that looks like. Each step takes its
-    // HEIGHT from the ladder and its width from the artwork, so a square mark
-    // and a wide wordmark both step evenly instead of one of them floating in
-    // a landscape slot.
-    const steps: Array<{ h: number; label: string }> = [
-      { h: 13, label: '24 px' },
-      { h: 24, label: '48 px' },
-      { h: 40, label: '96 px' },
-    ];
-    return (
-      <TileFrame bg={tile.bg.hex} padding="11% 9%" column>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            gap: '10%',
-            width: '100%',
-          }}
-        >
-          {steps.map((step) => (
-            <span
-              key={step.label}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                flex: '0 1 auto',
-                minWidth: 0,
-              }}
-            >
-              <span style={{ display: 'inline-flex', height: step.h }}>
-                <LogoArt logo={logo} recolor={null} fit="natural" />
-              </span>
-              <span
-                style={{
-                  fontFamily: body,
-                  fontSize: typePx(6),
-                  color: rgba(fg, 0.6),
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {step.label}
-              </span>
-            </span>
-          ))}
-        </div>
-        {caption(tile.note ?? '')}
-      </TileFrame>
-    );
-  }
-
-  // Misuse. Every one of these is a thing the kit has to say OUT LOUD,
-  // because a gallery that only ever shows correct usage reads as a menu
-  // of options rather than a rule.
-  const stretched = tile.misuse === 'stretch';
   return (
-    <TileFrame bg={tile.bg.hex} padding="12% 12%" column>
-      <span
-        aria-hidden
-        style={{
-          position: 'absolute',
-          top: '7%',
-          right: '7%',
-          width: 13,
-          height: 13,
-          borderRadius: '50%',
-          border: `1px solid ${rgba(fg, 0.55)}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: body,
-          fontSize: 8,
-          lineHeight: 1,
-          // Full strength for the same reason the caption is: this mark is
-          // the tile's verdict, on a ground picked to defeat contrast.
-          color: fg,
-        }}
-      >
-        ✕
-      </span>
-      {/* The stretch tile has to SHOW a stretched logo. Clipping it at the
-          frame edge reads as a broken export rather than as the mistake being
-          named, so the artwork is laid out narrow enough that the stretch
-          still lands inside the tile, and nothing is hidden.
-          1.5× was not enough to READ as a mistake on a wordmark: on Raqm the
-          distorted lockup and the tile beside it came out the same width, so
-          the tile that says "never stretch" looked like a logo. A round mark
-          gave it away and a wide one hid it, which is the wrong way round —
-          the wordmark is the case a reader has to be shown. 1.85× over a
-          narrower box is unmistakable and still clears the 12% padding
-          (40% × 1.85 = 74% of the content box). */}
-      <span style={{ height: 46, width: stretched ? '40%' : '64%', display: 'block' }}>
-        <LogoArt
-          logo={logo}
-          recolor={tile.recolor}
-          style={stretched ? { transform: 'scaleX(1.85)', transformOrigin: 'center' } : undefined}
-        />
-      </span>
-      {caption(tile.note ?? '')}
+    <TileFrame bg={tile.bg.hex}>
+      <LogoArt logo={logo} recolor={tile.recolor} />
     </TileFrame>
   );
 }
