@@ -127,6 +127,8 @@ export class FabricAdapter implements EditorAdapter {
   private viewportRendered = false;
   /** Overlapping `exportAs` calls — see `frameForExport`. */
   private exportDepth = 0;
+  /** Pending coalesced publish for a continuous gesture. */
+  private continuousFrame: number | null = null;
   private zoom = 1;
   private panX = 0;
   private panY = 0;
@@ -213,6 +215,7 @@ export class FabricAdapter implements EditorAdapter {
     // the canvas; it just needed the token to actually move. Bumping it here
     // makes every in-flight render bail at that guard.
     this.renderToken += 1;
+    this.cancelContinuousSync();
 
     // Local state is cleared SYNCHRONOUSLY: `unmount()` must leave the adapter
     // unusable immediately, regardless of when disposal finishes.
@@ -1165,8 +1168,9 @@ export class FabricAdapter implements EditorAdapter {
     const found = findLayer(this.doc, id);
     if (!found || found.layer.kind !== 'text') return;
     (found.layer as TextLayer).text = target.text ?? '';
-    this.snapshotToHistory();
-    this.emitChange();
+    // Typing is continuous too — a keystroke must not cost two clones
+    // of the document.
+    this.scheduleContinuousSync();
   }
 
   private syncLayerFromFabric(obj: FabricObject, discrete: boolean): void {
@@ -1189,16 +1193,57 @@ export class FabricAdapter implements EditorAdapter {
         wrote = this.writeTransform(child, absoluteTransform(child)) || wrote;
       }
       if (!wrote) return;
-      if (discrete) this.commitToHistory();
-      else this.snapshotToHistory();
-      this.emitChange();
+      this.afterGeometryWrite(discrete);
       return;
     }
 
     if (!this.writeTransform(obj, fabricToTransform(obj))) return;
-    if (discrete) this.commitToHistory();
-    else this.snapshotToHistory();
-    this.emitChange();
+    this.afterGeometryWrite(discrete);
+  }
+
+  /**
+   * Publish a geometry write.
+   *
+   * A DISCRETE write (the end of a gesture) is published immediately. A
+   * CONTINUOUS one — every pointer frame of a drag, resize or rotate —
+   * is coalesced to once per animation frame, because publishing means
+   * two deep clones of the WHOLE document: one for the history snapshot
+   * and one for the change event. At 40 layers that is invisible; on a
+   * real deck it was the stall. Fabric paints the drag itself, so
+   * nothing downstream needs to hear about it more often than the screen
+   * refreshes.
+   */
+  private afterGeometryWrite(discrete: boolean): void {
+    if (discrete) {
+      this.cancelContinuousSync();
+      this.commitToHistory();
+      this.emitChange();
+      return;
+    }
+    this.scheduleContinuousSync();
+  }
+
+  private scheduleContinuousSync(): void {
+    if (this.continuousFrame !== null) return;
+    const run = () => {
+      this.continuousFrame = null;
+      this.snapshotToHistory();
+      this.emitChange();
+    };
+    this.continuousFrame =
+      typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame(run)
+        : (setTimeout(run, 16) as unknown as number);
+  }
+
+  private cancelContinuousSync(): void {
+    if (this.continuousFrame === null) return;
+    if (typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.continuousFrame);
+    } else {
+      clearTimeout(this.continuousFrame as unknown as NodeJS.Timeout);
+    }
+    this.continuousFrame = null;
   }
 
   /** Write geometry onto the mirror layer. Returns false if unmatched. */
