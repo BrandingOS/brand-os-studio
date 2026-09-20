@@ -47,6 +47,33 @@
   min-height: 0;
 }
 
+/* Placed EXPLICITLY, never auto-placed. The panel is absent whenever it
+ * is closed, and absolutely positioned below 900px — both take it out
+ * of the flow, and auto-placement then slides the canvas into the
+ * panel's (zero-width) column. The canvas would collapse to nothing the
+ * first time anyone closed the panel. */
+.st-rail {
+  grid-column: 1;
+}
+.st-panel {
+  grid-column: 2;
+}
+.st-canvas-col {
+  grid-column: 3;
+}
+/* No rail to place — reclaim its column for the canvas. */
+.st-body[data-layerless] {
+  grid-template-columns: 0 auto minmax(0, 1fr);
+}
+
+/* A renderer's own properties surface brings its own look (ContentPanel's
+ * `.bk-qe-*` rules travel with it) but sets no padding of its own, so
+ * this wrapper has to be the padding source — the same job every other
+ * panel body does for itself. */
+.st-panel-body[data-studio-properties] {
+  padding: 16px;
+}
+
 /* ─── Top bar ────────────────────────────────────────────────────────
  *
  * A DOCUMENT bar. What used to sit here was the brand's section nav
@@ -101,7 +128,10 @@
   border-radius: var(--ds-radius-control);
   padding: 4px 8px;
   max-width: 34ch;
-  min-width: 6ch;
+  /* Flex items default to `min-width: auto`, and an <input> has an
+   * intrinsic width from its `size`, so without this the name refuses
+   * to shrink and shoves the rest of the bar off screen. */
+  min-width: 0;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
@@ -726,6 +756,32 @@
   }
 }
 
+/* The top bar sheds words before it sheds controls.
+ *
+ * Every cluster is fixed-width except the document name, so below about
+ * 900px the three of them stop fitting and overlap. What goes first is
+ * text that repeats something already on screen — the content type, the
+ * brand's name beside its mark, the word "Export" beside its icon — and
+ * never an action. */
+@media (max-width: 900px) {
+  .st-docmeta {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .st-topbar-brand span {
+    display: none;
+  }
+  .st-topbar [data-studio-save] span:not(:first-child),
+  .st-topbar-right .st-icon-btn--label span {
+    display: none;
+  }
+  .st-topbar-right .st-icon-btn--label {
+    padding: 0 6px;
+  }
+}
+
 @media (max-width: 640px) {
   [data-workspace] {
     --st-rail-w: 58px;
@@ -736,5 +792,15 @@
   }
   .st-topbar-centre {
     justify-content: flex-start;
+  }
+  .st-topbar {
+    gap: 2px;
+    padding: 0 6px;
+  }
+  .st-topbar-brand {
+    display: none;
+  }
+  .st-divider {
+    margin: 0 2px;
   }
 }

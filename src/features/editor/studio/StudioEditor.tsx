@@ -363,7 +363,12 @@ export function StudioEditor({
 
   const canUndo = useMemo(() => adapter.canUndo(), [adapter, docVersion]);
   const canRedo = useMemo(() => adapter.canRedo(), [adapter, docVersion]);
-  const isEmpty = (activePage?.layers.length ?? 0) === 0;
+  // "This page is empty" is a LAYER statement. A template-instance page
+  // carries zero layers by design — its content lives in the document's
+  // body and is edited in the properties panel — so the prompt would be
+  // both wrong and unusable there ("Add a heading" has nowhere to go).
+  const isEmpty =
+    renderer.supportsLayerEditing && (activePage?.layers.length ?? 0) === 0;
 
   return (
     <div data-workspace data-theme={theme} data-studio-editor>
@@ -399,12 +404,13 @@ export function StudioEditor({
           />
         ) : null}
 
-        <div className="st-body">
-          <StudioRail
-            active={rail}
-            onChange={setRail}
-            supportsLayerEditing={renderer.supportsLayerEditing}
-          />
+        <div className="st-body" data-layerless={renderer.supportsLayerEditing ? undefined : ''}>
+          {/* A layerless renderer has one editing surface and it is
+              always open, so every rail entry would be a control that
+              does nothing. The way out is the top bar's back arrow. */}
+          {renderer.supportsLayerEditing ? (
+            <StudioRail active={rail} onChange={setRail} supportsLayerEditing />
+          ) : null}
 
           <StudioPanel
             rail={rail}

@@ -97,7 +97,7 @@ export function StudioTopBar({
         {brand ? (
           <Link
             to={backTo}
-            className="st-icon-btn"
+            className="st-icon-btn st-topbar-brand"
             title={`${brand.name} · designs`}
             style={{ gap: 8, paddingRight: 10 }}
           >

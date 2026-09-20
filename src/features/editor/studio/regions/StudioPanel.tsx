@@ -83,7 +83,7 @@ export function StudioPanel(props: Props) {
         <div className="st-panel-head">
           <span className="st-panel-title">Design</span>
         </div>
-        <div className="st-panel-body">
+        <div className="st-panel-body" data-studio-properties>
           <renderer.Properties
             adapter={documentAdapter as EditorAdapter}
             brand={brand}
