@@ -61,11 +61,19 @@ import {
 import { useStudioViewport } from './state/useStudioViewport';
 import { useStudioHotkeys } from './state/useStudioHotkeys';
 import { insertLayer, type InsertRequest } from './ops/insertRequest';
+import { isMasterTemplate, makeThumbnail } from './ops/documentHealth';
 import './studio.css';
 
 export interface StudioEditorProps {
   initialDocument: BrandOSDocument;
-  save: (doc: BrandOSDocument) => Promise<void>;
+  /**
+   * `extras` carries what the editor can compute and the route cannot —
+   * today a thumbnail rasterized from the live canvas.
+   */
+  save: (
+    doc: BrandOSDocument,
+    extras?: { thumbnailUrl?: string },
+  ) => Promise<void>;
   saveEnabled?: boolean;
   brand?: Brand;
   /** Where the back arrow and the brand chip go. */
@@ -197,9 +205,22 @@ export function StudioEditor({
   const { zoom } = useViewport();
 
   // ─── Autosave ─────────────────────────────────────────────────────────
+  //
+  // Every save carries a fresh thumbnail. Nothing in the product has
+  // ever produced one, so every design anyone made showed a grey
+  // placeholder in the grid for ever — while the column and the
+  // storage contract to hold it have existed since migration 015.
+  const saveWithThumbnail = useCallback(
+    async (next: BrandOSDocument) => {
+      const thumbnailUrl = await makeThumbnail(adapter, next);
+      await save(next, thumbnailUrl ? { thumbnailUrl } : undefined);
+    },
+    [adapter, save],
+  );
+
   const { saveState, markDirty, flush, retry } = useAutoSave<BrandOSDocument>({
     value: doc,
-    save,
+    save: saveWithThumbnail,
     debounceMs: 1200,
     savedFadeMs: 2500,
     enabled: saveEnabled && !readOnly,
@@ -395,6 +416,19 @@ export function StudioEditor({
           moreActions={topBarActions}
         />
 
+        {isMasterTemplate(doc) ? (
+          <TemplateBanner
+            onDuplicate={() => {
+              // Not a guard — the owner may genuinely be here to edit
+              // the master. It just has to be impossible to do so by
+              // accident, which means saying which one you are in.
+              toast.message(
+                'Use “Duplicate” in the design’s menu to work on a copy instead.',
+              );
+            }}
+          />
+        ) : null}
+
         {editingMasterId ? (
           <MasterBanner
             name={
@@ -513,6 +547,42 @@ export function StudioEditor({
 export function docName(doc: BrandOSDocument): string {
   const raw = doc.metadata?.name;
   return typeof raw === 'string' && raw.trim() ? raw : 'Untitled design';
+}
+
+/**
+ * This document IS a master template.
+ *
+ * The editor autosaves whatever it loaded with no `isTemplate` branch,
+ * so typing here rewrites the master for every design made from it.
+ * That is correct when you arrived via "Edit template" and alarming
+ * when you arrived from a bookmark, the back button or a shared link —
+ * so the editor says which one you are in.
+ */
+function TemplateBanner({ onDuplicate }: { onDuplicate: () => void }) {
+  return (
+    <div
+      data-studio-template-banner
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '5px 14px',
+        fontSize: 11.5,
+        background: 'var(--ds-warning-bg)',
+        color: 'var(--ds-warning-fg)',
+        borderBottom: '1px solid var(--ds-warning-border)',
+      }}
+    >
+      <span>
+        This is a master template — edits here change every design made from
+        it.
+      </span>
+      <button type="button" className="st-icon-btn st-icon-btn--label" onClick={onDuplicate}>
+        Work on a copy instead
+      </button>
+    </div>
+  );
 }
 
 function MasterBanner({ name, onExit }: { name: string; onExit: () => void }) {

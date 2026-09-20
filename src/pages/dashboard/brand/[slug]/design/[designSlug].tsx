@@ -42,7 +42,8 @@ import { useService, SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { PageSpinner } from '@/components/PageSpinner';
 import { activityService } from '@/shared/services/activityService';
-import { getImageProject } from '@/features/image-generation';
+import { getImageProject, resignOutput } from '@/features/image-generation';
+import { refreshExpiringImages } from '@/features/editor/studio/ops/documentHealth';
 import { useIsDenied } from '@/shared/access/useAccess';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -120,7 +121,15 @@ export default function BrandDesignEditorPage() {
           return;
         }
         const parsed = BrandOSDocumentSchema.parse(raw);
-        setDoc(parsed);
+        // A generated image's `src` is a signed URL with a seven-day
+        // life, and nothing has ever re-signed it — so every AI design
+        // silently turned into broken images a week after it was made.
+        // The durable path is recorded beside it for exactly this.
+        // Returns the same object when there is nothing to refresh, so
+        // an untouched design is not marked dirty by being opened.
+        const refreshed = await refreshExpiringImages(parsed, resignOutput);
+        if (cancelled) return;
+        setDoc(refreshed);
       } catch (err) {
         if (cancelled) return;
         console.error('[BrandDesignEditorPage] design load failed:', err);
@@ -202,7 +211,7 @@ export default function BrandDesignEditorPage() {
         readOnly={readOnly}
         initialPrompt={initialPrompt}
         initialAi={initialAi}
-        save={async (next) => {
+        save={async (next, extras) => {
           // The STORAGE KEY, not the document's own id. These are the
           // same for every design created through a normal path, but
           // when they drift the editor autosaves into a row nothing
@@ -215,6 +224,9 @@ export default function BrandDesignEditorPage() {
             width: next.pages[0]?.width,
             height: next.pages[0]?.height,
             isTemplate: next.metadata?.isTemplate === true,
+            // Rasterized from the live canvas by the editor — the route
+            // has no canvas to take one from.
+            thumbnailUrl: extras?.thumbnailUrl,
           });
         }}
         onShare={() => {
