@@ -25,6 +25,7 @@ import type { Layer, Page } from '@/features/editor/schema';
 import type { BrandKit } from '@/features/editor/brand/BrandKit';
 import type { LayerEditingAdapter } from '@/features/editor/adapter/EditorAdapter';
 import { brandSwatches } from '../components/ColorField';
+import { assetUrl } from './assetUrl';
 import { InsertTile } from './InsertTile';
 import type { InsertRequest } from '../ops/insertRequest';
 import { useSelectedLayers } from '../state/studioStore';
@@ -275,17 +276,6 @@ function AssetSection({
       </div>
     </section>
   );
-}
-
-/** The best file we have for an asset: vector before raster. */
-export function assetUrl(asset: BrandAsset): string | null {
-  const order = ['svg', 'png', 'webp', 'jpg', 'jpeg'] as const;
-  for (const format of order) {
-    const file = asset.formats?.[format as keyof typeof asset.formats];
-    if (file?.url) return file.url;
-  }
-  const first = Object.values(asset.formats ?? {}).find((f) => f?.url);
-  return first?.url ?? null;
 }
 
 function hasLogo(kit: BrandKit, variant: string): boolean {

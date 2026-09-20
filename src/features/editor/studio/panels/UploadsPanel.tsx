@@ -19,7 +19,7 @@ import { DsButton } from '@/shared/ds';
 import type { Brand } from '@/shared/types/brand';
 import { InsertTile } from './InsertTile';
 import type { InsertRequest } from '../ops/insertRequest';
-import { assetUrl } from './BrandPanel';
+import { assetUrl } from './assetUrl';
 
 interface Props {
   brand?: Brand;

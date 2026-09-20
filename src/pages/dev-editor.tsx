@@ -31,8 +31,8 @@
 //      so cross-page consistency tests run end-to-end with a real brand.
 //   5. Accept seeded fixtures via query param (`?fixture=social-post`).
 
-import { useCallback, useEffect, useState } from 'react';
-import { Editor } from '@/features/editor/shell/Editor';
+import { useEffect, useState } from 'react';
+import { StudioEditor } from '@/features/editor/studio/StudioEditor';
 import { BrandOSDocumentSchema, type BrandOSDocument } from '@/features/editor/schema';
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
 import presentationFixture from '@/features/editor/schema/__fixtures__/presentation.sample.json';
@@ -86,10 +86,6 @@ function loadDoc(): BrandOSDocument {
   return pickFixtureFromQuery();
 }
 
-function freshFixture(): BrandOSDocument {
-  return pickFixtureFromQuery();
-}
-
 // Round 2 fix 1 — auto-save is disabled in the dev harness. The
 // editor mounts with `saveEnabled={false}`, so this stub never runs.
 // Kept as a no-op for the prop's type contract.
@@ -134,47 +130,18 @@ export default function DevEditorPage() {
     };
   }, [brandsService]);
 
-  const handleBrandSwitch = useCallback(
-    async (slug: string) => {
-      // 1. Log so the wiring is visible during manual testing.
-      console.info('[dev-editor] onBrandSwitch fired with slug:', slug);
-      // 2. Resolve via IBrandsService — same path Phase 4.5 will use.
-      try {
-        const next = await brandsService.getBySlug(slug);
-        if (!next) {
-          console.warn('[dev-editor] no brand for slug', slug);
-          return;
-        }
-        setBrand(next);
-        // 3. Reset the document to a fresh fixture. The Editor is
-        //    keyed on brand.slug below so this triggers a full
-        //    remount with the new brand context.
-        setDoc(freshFixture());
-        if (typeof window !== 'undefined') {
-          window.location.hash = `brand=${slug}`;
-        }
-      } catch (err) {
-        console.error('[dev-editor] brand switch failed:', err);
-      }
-    },
-    [brandsService],
-  );
-
   return (
-    <Editor
+    <StudioEditor
       // Force a remount when the brand changes so initialDocument /
-      // brand / adapter all reset cleanly. This stand-in is what
-      // Phase 4.5's route handler replaces.
+      // brand / adapter all reset cleanly.
       key={brand?.slug ?? 'no-brand'}
       initialDocument={doc}
       save={saveDoc}
-      // Dev harness has no real persistence — show the
-      // "Dev — saves disabled" badge instead of attempting writes
-      // that occasionally trip browser localStorage quotas across
-      // long-running dev sessions.
+      backTo={brand ? `/b/${brand.slug}/design` : '/dashboard'}
+      // The dev harness has no persistence — writing here would trip
+      // localStorage quotas across a long session.
       saveEnabled={false}
       brand={brand}
-      onBrandSwitch={handleBrandSwitch}
     />
   );
 }

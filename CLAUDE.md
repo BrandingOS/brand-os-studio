@@ -312,6 +312,71 @@ never hard-code a color/weight/spacing value there.
 5. **Use `<PageHeader>`** (`@/shared/ui/PageHeader`) for every page header.
    Don't roll your own `<div className="mb-8 flex items-center gap-4"><h1>...`.
 
+## The Design Studio — `/b/:slug/design/:designSlug` (rebuilt 2026-09-20)
+
+**The design editor is `src/features/editor/studio/`. Read its README
+before touching it.** It replaced `shell/Editor.tsx`, which had grown to
+a thousand lines of layout arithmetic and per-frame React state.
+
+What was kept, deliberately: the `BrandOSDocument` schema (extended only
+with `TextLayer.fontStyle`), the renderer registry and content-type
+configs, `FabricAdapter`, the brand engine (SlotRefs, `_lockedBindings`,
+`applyBrandToDocument`), the whole AI image pipeline, master pages,
+cross-page propagation, variants, `useAutoSave`.
+
+Rules that bind:
+
+- **The top bar carries the DOCUMENT, never the brand's section nav.**
+  Setup · Brand Kit · Guideline · Design · Tools used to sit there, put
+  there so "the editor reads as a sibling page in the brand workspace" —
+  which is exactly the impression a design application must not give.
+- **Brand is the first rail entry.** Canva offers a brand kit five items
+  down; this product starts from the brand, and the rail says so.
+- **A new layer is made OF the brand** (`studio/ops/insert.ts`). Every
+  shape used to be born `#6366f1` — inserting a rectangle into a red
+  brand gave you an indigo box. Colours are written as LITERALS, not
+  SlotRefs: the Fabric renderer resolves a SlotRef to placeholder grey
+  until `applyBrandToDocument` runs, so a brand-bound insert would put a
+  grey box on the canvas. `convertToTemplate` maps them back.
+- **Zoom and pan live in `canvas.viewportTransform`**
+  (`FabricAdapter.enableViewport`, opt-in), never a CSS scale on a
+  wrapper. A wrapper puts Fabric's handles inside the scaled raster —
+  0.6px at minimum zoom, 48px at maximum — blurs text, and offers no pan.
+  `exportAs` frames the page and restores the view.
+- **Every command is ONE undo step** (`studio/ops/layerOps.ts`).
+- **The keyboard never steals a key from someone typing**, including ⌘Z.
+  `STUDIO_SHORTCUTS` lives beside the handler so the help sheet cannot
+  drift from it.
+- **Geometry does not flow through React during a gesture.** The adapter
+  emits `change` per pointer event; `createDocumentSink` coalesces to one
+  store write per frame and components subscribe to slices.
+  **Never import `zustand/react/shallow`** — Vite pre-bundles it as its
+  own chunk, loading a second React, and every hook in it throws.
+  `useShallowStudio` is the local equivalent.
+- **Regions are placed explicitly on the grid.** The panel is absent when
+  closed and out of flow below 900px; auto-placement slid the canvas into
+  its zero-width column and collapsed it.
+- **A layerless renderer** (`template-instance` — every Brand Kit
+  deliverable, invoices, letterheads) gets its own properties surface and
+  no rail or empty state.
+
+Fixed along the way, each a real defect: multi-select drag wrote NOTHING
+to the document (an ActiveSelection carries no layer id); you could not
+delete a layer at all; `ImageLayer.fit` was ignored so every photo was
+stretched; a FabricImage's `width` is its SOURCE REGION and the shared
+update path wrote the layer's box into it, silently re-cropping on every
+edit; z-order used a document index as a canvas index, which the page
+sheet and master overlays offset; undo teleported to page 1; the save key
+was `doc.id` while the load key was the URL slug; autosave fired on
+mount and never flushed on unload; viewers got a writable canvas whose
+saves RLS rejected; nothing had ever produced a design thumbnail; AI
+images rotted after seven days because nothing re-signed their URLs.
+
+`shell/Editor.tsx` and its `v2/` components still exist and are imported
+only by their own tests — real coverage of the domain layer mounted
+through a UI, kept until those flows are ported to mount the Studio.
+Nothing a user can reach renders them; `/_dev/editor` is the Studio too.
+
 ## Editor primitives (from `src/features/editor/core/README.md`)
 
 > **Read this for product strategy:** `docs/brandos-editor-vision.md`

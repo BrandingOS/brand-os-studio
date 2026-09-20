@@ -142,21 +142,34 @@ describe('refreshExpiringImages', () => {
 });
 
 describe('makeThumbnail', () => {
-  function adapterWith(exportAs: DocumentAdapter['exportAs']): DocumentAdapter {
-    return { exportAs } as DocumentAdapter;
+  type ExportOptions = Parameters<DocumentAdapter['exportAs']>[0];
+
+  /**
+   * A recording stand-in rather than `vi.fn`: the mock's inferred
+   * signature comes from the arrow it wraps, so `mock.calls` types as an
+   * empty tuple and reading `calls[0][0]` does not compile.
+   */
+  function recorder(blob: () => Blob | never) {
+    const calls: ExportOptions[] = [];
+    const adapter = {
+      exportAs: async (options: ExportOptions) => {
+        calls.push(options);
+        return blob();
+      },
+    } as DocumentAdapter;
+    return { adapter, calls };
   }
 
   it('asks for a small JPEG scaled by the page’s LONG edge', async () => {
-    const exportAs = vi.fn(async () => new Blob(['x'], { type: 'image/jpeg' }));
-    await makeThumbnail(adapterWith(exportAs), doc());
-    const options = exportAs.mock.calls[0][0];
-    expect(options.format).toBe('jpg');
+    const { adapter, calls } = recorder(() => new Blob(['x'], { type: 'image/jpeg' }));
+    await makeThumbnail(adapter, doc());
+    expect(calls[0].format).toBe('jpg');
     // 1080x1350 — the 1350 is what has to fit.
-    expect(options.scale).toBeCloseTo(THUMBNAIL_EDGE / 1350, 5);
+    expect(calls[0].scale).toBeCloseTo(THUMBNAIL_EDGE / 1350, 5);
   });
 
   it('never magnifies a page smaller than the thumbnail', async () => {
-    const exportAs = vi.fn(async () => new Blob(['x'], { type: 'image/jpeg' }));
+    const { adapter, calls } = recorder(() => new Blob(['x'], { type: 'image/jpeg' }));
     const small = doc({
       pages: [
         {
@@ -170,23 +183,23 @@ describe('makeThumbnail', () => {
         },
       ],
     } as Partial<BrandOSDocument>);
-    await makeThumbnail(adapterWith(exportAs), small);
-    expect(exportAs.mock.calls[0][0].scale).toBe(1);
+    await makeThumbnail(adapter, small);
+    expect(calls[0].scale).toBe(1);
   });
 
   it('returns null rather than throwing when the canvas is tainted', async () => {
     // One cross-origin image without CORS headers makes toDataURL throw
     // for the whole surface. A design that cannot produce a thumbnail
     // must still save.
-    const exportAs = vi.fn(async () => {
+    const { adapter } = recorder(() => {
       throw new Error('SecurityError: tainted canvas');
     });
-    await expect(makeThumbnail(adapterWith(exportAs), doc())).resolves.toBeNull();
+    await expect(makeThumbnail(adapter, doc())).resolves.toBeNull();
   });
 
   it('returns null for an empty blob', async () => {
-    const exportAs = vi.fn(async () => new Blob([], { type: 'image/jpeg' }));
-    await expect(makeThumbnail(adapterWith(exportAs), doc())).resolves.toBeNull();
+    const { adapter } = recorder(() => new Blob([], { type: 'image/jpeg' }));
+    await expect(makeThumbnail(adapter, doc())).resolves.toBeNull();
   });
 });
 

@@ -382,8 +382,13 @@ export function StudioEditor({
 
   // ─── Render ───────────────────────────────────────────────────────────
 
-  const canUndo = useMemo(() => adapter.canUndo(), [adapter, docVersion]);
-  const canRedo = useMemo(() => adapter.canRedo(), [adapter, docVersion]);
+  // Read every render rather than memoized on `docVersion`: history
+  // availability is not on the document, so there is nothing to derive
+  // it from, and both are a length check on an array. `docVersion` is
+  // what causes the render; it is not an input to the answer.
+  void docVersion;
+  const canUndo = adapter.canUndo();
+  const canRedo = adapter.canRedo();
   // "This page is empty" is a LAYER statement. A template-instance page
   // carries zero layers by design — its content lives in the document's
   // body and is edited in the properties panel — so the prompt would be
