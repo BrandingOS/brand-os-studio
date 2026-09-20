@@ -113,6 +113,12 @@ export const TextLayerSchema = BaseLayerSchema.extend({
   fontFamily: ResolvedValueSchema,
   fontSize: z.number(),
   fontWeight: z.number().default(400),
+  /**
+   * Italic was a permanently-disabled button in the toolbar because the
+   * schema had no field for it. Additive with a default, so every
+   * document written before this parses unchanged.
+   */
+  fontStyle: z.enum(['normal', 'italic']).default('normal'),
   lineHeight: z.number().default(1.2),
   letterSpacing: z.number().default(0),
   textAlign: z.enum(['left', 'center', 'right', 'justify']).default('left'),

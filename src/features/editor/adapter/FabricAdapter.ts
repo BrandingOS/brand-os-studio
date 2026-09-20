@@ -56,6 +56,8 @@ import {
   findPageSheet,
   renderPage,
   SELECTION_BORDER_COLOR,
+  SELECTION_HANDLE_COLOR,
+  SELECTION_HANDLE_STROKE,
   SELECTION_MARQUEE_FILL,
 } from './layerMapping';
 import { transformLayersForVariant } from './duplicatePageVariant';
@@ -111,6 +113,12 @@ export class FabricAdapter implements EditorAdapter {
    * region and `viewportTransform` owns zoom + pan, which is what
    * gives constant-size selection handles and crisp text at any zoom.
    */
+  /**
+   * A selection asked for before its objects finished loading. Applied
+   * by `flushPendingSelection` once they exist.
+   */
+  private pendingSelection: string[] | null = null;
+
   private viewport: { width: number; height: number } | null = null;
   private zoom = 1;
   private panX = 0;
@@ -506,6 +514,7 @@ export class FabricAdapter implements EditorAdapter {
         this.canvas.add(obj);
         this.fabricByLayerId.set(layer.id, obj);
         this.canvas.requestRenderAll();
+        this.flushPendingSelection();
       });
     }
     this.commitToHistory();
@@ -549,6 +558,7 @@ export class FabricAdapter implements EditorAdapter {
             this.fabricByLayerId.set(layerId, newObj);
             this.canvas.moveObjectTo(newObj, this.canvasIndexFor(idx));
             this.canvas.requestRenderAll();
+            this.flushPendingSelection();
           });
         } else {
           this.canvas?.requestRenderAll();
@@ -715,15 +725,26 @@ export class FabricAdapter implements EditorAdapter {
     const objs = layerIds
       .map((id) => this.fabricByLayerId.get(id))
       .filter((o): o is FabricObject => o != null);
+    if (objs.length < layerIds.length) {
+      // Some of these layers have no Fabric object YET — `layerToFabric`
+      // is async for images, SVGs and logos, so a selection issued
+      // straight after `addLayer` finds nothing and silently does
+      // nothing. That is why inserting an image left it unselected and
+      // the contextual toolbar empty. Remember the intent and apply it
+      // when the object lands.
+      this.pendingSelection = [...layerIds];
+    } else {
+      this.pendingSelection = null;
+    }
     if (objs.length === 1) {
       this.canvas.setActiveObject(objs[0]);
     } else if (objs.length > 1) {
       // A real multi-selection. Selecting only objs[0] (what this did
       // before) meant "Select all" and marquee-then-act silently
       // operated on one layer.
-      this.canvas.setActiveObject(
-        new ActiveSelection(objs, { canvas: this.canvas }),
-      );
+      const selection = new ActiveSelection(objs, { canvas: this.canvas });
+      styleSelectionChrome(selection);
+      this.canvas.setActiveObject(selection);
     }
     this.canvas.requestRenderAll();
   }
@@ -917,6 +938,24 @@ export class FabricAdapter implements EditorAdapter {
     return { x: (x - this.panX) / this.zoom, y: (y - this.panY) / this.zoom };
   }
 
+  /**
+   * Re-apply a selection that was asked for before its objects existed.
+   * Called from every async canvas-add path.
+   */
+  private flushPendingSelection(): void {
+    const wanted = this.pendingSelection;
+    if (!wanted) return;
+    if (!wanted.every((id) => this.fabricByLayerId.has(id))) return;
+    this.pendingSelection = null;
+    this.setSelection(wanted);
+    this.emitSelection();
+  }
+
+  private styleActiveSelection(): void {
+    const active = this.canvas?.getActiveObject();
+    if (active && !getLayerId(active)) styleSelectionChrome(active);
+  }
+
   private applyViewportTransform(): void {
     if (!this.canvas || !this.viewport) return;
     this.canvas.setViewportTransform([this.zoom, 0, 0, this.zoom, this.panX, this.panY]);
@@ -961,6 +1000,7 @@ export class FabricAdapter implements EditorAdapter {
     if (isCancelled()) return;
     this.fabricByLayerId = result;
     this.applyViewportTransform();
+    this.flushPendingSelection();
   }
 
   /**
@@ -997,8 +1037,18 @@ export class FabricAdapter implements EditorAdapter {
     canvas.on('object:rotating', (e) => this.onObjectModified(e));
     canvas.on('object:modified', (e) => this.onObjectModifiedDiscrete(e));
     canvas.on('text:changed', (e) => this.onTextChanged(e));
-    canvas.on('selection:created', () => this.emitSelection());
-    canvas.on('selection:updated', () => this.emitSelection());
+    // A marquee-drawn multi-selection is an ActiveSelection Fabric
+    // builds itself, so it arrives wearing Fabric's default royal blue
+    // while every individual object wears our purple. Restyle it as it
+    // appears rather than leaving two selection languages on one canvas.
+    canvas.on('selection:created', () => {
+      this.styleActiveSelection();
+      this.emitSelection();
+    });
+    canvas.on('selection:updated', () => {
+      this.styleActiveSelection();
+      this.emitSelection();
+    });
     canvas.on('selection:cleared', () => this.emitSelection());
     canvas.on('mouse:up', () => this.clearGuides());
   }
@@ -1211,6 +1261,19 @@ function clone<T>(value: T): T {
  * the adapter keeps working against the `vi.mock('fabric')` stand-in the
  * jsdom test project uses, which has no such class.
  */
+/** The same selection chrome `baseProps` gives an individual layer. */
+function styleSelectionChrome(obj: FabricObject): void {
+  obj.set({
+    borderColor: SELECTION_BORDER_COLOR,
+    cornerColor: SELECTION_HANDLE_COLOR,
+    cornerStrokeColor: SELECTION_HANDLE_STROKE,
+    cornerStyle: 'circle',
+    transparentCorners: false,
+    cornerSize: 12,
+    borderScaleFactor: 1.5,
+  });
+}
+
 function selectionMembers(obj: FabricObject): FabricObject[] | null {
   if (getLayerId(obj)) return null;
   const maybe = obj as FabricObject & { _objects?: FabricObject[]; type?: string };

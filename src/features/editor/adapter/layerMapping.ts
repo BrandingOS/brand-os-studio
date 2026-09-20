@@ -143,6 +143,12 @@ function textLayerToFabric(layer: TextLayer): Textbox {
     fontFamily: resolveResolvedValue(layer.fontFamily, DEFAULT_FONT),
     fontSize: layer.fontSize,
     fontWeight: layer.fontWeight,
+    // `?? 'normal'` is load-bearing: Fabric lower-cases this to build
+    // its font-measurement cache key, so `undefined` throws inside the
+    // Textbox constructor. Documents written before the field existed,
+    // and layers built in code without going through zod, both arrive
+    // without it.
+    fontStyle: layer.fontStyle ?? 'normal',
     lineHeight: layer.lineHeight,
     // Fabric's charSpacing is in 1/1000 em — convert from our em-based letterSpacing.
     charSpacing: layer.letterSpacing * 1000,
@@ -239,6 +245,31 @@ async function imageLayerToFabric(layer: ImageLayer): Promise<FabricObject> {
  * and it round-trips, because `fabricToTransform` then records the
  * cropped dimensions and the same maths reproduces them on reload.
  */
+/**
+ * The image's own pixel dimensions.
+ *
+ * `img.width` is NOT reliable here: a `cover` fit narrows it to the
+ * cropped source region, so re-fitting an already-cropped image would
+ * measure the crop rather than the picture. Fabric 6 exposes no typed
+ * accessor for the backing element, hence the narrow cast — and the
+ * fallbacks matter, because a test double has no element at all.
+ */
+function naturalSize(
+  img: FabricImage,
+  fallbackW: number,
+  fallbackH: number,
+): { width: number; height: number } {
+  const el = (
+    img as unknown as {
+      _element?: { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number };
+    }
+  )._element;
+  return {
+    width: el?.naturalWidth || el?.width || img.width || fallbackW,
+    height: el?.naturalHeight || el?.height || img.height || fallbackH,
+  };
+}
+
 function imageFitProps(
   layer: ImageLayer,
   img: FabricImage,
@@ -247,8 +278,7 @@ function imageFitProps(
   // authored layers and carry the user's resize afterwards.
   const boxW = layer.transform.width * (layer.transform.scaleX || 1);
   const boxH = layer.transform.height * (layer.transform.scaleY || 1);
-  const natW = img.naturalWidth || img.width || boxW;
-  const natH = img.naturalHeight || img.height || boxH;
+  const { width: natW, height: natH } = naturalSize(img, boxW, boxH);
   if (!boxW || !boxH || !natW || !natH) return {};
 
   if (layer.fit === 'fill') {
@@ -464,11 +494,20 @@ export function applyLayerToFabric(
   const frozenByBrand = !isLogo && nextLayer.brandLocked;
 
   // Common: transform, opacity, visibility, lock + selection styling.
+  //
+  // `width`/`height` are deliberately withheld from IMAGE layers. On a
+  // FabricImage those two are the SOURCE REGION — the window into the
+  // bitmap — not the box on the page, so writing the layer's box into
+  // them silently re-crops the picture on every unrelated property
+  // update. An image's geometry is owned by `imageFitProps` below,
+  // which is the one place that knows the difference.
+  const isImage = nextLayer.kind === 'image';
   obj.set({
     left: nextLayer.transform.x,
     top: nextLayer.transform.y,
-    width: nextLayer.transform.width,
-    height: nextLayer.transform.height,
+    ...(isImage
+      ? null
+      : { width: nextLayer.transform.width, height: nextLayer.transform.height }),
     angle: nextLayer.transform.rotation,
     scaleX: nextLayer.transform.scaleX,
     scaleY: nextLayer.transform.scaleY,
@@ -494,6 +533,7 @@ export function applyLayerToFabric(
         fontFamily: resolveResolvedValue(nextLayer.fontFamily, DEFAULT_FONT),
         fontSize: nextLayer.fontSize,
         fontWeight: nextLayer.fontWeight,
+        fontStyle: nextLayer.fontStyle ?? 'normal',
         lineHeight: nextLayer.lineHeight,
         // Fabric's charSpacing is 1/1000 em — convert from our em-based letterSpacing.
         charSpacing: nextLayer.letterSpacing * 1000,
@@ -530,14 +570,19 @@ export function applyLayerToFabric(
       ) {
         return { needsRecreate: true };
       }
-      // A fit change is re-applied in place. Recreating would re-fetch
-      // the image just to change how it is cropped.
-      if (
-        prevLayer &&
-        prevLayer.kind === 'image' &&
-        prevLayer.fit !== nextLayer.fit &&
-        obj instanceof FabricImage
-      ) {
+      // Re-fit in place when either the fit MODE or the layer's box
+      // changed. Recreating would re-fetch the image just to change how
+      // it is cropped, and the box changes whenever an AI reflow or a
+      // dimension edit moves the layer.
+      const boxChanged =
+        !prevLayer ||
+        prevLayer.transform.width * (prevLayer.transform.scaleX || 1) !==
+          nextLayer.transform.width * (nextLayer.transform.scaleX || 1) ||
+        prevLayer.transform.height * (prevLayer.transform.scaleY || 1) !==
+          nextLayer.transform.height * (nextLayer.transform.scaleY || 1);
+      const fitChanged =
+        !!prevLayer && prevLayer.kind === 'image' && prevLayer.fit !== nextLayer.fit;
+      if ((fitChanged || boxChanged) && obj instanceof FabricImage) {
         obj.set(imageFitProps(nextLayer, obj));
         obj.setCoords();
       }

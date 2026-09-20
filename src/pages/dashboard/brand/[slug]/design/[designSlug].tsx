@@ -21,15 +21,17 @@
  *     ships when bundle size justifies.
  */
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, FileQuestion, Home } from 'lucide-react';
 // Phase 5 — lazy-load the unified Editor so the route's initial
 // render isn't blocked by the heavy Fabric / adapter bundle. The
 // 404/403 + spinner branches don't need the Editor code at all.
-const Editor = lazy(() =>
-  import('@/features/editor/shell/Editor').then((m) => ({ default: m.Editor })),
+const StudioEditor = lazy(() =>
+  import('@/features/editor/studio/StudioEditor').then((m) => ({
+    default: m.StudioEditor,
+  })),
 );
 import {
   BrandOSDocumentSchema,
@@ -41,6 +43,7 @@ import type { IDesignStorage } from '@/core/types/services';
 import { PageSpinner } from '@/components/PageSpinner';
 import { activityService } from '@/shared/services/activityService';
 import { getImageProject } from '@/features/image-generation';
+import { useIsDenied } from '@/shared/access/useAccess';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -64,6 +67,13 @@ export default function BrandDesignEditorPage() {
   const [searchParams] = useSearchParams();
   const designStorage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
   const { brand, isLoading: brandLoading, error: brandError } = useBrandBySlug(slug);
+  // A viewer opened a fully writable canvas and every autosave was
+  // rejected by RLS — the only trace being a "Save failed" pill after
+  // the work was already done. Ask before the editor mounts.
+  // `useIsDenied` is true only when we KNOW they may not; an unresolved
+  // access state leaves the editor writable, which is the right way
+  // round for the owner opening their own design.
+  const readOnly = useIsDenied('designs.edit', brand?.id ?? null);
   // The Design hero passes a typed prompt via ?prompt=… so the editor
   // can stage it in the AI prompt bar. We freeze the param value at
   // mount — once read, it's the user's text to keep or edit, not a
@@ -135,20 +145,6 @@ export default function BrandDesignEditorPage() {
     return () => { cancelled = true; };
   }, [docError, designSlug]);
 
-  // Phase 4.5 — brand-picker URL nav. When the user picks a
-  // different brand from inside the editor, the design id no longer
-  // applies (a design belongs to one brand). Navigate to the
-  // chosen brand's design launchpad — the natural place to pick up
-  // a different design under the new brand.
-  const onBrandSwitch = useCallback((nextSlug: string) => {
-    navigate(`/b/${nextSlug}/design`);
-  }, [navigate]);
-
-  // Phase 4.5 — share-link copy. The canonical URL pattern lives
-  // at /b/:slug/design/:designSlug; just hand the current URL to
-  // the clipboard.
-  // (Wired into the Editor below via the optional onShare prop.)
-
   if (brandLoading) {
     return <PageSpinner />;
   }
@@ -199,23 +195,33 @@ export default function BrandDesignEditorPage() {
 
   return (
     <Suspense fallback={<PageSpinner />}>
-      <Editor
+      <StudioEditor
         initialDocument={doc}
         brand={brand}
+        backTo={`/b/${brand.slug}/design`}
+        readOnly={readOnly}
         initialPrompt={initialPrompt}
         initialAi={initialAi}
-        onBrandSwitch={onBrandSwitch}
         save={async (next) => {
-          await designStorage.saveDesign(brand.id, doc.id, next);
+          // The STORAGE KEY, not the document's own id. These are the
+          // same for every design created through a normal path, but
+          // when they drift the editor autosaves into a row nothing
+          // reads: the work appears to save and a reload silently
+          // restores the pre-edit body. Keying the write to the same
+          // id the load used makes that impossible.
+          await designStorage.saveDesign(brand.id, designSlug!, next, {
+            name: typeof next.metadata?.name === 'string' ? next.metadata.name : undefined,
+            contentType: next.contentType,
+            width: next.pages[0]?.width,
+            height: next.pages[0]?.height,
+            isTemplate: next.metadata?.isTemplate === true,
+          });
         }}
         onShare={() => {
-          // Phase 8.1 — share link points at the public design portal
+          // The share link points at the public design portal
           // (/d/:brandSlug/:designSlug), an anonymous read-only view.
-          // Anyone with the URL can see the design without an auth wall.
           const url = `${window.location.origin}/d/${brand.slug}/${designSlug}`;
           void copyToClipboard(url);
-          // Phase 7.4c — log share to the activity feed so creators
-          // can see "where this design went" across the workspace.
           void activityService.log({
             brandId: brand.id,
             brandName: brand.name,

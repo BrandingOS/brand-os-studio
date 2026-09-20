@@ -1,0 +1,740 @@
+/* Design Studio — the editor frame.
+ *
+ * Scoped under [data-workspace] like every other Studio surface, so the
+ * --ds-* tokens resolve and dark mode works without a second theme
+ * system. Nothing in this file is a colour literal; if a value is not a
+ * token it is a geometric constant that belongs to this layout.
+ *
+ * The house DS comes first: anything the workspace already draws
+ * (.panel, .panel-item, .pill-btn) is used as-is. What lives here is
+ * only what no other surface has — an editor frame, a workspace well,
+ * an artboard, a contextual toolbar and a pages strip.
+ */
+
+[data-workspace] {
+  --st-topbar-h: 52px;
+  --st-bottombar-h: 44px;
+  --st-contextbar-h: 46px;
+  --st-rail-w: 68px;
+  --st-panel-w: 296px;
+}
+
+/* ─── Frame ──────────────────────────────────────────────────────────
+ *
+ * An APPLICATION, not a page: the shell claims the viewport exactly and
+ * the only thing that scrolls is a panel's own list. `:has()` keeps the
+ * rule with the shell rather than asking the route to know about it.
+ */
+[data-workspace]:has(> .st-shell) {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.st-shell {
+  display: grid;
+  grid-template-rows: var(--st-topbar-h) minmax(0, 1fr) var(--st-bottombar-h);
+  height: 100%;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+}
+
+.st-body {
+  display: grid;
+  grid-template-columns: var(--st-rail-w) auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* ─── Top bar ────────────────────────────────────────────────────────
+ *
+ * A DOCUMENT bar. What used to sit here was the brand's section nav
+ * (Setup · Brand Kit · Guideline · Design · Tools), which said "you are
+ * on a page of the product" at the exact moment the product needs to
+ * say "you are in a design". The document's name, its save state and
+ * its history are the things that belong in an editor's top bar.
+ */
+.st-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  padding: 0 var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  min-width: 0;
+}
+
+.st-topbar-left,
+.st-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  flex: 0 0 auto;
+}
+
+.st-topbar-centre {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  min-width: 0;
+}
+
+.st-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--ds-border);
+  flex: 0 0 auto;
+  margin: 0 var(--ds-space-1);
+}
+
+/* The document name — a field in place, not a dialog behind a menu. */
+.st-docname {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  padding: 4px 8px;
+  max-width: 34ch;
+  min-width: 6ch;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: text;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+    border-color var(--ds-duration-state) var(--ds-ease);
+}
+.st-docname:hover {
+  background: var(--ds-surface-hover);
+}
+.st-docname:focus {
+  outline: none;
+  background: var(--ds-bg);
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+.st-docmeta {
+  font-size: 11px;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+}
+
+/* ─── Icon button ────────────────────────────────────────────────────
+ *
+ * The DS has no icon button and every dense surface in the repo
+ * hand-rolls one. This is that shape, written once against tokens, for
+ * the editor's chrome: top bar, context bar, bottom bar and rail all
+ * use it so a 28px control behaves identically wherever it appears.
+ */
+.st-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+    color var(--ds-duration-state) var(--ds-ease),
+    border-color var(--ds-duration-state) var(--ds-ease);
+}
+.st-icon-btn:hover:not(:disabled) {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+.st-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.st-icon-btn[aria-pressed='true'],
+.st-icon-btn.is-active {
+  background: var(--accent-muted);
+  color: var(--ds-text);
+  border-color: var(--ds-border);
+}
+/* Disabled is the enabled treatment at 40%, never a grey fill — the DS
+ * rule, applied here because these buttons are not DsButtons. */
+.st-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.st-icon-btn--label {
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ─── Rail ───────────────────────────────────────────────────────────
+ *
+ * Flush against the frame rather than floating cards. A design editor's
+ * rail is chrome the eye should stop noticing; separate elevated tiles
+ * make it a second piece of furniture competing with the artboard.
+ */
+.st-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ds-space-2) 6px;
+  border-right: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.st-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.st-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 56px;
+  padding: 8px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-tile);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+    color var(--ds-duration-state) var(--ds-ease);
+}
+.st-rail-item:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+.st-rail-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.st-rail-item.is-active {
+  background: var(--accent-muted);
+  color: var(--ds-text);
+}
+.st-rail-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1;
+}
+.st-rail-sep {
+  height: 1px;
+  margin: 6px 10px;
+  background: var(--ds-border);
+  flex: 0 0 auto;
+}
+
+/* ─── Panel ──────────────────────────────────────────────────────────── */
+
+.st-panel {
+  width: var(--st-panel-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+.st-panel[hidden] {
+  display: none;
+}
+
+.st-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  padding: 12px 10px 10px 14px;
+  border-bottom: 1px solid var(--ds-border);
+  flex: 0 0 auto;
+}
+.st-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+.st-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+}
+.st-panel-body::-webkit-scrollbar {
+  width: 8px;
+}
+.st-panel-body::-webkit-scrollbar-thumb {
+  background: var(--ds-border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.st-section + .st-section {
+  margin-top: var(--ds-space-4);
+}
+.st-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ds-text-muted);
+  margin: 0 0 8px 2px;
+}
+
+/* ─── Canvas column ──────────────────────────────────────────────────── */
+
+.st-canvas-col {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The workspace WELL.
+ *
+ * Recessed relative to the chrome so the page reads as a sheet lying on
+ * a surface. The old editor painted the workspace the same cream as the
+ * page, so a white artboard on a white background had no edge at all —
+ * you could not see where the design stopped. */
+.st-workspace {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  touch-action: none;
+}
+.st-workspace canvas {
+  display: block;
+}
+
+/* Screen-space overlays live here: they must NOT be inside anything the
+ * viewport transforms, or they would zoom with the artwork. */
+.st-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.st-overlay > * {
+  pointer-events: auto;
+}
+
+/* ─── Context bar ────────────────────────────────────────────────────
+ *
+ * Docked under the top bar rather than floating over the selection.
+ * A floating bar occludes the design it describes, moves every time the
+ * selection moves, and runs out of room long before a real control set
+ * fits. Docked, it is always in the same place and can hold align,
+ * order, opacity and lock without a "More" menu.
+ */
+.st-contextbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--st-contextbar-h);
+  padding: 0 10px;
+  border-bottom: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+.st-contextbar::-webkit-scrollbar {
+  display: none;
+}
+.st-contextbar-hint {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  padding-left: 2px;
+}
+
+.st-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-bg);
+  flex: 0 0 auto;
+}
+.st-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+.st-field input {
+  width: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--ds-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding: 0 2px;
+}
+.st-field input:focus {
+  outline: none;
+}
+.st-field:focus-within {
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+/* A colour control shows the colour. A swatch that is a small square of
+ * the value is more legible than any label of it. */
+.st-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--ds-border-strong);
+  flex: 0 0 auto;
+  cursor: pointer;
+  padding: 0;
+  background-image: linear-gradient(45deg, var(--ds-border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--ds-border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--ds-border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--ds-border) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+.st-swatch-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+}
+
+/* ─── Bottom bar ─────────────────────────────────────────────────────── */
+
+.st-bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  padding: 0 10px;
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  min-width: 0;
+}
+
+.st-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 0;
+}
+.st-pages::-webkit-scrollbar {
+  display: none;
+}
+
+.st-page-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-bg);
+  color: var(--ds-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+.st-page-chip:hover {
+  background: var(--ds-surface-hover);
+}
+.st-page-chip.is-active {
+  background: var(--accent-muted);
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+  font-weight: 500;
+}
+.st-page-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.st-page-thumb {
+  width: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--ds-border-strong);
+  background: var(--ds-bg);
+  flex: 0 0 auto;
+}
+
+.st-zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.st-zoom-value {
+  min-width: 52px;
+  text-align: center;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-secondary);
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────
+ *
+ * Drawn on the OVERLAY, not on the canvas: it must not be exported, and
+ * it must not scale with the artboard. It disappears the moment the page
+ * has a layer.
+ */
+.st-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none;
+  text-align: center;
+  padding: var(--ds-space-4);
+}
+.st-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+.st-empty-sub {
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  max-width: 34ch;
+  line-height: 1.5;
+}
+.st-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* ─── Drop target ────────────────────────────────────────────────────
+ *
+ * Panels drag onto the canvas. The whole workspace lights up rather than
+ * a small target, because the drop point is wherever the pointer is.
+ */
+.st-workspace.is-drop-target::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed var(--ds-dash-strong);
+  border-radius: var(--ds-radius-card);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* ─── Panel item grids (elements, uploads, brand assets) ─────────────── */
+
+.st-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+}
+.st-tile-grid--wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.st-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-bg);
+  color: var(--ds-text-secondary);
+  cursor: grab;
+  overflow: hidden;
+  transition: border-color var(--ds-duration-state) var(--ds-ease),
+    background var(--ds-duration-state) var(--ds-ease);
+}
+.st-tile:hover {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+.st-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.st-tile:active {
+  cursor: grabbing;
+}
+/* An SVG with no intrinsic size resolves `max-width: 100%` against a
+ * 300x150 CSS default rather than against the tile, so brand logos —
+ * which are very often exactly that — rendered at a few pixels. Size
+ * them to the tile and let object-fit keep the proportions. */
+.st-tile img,
+.st-tile svg.st-tile-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.st-tile--tall {
+  aspect-ratio: 16 / 10;
+}
+.st-tile-caption {
+  font-size: 10.5px;
+  color: var(--ds-text-muted);
+  text-align: center;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Colour swatch grid ─────────────────────────────────────────────── */
+
+.st-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 6px;
+}
+.st-swatch-btn {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--ds-border-strong);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--ds-duration-state) var(--ds-ease);
+}
+.st-swatch-btn:hover {
+  transform: scale(1.06);
+}
+.st-swatch-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+/* ─── Layers list ────────────────────────────────────────────────────── */
+
+.st-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-text);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--ds-duration-state) var(--ds-ease);
+}
+.st-layer-row:hover {
+  background: var(--ds-surface-hover);
+}
+.st-layer-row.is-active {
+  background: var(--accent-muted);
+  border-color: var(--ds-border);
+}
+.st-layer-row.is-hidden .st-layer-name {
+  opacity: 0.45;
+}
+.st-layer-icon {
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+  display: grid;
+  place-items: center;
+}
+.st-layer-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-layer-actions {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity var(--ds-duration-state) var(--ds-ease);
+}
+.st-layer-row:hover .st-layer-actions,
+.st-layer-row:focus-within .st-layer-actions,
+.st-layer-row.is-flagged .st-layer-actions {
+  opacity: 1;
+}
+
+/* ─── Read-only ──────────────────────────────────────────────────────── */
+
+.st-readonly-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ds-warning-fg);
+  background: var(--ds-warning-bg);
+  border: 1px solid var(--ds-warning-border);
+  border-radius: var(--ds-radius-pill);
+  padding: 3px 10px;
+}
+
+/* ─── Narrow screens ─────────────────────────────────────────────────
+ *
+ * Below 900px the panel would leave the artboard a sliver, so it floats
+ * over the workspace instead of taking a column from it. The canvas
+ * stays the dominant thing on screen at every width.
+ */
+@media (max-width: 900px) {
+  [data-workspace] {
+    --st-panel-w: 264px;
+  }
+  .st-body {
+    grid-template-columns: var(--st-rail-w) 0 minmax(0, 1fr);
+  }
+  .st-panel {
+    position: absolute;
+    left: var(--st-rail-w);
+    top: var(--st-topbar-h);
+    bottom: var(--st-bottombar-h);
+    z-index: 20;
+    box-shadow: var(--ds-shadow-float);
+  }
+}
+
+@media (max-width: 640px) {
+  [data-workspace] {
+    --st-rail-w: 58px;
+  }
+  .st-rail-item {
+    width: 46px;
+    padding: 7px 2px;
+  }
+  .st-topbar-centre {
+    justify-content: flex-start;
+  }
+}
