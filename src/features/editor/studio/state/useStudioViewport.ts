@@ -172,9 +172,17 @@ export function useStudioViewport(
       const changed =
         width !== sizeRef.current.width || height !== sizeRef.current.height;
       sizeRef.current = { width, height };
-      if (!changed) return;
+      // `!changed` alone is not enough to skip. The first measurement can
+      // land before the document has loaded, and a canvas with no
+      // document cannot be re-rendered into viewport mode — so the size
+      // is recorded, nothing is painted, and every later sync sees the
+      // same size and returns. The artboard then keeps the page-sized
+      // geometry it was born with and is drawn at the wrong scale,
+      // clipped by the workspace. It raced on window size: right at some
+      // widths, wrong at others.
+      if (!changed && adapter.isViewportActive()) return;
       void adapter.enableViewport(width, height).then(() => {
-        if (firstFit) {
+        if (firstFit && adapter.isViewportActive()) {
           firstFit = false;
           fit();
         } else {

@@ -226,15 +226,28 @@ export function StudioEditor({
     enabled: saveEnabled && !readOnly,
   });
 
-  // Mark dirty on real document changes only. The old shell also fired
-  // on mount, so merely OPENING a design wrote it back — a version bump
-  // and an `updated_by` rewrite for a document nobody edited.
-  const firstDoc = useRef(true);
+  // Mark dirty only once the document has actually CHANGED.
+  //
+  // Merely opening a design used to write it back a second later: the
+  // adapter emits on load and again when the brand is applied, and any
+  // emit was taken as an edit. That is a version bump, an `updated_by`
+  // rewrite and a re-persisted document for a design nobody touched.
+  //
+  // The comparison runs only until the first real edit, so it costs a
+  // couple of serializations per session rather than one per change.
+  const baselineRef = useRef<string | null>(null);
+  const everEditedRef = useRef(false);
   useEffect(() => {
-    if (firstDoc.current) {
-      firstDoc.current = false;
+    if (everEditedRef.current) {
+      markDirty();
       return;
     }
+    if (baselineRef.current === null) {
+      baselineRef.current = JSON.stringify(initialDocument);
+      return;
+    }
+    if (JSON.stringify(doc) === baselineRef.current) return;
+    everEditedRef.current = true;
     markDirty();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc]);
@@ -242,11 +255,23 @@ export function StudioEditor({
   // A debounced save is 1.2s of work that has not left the browser yet.
   // Closing the tab or navigating away inside that window used to lose
   // it silently, with nothing on screen to say so.
+  //
+  // The listeners are registered ONCE. Listing `saveState` as a
+  // dependency made the effect re-run on every save-state change, and
+  // its cleanup — which exists to flush on unmount — then fired on each
+  // one: flush → saving → re-run → cleanup → flush, an autosave loop
+  // that never settled. Live values come through refs instead.
+  const saveStateRef = useRef(saveState);
+  saveStateRef.current = saveState;
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
   useEffect(() => {
     if (!saveEnabled || readOnly) return;
     const onLeave = () => {
-      if (saveState === 'idle' || saveState === 'saved') return;
-      void flush();
+      const state = saveStateRef.current;
+      if (state === 'idle' || state === 'saved') return;
+      void flushRef.current();
     };
     window.addEventListener('pagehide', onLeave);
     document.addEventListener('visibilitychange', onLeave);
@@ -255,7 +280,7 @@ export function StudioEditor({
       document.removeEventListener('visibilitychange', onLeave);
       onLeave();
     };
-  }, [flush, saveState, saveEnabled, readOnly]);
+  }, [saveEnabled, readOnly]);
 
   // ─── Viewport ─────────────────────────────────────────────────────────
   const pageSize = activePage

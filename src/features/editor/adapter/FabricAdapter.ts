@@ -120,6 +120,13 @@ export class FabricAdapter implements EditorAdapter {
   private pendingSelection: string[] | null = null;
 
   private viewport: { width: number; height: number } | null = null;
+  /**
+   * Has the canvas actually been PAINTED in viewport mode? Distinct from
+   * `viewport !== null`, which only means a size has been recorded.
+   */
+  private viewportRendered = false;
+  /** Overlapping `exportAs` calls — see `frameForExport`. */
+  private exportDepth = 0;
   private zoom = 1;
   private panX = 0;
   private panY = 0;
@@ -166,6 +173,9 @@ export class FabricAdapter implements EditorAdapter {
       selectionLineWidth: 1,
     });
 
+    // A viewport size recorded before the canvas existed.
+    if (this.viewport) this.canvas.setDimensions(this.viewport);
+
     this.attachCanvasListeners();
   }
 
@@ -209,6 +219,7 @@ export class FabricAdapter implements EditorAdapter {
     this.canvas = null;
     this.canvasEl = null;
     this.container = null;
+    this.viewportRendered = false;
     this.fabricByLayerId.clear();
     this.guideLines = [];
     this.changeHandlers.clear();
@@ -817,6 +828,20 @@ export class FabricAdapter implements EditorAdapter {
       this.doc?.pages.find((p) => p.id === this.activePageId) ?? this.doc?.pages[0];
     if (!page) return () => undefined;
 
+    // REENTRANT. Two exports can overlap — a thumbnail is rasterized on
+    // every save, and `toDataURL` is followed by an awaited fetch — and
+    // the second would capture the FIRST one's temporary page-sized
+    // geometry as "what to restore". The canvas then stayed page-sized
+    // after both finished, leaving the artboard drawn at the wrong scale
+    // and clipped by the workspace. Only the outermost frame saves and
+    // restores; the inner ones are no-ops.
+    this.exportDepth += 1;
+    if (this.exportDepth > 1) {
+      return () => {
+        this.exportDepth -= 1;
+      };
+    }
+
     const prevWidth = canvas.getWidth();
     const prevHeight = canvas.getHeight();
     const prevBackground = canvas.backgroundColor;
@@ -836,10 +861,19 @@ export class FabricAdapter implements EditorAdapter {
     canvas.renderAll();
 
     return () => {
+      this.exportDepth -= 1;
       if (sheet) sheet.visible = sheetWasVisible;
       canvas.clipPath = prevClip;
       canvas.backgroundColor = prevBackground;
-      canvas.setDimensions({ width: prevWidth, height: prevHeight });
+      // Restore to the VIEWPORT, not to whatever the canvas happened to
+      // measure when the export began. A thumbnail is rasterized on
+      // every save, and one can start before the first viewport render
+      // has landed — putting back the captured page-sized geometry left
+      // the artboard drawn at the wrong scale with nothing to correct
+      // it, because the workspace had not resized and the observer
+      // stayed quiet. The viewport is the truth; `prevWidth` is only a
+      // fallback for a canvas that was never in viewport mode.
+      canvas.setDimensions(this.viewport ?? { width: prevWidth, height: prevHeight });
       this.applyViewportTransform();
     };
   }
@@ -897,19 +931,38 @@ export class FabricAdapter implements EditorAdapter {
    * Idempotent: calling it again with a new size only resizes.
    */
   async enableViewport(width: number, height: number): Promise<void> {
-    const first = this.viewport === null;
-    this.viewport = { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
-    if (!this.canvas) return;
-    if (first) {
-      await this.renderActivePage();
-    } else {
-      this.canvas.setDimensions(this.viewport);
-    }
+    this.viewport = {
+      width: Math.max(1, Math.round(width)),
+      height: Math.max(1, Math.round(height)),
+    };
+    // The shell measures its workspace as soon as it lays out, which can
+    // be BEFORE `EditorCanvasMount`'s effect has awaited `mount()`. The
+    // size is recorded either way and `mount` applies it — an early call
+    // must not be the one that decides viewport mode is set up, or the
+    // canvas keeps the page-sized geometry from `loadDocument` for ever
+    // and the artboard is drawn at the wrong size, clipped. That raced
+    // on window size: it looked right at some widths and not others.
+    const canvas = this.canvas;
+    if (!canvas) return;
+    canvas.setDimensions(this.viewport);
+    if (!this.viewportRendered) await this.renderActivePage();
     this.applyViewportTransform();
   }
 
+  /** A viewport size has been recorded. */
   isViewportEnabled(): boolean {
     return this.viewport !== null;
+  }
+
+  /**
+   * The canvas is actually PAINTED in viewport mode.
+   *
+   * Different from `isViewportEnabled`, and the difference is the whole
+   * point: a size recorded before the document loaded leaves the canvas
+   * still page-sized. The shell re-applies until this is true.
+   */
+  isViewportActive(): boolean {
+    return this.viewportRendered;
   }
 
   /** Zoom + pan, in one write. Pan is in SCREEN pixels. */
@@ -971,6 +1024,13 @@ export class FabricAdapter implements EditorAdapter {
     // bails before mutating the canvas.
     const token = ++this.renderToken;
     const isCancelled = () => token !== this.renderToken;
+    // Captured NOW, because `renderPage` awaits every image load before
+    // it touches the canvas: reading `this.viewport` again afterwards
+    // would report whatever it had become in the meantime. A render that
+    // began before viewport mode was requested would then mark itself as
+    // having painted in viewport mode, the shell would stop re-applying,
+    // and the artboard would keep page-sized geometry for ever.
+    const viewport = this.viewport;
     // In master-edit mode the canvas mirrors the master itself — its
     // layers become the editable surface. Otherwise render the active
     // page (with master overlay if it has one).
@@ -981,11 +1041,13 @@ export class FabricAdapter implements EditorAdapter {
         editingMaster: true,
         brand: this.brand,
         isCancelled,
-        viewport: this.viewport ?? undefined,
+        viewport: viewport ?? undefined,
       });
       if (isCancelled()) return;
       this.fabricByLayerId = result;
+      this.viewportRendered = viewport !== null;
       this.applyViewportTransform();
+      if (this.needsViewportRepaint(viewport)) await this.renderActivePage();
       return;
     }
     if (!this.activePageId) return;
@@ -995,12 +1057,34 @@ export class FabricAdapter implements EditorAdapter {
       editingMaster: false,
       brand: this.brand,
       isCancelled,
-      viewport: this.viewport ?? undefined,
+      viewport: viewport ?? undefined,
     });
     if (isCancelled()) return;
     this.fabricByLayerId = result;
+    this.viewportRendered = viewport !== null;
     this.applyViewportTransform();
     this.flushPendingSelection();
+    if (this.needsViewportRepaint(viewport)) await this.renderActivePage();
+  }
+
+  /**
+   * Was viewport mode turned on WHILE this render was in flight?
+   *
+   * `renderPage` awaits every image and logo before it touches the
+   * canvas, so a render that began in page-sized mode can land long
+   * after the shell asked for a viewport — and it lands with page-sized
+   * geometry, leaving the artboard drawn at the wrong scale and clipped.
+   * Nothing would ask again: the workspace has not resized, so the
+   * observer stays quiet.
+   *
+   * Reconciling here makes the race unwinnable instead of unlikely. It
+   * cannot loop: the second pass captures the viewport that is now set,
+   * so the condition is false for it.
+   */
+  private needsViewportRepaint(
+    renderedWith: { width: number; height: number } | null,
+  ): boolean {
+    return renderedWith === null && this.viewport !== null;
   }
 
   /**
