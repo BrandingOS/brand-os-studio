@@ -9,9 +9,11 @@
 // Single-page scope for Phase 1. Multi-page + master pages land in Phase 2.
 
 import {
+  ActiveSelection,
   Canvas,
   Line,
   Textbox,
+  util,
   type FabricObject,
   type TPointerEventInfo,
 } from 'fabric';
@@ -21,6 +23,7 @@ import type {
   Layer,
   Page,
   TextLayer,
+  Transform,
 } from '@/features/editor/schema';
 
 // node-side crypto.randomUUID is enough for our test/dev uses; in browsers
@@ -50,6 +53,7 @@ import {
   findLayer,
   getLayerId,
   layerToFabric,
+  findPageSheet,
   renderPage,
   SELECTION_BORDER_COLOR,
   SELECTION_MARQUEE_FILL,
@@ -97,6 +101,20 @@ export class FabricAdapter implements EditorAdapter {
 
   /** When true, internal updates skip emitting `change` (avoids infinite loops). */
   private suppressChange = false;
+
+  /**
+   * Viewport mode — see `renderPage`'s `viewport` option.
+   *
+   * Null means the pre-Studio behaviour: the canvas is sized to the
+   * page and zoom is somebody else's problem (the old shell scaled a
+   * DOM wrapper). Non-null means the canvas is sized to the visible
+   * region and `viewportTransform` owns zoom + pan, which is what
+   * gives constant-size selection handles and crisp text at any zoom.
+   */
+  private viewport: { width: number; height: number } | null = null;
+  private zoom = 1;
+  private panX = 0;
+  private panY = 0;
 
   /**
    * Monotonic counter that invalidates in-flight async canvas work
@@ -477,10 +495,17 @@ export class FabricAdapter implements EditorAdapter {
     const page = this.requirePage(pageId);
     page.layers.push(clone(layer));
     if (this.isActiveSurface(pageId)) {
+      // Token-guarded like every other async canvas write. Without it
+      // an insert racing a full re-render added its object to a canvas
+      // that had just been cleared and rebuilt — the one async path in
+      // the adapter that was missing the guard.
+      const token = ++this.renderToken;
       void layerToFabric(layer, this.brand).then((obj) => {
-        this.canvas?.add(obj);
+        if (!this.canvas || token !== this.renderToken) return;
+        if (this.fabricByLayerId.has(layer.id)) return;
+        this.canvas.add(obj);
         this.fabricByLayerId.set(layer.id, obj);
-        this.canvas?.requestRenderAll();
+        this.canvas.requestRenderAll();
       });
     }
     this.commitToHistory();
@@ -521,8 +546,8 @@ export class FabricAdapter implements EditorAdapter {
             if (token !== this.renderToken) return;
             if (this.fabricByLayerId.has(layerId)) return;
             this.canvas.add(newObj);
-            this.canvas.moveObjectTo(newObj, idx);
             this.fabricByLayerId.set(layerId, newObj);
+            this.canvas.moveObjectTo(newObj, this.canvasIndexFor(idx));
             this.canvas.requestRenderAll();
           });
         } else {
@@ -573,11 +598,30 @@ export class FabricAdapter implements EditorAdapter {
     if (this.isActiveSurface(pageId)) {
       const obj = this.fabricByLayerId.get(layerId);
       if (obj && this.canvas) {
-        this.canvas.moveObjectTo(obj, newIndex);
+        this.canvas.moveObjectTo(obj, this.canvasIndexFor(newIndex));
       }
     }
     this.commitToHistory();
     this.emitChange();
+  }
+
+  /**
+   * Translate a LAYER index into a CANVAS index.
+   *
+   * The canvas holds more than the page's layers: in viewport mode the
+   * page sheet sits at the bottom, and a page with a master carries its
+   * overlay objects below the editable ones. Passing a layer index
+   * straight to `moveObjectTo` therefore put the layer N positions too
+   * low, which reads as "send to front did nothing" on any page with a
+   * master.
+   */
+  private canvasIndexFor(layerIndex: number): number {
+    if (!this.canvas) return layerIndex;
+    const objects = this.canvas.getObjects();
+    const owned = new Set(this.fabricByLayerId.values());
+    let base = 0;
+    while (base < objects.length && !owned.has(objects[base])) base += 1;
+    return base + layerIndex;
   }
 
   // ─── Cross-page bulk mutation (Phase 3 step 4b) ───────────────────────
@@ -674,8 +718,12 @@ export class FabricAdapter implements EditorAdapter {
     if (objs.length === 1) {
       this.canvas.setActiveObject(objs[0]);
     } else if (objs.length > 1) {
-      // Multi-select via ActiveSelection requires more setup; defer to Phase 2.
-      this.canvas.setActiveObject(objs[0]);
+      // A real multi-selection. Selecting only objs[0] (what this did
+      // before) meant "Select all" and marquee-then-act silently
+      // operated on one layer.
+      this.canvas.setActiveObject(
+        new ActiveSelection(objs, { canvas: this.canvas }),
+      );
     }
     this.canvas.requestRenderAll();
   }
@@ -685,16 +733,29 @@ export class FabricAdapter implements EditorAdapter {
   undo(): void {
     const prev = this.history.undo();
     if (!prev) return;
-    this.doc = clone(prev);
-    this.activePageId = this.doc.pages[0]?.id ?? null;
-    void this.renderActivePage().then(() => this.emitChange());
+    this.restoreSnapshot(prev);
   }
 
   redo(): void {
     const next = this.history.redo();
     if (!next) return;
-    this.doc = clone(next);
-    this.activePageId = this.doc.pages[0]?.id ?? null;
+    this.restoreSnapshot(next);
+  }
+
+  /**
+   * Adopt a history snapshot and repaint.
+   *
+   * Keeps the user where they are. This used to reset the active page
+   * to `pages[0]`, so undoing an edit on page 7 of a deck teleported
+   * you to page 1 — the correction arrived somewhere you could not see
+   * it, which reads as "undo did something random". The page is only
+   * re-homed when the snapshot genuinely no longer contains it (undoing
+   * the creation of the page you are standing on).
+   */
+  private restoreSnapshot(snapshot: BrandOSDocument): void {
+    this.doc = clone(snapshot);
+    const stillThere = this.doc.pages.some((p) => p.id === this.activePageId);
+    if (!stillThere) this.activePageId = this.doc.pages[0]?.id ?? null;
     void this.renderActivePage().then(() => this.emitChange());
   }
 
@@ -711,6 +772,59 @@ export class FabricAdapter implements EditorAdapter {
   async exportAs(options: ExportOptions): Promise<Blob> {
     if (!this.canvas) throw new Error('Not mounted');
     const scale = options.scale ?? 1;
+    // In viewport mode the canvas is the WORKSPACE, not the page — a
+    // raster of it would be the artboard floating in grey with a drop
+    // shadow, cropped to whatever the window happened to be. Frame the
+    // page exactly for the duration of the export, then put the user's
+    // view back.
+    const restore = this.frameForExport();
+    try {
+      return await this.rasterize(options, scale);
+    } finally {
+      restore();
+    }
+  }
+
+  /**
+   * Temporarily give the canvas page-sized, page-coloured, untransformed
+   * geometry. Returns the undo. A no-op outside viewport mode.
+   */
+  private frameForExport(): () => void {
+    const canvas = this.canvas;
+    if (!canvas || !this.viewport) return () => undefined;
+    const page =
+      this.doc?.pages.find((p) => p.id === this.activePageId) ?? this.doc?.pages[0];
+    if (!page) return () => undefined;
+
+    const prevWidth = canvas.getWidth();
+    const prevHeight = canvas.getHeight();
+    const prevBackground = canvas.backgroundColor;
+    const prevClip = canvas.clipPath;
+    const sheet = findPageSheet(canvas);
+    const sheetWasVisible = sheet?.visible ?? false;
+
+    // `excludeFromExport` is honoured by toObject/toSVG but NOT by
+    // toDataURL, so the sheet has to be hidden by hand or its shadow
+    // paints into the artwork.
+    if (sheet) sheet.visible = false;
+    canvas.clipPath = undefined;
+    canvas.backgroundColor =
+      typeof page.background === 'string' ? page.background : '#ffffff';
+    canvas.setDimensions({ width: page.width, height: page.height });
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    canvas.renderAll();
+
+    return () => {
+      if (sheet) sheet.visible = sheetWasVisible;
+      canvas.clipPath = prevClip;
+      canvas.backgroundColor = prevBackground;
+      canvas.setDimensions({ width: prevWidth, height: prevHeight });
+      this.applyViewportTransform();
+    };
+  }
+
+  private async rasterize(options: ExportOptions, scale: number): Promise<Blob> {
+    if (!this.canvas) throw new Error('Not mounted');
 
     if (options.format === 'png' || options.format === 'jpg') {
       const dataUrl = this.canvas.toDataURL({
@@ -753,6 +867,62 @@ export class FabricAdapter implements EditorAdapter {
 
   // ─── Internal: rendering & event wiring ───────────────────────────────
 
+  // ─── Viewport (opt-in) ────────────────────────────────────────────────
+
+  /**
+   * Put the canvas into viewport mode at the given visible size, and
+   * re-render so the page becomes a sheet inside it.
+   *
+   * Idempotent: calling it again with a new size only resizes.
+   */
+  async enableViewport(width: number, height: number): Promise<void> {
+    const first = this.viewport === null;
+    this.viewport = { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
+    if (!this.canvas) return;
+    if (first) {
+      await this.renderActivePage();
+    } else {
+      this.canvas.setDimensions(this.viewport);
+    }
+    this.applyViewportTransform();
+  }
+
+  isViewportEnabled(): boolean {
+    return this.viewport !== null;
+  }
+
+  /** Zoom + pan, in one write. Pan is in SCREEN pixels. */
+  setViewportTransform(zoom: number, panX: number, panY: number): void {
+    this.zoom = zoom;
+    this.panX = panX;
+    this.panY = panY;
+    this.applyViewportTransform();
+  }
+
+  getViewportTransform(): { zoom: number; panX: number; panY: number } {
+    return { zoom: this.zoom, panX: this.panX, panY: this.panY };
+  }
+
+  /** The active page's dimensions — what the viewport has to frame. */
+  getPageSize(): { width: number; height: number } {
+    const page = this.doc?.pages.find((p) => p.id === this.activePageId) ?? this.doc?.pages[0];
+    return {
+      width: page?.width ?? DEFAULT_PAGE_WIDTH,
+      height: page?.height ?? DEFAULT_PAGE_HEIGHT,
+    };
+  }
+
+  /** Screen (canvas-relative) point → document coordinates. */
+  screenToDocument(x: number, y: number): { x: number; y: number } {
+    return { x: (x - this.panX) / this.zoom, y: (y - this.panY) / this.zoom };
+  }
+
+  private applyViewportTransform(): void {
+    if (!this.canvas || !this.viewport) return;
+    this.canvas.setViewportTransform([this.zoom, 0, 0, this.zoom, this.panX, this.panY]);
+    this.canvas.requestRenderAll();
+  }
+
   private async renderActivePage(): Promise<void> {
     if (!this.canvas || !this.doc) return;
     // Bump the render token first so any in-flight partial-recreate
@@ -772,9 +942,11 @@ export class FabricAdapter implements EditorAdapter {
         editingMaster: true,
         brand: this.brand,
         isCancelled,
+        viewport: this.viewport ?? undefined,
       });
       if (isCancelled()) return;
       this.fabricByLayerId = result;
+      this.applyViewportTransform();
       return;
     }
     if (!this.activePageId) return;
@@ -784,9 +956,11 @@ export class FabricAdapter implements EditorAdapter {
       editingMaster: false,
       brand: this.brand,
       isCancelled,
+      viewport: this.viewport ?? undefined,
     });
     if (isCancelled()) return;
     this.fabricByLayerId = result;
+    this.applyViewportTransform();
   }
 
   /**
@@ -862,14 +1036,45 @@ export class FabricAdapter implements EditorAdapter {
   }
 
   private syncLayerFromFabric(obj: FabricObject, discrete: boolean): void {
-    const id = getLayerId(obj);
-    if (!id || !this.doc) return;
-    const found = findLayer(this.doc, id);
-    if (!found) return;
-    found.layer.transform = fabricToTransform(obj);
+    if (!this.doc) return;
+
+    // A multi-selection is a Fabric ActiveSelection: a transient group
+    // that owns the drag, carries no `brandosId`, and re-expresses its
+    // members' coordinates RELATIVE to its own centre. Reading the id
+    // off it finds nothing — which is why, before this, dragging two
+    // or more layers moved them on screen and wrote NOTHING to the
+    // document. The move survived until the next render and then
+    // silently reverted.
+    //
+    // Fan out to the members instead, reading each one's ABSOLUTE
+    // transform back out of the selection's matrix.
+    const members = selectionMembers(obj);
+    if (members) {
+      let wrote = false;
+      for (const child of members) {
+        wrote = this.writeTransform(child, absoluteTransform(child)) || wrote;
+      }
+      if (!wrote) return;
+      if (discrete) this.commitToHistory();
+      else this.snapshotToHistory();
+      this.emitChange();
+      return;
+    }
+
+    if (!this.writeTransform(obj, fabricToTransform(obj))) return;
     if (discrete) this.commitToHistory();
     else this.snapshotToHistory();
     this.emitChange();
+  }
+
+  /** Write geometry onto the mirror layer. Returns false if unmatched. */
+  private writeTransform(obj: FabricObject, transform: Transform): boolean {
+    const id = getLayerId(obj);
+    if (!id || !this.doc) return false;
+    const found = findLayer(this.doc, id);
+    if (!found) return false;
+    found.layer.transform = transform;
+    return true;
   }
 
   private emitChange(): void {
@@ -983,7 +1188,65 @@ export class FabricAdapter implements EditorAdapter {
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function clone<T>(value: T): T {
+  // structuredClone is ~2-3x faster than a JSON round-trip and keeps
+  // Date/Map/NaN intact. This is the hottest function in the adapter —
+  // history and every change emit go through it — so the difference is
+  // felt during a drag. JSON stays as the fallback for environments
+  // without it (older jsdom).
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value);
+    } catch {
+      /* non-cloneable payload — fall through */
+    }
+  }
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/**
+ * The members of a Fabric ActiveSelection, or null when `obj` is an
+ * ordinary object.
+ *
+ * Detected structurally rather than by `instanceof ActiveSelection` so
+ * the adapter keeps working against the `vi.mock('fabric')` stand-in the
+ * jsdom test project uses, which has no such class.
+ */
+function selectionMembers(obj: FabricObject): FabricObject[] | null {
+  if (getLayerId(obj)) return null;
+  const maybe = obj as FabricObject & { _objects?: FabricObject[]; type?: string };
+  if (maybe.type !== 'activeselection' && maybe.type !== 'activeSelection') return null;
+  const objs = maybe._objects;
+  return Array.isArray(objs) && objs.length > 0 ? objs : null;
+}
+
+/**
+ * A child's transform in DOCUMENT space.
+ *
+ * Inside an ActiveSelection a child's own `left`/`top` are relative to
+ * the selection's centre, so `fabricToTransform` would record wherever
+ * it happens to sit within the marquee. `calcTransformMatrix()` folds in
+ * every ancestor transform; decomposing it gives the absolute centre,
+ * and Fabric rotates about the object's origin (top-left here), so the
+ * corner is the centre minus the half-diagonal rotated by the angle.
+ */
+function absoluteTransform(child: FabricObject): Transform {
+  const d = util.qrDecompose(child.calcTransformMatrix());
+  const width = child.width ?? 0;
+  const height = child.height ?? 0;
+  const w = (width * d.scaleX) / 2;
+  const h = (height * d.scaleY) / 2;
+  const rad = (d.angle * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    x: d.translateX - (w * cos - h * sin),
+    y: d.translateY - (w * sin + h * cos),
+    width,
+    height,
+    rotation: d.angle,
+    scaleX: d.scaleX,
+    scaleY: d.scaleY,
+  };
 }
 
 /**

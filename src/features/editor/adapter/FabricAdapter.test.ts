@@ -70,12 +70,34 @@ vi.mock('fabric', () => {
       this.children = children;
     }
   }
-  const FabricImage = {
-    async fromURL(_url: string) {
-      const inst = new FabricObjectBase({ width: 100, height: 100 });
+  class FabricImage extends FabricObjectBase {
+    naturalWidth = 0;
+    naturalHeight = 0;
+    cropX = 0;
+    cropY = 0;
+    setCoords() {
+      /* no-op */
+    }
+    static async fromURL(_url: string) {
+      const inst = new FabricImage({ width: 200, height: 100 });
+      inst.naturalWidth = 200;
+      inst.naturalHeight = 100;
       return inst;
-    },
-  };
+    }
+  }
+  class Shadow {
+    constructor(props: Record<string, unknown> = {}) {
+      Object.assign(this, props);
+    }
+  }
+  class ActiveSelection extends FabricObjectBase {
+    type = 'activeselection';
+    _objects: FabricObjectBase[];
+    constructor(objs: FabricObjectBase[], props: Record<string, unknown> = {}) {
+      super(props);
+      this._objects = objs;
+    }
+  }
   class Canvas {
     private _objects: FabricObjectBase[] = [];
     private _listeners = new Map<string, (payload: unknown) => void>();
@@ -83,6 +105,14 @@ vi.mock('fabric', () => {
     width: number;
     height: number;
     backgroundColor: string;
+    clipPath: unknown = undefined;
+    viewportTransform: number[] = [1, 0, 0, 1, 0, 0];
+    setViewportTransform(vt: number[]) {
+      this.viewportTransform = vt;
+    }
+    renderAll() {
+      /* no-op */
+    }
     constructor(_el: HTMLCanvasElement, props: Record<string, unknown> = {}) {
       this.width = (props.width as number) ?? 0;
       this.height = (props.height as number) ?? 0;
@@ -124,7 +154,8 @@ vi.mock('fabric', () => {
       return [...this._activeObjects];
     }
     setActiveObject(obj: FabricObjectBase) {
-      this._activeObjects = [obj];
+      const members = (obj as { _objects?: FabricObjectBase[] })._objects;
+      this._activeObjects = Array.isArray(members) ? [...members] : [obj];
     }
     discardActiveObject() {
       this._activeObjects = [];
@@ -150,14 +181,29 @@ vi.mock('fabric', () => {
     }
   }
   return {
+    ActiveSelection,
     Canvas,
     Rect,
     Ellipse,
     Line,
     Polygon,
+    Shadow,
     Textbox,
     FabricImage,
     Group,
+    util: {
+      // Only the decomposition the adapter needs, for axis-aligned
+      // members: the mock's children carry absolute coords already.
+      qrDecompose: (m: number[]) => ({
+        angle: 0,
+        scaleX: m[0],
+        scaleY: m[3],
+        skewX: 0,
+        skewY: 0,
+        translateX: m[4],
+        translateY: m[5],
+      }),
+    },
     loadSVGFromString: async () => ({ objects: [] }),
   };
 });
@@ -168,6 +214,13 @@ import { BrandOSDocumentSchema, type BrandOSDocument, type Layer } from '@/featu
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
 
 const FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
+
+// The mock canvas/objects are deliberately loose — these aliases keep the
+// Studio tests readable without pretending they are real Fabric types.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type MockCanvas = any;
+type MockObj = any;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // fetch stub for adapter.exportAs PNG path (toDataURL → fetch → blob).
 function installFetchStub() {
@@ -1943,6 +1996,230 @@ describe('FabricAdapter — teardown must not reject', () => {
 
     // Immediately unusable — callers must not be able to touch a disposed canvas.
     expect((adapter as unknown as { canvas: unknown }).canvas).toBeNull();
+    container.remove();
+  });
+});
+
+// ─── Studio: viewport, multi-selection, image fit ───────────────────────
+//
+// These cover the capabilities the Design Studio shell depends on. Each
+// one is a behaviour that was absent or wrong before the rebuild, so a
+// regression here is a regression the user would feel immediately.
+
+describe('Studio — viewport mode', () => {
+  async function mounted() {
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(FIXTURE);
+    const canvas = (adapter as unknown as { canvas: MockCanvas }).canvas;
+    return { adapter, container, canvas };
+  }
+
+  it('is off by default, so every pre-Studio call site is unchanged', async () => {
+    const { adapter, container, canvas } = await mounted();
+    expect(adapter.isViewportEnabled()).toBe(false);
+    // Canvas is sized to the PAGE and painted with the page background.
+    expect(canvas.getWidth()).toBe(FIXTURE.pages[0].width);
+    expect(canvas.backgroundColor).not.toBe('transparent');
+    expect(canvas.clipPath).toBeUndefined();
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('sizes the canvas to the VISIBLE REGION and draws the page as a sheet', async () => {
+    const { adapter, container, canvas } = await mounted();
+    await adapter.enableViewport(900, 600);
+
+    expect(adapter.isViewportEnabled()).toBe(true);
+    expect(canvas.getWidth()).toBe(900);
+    expect(canvas.getHeight()).toBe(600);
+    // The page is no longer the canvas background — it is an object.
+    expect(canvas.backgroundColor).toBe('transparent');
+    const sheet = canvas
+      .getObjects()
+      .find((o: { isPageSheet?: boolean }) => o.isPageSheet);
+    expect(sheet).toBeTruthy();
+    expect(sheet.width).toBe(FIXTURE.pages[0].width);
+    // Content is clipped to the sheet — a design is a page, not a plane.
+    expect(canvas.clipPath).toBeTruthy();
+
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('zoom and pan go through the canvas viewportTransform, not a CSS scale', async () => {
+    const { adapter, container, canvas } = await mounted();
+    await adapter.enableViewport(900, 600);
+    adapter.setViewportTransform(2.5, -120, -80);
+
+    expect(canvas.viewportTransform).toEqual([2.5, 0, 0, 2.5, -120, -80]);
+    expect(adapter.getViewportTransform()).toEqual({ zoom: 2.5, panX: -120, panY: -80 });
+    // Screen → document is the inverse of that transform.
+    expect(adapter.screenToDocument(-120, -80)).toEqual({ x: 0, y: 0 });
+    expect(adapter.screenToDocument(130, 170)).toEqual({ x: 100, y: 100 });
+
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('export frames the PAGE, then restores the user’s view', async () => {
+    installFetchStub();
+    const { adapter, container, canvas } = await mounted();
+    await adapter.enableViewport(900, 600);
+    adapter.setViewportTransform(3, -400, -400);
+
+    await adapter.exportAs({ format: 'png' });
+
+    // The user is left exactly where they were — zoomed in, panned.
+    expect(canvas.getWidth()).toBe(900);
+    expect(canvas.getHeight()).toBe(600);
+    expect(canvas.viewportTransform).toEqual([3, 0, 0, 3, -400, -400]);
+    const sheet = canvas
+      .getObjects()
+      .find((o: { isPageSheet?: boolean }) => o.isPageSheet);
+    // …and the sheet, hidden for the raster, is visible again.
+    expect(sheet.visible).toBe(true);
+
+    adapter.unmount();
+    container.remove();
+  });
+});
+
+describe('Studio — multi-selection', () => {
+  async function mounted() {
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(FIXTURE);
+    return { adapter, container, canvas: (adapter as unknown as { canvas: MockCanvas }).canvas };
+  }
+
+  it('selects every requested layer, not just the first', async () => {
+    const { adapter, container } = await mounted();
+    const page = adapter.getDocument().pages[0];
+    const ids = page.layers.slice(0, 2).map((l) => l.id);
+    expect(ids.length).toBe(2);
+
+    adapter.setSelection(ids);
+
+    expect(adapter.getSelection().layerIds.sort()).toEqual([...ids].sort());
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('writes EVERY member’s geometry when a multi-selection is dragged', async () => {
+    const { adapter, container, canvas } = await mounted();
+    const page = adapter.getDocument().pages[0];
+    const ids = page.layers.slice(0, 2).map((l) => l.id);
+    const objs = ids.map((id) =>
+      (adapter as unknown as { fabricByLayerId: Map<string, MockObj> }).fabricByLayerId.get(id),
+    );
+    // Inside an ActiveSelection a member's own left/top are relative to
+    // the selection's centre, so the adapter reads geometry back out of
+    // `calcTransformMatrix()`. A decomposed matrix gives the object's
+    // CENTRE, which the adapter converts to the top-left corner that
+    // the document stores — that conversion is what this asserts.
+    // Read the box off the FABRIC object, not the layer — a Textbox
+    // derives its own height from the text it wraps.
+    const target = objs.map((o, i) => ({
+      x: 500 + i,
+      y: 600 + i,
+      w: o.width ?? 0,
+      h: o.height ?? 0,
+    }));
+    objs.forEach((o, i) => {
+      const { x, y, w, h } = target[i];
+      o.calcTransformMatrix = () => [1, 0, 0, 1, x + w / 2, y + h / 2];
+    });
+    const selection = { type: 'activeselection', _objects: objs };
+
+    canvas.__fire('object:modified', { target: selection });
+
+    const after = adapter.getDocument().pages[0];
+    ids.forEach((id, i) => {
+      const layer = after.layers.find((l) => l.id === id);
+      expect(layer.transform.x).toBeCloseTo(target[i].x);
+      expect(layer.transform.y).toBeCloseTo(target[i].y);
+    });
+
+    adapter.unmount();
+    container.remove();
+  });
+});
+
+describe('Studio — image fit', () => {
+  async function withImage(fit: 'cover' | 'contain' | 'fill') {
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(FIXTURE);
+    const pageId = adapter.getDocument().pages[0].id;
+    const layer = {
+      id: crypto.randomUUID(),
+      name: 'Photo',
+      kind: 'image' as const,
+      src: 'https://example.com/a.png',
+      fit,
+      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+    };
+    adapter.addLayer(pageId, layer as never);
+    await new Promise((r) => setTimeout(r, 0));
+    const obj = (adapter as unknown as { fabricByLayerId: Map<string, MockObj> }).fabricByLayerId.get(
+      layer.id,
+    );
+    return { adapter, container, obj, pageId, layerId: layer.id };
+  }
+
+  // The mock's image is 200x100 natural, dropped into a 100x100 box.
+  it('"fill" stretches — the only fit that distorts', async () => {
+    const { adapter, container, obj } = await withImage('fill');
+    expect(obj.scaleX).toBeCloseTo(0.5);
+    expect(obj.scaleY).toBeCloseTo(1);
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('"contain" keeps the aspect ratio and fits inside the box', async () => {
+    const { adapter, container, obj } = await withImage('contain');
+    expect(obj.scaleX).toBeCloseTo(0.5);
+    expect(obj.scaleY).toBeCloseTo(0.5);
+    expect(obj.cropX).toBe(0);
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('"cover" fills the box by CROPPING, so the box stays the selection box', async () => {
+    const { adapter, container, obj } = await withImage('cover');
+    expect(obj.scaleX).toBeCloseTo(1);
+    expect(obj.scaleY).toBeCloseTo(1);
+    // Source narrowed to a centred 100x100 window of the 200x100 image.
+    expect(obj.width).toBeCloseTo(100);
+    expect(obj.height).toBeCloseTo(100);
+    expect(obj.cropX).toBeCloseTo(50);
+    expect(obj.cropY).toBeCloseTo(0);
+    // Displayed size === the layer's box.
+    expect(obj.width * obj.scaleX).toBeCloseTo(100);
+    adapter.unmount();
+    container.remove();
+  });
+
+  it('changing fit re-crops in place rather than re-fetching the image', async () => {
+    const { adapter, container, obj, pageId, layerId } = await withImage('fill');
+    adapter.updateLayer(pageId, layerId, { fit: 'cover' } as never);
+    const same = (adapter as unknown as { fabricByLayerId: Map<string, MockObj> }).fabricByLayerId.get(
+      layerId,
+    );
+    expect(same).toBe(obj);
+    expect(same.cropX).toBeCloseTo(50);
+    adapter.unmount();
     container.remove();
   });
 });

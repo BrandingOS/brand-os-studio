@@ -26,6 +26,7 @@ import {
   Line,
   Polygon,
   Rect,
+  Shadow,
   Textbox,
   type FabricObject,
 } from 'fabric';
@@ -209,20 +210,82 @@ async function imageLayerToFabric(layer: ImageLayer): Promise<FabricObject> {
 
   try {
     const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
-    img.set({
-      ...baseProps(layer),
-      // Scale the image to fit the layer's transform width/height. Fabric
-      // doesn't have a "fit cover" prop on FabricImage; cover/contain math
-      // is a Phase 2 polish.
-      scaleX: img.width ? layer.transform.width / img.width : 1,
-      scaleY: img.height ? layer.transform.height / img.height : 1,
-    });
+    img.set({ ...baseProps(layer), ...imageFitProps(layer, img) });
     setLayerId(img, layer.id);
     return img;
   } catch {
     // Network or CORS failure — render placeholder rather than crashing the load.
     return placeholderRect(layer, '#fef2f2', '#dc2626');
   }
+}
+
+/**
+ * Honour `ImageLayer.fit`.
+ *
+ * The schema has offered `cover | contain | fill` since day one and the
+ * toolbar has always exposed the control, but the renderer stretched
+ * unconditionally — so picking a fit was a visual no-op and every photo
+ * came out distorted.
+ *
+ *   fill    — stretch to the box (the old behaviour, now opt-in)
+ *   contain — whole image, scaled down to sit inside the box
+ *   cover   — fill the box, the overflow CROPPED away
+ *
+ * `cover` uses Fabric's `cropX`/`cropY` rather than a clipPath, and the
+ * difference matters: with a clip the object's bounding box is still the
+ * whole image, so the selection handles surround empty space and a drag
+ * grabs pixels that are not on screen. Cropping narrows the source
+ * region instead, so the box the user sees is the box they manipulate —
+ * and it round-trips, because `fabricToTransform` then records the
+ * cropped dimensions and the same maths reproduces them on reload.
+ */
+function imageFitProps(
+  layer: ImageLayer,
+  img: FabricImage,
+): Record<string, unknown> {
+  // The layer's box in display units. `scaleX/scaleY` are 1 on freshly
+  // authored layers and carry the user's resize afterwards.
+  const boxW = layer.transform.width * (layer.transform.scaleX || 1);
+  const boxH = layer.transform.height * (layer.transform.scaleY || 1);
+  const natW = img.naturalWidth || img.width || boxW;
+  const natH = img.naturalHeight || img.height || boxH;
+  if (!boxW || !boxH || !natW || !natH) return {};
+
+  if (layer.fit === 'fill') {
+    return {
+      cropX: 0,
+      cropY: 0,
+      width: natW,
+      height: natH,
+      scaleX: boxW / natW,
+      scaleY: boxH / natH,
+    };
+  }
+
+  if (layer.fit === 'contain') {
+    const ratio = Math.min(boxW / natW, boxH / natH);
+    return {
+      cropX: 0,
+      cropY: 0,
+      width: natW,
+      height: natH,
+      scaleX: ratio,
+      scaleY: ratio,
+    };
+  }
+
+  // cover
+  const ratio = Math.max(boxW / natW, boxH / natH);
+  const srcW = Math.min(natW, boxW / ratio);
+  const srcH = Math.min(natH, boxH / ratio);
+  return {
+    cropX: (natW - srcW) / 2,
+    cropY: (natH - srcH) / 2,
+    width: srcW,
+    height: srcH,
+    scaleX: ratio,
+    scaleY: ratio,
+  };
 }
 
 function svgLayerToFabric(layer: SvgLayer): FabricObject {
@@ -308,6 +371,53 @@ async function groupLayerToFabric(
   const grp = new Group(children, { ...baseProps(layer) });
   setLayerId(grp, layer.id);
   return grp;
+}
+
+/**
+ * The page sheet — viewport mode only. A non-interactive rect at the
+ * document origin that gives the page a visible edge and a drop shadow
+ * against the workspace, the job `canvas.backgroundColor` does when the
+ * canvas is page-sized.
+ *
+ * It is `excludeFromExport` because `exportAs` restores page-sized,
+ * page-coloured canvas geometry before rasterizing — the sheet would
+ * otherwise paint its shadow into the exported artwork.
+ */
+export function pageSheet(width: number, height: number, fill: string): Rect {
+  const rect = new Rect({
+    left: 0,
+    top: 0,
+    width,
+    height,
+    fill,
+    selectable: false,
+    evented: false,
+    excludeFromExport: true,
+    hoverCursor: 'default',
+    shadow: new Shadow({
+      color: 'rgba(0,0,0,0.13)',
+      blur: 18,
+      offsetX: 0,
+      offsetY: 3,
+    }),
+  });
+  (rect as FabricObject & { isPageSheet?: boolean }).isPageSheet = true;
+  return rect;
+}
+
+/**
+ * The sheet added by `pageSheet`, if this canvas is in viewport mode.
+ *
+ * `excludeFromExport` covers `toObject`/`toSVG` but NOT `toDataURL`,
+ * which is what raster export uses — so the export path has to hide
+ * this object by hand, and needs to be able to find it.
+ */
+export function findPageSheet(canvas: Canvas): FabricObject | null {
+  return (
+    canvas
+      .getObjects()
+      .find((o) => (o as FabricObject & { isPageSheet?: boolean }).isPageSheet) ?? null
+  );
 }
 
 function placeholderRect(layer: Layer, fill: string, stroke: string): Rect {
@@ -420,7 +530,17 @@ export function applyLayerToFabric(
       ) {
         return { needsRecreate: true };
       }
-      // Otherwise common props are already applied above.
+      // A fit change is re-applied in place. Recreating would re-fetch
+      // the image just to change how it is cropped.
+      if (
+        prevLayer &&
+        prevLayer.kind === 'image' &&
+        prevLayer.fit !== nextLayer.fit &&
+        obj instanceof FabricImage
+      ) {
+        obj.set(imageFitProps(nextLayer, obj));
+        obj.setCoords();
+      }
       return { needsRecreate: false };
     }
     case 'svg': {
@@ -532,6 +652,18 @@ export async function renderPage(
      * calls would both clear+add and produce duplicate objects.
      */
     isCancelled?: () => boolean;
+    /**
+     * Viewport mode. When supplied, the canvas is sized to the VISIBLE
+     * REGION rather than to the page, and the page is drawn as a sheet
+     * object inside it. That is what lets `canvas.viewportTransform`
+     * own zoom and pan — Fabric then draws selection handles at a
+     * constant screen size at any zoom, re-rasterizes text crisply
+     * when you zoom in, and makes content outside the page reachable.
+     *
+     * Omitted (every pre-Studio call site) the canvas is sized to the
+     * page exactly as before, so this field is purely additive.
+     */
+    viewport?: { width: number; height: number };
   } = { editingMaster: false },
 ): Promise<Map<string, FabricObject>> {
   // Phase 1: pre-load every Fabric object asynchronously. We don't
@@ -573,9 +705,34 @@ export async function renderPage(
   // Phase 2: now that all loads are done, apply atomically.
   if (options.isCancelled?.()) return new Map();
   canvas.clear();
-  canvas.setDimensions({ width: page.width, height: page.height });
   const bg = typeof page.background === 'string' ? page.background : DEFAULT_FILL;
-  canvas.backgroundColor = resolveResolvedValue(page.background, bg);
+  const pageFill = resolveResolvedValue(page.background, bg);
+  if (options.viewport) {
+    // Viewport mode — the canvas IS the workspace. The page becomes a
+    // sheet drawn at document origin; `viewportTransform` positions it.
+    canvas.setDimensions({
+      width: options.viewport.width,
+      height: options.viewport.height,
+    });
+    canvas.backgroundColor = 'transparent';
+    canvas.add(pageSheet(page.width, page.height, pageFill));
+    // Clip every object to the page. A design is a sheet, not an
+    // infinite plane — content dragged past the edge must read as
+    // "off the page", the way it will print and export. Controls live
+    // on the upper canvas and are deliberately NOT clipped, so a
+    // half-off object can still be grabbed and pulled back.
+    canvas.clipPath = new Rect({
+      left: 0,
+      top: 0,
+      width: page.width,
+      height: page.height,
+      absolutePositioned: true,
+    });
+  } else {
+    canvas.setDimensions({ width: page.width, height: page.height });
+    canvas.backgroundColor = pageFill;
+    canvas.clipPath = undefined;
+  }
   for (const obj of masterObjs) canvas.add(obj);
 
   const objsById = new Map<string, FabricObject>();
