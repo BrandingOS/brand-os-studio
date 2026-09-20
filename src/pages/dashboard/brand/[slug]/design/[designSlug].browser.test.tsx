@@ -101,7 +101,7 @@ function mount(initialPath: string) {
 }
 
 describe('BrandDesignEditorPage — production editor route', () => {
-  it('mounts the unified Editor with brand context when both brand and design load', async () => {
+  it('mounts the Design Studio with brand context when both brand and design load', async () => {
     const brand = makeBrand('raqm', 'Raqm');
     registerServices({
       brand,
@@ -110,12 +110,12 @@ describe('BrandDesignEditorPage — production editor route', () => {
 
     const { container } = mount('/b/raqm/design/design-abc');
 
-    // Wait for the dual-load to settle and the Editor to mount. The
-    // editor canvas region is the smoke marker (any unified-Editor
-    // mount has it).
+    // Wait for the dual-load to settle and the Studio to mount. The
+    // workspace is the smoke marker — it is the region the canvas
+    // lives in and every Studio mount has one.
     await waitFor(
       () => {
-        expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
+        expect(container.querySelector('[data-studio-workspace]')).toBeTruthy();
       },
       { timeout: 5000 },
     );
@@ -175,26 +175,18 @@ describe('BrandDesignEditorPage — production editor route', () => {
 
     const { container } = mount('/b/raqm/design/design-abc');
 
-    // Wait for editor to mount.
+    // Wait for the Studio to mount.
     await waitFor(() => {
-      expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
+      expect(container.querySelector('[data-studio-workspace]')).toBeTruthy();
     }, { timeout: 5000 });
 
-    // Share now lives inside the editor's "More actions" (⋯) dropdown
-    // (2026-05-08 cleanup) — open the menu before clicking it.
-    const moreTrigger = container.querySelector<HTMLButtonElement>(
-      '[data-editor-more-actions-trigger]',
+    // Share is a top-bar action, not an item inside a "More actions"
+    // dropdown. Copying a link to what you are looking at is a
+    // one-press thing; it used to take two.
+    const shareBtn = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Share"]',
     );
-    expect(moreTrigger, 'More actions trigger not in topbar').toBeTruthy();
-    fireEvent.click(moreTrigger!);
-    await waitFor(() => {
-      expect(
-        container.querySelector('[data-editor-more-actions-popover]'),
-      ).toBeTruthy();
-    });
-
-    const shareBtn = container.querySelector<HTMLButtonElement>('[data-share-button]');
-    expect(shareBtn, 'Share button not in More menu').toBeTruthy();
+    expect(shareBtn, 'Share button not in topbar').toBeTruthy();
     fireEvent.click(shareBtn!);
 
     await waitFor(() => {
