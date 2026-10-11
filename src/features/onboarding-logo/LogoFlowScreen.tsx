@@ -16,6 +16,7 @@ import { BrandMark } from '@/features/onboarding-v4/components/BrandMark';
 import { FlowSwitch } from '@/features/onboarding-v4/components/FlowSwitch';
 import { FooterCTA } from '@/features/onboarding-v4/components/FooterCTA';
 import { useLogoFlow } from './model/flowStore';
+import { readIntake } from './model/intake';
 import { SECTIONS, STEP_META, canEnter, contextComplete, furthestReachable, isStep, nextStep, prevStep, type StepId } from './model/steps';
 import { FlowRail } from './components/FlowRail';
 import { UploadStep } from './steps/UploadStep';
@@ -83,9 +84,9 @@ export function LogoFlowScreen() {
         return { label: 'Continue', caption: 'Did we read it right?', disabled: !state.read };
       case 'context':
         return {
-          label: 'Show me directions',
-          caption: contextComplete(state.context) ? 'Ready when you are.' : 'Answer 1–4 to continue.',
-          disabled: !contextComplete(state.context),
+          label: state.reading ? 'Reading…' : 'Show me directions',
+          caption: contextComplete(state.context) ? 'Ready when you are.' : 'Anything open, we’ll decide for you.',
+          disabled: state.reading,
         };
       case 'directions':
         return {
@@ -131,7 +132,11 @@ export function LogoFlowScreen() {
             caption={footer.caption}
             label={footer.label}
             disabled={footer.disabled}
-            onClick={() => forward && go(forward)}
+            onClick={async () => {
+              // Whatever is in the box is read before moving on — no "read" button required.
+              if (step === 'context') await readIntake();
+              if (forward) go(forward);
+            }}
             // Step 1 goes back to where the owner chose this path.
             onBack={step === 'logo' ? () => navigate(existingHref) : back ? () => go(back) : undefined}
           />

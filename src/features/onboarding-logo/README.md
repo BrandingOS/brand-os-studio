@@ -14,7 +14,7 @@ panel 1, and "Have a logo? Start from it" on `/onboard-brand/create`.
 |---|---|---|
 | `logo` | owner | upload (SVG/PNG/JPG/WebP ≤ 5 MB) + name; the filename suggests the name |
 | `read` | product | the mark is measured and described; each finding names the decision it drives. The one reading a machine can get wrong — symbol / name / both — is asked back |
-| `context` | owner | industry · audience · positioning · personality (≤3) required; colour love/avoid optional. All controlled-vocabulary ids from `onboarding/vocabulary`, so Setup reads them back verbatim |
+| `context` | owner → product | ONE box: paste a brief, a website, or a sentence. `engine/understand.ts` fills industry · audience · position · feel (+ a one-liner) and each row says where it came from; the owner changes only what is wrong. Nothing is required — an empty box falls back to the logo for the feel and the directions cope with open answers. Colour love/avoid is an optional disclosure |
 | `directions` | product → owner | three DISTINCT strategies, each a mini board of the owner's real logo, each argued from the read and the answers. "Show me three different" never repeats an archetype already seen |
 | `system` | owner | live brand board + a panel per part (colour · type · shapes · pattern · logo · voice). Each part is approved on its own |
 | `build` | product | creates the brand and writes everything (narrates only real work) |
@@ -40,6 +40,14 @@ steps/ components/ styles/
 ```
 
 ## Rules that bind
+
+- **The context step is not a questionnaire** (owner request 2026-10-12: "too
+  many questions — the fewest choices possible"). Reading order, lowest trust
+  first: website (scan-website → enrichFromWebsite) < the owner's text
+  (labelled brief via `parseBrief`, else one haiku call constrained to the
+  vocabularies, with a keyword reader as the offline fallback). A value the
+  owner picked (`sources[f] === 'you'`) is never overwritten by a reading.
+  Continue reads the box first, so there is no mandatory "read" button.
 
 - **The AI seam is `DirectionGenerator`** (`engine/directions.ts`). A model
   replaces `localDirectionGenerator` by returning `Direction[]`; nothing up- or

@@ -123,34 +123,8 @@
 [data-onboarding="cosmos"] .lf-findings strong { font-size: 13.5px; font-weight: 600; }
 [data-onboarding="cosmos"] .lf-findings span { font-size: 12.5px; color: var(--ds-text-secondary); line-height: 1.45; }
 
-/* ── Context ────────────────────────────────────────────────────────── */
+/* ── Colour preferences ───────────────────────────────────────────── */
 
-[data-onboarding="cosmos"] .lf-q {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 18px;
-  background: var(--ds-surface);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-card);
-}
-[data-onboarding="cosmos"] .lf-q header { display: flex; gap: 10px; align-items: flex-start; }
-[data-onboarding="cosmos"] .lf-q h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.015em; }
-[data-onboarding="cosmos"] .lf-q p { margin: 2px 0 0; font-size: 12.5px; color: var(--ds-text-muted); }
-[data-onboarding="cosmos"] .lf-q-num {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--ds-surface-subtle);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--ds-text-secondary);
-}
-/* A suggestion from the logo: a dotted outline, never a selection. */
-[data-onboarding="cosmos"] .lf-chip-suggested { border-style: dashed !important; border-color: var(--ds-dash-strong) !important; }
 [data-onboarding="cosmos"] .lf-hue-rows { display: flex; flex-direction: column; gap: 10px; }
 [data-onboarding="cosmos"] .lf-hue-row { display: flex; gap: 10px; align-items: flex-start; }
 [data-onboarding="cosmos"] .lf-hue-row-label { flex: none; width: 44px; padding-top: 6px; font-size: 12px; font-weight: 600; color: var(--ds-text-secondary); }
@@ -454,3 +428,35 @@
 [data-onboarding="cosmos"] .lf-thumb .lf-mark { max-width: 76%; }
 [data-onboarding="cosmos"] .lf-thumb-strip { display: flex; }
 [data-onboarding="cosmos"] .lf-thumb-strip span { flex: 1; height: 100%; }
+
+/* ── Context intake ─────────────────────────────────────────────────── */
+
+[data-onboarding="cosmos"] .lf-intake { display: flex; flex-direction: column; gap: 8px; }
+[data-onboarding="cosmos"] .lf-intake-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--ds-text-muted); }
+[data-onboarding="cosmos"] .lf-intake-actions { display: flex; align-items: center; gap: 8px; }
+[data-onboarding="cosmos"] .lf-understood {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+}
+[data-onboarding="cosmos"] .lf-understood header { display: flex; justify-content: space-between; align-items: center; }
+[data-onboarding="cosmos"] .lf-understood h2 { margin: 0; font-size: 14px; font-weight: 600; }
+[data-onboarding="cosmos"] .lf-understood-note { margin: 0; font-size: 12.5px; color: var(--ds-warning-fg); }
+[data-onboarding="cosmos"] .lf-understood-line { margin: 0; font-size: 13px; color: var(--ds-text-secondary); font-style: italic; }
+[data-onboarding="cosmos"] .lf-answers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+[data-onboarding="cosmos"] .lf-answer { display: flex; flex-direction: column; gap: 10px; padding: 10px 0; border-top: 1px solid var(--ds-hairline); }
+[data-onboarding="cosmos"] .lf-answer:first-child { border-top: 0; }
+[data-onboarding="cosmos"] .lf-answer-head { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+[data-onboarding="cosmos"] .lf-answer-label { font-size: 12.5px; color: var(--ds-text-muted); }
+[data-onboarding="cosmos"] .lf-answer-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 13.5px; font-weight: 500; min-width: 0; }
+[data-onboarding="cosmos"] .lf-answer-empty { color: var(--ds-text-muted); font-weight: 400; }
+[data-onboarding="cosmos"] .lf-answer-source { font-size: 11.5px; font-weight: 400; color: var(--ds-text-muted); }
+[data-onboarding="cosmos"] .lf-more { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+@media (max-width: 520px) {
+  [data-onboarding="cosmos"] .lf-answer-head { grid-template-columns: minmax(0, 1fr) auto; }
+  [data-onboarding="cosmos"] .lf-answer-label { grid-column: 1 / -1; }
+}

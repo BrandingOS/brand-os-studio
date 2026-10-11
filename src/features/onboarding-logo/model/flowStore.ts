@@ -34,6 +34,12 @@ export interface LogoFlowState {
   basis: string;
   system: BrandSystem | null;
   committed: { brandId: string; slug: string } | null;
+  /** The `about` text the intake last read; a difference means it is stale. */
+  intakeRead: string;
+  /** Session-only: the intake is reading right now. */
+  reading: boolean;
+  /** Session-only: something worth telling the owner about the last read. */
+  intakeNote: string | null;
 
   setLogo(logo: LogoSource | null): void;
   setRead(read: LogoRead | null): void;
@@ -43,11 +49,14 @@ export interface LogoFlowState {
   updateSystem(patch: Partial<BrandSystem>): void;
   approve(section: SystemSection, approved: boolean): void;
   setCommitted(c: { brandId: string; slug: string } | null): void;
+  setIntake(patch: Partial<Pick<LogoFlowState, 'intakeRead' | 'reading' | 'intakeNote'>>): void;
   reset(): void;
 }
 
 export const EMPTY_CONTEXT: BrandContext = {
   name: '',
+  about: '',
+  sources: {},
   oneLiner: '',
   personality: [],
   loveHues: [],
@@ -64,6 +73,9 @@ const INITIAL = {
   basis: '',
   system: null,
   committed: null,
+  intakeRead: '',
+  reading: false,
+  intakeNote: null,
 };
 
 /**
@@ -124,12 +136,18 @@ export const useLogoFlow = create<LogoFlowState>()(
         set({ system: { ...current, approved: approved ? [...without, section] : without } });
       },
       setCommitted: (committed) => set({ committed }),
+      setIntake: (patch) => set(patch),
       reset: () => set({ ...INITIAL }),
     }),
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => safeSession),
-      version: 1,
+      version: 2,
+      // v1 drafts lack `about`/`sources`; fill them rather than crash.
+      migrate: (persisted) => {
+        const s = persisted as Partial<LogoFlowState>;
+        return { ...s, context: { ...EMPTY_CONTEXT, ...(s?.context ?? {}) } } as LogoFlowState;
+      },
       partialize: (s) => ({
         logo: s.logo,
         read: s.read,
@@ -140,6 +158,7 @@ export const useLogoFlow = create<LogoFlowState>()(
         basis: s.basis,
         system: s.system,
         committed: s.committed,
+        intakeRead: s.intakeRead,
       }),
     },
   ),

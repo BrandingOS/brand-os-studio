@@ -59,17 +59,20 @@ describe('Start From Logo', () => {
     expect(screen.getAllByRole('listitem').length).toBeGreaterThan(2);
     click(/^continue$/i);
 
-    // 3 — four answers
-    await screen.findByText(/What does Northwind do\?/);
-    const continueBtn = () => screen.getByRole('button', { name: /show me directions/i }) as HTMLButtonElement;
-    expect(continueBtn().disabled).toBe(true);
-    fireEvent.click(within(screen.getByRole('group', { name: 'Industry' })).getByText('SaaS'));
-    fireEvent.click(within(screen.getByRole('group', { name: 'Audience' })).getByText('Startups'));
-    fireEvent.click(within(screen.getByRole('group', { name: 'Positioning' })).getByText('Challenger'));
-    fireEvent.click(within(screen.getByRole('group', { name: 'Personality' })).getByText('Bold'));
-    fireEvent.click(within(screen.getByRole('group', { name: 'Colours to avoid' })).getByText('Green'));
-    expect(continueBtn().disabled).toBe(false);
-    fireEvent.click(continueBtn());
+    // 3 — one box; a pasted brief fills the answers, nothing else is asked
+    await screen.findByText(/What we understood/);
+    const box = screen.getByLabelText(/about your brand/i);
+    fireEvent.change(box, {
+      target: { value: 'Industry: SaaS\nTarget Audience: Startups\nPositioning: Challenger\nPersonality: Bold\nBrand Summary: Northwind is accounting for studios.' },
+    });
+    fireEvent.blur(box);
+    await waitFor(() => expect(useLogoFlow.getState().context.industry).toBe('saas'));
+    expect(screen.getAllByText(/from your brief/).length).toBeGreaterThanOrEqual(3);
+    // Only what is wrong gets changed — one row, on demand.
+    fireEvent.click(within(screen.getByText('Where it stands').closest('li')!).getByRole('button', { name: /change/i }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Where it stands' })).getByText('Challenger'));
+    expect(useLogoFlow.getState().context.sources.positioning).toBe('you');
+    click(/show me directions/i);
 
     // 4 — three distinct directions
     const cards = await screen.findAllByTestId('direction-card');

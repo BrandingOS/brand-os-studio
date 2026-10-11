@@ -87,8 +87,17 @@ export type HueFamily =
   | 'pink'
   | 'neutral';
 
+/** The answers the intake can fill on the owner's behalf. */
+export type IntakeField = 'industry' | 'audience' | 'positioning' | 'personality' | 'oneLiner';
+/** Where an answer came from — shown beside it, so nothing is a mystery. */
+export type IntakeSource = 'website' | 'brief' | 'text' | 'logo' | 'you';
+
 export interface BrandContext {
   name: string;
+  /** Whatever the owner pasted: a brief, a website, a few sentences. */
+  about: string;
+  /** Who filled each answer. Absent = nobody yet. */
+  sources: Partial<Record<IntakeField, IntakeSource>>;
   /** One sentence, the owner's own words. Optional. */
   oneLiner: string;
   /** Vocabulary ids (`onboarding/vocabulary`), so Setup reads them back as-is. */

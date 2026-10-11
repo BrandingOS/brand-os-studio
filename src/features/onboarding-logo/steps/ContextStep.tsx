@@ -1,159 +1,187 @@
 /**
- * Step 3 — what only the owner knows.
+ * Step 3 — tell us about the brand, in whatever form you already have.
  *
- * Four required answers (what, who, where in the market, how it should feel)
- * and one optional one (colour feelings). Every answer is a controlled
- * vocabulary id — the same lists Setup's Brand Strategy uses — so the brand
- * this flow creates reads back in Setup without translation.
+ * Not a questionnaire. One box takes a brief, a website, or a few sentences;
+ * the product reads it (`model/intake.ts`) and shows what it understood as
+ * four short rows. The owner changes only what is wrong — each row opens its
+ * own choices on demand — and an empty box is fine too: the logo suggests the
+ * feel and the directions cope with an open answer.
  *
- * The logo has already told us something about personality; those chips are
- * marked as suggestions from the mark, never pre-selected.
+ * Every answer is a controlled-vocabulary id, so Setup reads it back as-is.
  */
-import { useMemo, useState } from 'react';
-import { DsChip, DsInput } from '@/shared/ds';
-import { AUDIENCE, INDUSTRY, PERSONALITY, POSITIONING } from '@/features/onboarding/vocabulary/vocabularies';
-import { useLogoFlow } from '../model/flowStore';
-import type { HueFamily } from '../model/types';
-import { personalityFromTraits } from '../engine/personality';
-import { HUE_CENTERS } from '../engine/palette';
+import { useState } from 'react';
+import { DsButton, DsChip, DsTextArea, LoadingPill } from '@/shared/ds';
+import { AiPromptMenu } from '@/shared/ai-handoff/AiPromptMenu';
+import { buildBriefPrompt } from '@/features/onboarding/brief/prompt';
+import { AUDIENCE, INDUSTRY, PERSONALITY, POSITIONING, type VocabularyMember } from '@/features/onboarding/vocabulary/vocabularies';
 import { hslToHex } from '@/shared/color/colorEngine';
+import { useLogoFlow } from '../model/flowStore';
+import { readIntake } from '../model/intake';
+import type { HueFamily, IntakeField, IntakeSource } from '../model/types';
+import { HUE_CENTERS } from '../engine/palette';
 
 const MAX_PERSONALITY = 3;
-const FEATURED_INDUSTRIES = 12;
-
 const HUES: HueFamily[] = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'neutral'];
+
+const SOURCE_LABEL: Record<IntakeSource, string> = {
+  website: 'from your website',
+  brief: 'from your brief',
+  text: 'from what you wrote',
+  logo: 'suggested by your logo',
+  you: 'your choice',
+};
 
 function hueSwatch(h: HueFamily): string {
   return h === 'neutral' ? '#a8a29e' : hslToHex(HUE_CENTERS[h], 72, 52);
 }
 
+type Row = { field: Exclude<IntakeField, 'oneLiner'>; label: string; vocab: VocabularyMember[]; multi?: boolean };
 
-function Question({ n, label, hint, children }: { n: number; label: string; hint?: string; children: React.ReactNode }) {
+const ROWS: Row[] = [
+  { field: 'industry', label: 'What it does', vocab: INDUSTRY },
+  { field: 'audience', label: 'Who it’s for', vocab: AUDIENCE },
+  { field: 'positioning', label: 'Where it stands', vocab: POSITIONING },
+  { field: 'personality', label: 'How it feels', vocab: PERSONALITY, multi: true },
+];
+
+function AnswerRow({ row }: { row: Row }) {
+  const context = useLogoFlow((s) => s.context);
+  const update = useLogoFlow((s) => s.updateContext);
+  const [open, setOpen] = useState(false);
+  const raw = context[row.field];
+  const ids = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const labels = ids.map((id) => row.vocab.find((m) => m.id === id)?.label ?? id);
+  const source = context.sources[row.field];
+
+  // Read live: two quick taps must both land.
+  const pick = (id: string) => {
+    const live = useLogoFlow.getState().context;
+    const sources = { ...live.sources, [row.field]: 'you' as const };
+    if (!row.multi) {
+      update({ [row.field]: id, sources });
+      setOpen(false);
+      return;
+    }
+    const cur = live.personality;
+    const next = cur.includes(id) ? cur.filter((p) => p !== id) : cur.length < MAX_PERSONALITY ? [...cur, id] : cur;
+    update({ personality: next, sources });
+  };
+
   return (
-    <section className="lf-q">
-      <header>
-        <span className="lf-q-num">{n}</span>
-        <div>
-          <h2>{label}</h2>
-          {hint && <p>{hint}</p>}
+    <li className={`lf-answer${open ? ' is-open' : ''}`}>
+      <div className="lf-answer-head">
+        <span className="lf-answer-label">{row.label}</span>
+        <span className="lf-answer-value">
+          {labels.length ? labels.join(' · ') : <span className="lf-answer-empty">We’ll decide</span>}
+          {source && labels.length > 0 && <span className="lf-answer-source">{SOURCE_LABEL[source]}</span>}
+        </span>
+        <DsButton tone="tertiary" size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {open ? 'Done' : labels.length ? 'Change' : 'Choose'}
+        </DsButton>
+      </div>
+      {open && (
+        <div className="lf-chips" role="group" aria-label={row.label}>
+          {row.vocab.map((m) => {
+            const active = ids.includes(m.id);
+            return (
+              <DsChip
+                key={m.id}
+                active={active}
+                aria-pressed={active}
+                disabled={row.multi && !active && ids.length >= MAX_PERSONALITY}
+                onClick={() => pick(m.id)}
+              >
+                {m.label}
+              </DsChip>
+            );
+          })}
         </div>
-      </header>
-      {children}
-    </section>
+      )}
+    </li>
   );
 }
 
 export function ContextStep() {
   const context = useLogoFlow((s) => s.context);
-  const read = useLogoFlow((s) => s.read);
+  const reading = useLogoFlow((s) => s.reading);
+  const note = useLogoFlow((s) => s.intakeNote);
+  const intakeRead = useLogoFlow((s) => s.intakeRead);
   const update = useLogoFlow((s) => s.updateContext);
-  const [allIndustries, setAllIndustries] = useState(false);
-  const suggested = useMemo(() => (read ? personalityFromTraits(read.traits) : []), [read]);
-
-  const industries = allIndustries || INDUSTRY.findIndex((i) => i.id === context.industry) >= FEATURED_INDUSTRIES
-    ? INDUSTRY
-    : INDUSTRY.slice(0, FEATURED_INDUSTRIES);
-
-  // Read live, not from the render: two quick taps must both land.
-  const togglePersonality = (id: string) => {
-    const context = useLogoFlow.getState().context;
-    const has = context.personality.includes(id);
-    if (has) update({ personality: context.personality.filter((p) => p !== id) });
-    else if (context.personality.length < MAX_PERSONALITY) update({ personality: [...context.personality, id] });
-  };
+  const [moreOpen, setMoreOpen] = useState(context.loveHues.length + context.avoidHues.length > 0);
+  const read = () => void readIntake();
+  const stale = context.about.trim() !== intakeRead.trim() && context.about.trim().length > 0;
 
   const toggleHue = (list: 'loveHues' | 'avoidHues', hue: HueFamily) => {
-    const context = useLogoFlow.getState().context;
+    const live = useLogoFlow.getState().context;
     const other = list === 'loveHues' ? 'avoidHues' : 'loveHues';
-    const has = context[list].includes(hue);
+    const has = live[list].includes(hue);
     update({
-      [list]: has ? context[list].filter((h) => h !== hue) : [...context[list], hue],
-      [other]: context[other].filter((h) => h !== hue),
-    } as Partial<typeof context>);
+      [list]: has ? live[list].filter((h) => h !== hue) : [...live[list], hue],
+      [other]: live[other].filter((h) => h !== hue),
+    } as Partial<typeof live>);
   };
 
   return (
     <div className="lf-stack lf-medium">
-      <Question n={1} label={`What does ${context.name || 'your brand'} do?`}>
-        <div className="lf-chips" role="group" aria-label="Industry">
-          {industries.map((i) => (
-            <DsChip key={i.id} active={context.industry === i.id} aria-pressed={context.industry === i.id} onClick={() => update({ industry: i.id })}>
-              {i.label}
-            </DsChip>
-          ))}
-          {!allIndustries && industries.length < INDUSTRY.length && (
-            <DsChip dashed onClick={() => setAllIndustries(true)}>
-              More…
-            </DsChip>
-          )}
-        </div>
-        <DsInput
-          placeholder="In one sentence, what you offer (optional)"
-          value={context.oneLiner}
-          maxLength={140}
-          onChange={(e) => update({ oneLiner: e.target.value })}
+      <section className="lf-intake">
+        <DsTextArea
+          aria-label="About your brand"
+          rows={5}
+          placeholder={`Paste a brief, drop your website, or just describe ${context.name || 'your brand'} in a sentence.`}
+          value={context.about}
+          onChange={(e) => update({ about: e.target.value })}
+          onPaste={() => setTimeout(read, 0)}
+          onBlur={read}
         />
-      </Question>
+        <div className="lf-intake-foot">
+          <span>Anything works — or leave it empty and we’ll go from your logo.</span>
+          <div className="lf-intake-actions">
+            {stale && !reading && (
+              <DsButton tone="secondary" size="sm" onClick={read}>
+                Read it
+              </DsButton>
+            )}
+            <AiPromptMenu prompt={() => buildBriefPrompt(context.name)} label="No brief? Get one from AI" />
+          </div>
+        </div>
+      </section>
 
-      <Question n={2} label="Who is it for?">
-        <div className="lf-chips" role="group" aria-label="Audience">
-          {AUDIENCE.map((a) => (
-            <DsChip key={a.id} active={context.audience === a.id} aria-pressed={context.audience === a.id} onClick={() => update({ audience: a.id })}>
-              {a.label}
-            </DsChip>
+      <section className="lf-understood" aria-live="polite" aria-busy={reading}>
+        <header>
+          <h2>{reading ? 'Reading…' : 'What we understood'}</h2>
+          {reading && <LoadingPill label="Reading" />}
+        </header>
+        {note && <p className="lf-understood-note">{note}</p>}
+        {context.oneLiner && <p className="lf-understood-line">“{context.oneLiner}”</p>}
+        <ul className="lf-answers">
+          {ROWS.map((row) => (
+            <AnswerRow key={row.field} row={row} />
           ))}
-        </div>
-      </Question>
+        </ul>
+      </section>
 
-      <Question n={3} label="Where does it stand in its market?">
-        <div className="lf-chips" role="group" aria-label="Positioning">
-          {POSITIONING.map((p) => (
-            <DsChip key={p.id} active={context.positioning === p.id} aria-pressed={context.positioning === p.id} onClick={() => update({ positioning: p.id })}>
-              {p.label}
-            </DsChip>
-          ))}
-        </div>
-      </Question>
-
-      <Question n={4} label="How should it feel?" hint={`Pick up to ${MAX_PERSONALITY}. Dotted ones are what your logo already says.`}>
-        <div className="lf-chips" role="group" aria-label="Personality">
-          {PERSONALITY.map((p) => {
-            const active = context.personality.includes(p.id);
-            const full = !active && context.personality.length >= MAX_PERSONALITY;
-            return (
-              <DsChip
-                key={p.id}
-                active={active}
-                aria-pressed={active}
-                disabled={full}
-                className={suggested.includes(p.id) && !active ? 'lf-chip-suggested' : undefined}
-                title={suggested.includes(p.id) ? 'Suggested by your logo' : undefined}
-                onClick={() => togglePersonality(p.id)}
-              >
-                {p.label}
-              </DsChip>
-            );
-          })}
-        </div>
-      </Question>
-
-      <Question n={5} label="Any colour feelings?" hint="Optional. We’ll lean towards what you love and never use what you rule out.">
-        <div className="lf-hue-rows">
-          {(['loveHues', 'avoidHues'] as const).map((list) => (
-            <div key={list} className="lf-hue-row">
-              <span className="lf-hue-row-label">{list === 'loveHues' ? 'Love' : 'Avoid'}</span>
-              <div className="lf-chips" role="group" aria-label={list === 'loveHues' ? 'Colours you love' : 'Colours to avoid'}>
-                {HUES.map((h) => (
-                  <DsChip key={h} active={context[list].includes(h)} aria-pressed={context[list].includes(h)} onClick={() => toggleHue(list, h)}>
-                    <span className="lf-hue-dot" style={{ background: hueSwatch(h) }} aria-hidden="true" />
-                    {h[0].toUpperCase() + h.slice(1)}
-                  </DsChip>
-                ))}
+      <div className="lf-more">
+        <DsButton tone="tertiary" size="sm" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}>
+          {moreOpen ? 'Hide colour preferences' : 'Any colours you love or want to avoid? (optional)'}
+        </DsButton>
+        {moreOpen && (
+          <div className="lf-hue-rows">
+            {(['loveHues', 'avoidHues'] as const).map((list) => (
+              <div key={list} className="lf-hue-row">
+                <span className="lf-hue-row-label">{list === 'loveHues' ? 'Love' : 'Avoid'}</span>
+                <div className="lf-chips" role="group" aria-label={list === 'loveHues' ? 'Colours you love' : 'Colours to avoid'}>
+                  {HUES.map((h) => (
+                    <DsChip key={h} active={context[list].includes(h)} aria-pressed={context[list].includes(h)} onClick={() => toggleHue(list, h)}>
+                      <span className="lf-hue-dot" style={{ background: hueSwatch(h) }} aria-hidden="true" />
+                      {h[0].toUpperCase() + h.slice(1)}
+                    </DsChip>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Question>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

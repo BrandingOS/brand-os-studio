@@ -33,8 +33,8 @@ export const STEP_META: Record<StepId, { label: string; title: string; subtitle:
   },
   context: {
     label: 'Context',
-    title: 'A few questions only you can answer',
-    subtitle: 'Four answers are enough to point the brand in the right direction.',
+    title: 'Tell us about your brand',
+    subtitle: 'Paste a brief, a website or a sentence — we’ll take it from there.',
   },
   directions: {
     label: 'Direction',
@@ -77,7 +77,8 @@ export function canEnter(step: StepId, s: Needs): boolean {
     case 'context':
       return !!s.logo && !!s.read && s.context.name.trim().length > 0;
     case 'directions':
-      return canEnter('context', s) && contextComplete(s.context);
+      // Nothing is required here: an open answer is the product's to decide.
+      return canEnter('context', s);
     case 'system':
       return canEnter('directions', s) && !!s.system;
     case 'build':
@@ -87,7 +88,7 @@ export function canEnter(step: StepId, s: Needs): boolean {
   }
 }
 
-/** The answers the directions genuinely need. Colour feelings are optional. */
+/** Whether every answer the directions use is filled. Informational, not a gate. */
 export function contextComplete(c: Needs['context']): boolean {
   return !!c.industry && !!c.audience && !!c.positioning && c.personality.length >= 1;
 }
