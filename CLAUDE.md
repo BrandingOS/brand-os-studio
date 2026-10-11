@@ -2043,6 +2043,20 @@ Other genuine preference keys not listed above: `brandos:ui-preference`,
 `brandos-onboarding-v4-theme`, `chronicle:mode`, `presentations-store`,
 `cmdk:recent`, `brandos-learn-progress`.
 
+## Start From Logo — `/onboard-brand/logo` (2026-10-11)
+
+The second way in: an owner with only a logo (a solid black mark is the
+expected case) gets the whole identity built around it — read the mark → four
+questions → three distinct directions → refine/approve the system part by part
+→ a saved brand + an organised package (logos SVG/PNG/PDF, palette + tokens +
+ASE, type system, pattern + graphic elements, board PNG/PDF, the brand-book PDF,
+a PPTX deck, social PNGs, one zip). Lives in `src/features/onboarding-logo/` —
+**read its README first.** Two rules worth knowing from here: the AI seam is
+`DirectionGenerator` (`engine/directions.ts`; today a deterministic rulebook),
+and the brand is written ONLY through the onboarding seams in
+`persist/commitBrand.ts` (createBrand → Library logo refs → `editAsUser` →
+`finishOnboarding`). Entry: the "Only have a logo?" switch on `/onboard-brand`.
+
 ## Onboarding — `/onboard-brand` (old UI, V3 pipeline — 2026-08-14)
 
 **The interface is `features/onboarding-v4/` and it is FROZEN.** It was restored

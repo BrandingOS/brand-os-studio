@@ -138,13 +138,17 @@ export function CreateScreen() {
   };
 
   const setupHref = then ? `/onboard-brand?then=${encodeURIComponent(then)}` : '/onboard-brand';
+  const logoHref = then ? `/onboard-brand/logo?then=${encodeURIComponent(then)}` : '/onboard-brand/logo';
 
   return (
     <CosmosShell variant="create">
       <header className="cosmos-header cosmos-header-create">
         <h1>{meta.title}</h1>
         <p className="subtitle">{meta.subtitle}</p>
-        <FlowSwitch to={setupHref} prefix="Already have a brand?" emphasis="Upload it" />
+        <div className="flow-switches">
+          <FlowSwitch to={setupHref} prefix="Already have a brand?" emphasis="Upload it" />
+          <FlowSwitch to={logoHref} prefix="Have a logo?" emphasis="Start from it" />
+        </div>
         <StepDots current={step} />
       </header>
 

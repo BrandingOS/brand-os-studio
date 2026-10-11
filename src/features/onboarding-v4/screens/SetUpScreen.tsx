@@ -697,6 +697,7 @@ export function SetUpScreen() {
   };
 
   const createHref = then ? `/onboard-brand/create?then=${encodeURIComponent(then)}` : '/onboard-brand/create';
+  const logoHref = then ? `/onboard-brand/logo?then=${encodeURIComponent(then)}` : '/onboard-brand/logo';
   const meta = PANEL_META[setupPanel];
 
   // ── The processing moment ──────────────────────────────────────────
@@ -753,7 +754,12 @@ export function SetUpScreen() {
             <h1>{HEADINGS[setupPanel].title}</h1>
             <p className="subtitle">{HEADINGS[setupPanel].subtitle}</p>
             {setupPanel === 1 && (
-              <FlowSwitch to={createHref} prefix="No brand yet?" emphasis="Create one from scratch" />
+              <div className="flow-switches">
+                {/* The second way in (2026-10-11): an owner with only a logo
+                    gets the whole identity built around it. */}
+                <FlowSwitch to={logoHref} prefix="Only have a logo?" emphasis="Build the brand from it" />
+                <FlowSwitch to={createHref} prefix="No brand yet?" emphasis="Create one from scratch" />
+              </div>
             )}
           </header>
         )}

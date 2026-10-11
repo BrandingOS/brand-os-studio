@@ -31,6 +31,7 @@ const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
 // src/features/onboarding/ and are consumed here.
 const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
 const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create"));
+const OnboardBrandLogoPage = lazy(() => import("./pages/onboard-brand/logo"));
 // v2 brand-scoped tabs — the 5 tabs always live inside a brand under /b/:slug/*.
 // See docs/ux-v2/PLAN.md for the full restructure plan.
 const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
@@ -398,6 +399,14 @@ const App = () => (
           <Route path="/onboard-brand/create" element={
             <ProtectedRoute>
               <OnboardBrandCreatePage />
+            </ProtectedRoute>
+          } />
+          {/* Start From Logo — the owner brings only a mark; the product
+              builds the identity around it. Static, so it ranks above
+              `/onboard-brand/:slug` like `/create` does. */}
+          <Route path="/onboard-brand/logo" element={
+            <ProtectedRoute>
+              <OnboardBrandLogoPage />
             </ProtectedRoute>
           } />
           {/* Review + resume. The slug names a brand that already exists, so
