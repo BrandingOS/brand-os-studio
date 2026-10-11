@@ -10,7 +10,7 @@
  * changing the flow.
  */
 import { useEffect } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { CosmosShell } from '@/features/onboarding-v4/components/CosmosShell';
 import { BrandMark } from '@/features/onboarding-v4/components/BrandMark';
 import { FlowSwitch } from '@/features/onboarding-v4/components/FlowSwitch';
@@ -39,6 +39,7 @@ const WIDTH: Record<StepId, string> = {
 
 export function LogoFlowScreen() {
   const [sp, setSp] = useSearchParams();
+  const navigate = useNavigate();
   const raw = sp.get('step');
   const requested: StepId = isStep(raw) ? raw : 'logo';
   const state = useLogoFlow();
@@ -131,7 +132,8 @@ export function LogoFlowScreen() {
             label={footer.label}
             disabled={footer.disabled}
             onClick={() => forward && go(forward)}
-            onBack={back && step !== 'logo' ? () => go(back) : undefined}
+            // Step 1 goes back to where the owner chose this path.
+            onBack={step === 'logo' ? () => navigate(existingHref) : back ? () => go(back) : undefined}
           />
         )}
       </div>
