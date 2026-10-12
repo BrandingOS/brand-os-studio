@@ -23,6 +23,10 @@ From the repository root with existing dependencies installed:
 npx vite --config tools/build-intent/vite.config.ts
 npx vitest run --config tools/build-intent/vite.config.ts
 npx vite build --config tools/build-intent/vite.config.ts
+node tools/build-intent/browser-check.mjs
+node tools/build-intent/assistant-workflow-check.mjs
+# One live request through the installed ChatGPT-authenticated Codex:
+node tools/build-intent/live-assistant-check.mjs
 ```
 
 The local URL is printed by Vite (port 5190 preferred). Build output is
@@ -57,9 +61,22 @@ choices are included in the implementation handoff.
 
 ## Functional Scope and Limits
 
-- Create, search and filter requests; edit intent and record corrections.
-- View a curated interactive prototype for BI-001. New requests have no
-  automatically fabricated interpretation or prototype.
+- Create, search and filter requests. New requests need only the idea; the title
+  is optional. The selected request survives reloads.
+- Each request has a conversation, direct editing of its title, original brief,
+  intended outcome, type and criteria, plus undo for up to ten prior drafts
+  (older snapshots are trimmed if they exceed the local size budget).
+- View the curated BI-001 prototype, or an AI-generated interactive prototype.
+  New requests automatically start interpretation when Codex is connected.
+  Follow-up messages update the intended outcome, criteria and prototype
+  together. Routine changes are applied immediately and can be undone.
+- Conversations survive reloads and compose drafts survive request switching.
+  Invalid output, provider failures and cancellation preserve the existing
+  request. A response based on an obsolete revision is not applied.
+- Generated prototypes run in a sandboxed iframe without same-origin access.
+  CSP blocks network connections, external forms and resources. The preview
+  can be expanded; its interactions are demonstration state, not saved brand
+  records. A stale prototype is marked and cannot be approved.
 - Approve an outcome and export a Markdown handoff for the existing AI tool.
 - Add acceptance criteria, record external implementation evidence, manually
   check criteria, then close a request. No automated test claims are made.
@@ -67,17 +84,21 @@ choices are included in the implementation handoff.
 - Zod validates stored data. Invalid records revert to the seed; storage write
   failures display a warning and leave in-memory state exportable.
 - All records and uploaded pictures are browser-local. No two-user sync,
-  identity authorization, provider connection, GitHub sync or automatic code
-  execution is implemented. Reviewer names are labels, not authenticated users.
-- Codex subscription-based integration must be separately verified against
-  the installed CLI/app-server; Claude subscription support needs its own
-  official verification. No paid API dependency has been added.
+  identity authorization, GitHub sync or automatic production code changes
+  are implemented. Reviewer names are labels, not authenticated users.
+- A dev-only Vite bridge runs the installed Codex CLI with its existing
+  ChatGPT login. It requires that login, removes API-key environment variables,
+  forces ChatGPT authentication, uses the read-only sandbox and validates the
+  final structured response. There is no paid API fallback. A status endpoint
+  reports availability. Only same-origin local protocol requests can invoke it.
+- The bridge prepares product drafts and previews; it cannot apply changes to
+  BrandingOS source files. Production static builds do not include this bridge.
+  Claude is not connected. Each person needs their own local tool sign-in.
 
 ## Next Implementation Boundary
 
 Keep the developer workspace independent of customer branding workflows.
-Introduce a local provider service for the existing signed-in coding tools,
-structured request interpretation, generated preview artifacts, revision-bound
-execution and real repository evidence. Add shared storage and authenticated
+Extend the current local drafting bridge with revision-bound production
+implementation and real repository evidence. Add shared storage and authenticated
 reviewers for collaboration. Never treat provider output as an approved user
 decision, nor use a checked box as automated test evidence.

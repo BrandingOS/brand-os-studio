@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approve, canComplete, complete, handoff, readWorkspace, revise, seed } from './model';
+import { approve, canComplete, complete, editRequest, handoff, readWorkspace, revise, seed, undoRequest } from './model';
 
 describe('review and completion contract', () => {
   it('invalidates approval and verification when the agreed outcome changes', () => {
@@ -30,5 +30,21 @@ describe('review and completion contract', () => {
   it('validates saved records instead of trusting local storage', () => {
     expect(() => readWorkspace('{"version":1,"requests":[{"id":"bad"}]}')).toThrow();
     expect(readWorkspace(null)[0].id).toBe('BI-001');
+  });
+  it('allows direct editing and restores the prior draft without restoring approval', () => {
+    const approved = approve(structuredClone(seed[0]), 'Owner');
+    const edited = editRequest(approved, { title: 'Changed title', intent: 'A new result' }, 'Direct edit');
+    expect(edited.approvedRevision).toBeNull();
+    const restored = undoRequest(edited);
+    expect(restored.title).toBe(approved.title);
+    expect(restored.intent).toBe(approved.intent);
+    expect(restored.approvedRevision).toBeNull();
+    expect(restored.revision).toBeGreaterThan(edited.revision);
+  });
+  it('prevents approving a prototype that belongs to an older intent', () => {
+    const request = { ...structuredClone(seed[0]), artifact: { title: 'Preview', html: '<p>Old</p>', revision: 1 } };
+    const edited = editRequest(request, { intent: 'Changed outcome' }, 'Direct edit');
+    expect(() => approve(edited, 'Owner')).toThrow();
+    expect(approve(undoRequest(edited), 'Owner').status).toBe('ready');
   });
 });

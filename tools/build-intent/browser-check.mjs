@@ -9,6 +9,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
+  await page.route('**/__build-intent/status', route => route.fulfill({ json: { connected: false, provider: 'Codex' } }));
   const response = await page.goto('http://127.0.0.1:5190');
   assert.equal(response.status(), 200);
   await page.getByRole('heading', { name: 'نبني اللي في بالك.' }).waitFor();
@@ -39,7 +40,7 @@ try {
   assert.equal(await page.getByText('اكتمل الطلب بناءً على الدليل والمراجعة المسجلين.').count(), 0);
   assert.ok(await page.getByText('مكتمل', { exact: true }).count() > 0);
   await page.getByRole('button', { name: 'طلب جديد', exact: true }).click();
-  await page.getByLabel('اسم الطلب', { exact: true }).fill('تعديل عنوان الصفحة');
+  await page.getByLabel('اسم الطلب (اختياري)', { exact: true }).fill('تعديل عنوان الصفحة');
   await page.getByLabel('الفكرة بصوتك').fill('أريد تغيير العنوان فقط، دون تغيير باقي الصفحة.');
   await page.getByLabel('نوع الطلب').selectOption('small');
   await page.getByRole('button', { name: 'تسجيل الطلب', exact: true }).click();
@@ -102,7 +103,7 @@ try {
   await page.getByRole('radio', { name: 'English', exact: true }).click();
   await page.getByRole('button', { name: 'New request', exact: true }).click();
   await page.getByRole('dialog', { name: 'New request', exact: true }).waitFor();
-  await page.getByLabel('Request title', { exact: true }).fill('An English request');
+  await page.getByLabel('Request title (optional)', { exact: true }).fill('An English request');
   await page.getByLabel('Your idea', { exact: true }).fill('Keep the original user text.');
   await page.getByRole('button', { name: 'Create request', exact: true }).click();
   await page.getByRole('radio', { name: 'العربية', exact: true }).click();

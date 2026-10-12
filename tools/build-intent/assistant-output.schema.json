@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reply", "change"],
+  "properties": {
+    "reply": { "type": "string" },
+    "change": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title", "intent", "kind", "checks", "prototypeTitle", "prototypeHtml"],
+          "properties": {
+            "title": { "type": "string" },
+            "intent": { "type": "string" },
+            "kind": { "type": "string", "enum": ["feature", "fix", "small"] },
+            "checks": { "type": "array", "items": { "type": "string" } },
+            "prototypeTitle": { "type": "string" },
+            "prototypeHtml": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

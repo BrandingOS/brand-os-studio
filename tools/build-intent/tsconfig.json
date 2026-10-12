@@ -11,5 +11,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["main.tsx", "model.ts", "model.test.ts"]
+  "include": ["*.tsx", "*.ts", "*.d.ts"]
 }
