@@ -68,3 +68,5 @@ src/features/tools/3d-logo-studio/__tests__/__screenshots__/
 # Anchored to the repo root ON PURPOSE: `.audit/` unanchored would also
 # swallow `src/**/__tests__/.audit/`, which tests WRITE and the repo tracks.
 /.audit/
+dist-build-intent/
+.build-intent-cache/
