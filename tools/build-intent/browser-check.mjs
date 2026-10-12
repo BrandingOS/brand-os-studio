@@ -19,16 +19,16 @@ try {
   await page.screenshot({ path: `${output}/desktop.png`, fullPage: true });
   await page.getByRole('button', { name: 'جريء وحيوي' }).click();
   await page.getByRole('button', { name: 'اعتماد الاتجاه', exact: true }).click();
-  await page.getByRole('button', { name: 'خطة العمل', exact: true }).click();
+  await page.getByRole('tab', { name: 'خطة العمل', exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'تنزيل ملف التسليم' }).click();
   const artifact = await downloadPromise;
   assert.match(await readFile(await artifact.path(), 'utf8'), /Direction: bold/);
-  await page.getByRole('button', { name: 'النموذج الأولي', exact: true }).click();
+  await page.getByRole('tab', { name: 'النموذج الأولي', exact: true }).click();
   await page.getByRole('button', { name: 'طبيعي وقريب' }).click();
   assert.equal(await page.getByRole('button', { name: 'اعتماد الاتجاه', exact: true }).isEnabled(), true);
   await page.getByRole('button', { name: 'اعتماد الاتجاه', exact: true }).click();
-  await page.getByRole('button', { name: 'التحقق', exact: true }).click();
+  await page.getByRole('tab', { name: 'التحقق', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: 'إغلاق بعد التحقق' }).isEnabled(), false);
   await page.getByRole('button', { name: 'تسجيل تنفيذ خارجي ومراجعته' }).click();
   for (const box of await page.getByRole('checkbox').all()) await box.check();
@@ -45,9 +45,9 @@ try {
   await page.getByRole('button', { name: 'تسجيل الطلب', exact: true }).click();
   await page.getByRole('textbox', { name: 'النتيجة المقصودة', exact: true }).fill('تغيير عنوان الصفحة الرئيسية إلى الاسم الجديد.');
   await page.getByRole('button', { name: 'حفظ التصحيح', exact: true }).click();
-  await page.getByRole('button', { name: 'النموذج الأولي', exact: true }).click();
+  await page.getByRole('tab', { name: 'النموذج الأولي', exact: true }).click();
   await page.getByRole('heading', { name: 'المعاينة لم تُجهز بعد' }).waitFor();
-  await page.getByRole('button', { name: 'خطة العمل', exact: true }).click();
+  await page.getByRole('tab', { name: 'خطة العمل', exact: true }).click();
   assert.equal(await page.locator('.plan li').count(), 3);
   await page.getByRole('textbox', { name: 'بحث في الطلبات' }).fill('غير موجود');
   await page.getByText('لا توجد طلبات هنا.', { exact: true }).waitFor();
@@ -60,7 +60,56 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `overflow at ${width}`);
     await page.screenshot({ path: `${output}/${width}.png`, fullPage: true });
   }
+  const recordsBeforeLanguageSwitch = await page.evaluate(() => localStorage.getItem('build-intent.workspace.v1'));
+  await page.getByRole('radio', { name: 'English', exact: true }).click();
+  await page.getByRole('heading', { name: 'Build what you mean.' }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.dir), 'ltr');
+  await page.getByRole('heading', { name: 'From a logo to an identity the owner builds' }).waitFor();
+  await page.getByRole('tab', { name: 'Intent', exact: true }).click();
+  assert.match(await page.getByRole('textbox', { name: 'Intended outcome', exact: true }).inputValue(), /The brand owner starts/);
+  await page.getByRole('tab', { name: 'Verification', exact: true }).click();
+  await page.getByText('The saved identity reflects the brand owner’s choices', { exact: true }).waitFor();
+  await page.getByRole('tab', { name: 'Activity', exact: true }).click();
+  await page.getByText('Demo case created from your request and the #Logo to Branding conversation.', { exact: true }).waitFor();
+  await page.getByRole('tab', { name: 'Prototype', exact: true }).click();
+  assert.equal(await page.evaluate(() => localStorage.getItem('build-intent.workspace.v1')), recordsBeforeLanguageSwitch);
+  const canonicalStyle = await page.getByRole('button', { name: 'Approve direction', exact: true }).evaluate(button => ({
+    background: getComputedStyle(button).backgroundColor,
+    radius: getComputedStyle(button).borderRadius,
+    font: getComputedStyle(button).fontFamily,
+    accent: getComputedStyle(document.documentElement).getPropertyValue('--ds-accent').trim(),
+    isCanonical: button.classList.contains('ds-btn--primary'),
+  }));
+  assert.equal(canonicalStyle.isCanonical, true);
+  assert.equal(canonicalStyle.accent, '#111113');
+  assert.equal(canonicalStyle.background, 'rgb(17, 17, 19)');
+  assert.equal(canonicalStyle.radius, '999px');
+  assert.match(canonicalStyle.font, /Plus Jakarta Sans/);
+  await page.reload();
+  await page.getByRole('heading', { name: 'Build what you mean.' }).waitFor();
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1100 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `English overflow at ${width}`);
+    await page.screenshot({ path: `${output}/english-${width}.png`, fullPage: true });
+  }
+  await page.getByRole('button', { name: 'Approve direction', exact: true }).click();
+  await page.getByRole('tab', { name: 'Activity', exact: true }).click();
+  await page.getByText('Product owner approved the direction, revision 1.', { exact: true }).waitFor();
+  const approvedRecords = await page.evaluate(() => localStorage.getItem('build-intent.workspace.v1'));
+  await page.getByRole('radio', { name: 'العربية', exact: true }).click();
+  assert.equal(await page.evaluate(() => localStorage.getItem('build-intent.workspace.v1')), approvedRecords);
+  await page.getByRole('button', { name: 'الاتجاه معتمد', exact: true }).waitFor();
+  await page.getByRole('radio', { name: 'English', exact: true }).click();
+  await page.getByRole('button', { name: 'New request', exact: true }).click();
+  await page.getByRole('dialog', { name: 'New request', exact: true }).waitFor();
+  await page.getByLabel('Request title', { exact: true }).fill('An English request');
+  await page.getByLabel('Your idea', { exact: true }).fill('Keep the original user text.');
+  await page.getByRole('button', { name: 'Create request', exact: true }).click();
+  await page.getByRole('radio', { name: 'العربية', exact: true }).click();
+  await page.getByRole('heading', { name: 'An English request', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl');
+  await page.getByText('Keep the original user text.', { exact: true }).waitFor();
   assert.deepEqual(errors, []);
-  console.log('PASS: images, responsive layout, prototype choices, revision invalidation, handoff download, evidence-gated completion, persistence, new request, short plan and search.');
+  console.log('PASS: existing workflows, Arabic/English switching and persistence, both layout directions at three widths, localized example, canonical DS button tokens, shared modal and preserved user content.');
   console.log(`Screenshots: ${output}`);
 } finally { await browser.close(); }

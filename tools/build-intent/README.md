@@ -3,6 +3,18 @@
 An independent developer-facing prototype inside the BrandingOS repository.
 It does not change customer routes, onboarding, backend data or brand assets.
 
+The interface imports the canonical `src/shared/ds` tokens, component styles,
+buttons, inputs, text areas, segmented controls, switches, checkboxes, tabs,
+badges, toast and modal. Local CSS owns the workspace layout, not a new palette
+or control system. The product font is Plus Jakarta Sans, loaded the same way
+as the main application's HTML entry point.
+
+The header switches between Arabic (RTL) and English (LTR); the preference
+persists in `build-intent.locale`. UI labels and the curated BI-001 example
+have translations. Switching languages does not rewrite request records,
+change revisions or invalidate approvals. User-authored text remains in its
+original language; this prototype does not offer automatic translation.
+
 ## Run
 
 From the repository root with existing dependencies installed:
