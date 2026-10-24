@@ -2714,11 +2714,15 @@ When adding a feature: write tests at every layer that applies. New schema → u
 
 ## Git conventions
 
-- Default branch is `dev` (NOT `main`). Work lands on `dev`; merge to `main`
-  is a release step the user handles manually.
-- A peer branch `x` is used for a separate deploy target. Many commits should
-  land on both — the convenient pattern is:
-  `git push origin dev && git push origin dev:x` (no force, `x` is an ancestor of `dev`).
+- **`main` is the trunk (2026-10-24).** Start every piece of work from
+  `main` on a short-lived `feat/<name>` branch; finished work lands back on
+  `main`. GitHub is the source of truth — push before you stop.
+- **`demo` is what is live** (demo.brandingos.ai). A release fast-forwards it
+  to `main`: `git push origin origin/main:refs/heads/demo`.
+- `dev` and `x` are kept only because Cloudflare builds are wired to them.
+  Do not land work on them.
+- Full rules, the release check and the archived-branch SHAs:
+  `docs/BRANCHING.md`. Do not create long-lived branches.
 - Commit messages follow a `feat(scope): …` / `fix(scope): …` / `refine(scope): …`
   convention — see `git log --oneline` for recent examples.
 
